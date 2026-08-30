@@ -166,17 +166,24 @@ The ledger compares the event amount with the authorized amount. A difference en
 
 ## Withdrawal lifecycle
 
-The candidate withdrawal state machine is:
+The candidate withdrawal state machine uses the canonical names in [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) section 9.3.
+
+| Canonical name | Previous accounting name | Meaning |
+| --- | --- | --- |
+| burn submitted | burn_observed | Unfinalized Arbitrum burn event |
+| transaction_prepared | (unnamed) | Unsigned native payout after `payable` |
+| closed | closed | Ledger close after `confirmed` |
+| refunded | refunded | Pre-signature pZEC restoration after the payable is cancelled |
 
 ```text
-requested -> screened -> burn_observed -> burn_finalized -> payable -> signed
-signed -> broadcast -> mined -> confirmed -> closed
-requested | screened -> rejected_before_burn
-burn_observed -> expired_or_reorganized_evidence -> closed_without_finalized_burn
-burn_finalized | payable -> refund_authorized_on_unrecoverable_pre_signature_failure -> refunded
+requested -> screened -> burn submitted -> burn finalized -> payable
+payable -> transaction_prepared -> signed -> broadcast -> mined -> confirmed -> closed
+requested | screened -> rejected before burn
+burn submitted -> expired or reorganized evidence -> closed without finalized burn
+burn finalized | payable -> refund authorized on unrecoverable pre-signature failure -> refunded
 signed | broadcast | mined -> unresolved
-unresolved -> exact_transaction_observed -> broadcast | mined
-unresolved -> input_restoration_proved -> payable
+unresolved -> exact committed transaction observed -> broadcast | mined
+unresolved -> verified input restoration -> payable
 ```
 
 ### Burn finalized
