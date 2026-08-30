@@ -166,7 +166,14 @@ The ledger compares the event amount with the authorized amount. A difference en
 
 ## Withdrawal lifecycle
 
-The candidate withdrawal state machine uses the canonical names in [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) section 9.3. `closed` and `refunded` are ledger outcomes after `confirmed` or an approved pre-signature refund. `burn submitted` is the observed burn, not a second observation state.
+The candidate withdrawal state machine uses the canonical names in [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) section 9.3.
+
+| Canonical name | Previous accounting name | Meaning |
+| --- | --- | --- |
+| burn submitted | burn_observed | Unfinalized Arbitrum burn event |
+| transaction_prepared | (unnamed) | Unsigned native payout after `payable` |
+| closed | closed | Ledger close after `confirmed` |
+| refunded | refunded | Pre-signature pZEC restoration after the payable is cancelled |
 
 ```text
 requested -> screened -> burn submitted -> burn finalized -> payable
