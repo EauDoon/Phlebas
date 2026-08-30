@@ -6,6 +6,7 @@ import {
   parseAtomicUnits,
   quoteAtomsForFill,
   sizeAtomsForQuote,
+  worstPriceTicks,
 } from "./units.ts";
 
 test("formats and parses 8-decimal pZEC atoms", () => {
@@ -31,4 +32,9 @@ test("rejects extra precision and empty strings", () => {
   assert.throws(() => parseAtomicUnits("0.001", 2), /no more than 2 decimal places/);
   assert.throws(() => parseAtomicUnits("", 8), /plain decimal notation/);
   assert.throws(() => parseAtomicUnits("0", 8), /at least 0.00000001/);
+});
+
+test("integer worst buy price rounds up to the next tick", () => {
+  assert.equal(worstPriceTicks(5284n, "buy", 50n), 5311n);
+  assert.equal(worstPriceTicks(5000n, "sell", 50n), 4975n);
 });

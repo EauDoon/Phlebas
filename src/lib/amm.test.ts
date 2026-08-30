@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   balancedQuoteAtoms,
   feeAdjustedProductHolds,
+  quoteConstantProductAmountIn,
   quoteConstantProductSwap,
   quoteConstantProductSwapAtoms,
 } from "./amm.ts";
@@ -106,4 +107,13 @@ test("balanced add uses integer reserve ratio", () => {
 
 test("rejects empty integer reserves", () => {
   assert.throws(() => quoteConstantProductSwapAtoms(1n, 0n, 50_000n), /reserves must be positive/);
+});
+
+test("amount-in inverse covers the requested amount out", () => {
+  const reserveIn = 421_205_000000n;
+  const reserveOut = 797_132_000000n;
+  const amountOut = 1_00000000n;
+  const amountIn = quoteConstantProductAmountIn(amountOut, reserveIn, reserveOut);
+  const quoted = quoteConstantProductSwapAtoms(amountIn, reserveIn, reserveOut);
+  assert.ok(quoted.amountOut >= amountOut);
 });

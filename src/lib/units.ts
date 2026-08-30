@@ -71,3 +71,26 @@ export function sizeAtomsForQuote(quoteAtoms: bigint, priceTicks: bigint): bigin
   }
   return (quoteAtoms * QUOTE_COST_DIVISOR) / priceTicks;
 }
+
+export function worstPriceTicks(
+  lastTicks: bigint,
+  side: "buy" | "sell",
+  slippageHundredths: bigint,
+): bigint {
+  if (lastTicks <= 0n) {
+    throw new RangeError("Reference price must be positive");
+  }
+  if (slippageHundredths < 0n || slippageHundredths >= 10_000n) {
+    throw new RangeError("Slippage must be between 0 and 100 percent");
+  }
+
+  if (side === "buy") {
+    return ((lastTicks * (10_000n + slippageHundredths)) + 9_999n) / 10_000n;
+  }
+
+  const ticks = (lastTicks * (10_000n - slippageHundredths)) / 10_000n;
+  if (ticks <= 0n) {
+    throw new RangeError("Worst price is outside the preview range");
+  }
+  return ticks;
+}
