@@ -9,6 +9,16 @@ export const metadata: Metadata = {
   },
   description:
     "A simulation and protocol plan for transparent ZEC markets against USDC and USDT0.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
 };
 
 export const viewport: Viewport = {
