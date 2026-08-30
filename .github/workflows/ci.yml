@@ -17,7 +17,7 @@ jobs:
   application:
     name: Application
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Check out exact commit
@@ -36,3 +36,9 @@ jobs:
 
       - name: Verify application
         run: npm run check
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser acceptance
+        run: npm run test:browser

@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test src/lib/*.test.ts",
     "test:browser": "playwright test",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run scan:secrets && npm run build",
     "check:browser": "npm run check && npm run test:browser"
   },
   "dependencies": {
