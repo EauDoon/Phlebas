@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { books, markets, recentTrades, type MarketId } from "./market-data.ts";
+import { books, chartSeries, markets, pools, recentTrades, type MarketId } from "./market-data.ts";
 
 for (const marketId of Object.keys(markets) as MarketId[]) {
   test(`${marketId} ask totals accumulate from best to worst`, () => {
@@ -23,4 +23,22 @@ for (const marketId of Object.keys(markets) as MarketId[]) {
   test(`${marketId} recent-trade fixture starts at its illustrative last price`, () => {
     assert.equal(recentTrades[marketId][0].price, markets[marketId].last);
   });
+
+  test(`${marketId} 24h stats match the 1D series`, () => {
+    const series = chartSeries[marketId]["1D"];
+    const market = markets[marketId];
+    const open = series[0];
+    assert.equal(market.high, Math.max(...series));
+    assert.equal(market.low, Math.min(...series));
+    assert.equal(market.last, series.at(-1));
+    assert.equal(market.change, Number((((market.last - open) / open) * 100).toFixed(2)));
+  });
 }
+
+test("pool quote reserves match pZEC reserve times the market last", () => {
+  for (const pool of pools) {
+    const marketId = pool.id === "pZEC/USDT0" ? "ZEC/USDT" : "ZEC/USDC";
+    const impliedQuote = pool.reserveZec * markets[marketId].last;
+    assert.ok(Math.abs(impliedQuote - pool.reserveQuote) < 1);
+  }
+});

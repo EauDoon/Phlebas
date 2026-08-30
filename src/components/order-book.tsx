@@ -36,7 +36,7 @@ export function OrderBook({ marketId }: { marketId: MarketId }) {
             <td colSpan={3}>
               <div className={styles.midPrice}>
                 <strong>{market.last.toFixed(2)}</strong>
-                <span>illustrative mid</span>
+                <span>illustrative last</span>
               </div>
             </td>
           </tr>

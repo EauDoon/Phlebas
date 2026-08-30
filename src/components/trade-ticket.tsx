@@ -102,7 +102,7 @@ export function TradeTicket({ market }: { market: Market }) {
       </div>
 
       {market.id === "ZEC/USDT" && (
-        <p className={styles.gateNotice}>Later listing gate. This market remains disabled unless its separate issuer, legal, and security gates pass.</p>
+        <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
       )}
 
       <div className={styles.segmented} role="group" aria-label="Order side">
@@ -222,7 +222,7 @@ export function TradeTicket({ market }: { market: Market }) {
         </div>
         <div>
           <dt>Trading fee</dt>
-          <dd>5 bps maker, 15 bps taker</dd>
+          <dd>Proposed 5 / 15 bps; not deducted here</dd>
         </div>
       </dl>
 

@@ -74,7 +74,7 @@ export function LiquidityPanel({
         </div>
 
         {selectedPool.id === "pZEC/USDT0" && (
-          <p className={styles.gateNotice}>Later listing gate. This pool remains disabled unless its separate issuer, legal, and security gates pass.</p>
+          <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
         )}
 
         <div className={styles.depositStack}>
