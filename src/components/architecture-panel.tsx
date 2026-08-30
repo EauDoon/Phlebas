@@ -4,12 +4,12 @@ const layers = [
   {
     label: "Public interface",
     title: "Vercel web application",
-    items: ["Read-only market data", "Client-side order signing", "Simulation and documentation", "No custody keys or Zcash node"],
+    items: ["Read-only market data", "Client-side order preview; signing not connected", "Simulation and documentation", "No custody keys or Zcash node"],
   },
   {
     label: "Trading network",
-    title: "Arbitrum One contracts",
-    items: ["pZEC, native USDC, and USDT0", "Atomic CLOB settlement", "Constrained constant product pools", "Timelocked governance and pause controls"],
+    title: "Matcher and Arbitrum contracts",
+    items: ["Offchain matcher, not trustless", "Onchain atomic settlement", "Constrained constant product pools", "USDT0 is a later listing gate"],
   },
   {
     label: "Zcash gateway",
@@ -46,7 +46,7 @@ export function ArchitecturePanel() {
       </div>
       <div className={styles.honestyBar}>
         <strong>Proposed product label</strong>
-        <span>Designed as a hybrid DEX with onchain settlement, constrained AMM contracts, and a custody-backed ZEC gateway. Mainnet access policy remains unresolved.</span>
+        <span>Designed as a hybrid DEX with an offchain matcher, onchain settlement, constrained AMM contracts, and a custody-backed ZEC gateway. The matcher is not trustless. Mainnet access policy remains unresolved.</span>
       </div>
     </section>
   );

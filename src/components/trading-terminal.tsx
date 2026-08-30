@@ -58,7 +58,7 @@ export function TradingTerminal({
       <a className={styles.skipLink} href="#main-content">Skip to main content</a>
       <div className={styles.simulationBanner} role="status">
         <strong>Protocol preview</strong>
-        <span>No wallets, real assets, live prices, contracts, deposits, or orders are connected.</span>
+        <span>No wallets, real assets, live prices, contracts, deposits, or orders are connected. The proposed matcher is offchain and is not trustless.</span>
       </div>
 
       <header className={styles.topbar}>
@@ -81,7 +81,7 @@ export function TradingTerminal({
         </nav>
         <div className={styles.headerActions}>
           <span className={styles.network}><i />Arbitrum design</span>
-          <button type="button" className={styles.connectButton} disabled>Connect wallet</button>
+          <button type="button" className={styles.connectButton} disabled>Wallets unavailable</button>
         </div>
       </header>
 
