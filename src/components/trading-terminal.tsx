@@ -106,7 +106,12 @@ export function TradingTerminal({
               </div>
               <dl className={styles.marketStats}>
                 <div className={styles.priceStat}><dt>Illustrative last</dt><dd>{market.last.toFixed(2)}</dd></div>
-                <div><dt>24h change</dt><dd className={styles.buyText}>+{market.change.toFixed(2)}%</dd></div>
+                <div>
+                  <dt>24h change</dt>
+                  <dd className={market.change >= 0 ? styles.buyText : styles.sellText}>
+                    {market.change > 0 ? "+" : ""}{market.change.toFixed(2)}%
+                  </dd>
+                </div>
                 <div><dt>24h high</dt><dd>{market.high.toFixed(2)}</dd></div>
                 <div><dt>24h low</dt><dd>{market.low.toFixed(2)}</dd></div>
                 <div><dt>24h volume</dt><dd>{market.volume}</dd></div>
