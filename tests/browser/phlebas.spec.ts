@@ -195,6 +195,7 @@ for (const width of viewports) {
       await page.keyboard.type("0.00000002");
       await expect(amount).toHaveValue("0.00000002");
       await expect(page.getByText("0.000001", { exact: true })).toBeVisible();
+      await expect(page.getByText("Integer swap out")).toBeVisible();
 
       expect(runtimeErrors).toEqual([]);
     });
@@ -272,4 +273,34 @@ test("gateway preview is not a receivable deposit", async ({ page }) => {
   await expect(page.getByText("Preview withdrawal states, not Withdraw ZEC.")).toBeVisible();
   await page.getByRole("button", { name: "Next state" }).click();
   await expect(page.getByText("Screened", { exact: true })).toBeVisible();
+});
+
+test("local matcher fills a buy against the fixture ask", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Ask 52.91" }).click();
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Submit simulated buy" }).click();
+  await expect(page.getByText(/Filled against the local ZEC\/USDC book/)).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Fills" })).toBeVisible();
+  await page.getByRole("tab", { name: "Fills" }).click();
+  await expect(page.getByRole("table", { name: /Session fills for ZEC\/USDC/ })).toBeVisible();
+});
+
+test("status and missing routes stay labeled as simulation", async ({ page }) => {
+  const status = await page.goto("/status", { waitUntil: "load" });
+  expect(status?.ok(), "/status response").toBe(true);
+  await expect(page.getByRole("heading", { name: "Simulation status" })).toBeVisible();
+  await expect(page.getByText("in-browser", { exact: true })).toBeVisible();
+  await expect(page.getByText("live funds", { exact: false })).toBeVisible();
+
+  const missing = await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "load" });
+  expect(missing?.status(), "404 status").toBe(404);
+  await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
+  await expect(page.getByText("Simulation only", { exact: true })).toBeVisible();
+});
+
+test("ZIP 321 copy warns that the template is not payable", async ({ page }) => {
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Copy URI template" }).click();
+  await expect(page.getByText("Copied a non-payable template. {TEX_ADDRESS} is a placeholder, not a deposit address.")).toBeVisible();
 });
