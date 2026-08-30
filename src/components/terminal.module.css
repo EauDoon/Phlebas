@@ -786,6 +786,19 @@
   font: inherit;
 }
 
+.reviewBlock {
+  margin: 0 14px 8px;
+}
+
+.reviewBlock .gateNotice {
+  margin: 0 0 10px;
+}
+
+.reviewBlock .textButton {
+  display: block;
+  margin: 8px 0 0;
+}
+
 .uriBlock button {
   width: fit-content;
   min-height: 44px;

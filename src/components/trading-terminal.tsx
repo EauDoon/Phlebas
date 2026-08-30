@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
-import { markets, recentTrades } from "@/lib/market-data";
+import { markets, pools, recentTrades } from "@/lib/market-data";
+import type { SessionLogEvent } from "@/lib/replay";
 import { cancelOrder, submitOrder, type TimeInForce } from "@/lib/matcher";
 import {
   applySubmit,
@@ -78,6 +79,8 @@ export function TradingTerminal({
   const [books, setBooks] = useState(seedBooks);
   const [accounts, setAccounts] = useState(seedAccounts);
   const [fills, setFills] = useState<UserFill[]>([]);
+  const [events, setEvents] = useState<SessionLogEvent[]>([]);
+  const [accountEpoch, setAccountEpoch] = useState(0);
   const [priceSelection, setPriceSelection] = useState<{ ticks: bigint; nonce: number } | null>(null);
   const nextOrderId = useRef(1);
   const nextPriceNonce = useRef(1);
@@ -122,6 +125,7 @@ export function TradingTerminal({
 
     setBooks({ ...books, [marketId]: result.book });
     setAccounts({ ...accounts, [marketId]: applied.account });
+    setEvents((current) => [...current, { kind: "submit", marketId, id, ...order }]);
     if (result.fills.length > 0) {
       const time = formatFillTime();
       setFills((current) => [
@@ -143,12 +147,32 @@ export function TradingTerminal({
     }
     setBooks({ ...books, [marketId]: cancelOrder(book, orderId) });
     setAccounts({ ...accounts, [marketId]: releaseRestingOrder(account, resting) });
+    setEvents((current) => [...current, { kind: "cancel", marketId, orderId }]);
+  }
+
+  function cancelAllUserOrders() {
+    const open = userOrders(book);
+    let nextBook = book;
+    let nextAccount = account;
+    for (const order of open) {
+      nextBook = cancelOrder(nextBook, order.id);
+      nextAccount = releaseRestingOrder(nextAccount, order);
+    }
+    setBooks({ ...books, [marketId]: nextBook });
+    setAccounts({ ...accounts, [marketId]: nextAccount });
+    setEvents((current) => [
+      ...current,
+      ...open.map((order) => ({ kind: "cancel" as const, marketId, orderId: order.id })),
+    ]);
+    setAccountEpoch((epoch) => epoch + 1);
   }
 
   function resetSession() {
     setBooks(seedBooks());
     setAccounts(seedAccounts());
     setFills([]);
+    setEvents((current) => [...current, { kind: "reset" }]);
+    setAccountEpoch((epoch) => epoch + 1);
     nextOrderId.current = 1;
     nextFillId.current = 1;
   }
@@ -245,10 +269,14 @@ export function TradingTerminal({
               <TradeTicket
                 key={marketId}
                 market={market}
+                book={book}
                 lastTicks={book.lastTicks}
                 priceSelection={priceSelection}
                 availablePzecAtoms={availablePzec(account)}
                 availableQuoteAtoms={availableQuote(account)}
+                reservePzecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
+                reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
+                accountEpoch={accountEpoch}
                 onSubmit={submitUserOrder}
               />
 
@@ -290,9 +318,12 @@ export function TradingTerminal({
               <OrderBlotter
                 marketId={marketId}
                 account={account}
+                lastTicks={book.lastTicks}
                 openOrders={userOrders(book)}
                 fills={fills}
+                events={events}
                 onCancel={cancelUserOrder}
+                onCancelAll={cancelAllUserOrders}
                 onReset={resetSession}
               />
             </div>
