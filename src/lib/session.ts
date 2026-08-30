@@ -186,3 +186,11 @@ export function describeSubmit(result: SubmitResult, marketId: MarketId): string
 export function userOrders(book: Book): RestingOrder[] {
   return [...book.bids, ...book.asks].filter((order) => order.id.startsWith(USER_ORDER_PREFIX));
 }
+
+export function markToMarketQuote(account: PaperAccount, lastTicks: bigint): bigint {
+  return account.quoteAtoms + quoteAtomsForFill(account.pzecAtoms, lastTicks);
+}
+
+export function startingMarkQuote(lastTicks: bigint): bigint {
+  return SESSION_QUOTE_ATOMS + quoteAtomsForFill(SESSION_PZEC_ATOMS, lastTicks);
+}
