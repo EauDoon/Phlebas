@@ -528,36 +528,36 @@ The entry action is `Preview withdrawal states`, not `Withdraw ZEC`.
 2. The page states: `A production withdrawal would burn pZEC and create a claim for transparent native ZEC. No pZEC can be burned here.`
 3. The interface shows a fixed, clearly labeled example summary. It does not accept or display a real Zcash address.
 4. The visitor selects `Walk through states`.
-5. A deterministic state tour displays Request, Screening, Burn pending, Transaction prepared, Signed, Broadcast, and Confirmed.
+5. A deterministic state tour displays the canonical names from [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) section 9.3: `requested`, `screened`, `burn submitted`, `burn finalized`, `payable`, `transaction_prepared`, `signed`, `broadcast`, `mined`, and `confirmed`.
 6. The Confirmed state says: `State demonstration complete. No pZEC was burned and no native ZEC was sent.`
 
 Do not render an address input, paste target, QR scanner, wallet connector, or transaction submit control in the current simulation.
 
 ### Production-intent state machine
 
+Canonical names are those in PRODUCT_SPEC 9.3. Display labels may title-case them. Do not invent a shorter machine.
+
 ```text
-Request
-  > Screening
-  > Burn authorization
-  > Burn finalized
-  > Transaction prepared
-  > Signed
-  > Broadcast
-  > Confirmed
+requested -> screened -> burn submitted -> burn finalized -> payable
+payable -> transaction_prepared -> signed -> broadcast -> mined -> confirmed
+signed | broadcast | mined -> unresolved
 ```
 
 Future state requirements:
 
 | State | Required UI | Allowed action |
 | --- | --- | --- |
-| Request | pZEC amount, transparent native ZEC destination, network fee, service fee, net output, limits, and custody terms | Review request |
-| Screening | Eligibility and destination checks from the separate compliance service | Wait, edit before burn, or exit |
-| Burn authorization | Exact pZEC burn, destination commitment, fees, and irreversible consequences | Sign locally or cancel |
-| Burn finalized | Finality status and payout claim reference | Wait |
-| Transaction prepared | Single-claim transaction status with no exact completion promise | Wait |
-| Signed | Custody signer status without signer details | Wait |
-| Broadcast | Native transaction reference and transparent network warning | View explorer if approved |
-| Confirmed | Gross pZEC, fees, net native ZEC, confirmations, and completion time | Close |
+| requested | pZEC amount, transparent native ZEC destination, network fee, service fee, net output, limits, and custody terms | Review request |
+| screened | Eligibility and destination checks from the separate compliance service | Wait, edit before burn, or exit |
+| burn submitted | Exact pZEC burn, destination commitment, fees, and irreversible consequences | Sign locally or cancel |
+| burn finalized | Finality status and payout claim reference | Wait |
+| payable | Native payout claim exists; no signed Zcash transaction yet | Wait |
+| transaction_prepared | Single-claim transaction status with no exact completion promise | Wait |
+| signed | Custody signer status without signer details | Wait |
+| broadcast | Native transaction reference and transparent network warning | View explorer if approved |
+| mined | Included in a Zcash block; close threshold not yet met | Wait |
+| confirmed | Gross pZEC, fees, net native ZEC, confirmations, and completion time | Close |
+| unresolved | Committed transaction is invalid, stale, conflicted, or reorganized | Wait for observation or restoration |
 
 Every finalized pZEC burn must end in one transparent native ZEC payout or an approved refund outcome under the custody ledger. The Vercel UI may collect and transmit a future destination to the regulated backend after launch approval. It must not store the destination, hold pZEC, create the payout, sign the Zcash transaction, or control the withdrawal queue.
 
