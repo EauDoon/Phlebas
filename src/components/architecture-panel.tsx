@@ -4,7 +4,7 @@ const layers = [
   {
     label: "Public interface",
     title: "Vercel web application",
-    items: ["Read-only market data", "Client-side order preview; signing not connected", "Simulation and documentation", "No custody keys or Zcash node"],
+    items: ["Read-only fixture market data", "In-browser matcher; signing not connected", "Simulation and documentation", "No custody keys or Zcash node"],
   },
   {
     label: "Trading network",

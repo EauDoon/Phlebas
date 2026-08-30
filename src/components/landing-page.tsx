@@ -5,7 +5,8 @@ import styles from "./landing.module.css";
 
 const statusRows = [
   ["Application", "No-value simulation"],
-  ["Market data", "Illustrative fixtures"],
+  ["Matcher", "In-browser local book"],
+  ["Market data", "Fixtures plus local fills"],
   ["Wallets", "Not connected"],
   ["Contracts", "Not deployed"],
   ["ZEC custody", "Not operating"],
@@ -16,7 +17,7 @@ const journeys = [
     number: "01",
     label: "Order-book trading",
     title: "Signed limits, visible bounds",
-    body: "Preview limit orders or immediate-or-cancel market orders with a user-set worst price. The proposed matcher is offchain; settlement is designed to be atomic and onchain.",
+    body: "Submit GTC, IOC, and FOK orders to an in-browser matcher. Market orders are IOC with a user-set worst price. The proposed production matcher remains offchain and is not this simulation.",
     href: "/trade?view=trade",
     link: "Open trade preview",
   },
@@ -44,7 +45,7 @@ export function LandingPage() {
       <a className={styles.skipLink} href="#main-content">Skip to main content</a>
       <div className={styles.simulationBanner} role="status">
         <strong>Simulation only</strong>
-        <span>No wallets, real assets, live prices, contracts, deposits, withdrawals, or orders are connected.</span>
+        <span>No wallets, real assets, live prices, contracts, deposits, or withdrawals are connected. Orders stay in this browser.</span>
       </div>
       <LandingHeader />
 
