@@ -10,6 +10,7 @@ const navigation = [
   { href: "#journeys", label: "Journeys" },
   { href: "#pzec", label: "Why pZEC" },
   { href: "#launch-gates", label: "Launch gates" },
+  { href: "/status", label: "Status" },
 ];
 
 export function LandingHeader() {

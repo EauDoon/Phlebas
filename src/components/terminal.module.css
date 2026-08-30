@@ -118,8 +118,11 @@
   align-self: stretch;
 }
 
-.nav button {
+.nav button,
+.nav a {
   position: relative;
+  display: inline-flex;
+  align-items: center;
   padding: 0 14px;
   border: 0;
   color: var(--text-muted);
@@ -128,11 +131,13 @@
   font-weight: 570;
 }
 
-.nav button:hover {
+.nav button:hover,
+.nav a:hover {
   color: var(--text);
 }
 
-.nav button::after {
+.nav button::after,
+.nav a::after {
   position: absolute;
   right: 14px;
   bottom: 0;
@@ -301,9 +306,10 @@
   display: grid;
   grid-template-areas:
     "chart book ticket"
-    "trades book ticket";
+    "trades book ticket"
+    "blotter blotter blotter";
   grid-template-columns: minmax(430px, 1fr) 285px 345px;
-  grid-template-rows: minmax(380px, 1fr) auto;
+  grid-template-rows: minmax(320px, 1fr) auto auto;
   gap: 1px;
   padding: 1px;
   background: var(--border);
@@ -464,6 +470,7 @@
 }
 
 .dataTable tbody th {
+  position: relative;
   font-weight: 500;
 }
 
@@ -690,6 +697,104 @@
 .tradesPanel {
   grid-area: trades;
   min-height: 240px;
+}
+
+.blotter {
+  grid-area: blotter;
+  min-height: 180px;
+}
+
+.depthFill {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.bookButton {
+  position: relative;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: inherit;
+}
+
+.textButton {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  background: var(--surface-raised);
+  font-size: 11px;
+}
+
+.emptyState {
+  margin: 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.simpleMain {
+  max-width: 720px;
+  padding: 28px 20px 48px;
+}
+
+.simpleMain h1 {
+  margin-bottom: 12px;
+  font-size: clamp(22px, 4vw, 32px);
+  letter-spacing: -0.03em;
+}
+
+.simpleMain p,
+.simpleMain dd {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.simpleMain dl {
+  display: grid;
+  gap: 8px;
+  margin: 20px 0;
+}
+
+.simpleMain dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.simpleMain dt {
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.simpleMain a,
+.simpleMain button {
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  font: inherit;
+}
+
+.uriBlock button {
+  width: fit-content;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--surface-raised);
+  font-size: 12px;
 }
 
 .featureGrid {
@@ -1073,6 +1178,7 @@
   min-height: 42px;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 20px;
   padding: 8px 20px;
   border-top: 1px solid var(--border);
@@ -1098,9 +1204,10 @@
     grid-template-areas:
       "chart book"
       "trades book"
-      "ticket ticket";
+      "ticket ticket"
+      "blotter blotter";
     grid-template-columns: minmax(430px, 1fr) 300px;
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto auto auto;
   }
 
   .ticket {
@@ -1174,8 +1281,11 @@
     overflow-x: auto;
   }
 
-  .nav button {
+  .nav button,
+  .nav a {
     flex: 0 0 auto;
+    min-width: 44px;
+    min-height: 44px;
     padding: 0 12px;
   }
 
@@ -1215,7 +1325,8 @@
       "chart"
       "ticket"
       "book"
-      "trades";
+      "trades"
+      "blotter";
     grid-template-columns: 1fr;
   }
 

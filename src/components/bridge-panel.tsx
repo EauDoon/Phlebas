@@ -45,6 +45,7 @@ const withdrawalTour = [
 export function BridgePanel() {
   const [journey, setJourney] = useState<"deposit" | "withdrawal">("deposit");
   const [tourIndex, setTourIndex] = useState(0);
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const request = syntheticDepositRequest();
   const tour = withdrawalTour[tourIndex];
 
@@ -92,6 +93,14 @@ export function BridgePanel() {
               <span className={styles.eyebrow}>ZIP 321 shape</span>
               <code>{request}</code>
               <small>Placeholder address, not a receivable TEX string. Amount is an example 1 ZEC. Label is Phlebas.</small>
+              <button type="button" onClick={() => {
+                void navigator.clipboard?.writeText(request).catch(() => undefined);
+                setCopyNotice("Copied a non-payable template. {TEX_ADDRESS} is a placeholder, not a deposit address.");
+              }}
+              >
+                Copy URI template
+              </button>
+              {copyNotice && <p>{copyNotice}</p>}
             </div>
             <ol className={styles.stepList}>
               {depositSteps.map((step) => (

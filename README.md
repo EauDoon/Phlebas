@@ -2,7 +2,7 @@
 
 Phlebas is a production-minded protocol design and no-value interface simulation for ZEC markets against USDC and USDT. The interface uses the familiar market labels `ZEC/USDC` and `ZEC/USDT`, while the proposed Arbitrum settlement assets are `pZEC-USDC` and `pZEC-USDT0`.
 
-> Status: design and simulation only. Phlebas has no deployed contracts, live market data, wallet connection, deposit address, custody system, matcher, or real assets. It is not an exchange and is not an offer of financial services.
+> Status: design and simulation only. Phlebas has no deployed contracts, live market data, wallet connection, deposit address, custody system, or real assets. The matcher in this repository is an in-browser simulation, not the proposed production operator. It is not an exchange and is not an offer of financial services.
 
 ## Product boundary
 
@@ -17,16 +17,17 @@ This is a hybrid DEX design. The AMM and trade settlement can be onchain, but th
 ## Included in this candidate
 
 - A responsive trading terminal for `ZEC/USDC` and `ZEC/USDT`
-- An original landing page and basic local preview with explicit system-status disclosures
-- Illustrative chart, order book, recent trades, and order preview
-- Limit and slippage-bounded market-order product design
-- Constant product LP previews for `pZEC/USDC` and `pZEC/USDT0`
-- Transparent-ZEC deposit and withdrawal architecture
+- An original landing page with explicit system-status disclosures
+- An in-browser price-time matcher (GTC, IOC, FOK) with session inventory, open orders, and fills
+- Click-to-price depth, local last/spread, and slippage-bounded market orders as IOC
+- Integer constant-product quotes and local add/swap previews for `pZEC/USDC` and `pZEC/USDT0`
+- ZIP 321 deposit-shape preview and PRODUCT_SPEC withdrawal state tour
+- `/status` and `/api/status`, branded 404/error surfaces, and production `noindex`
 - Executable withdrawal-coverage checks after a finalized burn; mint, pause, and settlement remain design-only
 - Threat model, operational controls, compliance gates, and staged launch plan
 - Explicit Vercel boundary for a public, non-custodial interface
 
-The staged first-session education, review sheets, state tours, wallet handoff, live testnet integrations, matcher, and contracts in the delivery documents are acceptance targets, not implemented features of this candidate.
+Wallet handoff, receivable TEX addresses, live testnet integrations, the proposed production matcher, and contracts in the delivery documents remain acceptance targets, not implemented features.
 
 ## Design direction
 
@@ -38,7 +39,7 @@ The terminal takes structural cues from [Hyperliquid](https://app.hyperliquid.xy
 | --- | --- |
 | `src/app` | Next.js application shell and global styles |
 | `src/components` | Trading, liquidity, gateway, and architecture views |
-| `src/lib` | Typed mock market data and AMM quote logic |
+| `src/lib` | Matcher, integer AMM, session inventory, ZIP 321, reserve coverage, fixtures |
 | `docs/PRODUCT_SPEC.md` | Markets, order semantics, LP scope, and user flows |
 | `docs/DELIVERY_PLAN.md` | Agent Team workstreams, PR sequence, and release protocol |
 | `docs/BROWSER_ACCEPTANCE.md` | Reproducible responsive, keyboard, and reduced-motion checks |
@@ -57,13 +58,14 @@ The terminal takes structural cues from [Hyperliquid](https://app.hyperliquid.xy
 Requirements: Node.js 24.x and npm. CI verifies the same major version, which supports direct execution of the TypeScript test files used here.
 
 ```bash
-npm install
+npm ci --ignore-scripts
+npx playwright install chromium
 npm run dev
 ```
 
 Open `http://localhost:3000`.
 
-The landing page is at `/`. The trading terminal is at `/trade`, the liquidity preview is at `/liquidity`, and other shareable simulation views use routes such as `/trade?view=architecture`.
+The landing page is at `/`. The trading terminal is at `/trade`, the liquidity preview is at `/liquidity`, and other shareable simulation views use routes such as `/trade?view=architecture`. `/status` and `/api/status` describe the running simulation. There is no live-funds path.
 
 Run the full local validation:
 

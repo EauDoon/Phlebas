@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { quoteConstantProductSwap } from "./amm.ts";
+import {
+  balancedQuoteAtoms,
+  feeAdjustedProductHolds,
+  quoteConstantProductSwap,
+  quoteConstantProductSwapAtoms,
+} from "./amm.ts";
 
 test("quotes a constant product swap with a 30 basis point fee", () => {
   const amountIn = 10;
@@ -71,4 +76,34 @@ test("rejects an extreme ratio that cannot produce a finite preview", () => {
     () => quoteConstantProductSwap(Number.MAX_VALUE, Number.MIN_VALUE, 1, 30),
     /outside the preview range/,
   );
+});
+
+test("quotes an integer Uniswap v2 swap without IEEE rounding", () => {
+  const amountIn = 10_00000000n;
+  const reserveIn = 797_132_000000n;
+  const reserveOut = 421_205_000000n;
+  const quote = quoteConstantProductSwapAtoms(amountIn, reserveIn, reserveOut, 30);
+
+  const amountInWithFee = amountIn * 9970n;
+  const expectedOut = (amountInWithFee * reserveOut) / ((reserveIn * 10_000n) + amountInWithFee);
+  assert.equal(quote.amountOut, expectedOut);
+  assert.equal(quote.feePaid, amountIn - (amountIn * 9970n / 10_000n));
+  assert.ok(feeAdjustedProductHolds(amountIn, reserveIn, reserveOut, quote.amountOut, 30));
+  assert.ok(quote.amountOut < reserveOut);
+});
+
+test("returns a zero integer quote for a zero input", () => {
+  assert.deepEqual(quoteConstantProductSwapAtoms(0n, 1_000n, 50_000n), {
+    amountOut: 0n,
+    feePaid: 0n,
+    amountIn: 0n,
+  });
+});
+
+test("balanced add uses integer reserve ratio", () => {
+  assert.equal(balancedQuoteAtoms(2n, 797_132_000000n, 421_205_000000n), 1n);
+});
+
+test("rejects empty integer reserves", () => {
+  assert.throws(() => quoteConstantProductSwapAtoms(1n, 0n, 50_000n), /reserves must be positive/);
 });

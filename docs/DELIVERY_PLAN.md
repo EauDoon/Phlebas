@@ -1,6 +1,6 @@
 # Phlebas delivery plan
 
-Status: active full-build goal, dated 30-08-2026.
+Status: active full-build goal, dated 31-08-2026. The public app now includes an in-browser matcher, integer AMM quotes, session inventory, `/status`, and branded error surfaces. EIP-712 encoding, sequence receipts, testnet contracts, and receivable TEX addresses remain unbuilt.
 
 ## 1. Objective
 
