@@ -117,6 +117,8 @@ export const pools = [
     volume: "$311,820",
     reserveZec: 7971.32,
     reserveQuote: 421205,
+    reserveZecAtoms: 797_132_000000n,
+    reserveQuoteAtoms: 421_205_000000n,
   },
   {
     id: "pZEC/USDT0",
@@ -126,5 +128,7 @@ export const pools = [
     volume: "$188,460",
     reserveZec: 4896.00,
     reserveQuote: 258460,
+    reserveZecAtoms: 489_600_000000n,
+    reserveQuoteAtoms: 258_460_000000n,
   },
 ] as const;
