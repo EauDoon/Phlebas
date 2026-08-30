@@ -1,6 +1,6 @@
 # Phlebas delivery plan
 
-Status: active full-build goal, dated 31-08-2026. The public app now includes an in-browser matcher, integer AMM quotes, session inventory, `/status`, and branded error surfaces. EIP-712 encoding, sequence receipts, testnet contracts, and receivable TEX addresses remain unbuilt.
+Status: active full-build goal, dated 31-08-2026. The public app now includes an in-browser matcher, integer AMM quotes, CLOB vs AMM comparison, LP share mint/burn, canonical order encoding with a SHA-256 simulation digest, append-only replay, session inventory, `/status`, and branded error surfaces. Testnet contracts, receivable TEX addresses, and a keccak EIP-712 hash remain unbuilt.
 
 ## 1. Objective
 
