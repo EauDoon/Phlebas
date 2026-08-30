@@ -111,7 +111,7 @@ export function LandingPage() {
             <li><span>01</span><div><strong>Transparent ZEC</strong><small>Unique TEX deposit intent</small></div></li>
             <li><span>02</span><div><strong>Gateway controls</strong><small>Observation, screening, finality</small></div></li>
             <li><span>03</span><div><strong>pZEC on Arbitrum</strong><small>Fully reserved custody receipt</small></div></li>
-            <li><span>04</span><div><strong>Trade or LP</strong><small>Onchain CLOB or pool settlement</small></div></li>
+            <li><span>04</span><div><strong>Trade or LP</strong><small>Offchain matcher, onchain settlement or pool swap</small></div></li>
           </ol>
         </section>
 
