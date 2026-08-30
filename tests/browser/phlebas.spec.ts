@@ -185,7 +185,7 @@ for (const width of viewports) {
       await expectVisibleFocus(laterPool);
       await page.keyboard.press("Enter");
       await expect(laterPool).toHaveAttribute("aria-pressed", "true");
-      await expect(page.getByText(/Later listing gate\. This pool remains disabled/)).toBeVisible();
+      await expect(page.getByText(/Later listing gate\. This is a preview/)).toBeVisible();
       await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDT$/);
 
       const amount = page.getByRole("textbox", { name: "pZEC liquidity amount" });
