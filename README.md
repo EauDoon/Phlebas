@@ -22,7 +22,7 @@ This is a hybrid DEX design. The AMM and trade settlement can be onchain, but th
 - Limit and slippage-bounded market-order product design
 - Constant product LP previews for `pZEC/USDC` and `pZEC/USDT0`
 - Transparent-ZEC deposit and withdrawal architecture
-- Reserve, liability, custody, settlement, and pause invariants
+- Executable withdrawal-coverage checks after a finalized burn; mint, pause, and settlement remain design-only
 - Threat model, operational controls, compliance gates, and staged launch plan
 - Explicit Vercel boundary for a public, non-custodial interface
 
