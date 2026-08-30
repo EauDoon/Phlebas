@@ -32,7 +32,7 @@ const journeys = [
     number: "03",
     label: "Transparent ZEC gateway",
     title: "The custody boundary stays visible",
-    body: "Walk through the proposed transparent deposit lifecycle. This preview creates no address, receives no ZEC, and mints no pZEC.",
+    body: "Preview a ZIP 321 payment-request shape and the withdrawal state tour. This preview creates no address, receives no ZEC, and mints no pZEC.",
     href: "/trade?view=bridge",
     link: "See gateway design",
   },

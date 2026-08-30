@@ -262,3 +262,14 @@ test("trade ticket shows parser errors instead of a tick notice", async ({ page 
   await expect(page.getByText("Value must use no more than 8 decimal places")).toBeVisible();
   await expect(page.getByText("Price must use 0.01 quote ticks")).toHaveCount(0);
 });
+
+test("gateway preview is not a receivable deposit", async ({ page }) => {
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await expect(page.getByText("zcash:{TEX_ADDRESS}?amount=1&label=Phlebas", { exact: true })).toBeVisible();
+  await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Withdrawal states" })).toBeVisible();
+  await page.getByRole("button", { name: "Withdrawal states" }).click();
+  await expect(page.getByText("Preview withdrawal states, not Withdraw ZEC.")).toBeVisible();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await expect(page.getByText("Screened", { exact: true })).toBeVisible();
+});
