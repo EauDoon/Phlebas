@@ -1,0 +1,61 @@
+# Primary sources
+
+This register supports the reference design as reviewed on 30-08-2026. Runtime implementations must pin and recheck the applicable version before use.
+
+## Zcash
+
+- [NU6.3 activation](https://z.cash/upgrade/nu6-3/)
+- [zcashd deprecation and end of support](https://z.cash/support/zcashd-deprecation/)
+- [Zebra releases](https://github.com/ZcashFoundation/zebra/releases/latest)
+- [Zebra system requirements](https://zebra.zfnd.org/user/requirements.html)
+- [Zebra container deployment](https://zebra.zfnd.org/user/docker.html)
+- [ZIP 320: Defining an Address Type to which funds can only be sent from Transparent Addresses](https://zips.z.cash/zip-0320)
+- [ZIP 321: Payment Request URIs](https://zips.z.cash/zip-0321)
+- [ZIP 315: Best Practices for Wallet Handling of Chain Rollbacks](https://zips.z.cash/zip-0315)
+- [ZIP 203: Transaction Expiry](https://zips.z.cash/zip-0203)
+- [ZIP 317: Proportional Transfer Fee Mechanism](https://zips.z.cash/zip-0317)
+- [ZIP 48: Multi-signature Support](https://zips.z.cash/zip-0048)
+- [ZIP 300: Cross-Chain Atomic Transactions](https://zips.z.cash/zip-0300)
+- [Zallet documentation](https://zcash.github.io/zallet/)
+- [Zallet releases](https://github.com/zcash/zallet/releases/latest)
+- [NU7 status](https://z.cash/upgrade/nu7/)
+- [Draft ZIP 218: Reducing Block Interval](https://zips.z.cash/zip-0218)
+
+## Arbitrum, tokens, and contracts
+
+- [Arbitrum chain information](https://docs.arbitrum.io/for-devs/dev-tools-and-resources/chain-info)
+- [Circle USDC contract addresses](https://developers.circle.com/stablecoins/usdc-contract-addresses)
+- [USDT0 on Arbitrum](https://usdt0.to/ecosystem/arbitrum)
+- [USDT0 developer documentation](https://docs.usdt0.to/technical-documentation/developer/)
+- [ERC-20](https://eips.ethereum.org/EIPS/eip-20)
+- [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271)
+- [EIP-712](https://eips.ethereum.org/EIPS/eip-712)
+- [Uniswap v2 pair reference](https://github.com/Uniswap/v2-core/blob/master/contracts/UniswapV2Pair.sol)
+- [Uniswap concepts](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works)
+- [OpenZeppelin governance contracts](https://docs.openzeppelin.com/contracts/5.x/api/governance)
+- [Circle stablecoin EVM token design](https://github.com/circlefin/stablecoin-evm/blob/master/doc/tokendesign.md)
+
+## Legal and compliance
+
+- [Singapore Payment Services Act 2019](https://sso.agc.gov.sg/Act/PSA2019?ProvIds=Sc1-)
+- [Singapore Financial Services and Markets Act 2022](https://sso.agc.gov.sg/Act/FSMA2022)
+- [MAS clarification on digital token service providers](https://www.sgpc.gov.sg/detail?HomePage=home&page=/detail&url=/media_releases/mas/press_release/P-20250606-2)
+- [FATF targeted update on virtual assets, including DeFi](https://www.fatf-gafi.org/content/dam/fatf-gafi/reports/targeted-report-decentralised-finance-2026.pdf.coredownload.pdf)
+- [FinCEN convertible virtual currency guidance](https://www.fincen.gov/sites/default/files/2019-05/FinCEN%20CVC%20Guidance%20FINAL.pdf)
+- [New York virtual currency businesses](https://www.dfs.ny.gov/virtual_currency_businesses)
+- [California Digital Financial Assets Law FAQ](https://dfpi.ca.gov/regulated-industries/digital-financial-assets/digital-financial-assets-law-frequently-asked-questions/)
+- [EU Markets in Crypto-Assets Regulation](https://eur-lex.europa.eu/eli/reg/2023/1114/oj/eng)
+- [UK FCA cryptoasset registration](https://www.fca.org.uk/firms/cryptoassets)
+- [OFAC virtual currency guidance](https://ofac.treasury.gov/system/files/126/virtual_currency_guidance_brochure.pdf)
+- [Circle USDC terms](https://www.circle.com/legal/usdc-terms)
+- [Tether terms](https://tether.to/en/legal/)
+
+## Interface references
+
+- [Hyperliquid trading application](https://app.hyperliquid.xyz/trade)
+- [Lighter trading application](https://app.lighter.xyz/)
+- [Lighter documentation](https://docs.lighter.xyz/)
+- [Nado](https://nado.finance/)
+- [Nado documentation](https://docs.nado.xyz/)
+
+These interface references inform hierarchy and density only. Phlebas uses its own assets, styling, copy, and interaction decisions.
