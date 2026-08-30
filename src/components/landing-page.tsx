@@ -25,7 +25,7 @@ const journeys = [
     label: "Simple liquidity",
     title: "Two pools, no incentive maze",
     body: "Explore fixed-fee constant product pools for pZEC/USDC and pZEC/USDT0. No farms, leverage, callbacks, token rewards, or projected returns.",
-    href: "/trade?view=liquidity",
+    href: "/liquidity",
     link: "Open LP preview",
   },
   {
@@ -48,7 +48,7 @@ export function LandingPage() {
       </div>
       <LandingHeader />
 
-      <main id="main-content">
+      <main id="main-content" tabIndex={-1}>
         <section className={styles.hero} aria-labelledby="hero-title">
           <div className={styles.heroStatement}>
             <span className={styles.eyebrow}>Transparent ZEC markets</span>

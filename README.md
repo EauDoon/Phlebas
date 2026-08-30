@@ -41,6 +41,7 @@ The terminal takes structural cues from [Hyperliquid](https://app.hyperliquid.xy
 | `src/lib` | Typed mock market data and AMM quote logic |
 | `docs/PRODUCT_SPEC.md` | Markets, order semantics, LP scope, and user flows |
 | `docs/DELIVERY_PLAN.md` | Agent Team workstreams, PR sequence, and release protocol |
+| `docs/BROWSER_ACCEPTANCE.md` | Reproducible responsive, keyboard, and reduced-motion checks |
 | `docs/LANDING_AND_USER_JOURNEYS.md` | Landing, trader, LP, deposit, and withdrawal experience |
 | `docs/ARCHITECTURE.md` | System boundaries and proposed production topology |
 | `docs/ASSET_AND_ACCOUNTING.md` | pZEC, reserves, liabilities, and reconciliation |
@@ -62,13 +63,22 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-The landing page is at `/`. The terminal is at `/trade`, with shareable simulation views such as `/trade?view=liquidity` and `/trade?view=architecture`.
+The landing page is at `/`. The trading terminal is at `/trade`, the liquidity preview is at `/liquidity`, and other shareable simulation views use routes such as `/trade?view=architecture`.
 
 Run the full local validation:
 
 ```bash
 npm run check
 ```
+
+Run the production browser checks after installing Chromium once:
+
+```bash
+npx playwright install chromium
+npm run check:browser
+```
+
+The [browser acceptance guide](docs/BROWSER_ACCEPTANCE.md) defines the routes, viewport widths, assertions, and limits.
 
 ## Proposed production decisions
 

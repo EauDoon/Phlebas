@@ -13,11 +13,12 @@ Phlebas is currently a design and no-value simulation. Do not add live deposit a
 ## Local checks
 
 ```bash
-npm install
-npm run check
+npm ci --ignore-scripts
+npx playwright install chromium
+npm run check:browser
 ```
 
-Changes should include focused tests for numerical behavior and safety invariants. UI changes should be checked at 320, 390, 768, and 1440 pixels, with keyboard navigation and reduced-motion settings.
+Changes should include focused tests for numerical behavior and safety invariants. The locked browser suite checks 320, 390, 768, and 1440 pixels, keyboard navigation, reduced motion, overflow, and runtime errors. See `docs/BROWSER_ACCEPTANCE.md` for its scope and limits.
 
 ## Scope discipline
 

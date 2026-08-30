@@ -23,6 +23,14 @@ const views: { id: View; label: string }[] = [
   { id: "architecture", label: "Architecture" },
 ];
 
+function viewUrl(view: View, market: MarketId) {
+  if (view === "liquidity") {
+    return `/liquidity?${new URLSearchParams({ market }).toString()}`;
+  }
+
+  return `/trade?${new URLSearchParams({ view, market }).toString()}`;
+}
+
 export function TradingTerminal({
   initialView = "trade",
   initialMarket = "ZEC/USDC",
@@ -37,14 +45,12 @@ export function TradingTerminal({
 
   function selectView(nextView: View) {
     setView(nextView);
-    const query = new URLSearchParams({ view: nextView, market: marketId });
-    window.history.replaceState(null, "", `/trade?${query.toString()}`);
+    window.history.replaceState(null, "", viewUrl(nextView, marketId));
   }
 
   function selectMarket(nextMarket: MarketId) {
     setMarketId(nextMarket);
-    const query = new URLSearchParams({ view, market: nextMarket });
-    window.history.replaceState(null, "", `/trade?${query.toString()}`);
+    window.history.replaceState(null, "", viewUrl(view, nextMarket));
   }
 
   return (
@@ -79,7 +85,7 @@ export function TradingTerminal({
         </div>
       </header>
 
-      <main id="main-content">
+      <main id="main-content" tabIndex={-1}>
         <h1 className={styles.srOnly}>Phlebas ZEC trading terminal</h1>
         {view === "trade" && (
           <>
