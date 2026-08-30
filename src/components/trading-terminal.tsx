@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { markets, recentTrades } from "@/lib/market-data";
@@ -38,6 +39,7 @@ export function TradingTerminal({
   initialView?: View;
   initialMarket?: MarketId;
 }) {
+  const router = useRouter();
   const [view, setView] = useState<View>(initialView);
   const [marketId, setMarketId] = useState<MarketId>(initialMarket);
   const [range, setRange] = useState<ChartRange>("4H");
@@ -45,12 +47,12 @@ export function TradingTerminal({
 
   function selectView(nextView: View) {
     setView(nextView);
-    window.history.replaceState(null, "", viewUrl(nextView, marketId));
+    router.replace(viewUrl(nextView, marketId), { scroll: false });
   }
 
   function selectMarket(nextMarket: MarketId) {
     setMarketId(nextMarket);
-    window.history.replaceState(null, "", viewUrl(view, nextMarket));
+    router.replace(viewUrl(view, nextMarket), { scroll: false });
   }
 
   return (
