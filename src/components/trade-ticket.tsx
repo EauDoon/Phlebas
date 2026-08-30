@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { digestCanonicalOrder } from "@/lib/encoding";
 import type { Market } from "@/lib/market-data";
-import type { TimeInForce } from "@/lib/matcher";
+import type { Book, TimeInForce } from "@/lib/matcher";
+import { compareVenues, type RouteComparison } from "@/lib/router";
 import {
   calculatePreviewNotional,
   calculateWorstPrice,
@@ -19,6 +21,7 @@ import {
   formatAtomicUnits,
   parseAtomicUnits,
   sizeAtomsForQuote,
+  worstPriceTicks,
 } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -64,17 +67,25 @@ function parseSizeAtoms(value: string): { atoms: bigint; error: string | null } 
 
 export function TradeTicket({
   market,
+  book,
   lastTicks,
   priceSelection,
   availablePzecAtoms,
   availableQuoteAtoms,
+  reservePzecAtoms,
+  reserveQuoteAtoms,
+  accountEpoch,
   onSubmit,
 }: {
   market: Market;
+  book: Book;
   lastTicks: bigint;
   priceSelection: { ticks: bigint; nonce: number } | null;
   availablePzecAtoms: bigint;
   availableQuoteAtoms: bigint;
+  reservePzecAtoms: bigint;
+  reserveQuoteAtoms: bigint;
+  accountEpoch: number;
   onSubmit: (order: {
     side: Side;
     tif: TimeInForce;
@@ -92,6 +103,14 @@ export function TradeTicket({
   const [slippagePercent, setSlippagePercent] = useState("0.50");
   const [notice, setNotice] = useState("Local matcher only. Session inventory is not a wallet.");
   const [appliedPriceNonce, setAppliedPriceNonce] = useState(0);
+  const nonceRef = useRef(1);
+  const [review, setReview] = useState<{
+    priceTicks: bigint;
+    sizeAtoms: bigint;
+    tif: TimeInForce;
+    digest: string;
+    comparison: RouteComparison;
+  } | null>(null);
 
   if (priceSelection && priceSelection.nonce !== appliedPriceNonce) {
     setAppliedPriceNonce(priceSelection.nonce);
@@ -196,34 +215,87 @@ export function TradeTicket({
     setSize(formatAtomicUnits(nextSize, PZEC_DECIMALS));
   }
 
-  function submitSimulatedOrder() {
+  function preparedOrder(): { priceTicks: bigint; sizeAtoms: bigint; tif: TimeInForce } | string {
     if (inputError) {
-      setNotice(inputError);
-      return;
+      return inputError;
     }
     if (!priceIsValid || !sizeIsValid || sizeAtoms.atoms <= 0n) {
-      setNotice("Price and size must be positive.");
-      return;
+      return "Price and size must be positive.";
     }
     if (notionalError) {
-      setNotice(notionalError);
-      return;
+      return notionalError;
     }
-    if (!Number.isFinite(worstPrice)) {
-      setNotice("Enter maximum slippage from 0 up to, but not including, 100 percent.");
+
+    let priceTicks = limitTicks.ticks;
+    if (orderType === "market") {
+      try {
+        const slippageHundredths = parseAtomicUnits(slippagePercent, PRICE_DECIMALS, { allowZero: true });
+        priceTicks = worstPriceTicks(lastTicks, side, slippageHundredths);
+      } catch (error) {
+        return error instanceof Error ? error.message : "Enter maximum slippage from 0 up to, but not including, 100 percent.";
+      }
+    }
+    if (priceTicks <= 0n) {
+      return "Price and size must be positive.";
+    }
+    return {
+      priceTicks,
+      sizeAtoms: sizeAtoms.atoms,
+      tif: orderType === "market" ? "IOC" : tif,
+    };
+  }
+
+  async function reviewSimulatedOrder() {
+    const prepared = preparedOrder();
+    if (typeof prepared === "string") {
+      setNotice(prepared);
       return;
     }
 
-    const priceTicks = orderType === "market"
-      ? parseAtomicUnits(worstPrice.toFixed(PRICE_DECIMALS), PRICE_DECIMALS)
-      : limitTicks.ticks;
-    const effectiveTif: TimeInForce = orderType === "market" ? "IOC" : tif;
+    const canonical = {
+      maker: "session" as const,
+      side,
+      baseAsset: "pZEC" as const,
+      quoteAsset: market.quote,
+      baseAmountAtoms: prepared.sizeAtoms.toString(),
+      limitPriceTicks: prepared.priceTicks.toString(),
+      nonce: String(nonceRef.current),
+      accountEpoch: String(accountEpoch),
+      expiry: "0" as const,
+      salt: prepared.tif,
+      recipient: "session" as const,
+      maximumFeeBps: "30" as const,
+      allowedVenues: "clob" as const,
+      chainId: "42161" as const,
+      verifyingContract: "not-deployed" as const,
+    };
+    nonceRef.current += 1;
+    const comparison = compareVenues({
+      book,
+      side,
+      sizeAtoms: prepared.sizeAtoms,
+      limitTicks: prepared.priceTicks,
+      reservePzecAtoms,
+      reserveQuoteAtoms,
+    });
+    setReview({
+      ...prepared,
+      digest: await digestCanonicalOrder(canonical),
+      comparison,
+    });
+  }
+
+  function confirmSimulatedOrder() {
+    if (!review) {
+      return;
+    }
     setNotice(onSubmit({
       side,
-      tif: effectiveTif,
-      priceTicks,
-      sizeAtoms: sizeAtoms.atoms,
+      tif: review.tif,
+      priceTicks: review.priceTicks,
+      sizeAtoms: review.sizeAtoms,
     }));
+    setReview(null);
   }
 
   return (
@@ -378,17 +450,59 @@ export function TradeTicket({
         </div>
       </dl>
 
-      <button
-        type="button"
-        className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
-        onClick={submitSimulatedOrder}
-      >
-        Submit simulated {side}
-      </button>
+      {review ? (
+        <div className={styles.reviewBlock}>
+          <p className={styles.gateNotice}>
+            pZEC is a custody receipt, not native ZEC. This fill is public in the simulation. The matcher is not trustless.
+          </p>
+          <dl className={styles.ticketSummary}>
+            <div>
+              <dt>Leaving session</dt>
+              <dd>{side === "buy" ? `${formatAtomicUnits(review.comparison.clob.quoteAtoms, QUOTE_DECIMALS, 2)} ${market.quote}` : `${formatAtomicUnits(review.sizeAtoms, PZEC_DECIMALS)} pZEC`}</dd>
+            </div>
+            <div>
+              <dt>Worst acceptable price</dt>
+              <dd>{formatAtomicUnits(review.priceTicks, PRICE_DECIMALS, 2)} {market.quote}</dd>
+            </div>
+            <div>
+              <dt>CLOB vs AMM</dt>
+              <dd>
+                {review.comparison.better === "none"
+                  ? "neither fills in full"
+                  : review.comparison.better === "tie"
+                    ? "CLOB and AMM match on this size"
+                    : `${review.comparison.better.toUpperCase()} cheaper for a full fill`}
+              </dd>
+            </div>
+            <div>
+              <dt>Simulation digest</dt>
+              <dd>{review.digest.slice(0, 16)}…</dd>
+            </div>
+          </dl>
+          <button
+            type="button"
+            className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
+            onClick={confirmSimulatedOrder}
+          >
+            Confirm simulated {side}
+          </button>
+          <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
+            Back
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
+          onClick={() => void reviewSimulatedOrder()}
+        >
+          Review simulated {side}
+        </button>
+      )}
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
         {inputError ?? notionalError ?? notice}
       </p>
-      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type. Click a book price to copy it here.</p>
+      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type. Click a book price to copy it here. SHA-256 digest is a simulation encoding, not an Ethereum signature.</p>
     </section>
   );
 }

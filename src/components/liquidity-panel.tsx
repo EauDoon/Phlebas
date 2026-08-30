@@ -2,21 +2,17 @@
 
 import { useId, useMemo, useState } from "react";
 
-import { balancedQuoteAtoms, quoteConstantProductSwapAtoms } from "@/lib/amm";
+import { quoteConstantProductSwapAtoms } from "@/lib/amm";
+import { burnShares, mintShares, seedPool, type PoolShares } from "@/lib/lp";
 import { pools, type MarketId } from "@/lib/market-data";
 import { parseAtomicUnits, formatAtomicUnits, PZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
-type PoolReserves = {
-  zecAtoms: bigint;
-  quoteAtoms: bigint;
-};
-
-function initialReserves(): Record<(typeof pools)[number]["id"], PoolReserves> {
+function initialPools(): Record<(typeof pools)[number]["id"], PoolShares> {
   return {
-    "pZEC/USDC": { zecAtoms: pools[0].reserveZecAtoms, quoteAtoms: pools[0].reserveQuoteAtoms },
-    "pZEC/USDT0": { zecAtoms: pools[1].reserveZecAtoms, quoteAtoms: pools[1].reserveQuoteAtoms },
+    "pZEC/USDC": seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms),
+    "pZEC/USDT0": seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms),
   };
 }
 
@@ -30,22 +26,27 @@ export function LiquidityPanel({
   const amountHelpId = useId();
   const selectedPool = marketId === "ZEC/USDT" ? pools[1] : pools[0];
   const [amount, setAmount] = useState("10");
-  const [reserves, setReserves] = useState(initialReserves);
+  const [poolState, setPoolState] = useState(initialPools);
+  const [heldShares, setHeldShares] = useState<Record<(typeof pools)[number]["id"], bigint>>({
+    "pZEC/USDC": 0n,
+    "pZEC/USDT0": 0n,
+  });
   const [notice, setNotice] = useState("Integer pool math. Wallet actions stay disabled.");
-  const poolReserves = reserves[selectedPool.id];
+  const poolReserves = poolState[selectedPool.id];
 
   const amountPreview = useMemo(() => {
     try {
       const zecAtoms = parseAtomicUnits(amount, PZEC_DECIMALS);
-      const quoteAtoms = balancedQuoteAtoms(zecAtoms, poolReserves.zecAtoms, poolReserves.quoteAtoms);
+      const minted = mintShares(poolReserves, zecAtoms);
+      const quoteAtoms = minted.quoteAtoms;
       let swapOut = "0.00";
       let swapFee = "0";
       let swapNote = "Swap size is too small to produce one quote atom.";
       try {
         const swap = quoteConstantProductSwapAtoms(
           zecAtoms,
-          poolReserves.zecAtoms,
-          poolReserves.quoteAtoms,
+          poolReserves.reservePzecAtoms,
+          poolReserves.reserveQuoteAtoms,
         );
         swapOut = formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2);
         swapFee = formatAtomicUnits(swap.feePaid, PZEC_DECIMALS);
@@ -57,6 +58,7 @@ export function LiquidityPanel({
         valid: true,
         zecAtoms,
         quoteAtoms,
+        shares: minted.shares,
         balancedQuote: formatAtomicUnits(quoteAtoms, QUOTE_DECIMALS, 2),
         swapOut,
         swapFee,
@@ -70,6 +72,7 @@ export function LiquidityPanel({
         valid: false,
         zecAtoms: 0n,
         quoteAtoms: 0n,
+        shares: 0n,
         balancedQuote: "0.00",
         swapOut: "0.00",
         swapFee: "0",
@@ -88,14 +91,30 @@ export function LiquidityPanel({
       setNotice(amountPreview.message);
       return;
     }
-    setReserves((current) => ({
-      ...current,
-      [selectedPool.id]: {
-        zecAtoms: current[selectedPool.id].zecAtoms + amountPreview.zecAtoms,
-        quoteAtoms: current[selectedPool.id].quoteAtoms + amountPreview.quoteAtoms,
-      },
-    }));
-    setNotice(`Simulated balanced add of ${formatAtomicUnits(amountPreview.zecAtoms, PZEC_DECIMALS)} pZEC. Local preview only.`);
+    try {
+      const minted = mintShares(poolReserves, amountPreview.zecAtoms);
+      setPoolState((current) => ({ ...current, [selectedPool.id]: minted.pool }));
+      setHeldShares((current) => ({ ...current, [selectedPool.id]: current[selectedPool.id] + minted.shares }));
+      setNotice(`Minted ${minted.shares.toString()} local LP shares. Wallet actions stay disabled.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : amountPreview.message);
+    }
+  }
+
+  function simulateBurn() {
+    const shares = heldShares[selectedPool.id];
+    if (shares <= 0n) {
+      setNotice("No session LP shares to burn.");
+      return;
+    }
+    try {
+      const burned = burnShares(poolReserves, shares);
+      setPoolState((current) => ({ ...current, [selectedPool.id]: burned.pool }));
+      setHeldShares((current) => ({ ...current, [selectedPool.id]: 0n }));
+      setNotice(`Burned session shares for ${formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS)} pZEC. Local preview only.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Share amount is outside the preview range");
+    }
   }
 
   function simulateSwap() {
@@ -106,14 +125,15 @@ export function LiquidityPanel({
     try {
       const swap = quoteConstantProductSwapAtoms(
         amountPreview.zecAtoms,
-        poolReserves.zecAtoms,
-        poolReserves.quoteAtoms,
+        poolReserves.reservePzecAtoms,
+        poolReserves.reserveQuoteAtoms,
       );
-      setReserves((current) => ({
+      setPoolState((current) => ({
         ...current,
         [selectedPool.id]: {
-          zecAtoms: current[selectedPool.id].zecAtoms + amountPreview.zecAtoms,
-          quoteAtoms: current[selectedPool.id].quoteAtoms - swap.amountOut,
+          ...current[selectedPool.id],
+          reservePzecAtoms: current[selectedPool.id].reservePzecAtoms + amountPreview.zecAtoms,
+          reserveQuoteAtoms: current[selectedPool.id].reserveQuoteAtoms - swap.amountOut,
         },
       }));
       setNotice(`Simulated pZEC→${selectedPool.quote} swap. Output ${formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2)} ${selectedPool.quote}. Local preview only.`);
@@ -180,9 +200,10 @@ export function LiquidityPanel({
 
         <dl className={styles.statGrid}>
           <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
-          <div><dt>pZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.zecAtoms, PZEC_DECIMALS, 2)}</dd></div>
-          <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.quoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
+          <div><dt>pZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reservePzecAtoms, PZEC_DECIMALS, 2)}</dd></div>
+          <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
           <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
+          <div><dt>Session LP shares</dt><dd>{heldShares[selectedPool.id].toString()}</dd></div>
         </dl>
 
         <p className={styles.inlineNotice}>
@@ -191,9 +212,10 @@ export function LiquidityPanel({
         </p>
 
         <div className={styles.tourNav}>
-          <button type="button" onClick={simulateAdd}>Simulate balanced add</button>
+          <button type="button" onClick={simulateAdd}>Simulate mint</button>
+          <button type="button" onClick={simulateBurn}>Burn session shares</button>
           <button type="button" onClick={simulateSwap}>Simulate swap</button>
-          <button type="button" onClick={() => { setReserves(initialReserves()); setNotice("Local pool reserves restored."); }}>
+          <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares({ "pZEC/USDC": 0n, "pZEC/USDT0": 0n }); setNotice("Local pool reserves restored."); }}>
             Reset pool
           </button>
         </div>

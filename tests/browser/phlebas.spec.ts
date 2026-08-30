@@ -279,7 +279,9 @@ test("local matcher fills a buy against the fixture ask", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Ask 52.91" }).click();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
-  await page.getByRole("button", { name: "Submit simulated buy" }).click();
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByText("pZEC is a custody receipt, not native ZEC.")).toBeVisible();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText(/Filled against the local ZEC\/USDC book/)).toBeVisible();
   await expect(page.getByRole("tab", { name: "Fills" })).toBeVisible();
   await page.getByRole("tab", { name: "Fills" }).click();

@@ -5,32 +5,42 @@ import { useState } from "react";
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
 import type { RestingOrder } from "@/lib/matcher";
+import type { SessionLogEvent } from "@/lib/replay";
 import type { PaperAccount, UserFill } from "@/lib/session";
-import { availablePzec, availableQuote } from "@/lib/session";
+import { availablePzec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
 import { PZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
-type BlotterTab = "orders" | "fills" | "inventory";
+type BlotterTab = "orders" | "fills" | "inventory" | "log";
 
 export function OrderBlotter({
   marketId,
   account,
+  lastTicks,
   openOrders,
   fills,
+  events,
   onCancel,
+  onCancelAll,
   onReset,
 }: {
   marketId: MarketId;
   account: PaperAccount;
+  lastTicks: bigint;
   openOrders: RestingOrder[];
   fills: UserFill[];
+  events: SessionLogEvent[];
   onCancel: (orderId: string) => void;
+  onCancelAll: () => void;
   onReset: () => void;
 }) {
   const [tab, setTab] = useState<BlotterTab>("orders");
   const market = markets[marketId];
   const marketFills = fills.filter((fill) => fill.marketId === marketId);
+  const mark = markToMarketQuote(account, lastTicks);
+  const start = startingMarkQuote(lastTicks);
+  const pnl = mark - start;
 
   return (
     <section className={`${styles.panel} ${styles.blotter}`} aria-labelledby="blotter-title">
@@ -53,6 +63,9 @@ export function OrderBlotter({
         </button>
         <button type="button" role="tab" aria-selected={tab === "inventory"} className={tab === "inventory" ? styles.textActive : undefined} onClick={() => setTab("inventory")}>
           Inventory
+        </button>
+        <button type="button" role="tab" aria-selected={tab === "log"} className={tab === "log" ? styles.textActive : undefined} onClick={() => setTab("log")}>
+          Event log
         </button>
       </div>
 
@@ -88,6 +101,11 @@ export function OrderBlotter({
             </tbody>
           </table>
         )
+      )}
+      {tab === "orders" && openOrders.length > 0 && (
+        <p className={styles.emptyState}>
+          <button type="button" className={styles.textButton} onClick={onCancelAll}>Cancel all session orders</button>
+        </p>
       )}
 
       {tab === "fills" && (
@@ -138,7 +156,49 @@ export function OrderBlotter({
             <dt>Reserved {market.quote}</dt>
             <dd>{formatAtomicUnits(account.reservedQuoteAtoms, QUOTE_DECIMALS, 2)}</dd>
           </div>
+          <div>
+            <dt>Mark to market</dt>
+            <dd>{formatAtomicUnits(mark, QUOTE_DECIMALS, 2)} {market.quote}</dd>
+          </div>
+          <div>
+            <dt>Session PnL</dt>
+            <dd className={pnl >= 0n ? styles.buyText : styles.sellText}>
+              {pnl >= 0n ? "+" : "−"}{formatAtomicUnits(pnl < 0n ? -pnl : pnl, QUOTE_DECIMALS, 2)} {market.quote}
+            </dd>
+          </div>
         </dl>
+      )}
+
+      {tab === "log" && (
+        events.length === 0 ? (
+          <p className={styles.emptyState}>No session events yet. Replaying this log reconstructs the book and balances.</p>
+        ) : (
+          <table className={styles.dataTable}>
+            <caption className={styles.srOnly}>Append-only session event log</caption>
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Kind</th>
+                <th scope="col">Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.slice(-20).map((event, index) => (
+                <tr key={`${event.kind}-${index}`}>
+                  <th scope="row">{events.length - Math.min(events.length, 20) + index + 1}</th>
+                  <td>{event.kind}</td>
+                  <td>
+                    {event.kind === "submit"
+                      ? `${event.side} ${event.tif} ${event.id}`
+                      : event.kind === "cancel"
+                        ? event.orderId
+                        : "session reset"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
       )}
     </section>
   );

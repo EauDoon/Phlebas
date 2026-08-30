@@ -18,7 +18,9 @@ This is a hybrid DEX design. The AMM and trade settlement can be onchain, but th
 
 - A responsive trading terminal for `ZEC/USDC` and `ZEC/USDT`
 - An original landing page with explicit system-status disclosures
-- An in-browser price-time matcher (GTC, IOC, FOK) with session inventory, open orders, and fills
+- An in-browser price-time matcher (GTC, IOC, FOK) with session inventory, open orders, fills, and an append-only replay log
+- Canonical PRODUCT_SPEC order encoding with a SHA-256 simulation digest (not an Ethereum signature)
+- Integer CLOB vs AMM venue comparison and LP share mint/burn previews
 - Click-to-price depth, local last/spread, and slippage-bounded market orders as IOC
 - Integer constant-product quotes and local add/swap previews for `pZEC/USDC` and `pZEC/USDT0`
 - ZIP 321 deposit-shape preview and PRODUCT_SPEC withdrawal state tour

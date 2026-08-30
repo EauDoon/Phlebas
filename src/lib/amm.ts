@@ -59,6 +59,30 @@ export function quoteConstantProductSwap(
   };
 }
 
+export function quoteConstantProductAmountIn(
+  amountOut: bigint,
+  reserveIn: bigint,
+  reserveOut: bigint,
+  feeBps = 30,
+): bigint {
+  if (amountOut <= 0n) {
+    return 0n;
+  }
+  if (reserveIn <= 0n || reserveOut <= 0n) {
+    throw new Error("Pool reserves must be positive");
+  }
+  if (amountOut >= reserveOut) {
+    throw new Error("Swap quote is outside the preview range");
+  }
+  if (!Number.isInteger(feeBps) || feeBps < 0 || feeBps >= 10_000) {
+    throw new Error("Fee must be between 0 and 9,999 basis points");
+  }
+
+  const numerator = reserveIn * amountOut * 10_000n;
+  const denominator = (reserveOut - amountOut) * BigInt(10_000 - feeBps);
+  return (numerator / denominator) + 1n;
+}
+
 export function quoteConstantProductSwapAtoms(
   amountIn: bigint,
   reserveIn: bigint,
