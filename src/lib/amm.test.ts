@@ -4,13 +4,32 @@ import test from "node:test";
 import { quoteConstantProductSwap } from "./amm.ts";
 
 test("quotes a constant product swap with a 30 basis point fee", () => {
-  const quote = quoteConstantProductSwap(10, 1_000, 50_000, 30);
+  const amountIn = 10;
+  const reserveIn = 1_000;
+  const reserveOut = 50_000;
+  const feeBps = 30;
+  const quote = quoteConstantProductSwap(amountIn, reserveIn, reserveOut, feeBps);
+  const amountAfterFee = amountIn * (10_000 - feeBps) / 10_000;
+  const expectedOut = reserveOut * amountAfterFee / (reserveIn + amountAfterFee);
+  const kBefore = reserveIn * reserveOut;
+  const kAfter = (reserveIn + amountIn) * (reserveOut - quote.amountOut);
 
-  assert.ok(quote.amountOut > 0);
-  assert.ok(quote.amountOut < 500);
-  assert.equal(Number(quote.feePaid.toFixed(3)), 0.03);
+  const amountTolerance = Number.EPSILON * Math.abs(expectedOut) * 4;
+  assert.ok(Math.abs(quote.amountOut - expectedOut) <= amountTolerance);
+  assert.ok(Math.abs(quote.feePaid - (amountIn - amountAfterFee)) <= Number.EPSILON * 8);
   assert.ok(quote.priceImpactPercent > 0);
   assert.ok(quote.priceImpactPercent < 1);
+  assert.ok(kAfter >= kBefore);
+});
+
+test("keeps the fee-adjusted product from falling on the preview path", () => {
+  const quote = quoteConstantProductSwap(10, 1_000, 50_000, 30);
+  const x = 1_000 + 10;
+  const y = 50_000 - quote.amountOut;
+  const feeAdjusted = (x * 10_000 - 10 * 30) * (y * 10_000);
+  const baseline = 1_000 * 50_000 * 10_000 * 10_000;
+
+  assert.ok(feeAdjusted >= baseline);
 });
 
 test("returns an empty quote for a zero input", () => {
