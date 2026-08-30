@@ -254,3 +254,11 @@ for (const width of viewports) {
     });
   });
 }
+
+test("trade ticket shows parser errors instead of a tick notice", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const size = page.getByRole("textbox", { name: "Order size in pZEC" });
+  await size.fill("0.000000001");
+  await expect(page.getByText("Value must use no more than 8 decimal places")).toBeVisible();
+  await expect(page.getByText("Price must use 0.01 quote ticks")).toHaveCount(0);
+});
