@@ -18,7 +18,19 @@ import styles from "./terminal.module.css";
 type Side = "buy" | "sell";
 type OrderType = "limit" | "market";
 
-const ORDER_INPUT_NOTICE = "Price must use 0.01 quote ticks. Size must be at least 0.00000001 pZEC with no more than 8 decimals.";
+function parsePreviewDecimal(
+  value: string,
+  options: Parameters<typeof parseStrictDecimal>[1],
+): { parsed: number; error: string | null } {
+  try {
+    return { parsed: parseStrictDecimal(value, options), error: null };
+  } catch (error) {
+    return {
+      parsed: Number.NaN,
+      error: error instanceof Error ? error.message : "Value is outside the preview range.",
+    };
+  }
+}
 
 export function TradeTicket({ market }: { market: Market }) {
   const noticeId = useId();
@@ -30,22 +42,12 @@ export function TradeTicket({ market }: { market: Market }) {
   const [slippagePercent, setSlippagePercent] = useState("0.50");
   const [notice, setNotice] = useState("No wallet connected. Preview only.");
 
-  let parsedPrice = Number.NaN;
-  let parsedSize = Number.NaN;
-  if (orderType === "market") {
-    parsedPrice = market.last;
-  } else {
-    try {
-      parsedPrice = parseStrictDecimal(price, { atomicRule: QUOTE_PRICE_ATOMIC_RULE });
-    } catch {
-      // Validation state is rendered below; no preview value is accepted.
-    }
-  }
-  try {
-    parsedSize = parseStrictDecimal(size, { atomicRule: PZEC_ATOMIC_RULE });
-  } catch {
-    // Validation state is rendered below; no preview value is accepted.
-  }
+  const priceParse = orderType === "market"
+    ? { parsed: market.last, error: null }
+    : parsePreviewDecimal(price, { atomicRule: QUOTE_PRICE_ATOMIC_RULE });
+  const sizeParse = parsePreviewDecimal(size, { atomicRule: PZEC_ATOMIC_RULE });
+  const parsedPrice = priceParse.parsed;
+  const parsedSize = sizeParse.parsed;
   const priceIsValid = Number.isFinite(parsedPrice) && parsedPrice > 0;
   const sizeIsValid = Number.isFinite(parsedSize) && parsedSize > 0;
 
@@ -66,19 +68,33 @@ export function TradeTicket({ market }: { market: Market }) {
   const notionalError = notionalPreview.error;
   const formattedNotional = notional > 0 ? formatQuotePreviewAmount(notional) : "0.00";
 
-  const worstPrice = useMemo(() => {
-    if (orderType === "limit") return parsedPrice;
+  const worstPricePreview = useMemo(() => {
+    if (orderType === "limit") {
+      return { value: parsedPrice, error: null };
+    }
+    const slippageParse = parsePreviewDecimal(slippagePercent, { allowZero: true, maximumExclusive: 100 });
+    if (slippageParse.error) {
+      return { value: Number.NaN, error: slippageParse.error };
+    }
     try {
-      const slippage = parseStrictDecimal(slippagePercent, { allowZero: true, maximumExclusive: 100 });
-      return calculateWorstPrice(market.last, side, slippage);
-    } catch {
-      return Number.NaN;
+      return { value: calculateWorstPrice(market.last, side, slippageParse.parsed), error: null };
+    } catch (error) {
+      return {
+        value: Number.NaN,
+        error: error instanceof Error ? error.message : "Worst price is outside the preview range.",
+      };
     }
   }, [market.last, orderType, parsedPrice, side, slippagePercent]);
+  const worstPrice = worstPricePreview.value;
+  const inputError = priceParse.error ?? sizeParse.error ?? worstPricePreview.error;
 
   function previewOrder() {
+    if (inputError) {
+      setNotice(inputError);
+      return;
+    }
     if (!priceIsValid || !sizeIsValid) {
-      setNotice(ORDER_INPUT_NOTICE);
+      setNotice("Price and size must be positive.");
       return;
     }
     if (notionalError) {
@@ -168,7 +184,7 @@ export function TradeTicket({ market }: { market: Market }) {
               value={slippagePercent}
               onChange={(event) => setSlippagePercent(event.target.value)}
               aria-label="Maximum slippage percent"
-              aria-invalid={!Number.isFinite(worstPrice)}
+              aria-invalid={Boolean(worstPricePreview.error)}
               aria-describedby={noticeId}
             />
             <span>%</span>
@@ -234,7 +250,7 @@ export function TradeTicket({ market }: { market: Market }) {
         Preview {side} order
       </button>
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
-        {!priceIsValid || !sizeIsValid ? ORDER_INPUT_NOTICE : notionalError ?? notice}
+        {inputError ?? notionalError ?? notice}
       </p>
     </section>
   );
