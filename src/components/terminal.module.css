@@ -963,6 +963,54 @@
   line-height: 1.55;
 }
 
+.uriBlock {
+  display: grid;
+  gap: 8px;
+  margin: 18px 22px 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+}
+
+.uriBlock code,
+.uriBlock strong {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.uriBlock p,
+.uriBlock small {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.tourNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 22px 0;
+}
+
+.tourNav button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--surface-raised);
+  font-size: 12px;
+}
+
+.tourNav button:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
 .architecture {
   min-height: calc(100vh - 128px);
 }
