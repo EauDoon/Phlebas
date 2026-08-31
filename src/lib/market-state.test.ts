@@ -17,6 +17,7 @@ import {
   loadingGateCopy,
   orderBookCaptionCopy,
   bookSideControlCopy,
+  tapeSideCopy,
   sessionLastStatLabel,
   staleGateCopy,
   tapeCaptionCopy,
@@ -205,6 +206,17 @@ test("book side control copy names Bid and Ask in visible control text", () => {
   assert.match(bookSideControlCopy("ask", "52.91"), /Ask/);
   assert.match(bookSideControlCopy("bid", "52.78"), /Bid/);
   assert.doesNotMatch(bookSideControlCopy("ask", "52.91"), /pZEC/);
+});
+
+test("tape side copy names Buy and Sell in visible text", () => {
+  assert.equal(tapeSideCopy("buy"), "Buy");
+  assert.equal(tapeSideCopy("sell"), "Sell");
+  assert.notEqual(tapeSideCopy("buy"), tapeSideCopy("sell"));
+  assert.match(tapeSideCopy("buy"), /Buy/);
+  assert.match(tapeSideCopy("sell"), /Sell/);
+  assert.doesNotMatch(tapeSideCopy("buy"), /pZEC/);
+  assert.doesNotMatch(tapeSideCopy("buy"), /live/);
+  assert.doesNotMatch(tapeSideCopy("sell"), /live/);
 });
 
 test("allowlists only documented feed states", () => {

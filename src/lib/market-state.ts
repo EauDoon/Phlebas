@@ -173,6 +173,10 @@ export function bookSideControlCopy(side: "bid" | "ask", priceLabel: string): st
   return side === "ask" ? `Ask ${priceLabel}` : `Bid ${priceLabel}`;
 }
 
+export function tapeSideCopy(side: "buy" | "sell"): string {
+  return side === "buy" ? "Buy" : "Sell";
+}
+
 export function depthSessionLastCopy(
   settlementPair: Market["settlementPair"],
   spreadLabel: string | null,
