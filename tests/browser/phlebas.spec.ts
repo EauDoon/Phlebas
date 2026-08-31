@@ -2054,3 +2054,21 @@ test("terminal banner stays below skip-nav and 320px skip-nav does not cover the
   expect((focused?.y ?? 0) + (focused?.height ?? 0)).toBeLessThanOrEqual(900);
 });
 
+test("focused skip-nav does not cover banner copy and restores 44px skip links at 320px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const brand = page.getByRole("link", { name: "Phlebas home" });
+  await expect(brand).toBeVisible();
+  expect((await brand.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+  expect((await skip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  const navBox = await page.getByRole("navigation", { name: "Skip links" }).boundingBox();
+  const bannerBox = await page.getByRole("status", { name: "Simulation disclosure" }).boundingBox();
+  expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((bannerBox?.y ?? 0) + 1);
+});
+
