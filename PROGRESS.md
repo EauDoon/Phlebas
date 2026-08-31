@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after integer LP IL-versus-hold previews on `/liquidity`.
+Last updated: 31-08-2026 after session order expiry, market-IOC Playwright, and IL-versus-hold on `/liquidity`.
 
 ## Branch
 
@@ -71,13 +71,16 @@ Last updated: 31-08-2026 after integer LP IL-versus-hold previews on `/liquidity
 - Ticket and LP copy bind to version-1 fee constants (5 / 15 / 30 bps, max 30).
 - Public `/status` shows intent cap `unset` when no loopback gateway URL is configured.
 - Matcher health reports `persistReadable`. Observer health reports the 10-confirmation floor.
+- Session ticket expiry is unix time or 0 for none. It binds the SHA-256 canonical encoding and the keccak typed order.
+- Playwright covers market-IOC worst price, expiry on review, IL versus hold, and `/status` intent-cap `unset`.
+- Ticket shows the next session nonce beside epoch. Invalid expiry keeps review closed.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (blocked on a Vercel deploy token in this session; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Playwright: `/status` intent-cap `unset` after the next production build
+- Session blotter log line includes expiry when a ticket is confirmed
 
 ## Blockers
 
