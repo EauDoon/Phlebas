@@ -31,6 +31,7 @@ export type JournalCheckpoint = Readonly<{
   sequence: string;
   recordHash: Hex32;
   stateRoot: Hex32;
+  configurationHash: Hex32;
 }>;
 
 const appendLocks = new Map<string, Promise<void>>();
@@ -40,6 +41,15 @@ function assertPlainObject(value: object): asserts value is Record<string, unkno
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) {
     throw new TypeError("Journal values must use plain JSON objects");
+  }
+}
+
+function assertExactKeys(value: object, allowed: readonly string[], label: string): void {
+  assertPlainObject(value);
+  const actual = Object.keys(value).sort();
+  const expected = [...allowed].sort();
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new TypeError(`${label} has missing or unsupported fields`);
   }
 }
 
@@ -89,6 +99,7 @@ export function hashJournalRecord(
 
 function validateRecord(value: unknown, expectedSequence: bigint, previousHash: Hex32): JournalRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError("Journal record must be an object");
+  assertExactKeys(value, ["version", "sequence", "previousRecordHash", "event", "recordHash"], "Journal record");
   const record = value as Partial<JournalRecord>;
   if (record.version !== JOURNAL_VERSION) throw new Error("Journal record version is unsupported");
   const sequence = canonicalSequence(String(record.sequence), "Journal sequence");
@@ -200,19 +211,30 @@ export async function appendJournal(
 
 export async function writeJournalCheckpoint(path: string, checkpoint: JournalCheckpoint): Promise<void> {
   const validated = validateCheckpoint(checkpoint);
+  const existing = await readJournalCheckpoint(path);
+  if (existing) {
+    const existingSequence = BigInt(existing.sequence);
+    const nextSequence = BigInt(validated.sequence);
+    if (nextSequence < existingSequence) throw new Error("Journal checkpoint sequence cannot move backward");
+    if (nextSequence === existingSequence && canonicalJournalJson(existing) !== canonicalJournalJson(validated)) {
+      throw new Error("Journal checkpoint cannot change at the same sequence");
+    }
+  }
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   await atomicWriteFile(path, `${canonicalJournalJson(validated)}\n`);
 }
 
 function validateCheckpoint(value: unknown): JournalCheckpoint {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError("Journal checkpoint must be an object");
+  assertExactKeys(value, ["version", "sequence", "recordHash", "stateRoot", "configurationHash"], "Journal checkpoint");
   const checkpoint = value as Partial<JournalCheckpoint>;
   if (checkpoint.version !== JOURNAL_VERSION) throw new Error("Journal checkpoint version is unsupported");
   const sequence = canonicalSequence(String(checkpoint.sequence), "Checkpoint sequence", true);
   const recordHash = normalizeHex32(String(checkpoint.recordHash), "Checkpoint record hash");
   const stateRoot = normalizeHex32(String(checkpoint.stateRoot), "Checkpoint state root");
+  const configurationHash = normalizeHex32(String(checkpoint.configurationHash), "Checkpoint configuration hash");
   if (sequence === 0n && recordHash !== JOURNAL_GENESIS_HASH) throw new Error("Genesis checkpoint has a non-genesis record hash");
-  return { version: JOURNAL_VERSION, sequence: sequence.toString(), recordHash, stateRoot };
+  return { version: JOURNAL_VERSION, sequence: sequence.toString(), recordHash, stateRoot, configurationHash };
 }
 
 export async function readJournalCheckpoint(path: string): Promise<JournalCheckpoint | null> {

@@ -87,6 +87,7 @@ test("binds atomic checkpoints to an exact journal prefix", async () => {
       sequence: "1",
       recordHash: first.recordHash,
       stateRoot: keccak256Text("state-at-one"),
+      configurationHash: keccak256Text("configuration"),
     });
     const checkpoint = await readJournalCheckpoint(checkpointPath);
     assert.ok(checkpoint);
@@ -112,6 +113,30 @@ test("canonical JSON rejects ambiguous and prototype-sensitive values", () => {
   assert.throws(() => canonicalJournalJson(forbidden), /forbidden/);
 });
 
+test("rejects journal and checkpoint extension fields", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-journal-shape-"));
+  const journalPath = join(directory, "events.jsonl");
+  const checkpointPath = join(directory, "checkpoint.json");
+  try {
+    const record = await appendJournal(journalPath, await readJournal(journalPath), { kind: "one" });
+    const parsed = JSON.parse(await readFile(journalPath, "utf8")) as Record<string, unknown>;
+    await writeFile(journalPath, `${JSON.stringify({ ...parsed, ignored: true })}\n`);
+    await assert.rejects(() => readJournal(journalPath), /missing or unsupported fields/);
+
+    await writeFile(checkpointPath, `${JSON.stringify({
+      version: 1,
+      sequence: "1",
+      recordHash: record.recordHash,
+      stateRoot: keccak256Text("state"),
+      configurationHash: keccak256Text("configuration"),
+      ignored: true,
+    })}\n`);
+    await assert.rejects(() => readJournalCheckpoint(checkpointPath), /missing or unsupported fields/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("genesis checkpoints require the genesis hash", async () => {
   const directory = await mkdtemp(join(tmpdir(), "phlebas-journal-genesis-"));
   const path = join(directory, "checkpoint.json");
@@ -121,6 +146,7 @@ test("genesis checkpoints require the genesis hash", async () => {
       sequence: "0",
       recordHash: JOURNAL_GENESIS_HASH,
       stateRoot: keccak256Text("empty-state"),
+      configurationHash: keccak256Text("configuration"),
     });
     assert.equal((await readJournalCheckpoint(path))?.sequence, "0");
     await assert.rejects(() => writeJournalCheckpoint(path, {
@@ -128,6 +154,7 @@ test("genesis checkpoints require the genesis hash", async () => {
       sequence: "0",
       recordHash: keccak256Text("not-genesis"),
       stateRoot: keccak256Text("empty-state"),
+      configurationHash: keccak256Text("configuration"),
     }), /non-genesis/);
   } finally {
     await rm(directory, { recursive: true, force: true });
