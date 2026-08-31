@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after the 320px skip-nav wrap, terminal brand, and hide-after-skip slice.
+Last updated: 01-09-2026 after skip-link focus-visible, 320px wrap height, overflow, unclipped ring, and hide clip-box.
 
 ## Branch
 
@@ -260,13 +260,22 @@ Last updated: 01-09-2026 after the 320px skip-nav wrap, terminal brand, and hide
 - Terminal skip-nav in flow does not cover the topbar brand
 - Skip-nav returns to its clipped hidden state after skip-link activation
 - Playwright covers 320px skip-nav wrap, terminal brand below skip-nav, and hide after skip
+- Skip-link `:focus-visible` keeps the 2px `#15140d` ring for keyboard focus
+- Two-up skip links stay 44px tall when the label wraps at 320px
+- Focused skip-nav stays inside the 320px viewport (`max-width: 100%`)
+- Skip-nav focused padding is 4px so the 2px ring plus offset stays inside overflow-y auto
+- Hidden reduced-motion skip-nav zeros padding and gap and sets `transition: none` so hide restores a 1px clip box
+- Playwright covers focus-visible wrap height, 320px overflow, unclipped ring, and hide after skip
 
 ## Next
 
-- Skip-link `:focus-visible` should keep the 2px focus ring for keyboard focus
-- Two-up skip links should stay 44px tall when the label wraps at 320px
-- Focused skip-nav should not overflow the 320px viewport horizontally
-- Skip-link focus ring should stay unclipped after two-up wrap
+- Skip-link wrapped labels should keep a readable line-height at 320px
+- Skip-nav height cap should not clip the focused skip-link ring vertically
+- Skip-nav scrollbar gutter should not shrink two-up skip links below 44px
+- Focused skip-nav at 390px should keep two-up links and the 2px ring inside the viewport
+- Skip-link `:focus-visible` outline should stay `#15140d` when globals `a:focus-visible` also matches
+- Overflow-y auto without reduced-motion should still contain the skip-link ring
+- Skip-nav should not cover the landing header after wrapped two-up rows at 320px
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
