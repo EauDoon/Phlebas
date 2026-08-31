@@ -38,6 +38,7 @@
 
 .skipLink:focus {
   outline: 2px solid #15140d;
+  outline-offset: 2px;
 }
 
 .evidenceSection,
