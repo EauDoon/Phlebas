@@ -46,7 +46,8 @@
 #missing-route,
 #incident-demonstration,
 #liquidity-pools,
-#destination-inspector {
+#destination-inspector,
+#retry-copy {
   scroll-margin-top: 12px;
 }
 
