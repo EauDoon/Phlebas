@@ -36,6 +36,18 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /does not list USDT0/);
   assert.match(landing, /native ZEC against native USDC/);
   assert.match(landing, /USDT0 is abandoned/);
+  assert.match(landing, /Understand native pairs/);
+  assert.match(landing, /href="#pairs"/);
+  assert.doesNotMatch(landing, /Understand pZEC/);
+  assert.match(await readFile(join(root, "src/lib/session.ts"), "utf8"), /SESSION_ZEC_ATOMS/);
+  assert.match(await readFile(join(root, "src/lib/session.ts"), "utf8"), /export function availableZec/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/session.ts"), "utf8"), /availablePzec/);
+  assert.match(
+    await readFile(join(root, "src/lib/encoding.test.ts"), "utf8"),
+    /2d3360d350d50a83e69a46f50a4fedcfc77a610dc91fe0d80fee67616acb38ca/,
+  );
+  assert.match(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /nothing was minted/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /pZEC/);
   assert.doesNotMatch(landing, /Later listing gate/);
   assert.doesNotMatch(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /Later listing gate/);
   assert.doesNotMatch(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /Later listing gate/);

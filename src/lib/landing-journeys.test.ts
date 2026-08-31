@@ -13,6 +13,8 @@ test("four landing journeys are Trader, LP, Deposit, and Withdrawal", () => {
   assert.equal(LANDING_JOURNEYS[1]?.href, "/liquidity");
   assert.equal(LANDING_JOURNEYS[2]?.href, "/trade?view=bridge");
   assert.equal(LANDING_JOURNEYS[3]?.href, "/trade?view=bridge&journey=withdrawal");
+  assert.doesNotMatch(LANDING_JOURNEYS.map((journey) => journey.description).join(" "), /pZEC/);
+  assert.match(LANDING_JOURNEYS[0].description, /Preview ZEC spot order entry/);
 });
 
 test("hash selects LP after the journeys heading, otherwise trader", () => {

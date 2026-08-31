@@ -136,6 +136,8 @@ test("depth and tape empty copy names the settlement pair", () => {
   assert.match(feedWithheldCopy("empty", "ZEC-USDC"), /No 24h stats or chart series/);
   assert.match(orderBookCaptionCopy("ZEC/USDC"), /settled as ZEC-USDC/);
   assert.match(orderBookCaptionCopy("ZEC/USDT"), /settled as ZEC-USDT/);
+  assert.match(orderBookCaptionCopy("ZEC/USDC"), /cumulative ZEC depth/);
+  assert.doesNotMatch(orderBookCaptionCopy("ZEC/USDT"), /pZEC/);
   assert.doesNotMatch(depthEmptyCopy("ZEC-USDC"), /native ZEC/);
   assert.doesNotMatch(feedWithheldCopy("loading", "ZEC-USDC"), /live feed/);
   assert.equal(depthSessionLastCopy("ZEC-USDC", null), "session last · ZEC-USDC");
