@@ -1893,8 +1893,8 @@ a.skipLink:focus-visible {
     max-height: calc(100vh - min(40vh, 17.5rem) - 12px);
     box-sizing: border-box;
     overflow-y: auto;
-    scroll-padding-top: 8px;
-    scroll-padding-bottom: 8px;
+    scroll-padding-top: 12px;
+    scroll-padding-bottom: 12px;
     padding-top: 24px;
     padding-bottom: 8px;
   }
