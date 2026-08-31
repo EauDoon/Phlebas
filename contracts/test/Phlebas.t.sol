@@ -99,6 +99,12 @@ contract PhlebasTest is TestBase {
         assertEq(uint256(zec.decimals()), 8);
     }
 
+    function testLpTokenSymbolIsTlp() public view {
+        assertEq(pair.name(), "Phlebas Testnet LP");
+        assertEq(pair.symbol(), "tLP");
+        assertEq(uint256(pair.decimals()), 18);
+    }
+
     function testFactorySettlementAndRouterExposeZec() public view {
         assertEq(factory.zec(), address(zec));
         assertEq(settlement.zec(), address(zec));
