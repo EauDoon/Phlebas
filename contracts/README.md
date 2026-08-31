@@ -179,3 +179,7 @@ of the matcher operator's in-memory state.
   bids and asks. Default 20, maximum 200.
 - GET /markets — configured base asset, supported quote
   assets, current lastTicks, sequence.
+- GET /snapshot?depth=N&trades=M — combined snapshot of
+  ticker, depth, and trades. Default depth 20, max 200.
+  Default trades 50, max 1000.
+- GET /version — service and version.
