@@ -717,6 +717,32 @@ test("missing-provider error keeps settlement after switching market", async ({ 
   await expect(connect).toHaveAttribute("title", retargeted);
 });
 
+test("rejected connect error keeps settlement after switching market", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "ethereum", {
+      configurable: true,
+      value: {
+        request(args: { method: string }) {
+          if (args.method === "eth_requestAccounts") {
+            return Promise.reject(new Error("User rejected the request."));
+          }
+          return Promise.reject(new Error(args.method));
+        },
+      },
+    });
+  });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  await connect.click();
+  await expect(
+    page.getByText("User rejected the request. Settled as pZEC-USDC.", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  const retargeted = "User rejected the request. Settled as pZEC-USDT0.";
+  await expect(page.getByText(retargeted, { exact: true })).toBeVisible();
+  await expect(connect).toHaveAttribute("title", retargeted);
+});
+
 test("connecting wallet title keeps the settlement pair", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, "ethereum", {
