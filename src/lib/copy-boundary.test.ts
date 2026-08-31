@@ -54,6 +54,13 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /publicly linkable/);
   const ticket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
   assert.match(ticket, /Order rejected/);
+  assert.match(ticket, /describeSubmit/);
+  assert.match(ticket, /isTicketRejectCopy/);
+  assert.match(await readFile(join(root, "src/lib/session.ts"), "utf8"), /ticketRejectCopy/);
+  assert.match(await readFile(join(root, "src/lib/session.ts"), "utf8"), /Settled as \$\{markets\[marketId\]\.settlementPair\}/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /depthEmptyCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /feedWithheldCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /orderBookCaptionCopy/);
   const blotter = await readFile(join(root, "src/components/order-blotter.tsx"), "utf8");
   assert.match(blotter, /role="tabpanel"/);
   assert.match(blotter, /blotterLogEventCopy/);
