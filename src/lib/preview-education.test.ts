@@ -1,0 +1,34 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  isEducationForceQuery,
+  PREVIEW_EDUCATION_STEPS,
+  PREVIEW_EDUCATION_VERSION,
+  shouldShowPreviewEducation,
+} from "./preview-education.ts";
+
+test("education returns when local storage is empty or stale", () => {
+  assert.equal(shouldShowPreviewEducation(null), true);
+  assert.equal(shouldShowPreviewEducation(""), true);
+  assert.equal(shouldShowPreviewEducation("2026-08-01-0"), true);
+  assert.equal(shouldShowPreviewEducation(PREVIEW_EDUCATION_VERSION), false);
+});
+
+test("education copy stays a simulation briefing, not consent", () => {
+  assert.equal(PREVIEW_EDUCATION_STEPS.length, 3);
+  for (const step of PREVIEW_EDUCATION_STEPS) {
+    assert.doesNotMatch(step.title, /I agree/i);
+    assert.doesNotMatch(step.body, /I agree/i);
+    assert.doesNotMatch(step.body, /\blive funds\b/i);
+    assert.doesNotMatch(step.body, /is trustless/);
+  }
+  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /not native ZEC, shielded ZEC, or a trustless bridge asset/);
+  assert.match(PREVIEW_EDUCATION_STEPS[0].body, /does not move mainnet funds/);
+});
+
+test("education query force is allowlisted to 1", () => {
+  assert.equal(isEducationForceQuery("1"), true);
+  assert.equal(isEducationForceQuery("true"), false);
+  assert.equal(isEducationForceQuery(undefined), false);
+});
