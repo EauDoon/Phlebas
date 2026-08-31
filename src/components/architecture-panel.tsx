@@ -33,7 +33,13 @@ export function ArchitecturePanel() {
         The public UI must never become the custody backend. Each layer receives only the
         authority it needs. Any implemented cross-layer message must be replay-protected and auditable.
       </p>
-      <div className={styles.layerGrid}>
+      <div
+        id="architecture-layers"
+        className={styles.layerGrid}
+        role="region"
+        aria-label="Architecture layers"
+        tabIndex={-1}
+      >
         {layers.map((layer, index) => (
           <article key={layer.title} className={styles.layerCard}>
             <span className={styles.layerNumber}>0{index + 1}</span>

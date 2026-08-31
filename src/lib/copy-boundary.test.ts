@@ -74,6 +74,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /Order expiry unix time/);
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /never hosted on Vercel/);
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /id="honesty-bar"/);
+  assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /id="architecture-layers"/);
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /The matcher is not trustless/);
   assert.match(await readFile(join(root, "src/components/country-block.tsx"), "utf8"), /id="country-block"/);
   assert.match(await readFile(join(root, "src/components/country-block.tsx"), "utf8"), /shareable preview of a blocked location/);
