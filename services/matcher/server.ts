@@ -328,5 +328,18 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  startMatcher();
+  const server = startMatcher();
+  let stopping = false;
+  const stop = () => {
+    if (stopping) return;
+    stopping = true;
+    server.close((error?: Error) => {
+      if (error) {
+        process.exitCode = 1;
+        process.stderr.write(`${error.message}\n`);
+      }
+    });
+  };
+  process.once("SIGINT", stop);
+  process.once("SIGTERM", stop);
 }
