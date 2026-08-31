@@ -2328,3 +2328,118 @@ test("skip-nav keeps wrapped line-height, 390px two-up ring, gutter, and header 
   expect(motionRing.bottom).toBeLessThanOrEqual(motionRing.parentBottom + 0.5);
 });
 
+test("skip-nav two-up at 768 and 390 keeps 44px links, wrap, gutter, and Menu clear", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  const layout768 = await nav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const links = [...element.querySelectorAll("a")];
+    const first = links[0]?.getBoundingClientRect();
+    const second = links[1]?.getBoundingClientRect();
+    return {
+      wrap: style.flexWrap,
+      direction: style.flexDirection,
+      alignItems: style.alignItems,
+      columnGap: style.columnGap,
+      overflowWrap: links[0] ? getComputedStyle(links[0]).overflowWrap : "",
+      minWidth: links[0] ? Number.parseFloat(getComputedStyle(links[0]).minWidth) : 0,
+      firstHeight: first?.height ?? 0,
+      secondHeight: second?.height ?? 0,
+      firstTop: first?.top ?? 0,
+      secondTop: second?.top ?? 0,
+      firstRight: first?.right ?? 0,
+      secondLeft: second?.left ?? 0,
+      secondRight: second?.right ?? 0,
+      navRight: element.getBoundingClientRect().right,
+    };
+  });
+  expect(layout768.direction).toBe("row");
+  expect(layout768.wrap).toBe("wrap");
+  expect(layout768.alignItems).toBe("stretch");
+  expect(layout768.columnGap).toBe("4px");
+  expect(layout768.overflowWrap).toMatch(/anywhere|break-word/);
+  expect(layout768.minWidth).toBeGreaterThanOrEqual(44);
+  expect(layout768.firstHeight).toBeGreaterThanOrEqual(44);
+  expect(layout768.secondHeight).toBeGreaterThanOrEqual(44);
+  expect(Math.abs(layout768.firstHeight - layout768.secondHeight)).toBeLessThan(1);
+  expect(Math.abs(layout768.firstTop - layout768.secondTop)).toBeLessThan(2);
+  expect(layout768.secondLeft).toBeGreaterThan(layout768.firstRight);
+  expect(layout768.secondRight).toBeLessThanOrEqual(layout768.navRight + 0.5);
+
+  const ring768 = await skip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      left: rect.left - extent,
+      right: rect.right + extent,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+    };
+  });
+  expect(ring768.left).toBeGreaterThanOrEqual(-0.5);
+  expect(ring768.top).toBeGreaterThanOrEqual(-0.5);
+  expect(ring768.right).toBeLessThanOrEqual(768.5);
+  expect(ring768.bottom).toBeLessThanOrEqual(1024.5);
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expectVisibleFocus(skip);
+  const navBox = await nav.boundingBox();
+  const menuBox = await page.getByRole("button", { name: "Menu" }).boundingBox();
+  expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((menuBox?.y ?? 0) + 1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const tradeSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(tradeSkip);
+  const tradeNav = page.getByRole("navigation", { name: "Skip links" });
+  const tradeLayout = await tradeNav.evaluate((element) => {
+    const links = [...element.querySelectorAll("a")].slice(0, 2).map((link) => link.getBoundingClientRect());
+    const style = getComputedStyle(element);
+    return {
+      wrap: style.flexWrap,
+      direction: style.flexDirection,
+      firstTop: links[0]?.top ?? 0,
+      secondTop: links[1]?.top ?? 0,
+      firstRight: links[0]?.right ?? 0,
+      secondLeft: links[1]?.left ?? 0,
+      firstHeight: links[0]?.height ?? 0,
+      secondHeight: links[1]?.height ?? 0,
+    };
+  });
+  expect(tradeLayout.direction).toBe("row");
+  expect(tradeLayout.wrap).toBe("wrap");
+  expect(Math.abs(tradeLayout.firstTop - tradeLayout.secondTop)).toBeLessThan(2);
+  expect(tradeLayout.secondLeft).toBeGreaterThan(tradeLayout.firstRight);
+  expect(tradeLayout.firstHeight).toBeGreaterThanOrEqual(44);
+  expect(tradeLayout.secondHeight).toBeGreaterThanOrEqual(44);
+  expect(Math.abs(tradeLayout.firstHeight - tradeLayout.secondHeight)).toBeLessThan(1);
+
+  const tradeRing = await tradeSkip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      left: rect.left - extent,
+      right: rect.right + extent,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      color: style.outlineColor,
+    };
+  });
+  expect(tradeRing.color).toBe("rgb(21, 20, 13)");
+  expect(tradeRing.left).toBeGreaterThanOrEqual(-0.5);
+  expect(tradeRing.top).toBeGreaterThanOrEqual(-0.5);
+  expect(tradeRing.right).toBeLessThanOrEqual(390.5);
+  expect(tradeRing.bottom).toBeLessThanOrEqual(844.5);
+});
+
