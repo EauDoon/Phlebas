@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after Architecture keeps demo=incidents across market switches and blotter empty copy names the settlement pair.
+Last updated: 31-08-2026 after blotter log empty copy names the settlement pair and Architecture→Trade drops and restores demo=incidents.
 
 ## Branch
 
@@ -97,15 +97,19 @@ Last updated: 31-08-2026 after Architecture keeps demo=incidents across market s
 - Empty session LP shares name the selected pool (`pZEC/USDC` or `pZEC/USDT0`) and are not an order-book empty notice. The notice clears after a mint.
 - `/status` Architecture link uses allowlisted `demo=incidents` and keeps the `architecture-demonstration` label on the incident panel. Switching the Architecture market keeps `demo=incidents` in the URL.
 - Blotter empty orders and empty fills name the settlement pair (`pZEC-USDC` or `pZEC-USDT0`).
+- Blotter empty event log names the settlement pair (`pZEC-USDC` or `pZEC-USDT0`). Replay copy stays honest.
+- Leaving Architecture for Trade drops `demo=incidents` from the URL. Returning to Architecture restores the highlight from the in-memory `highlightIncidents` prop. Liquidity and gateway views also omit the query.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Architecture market switch should keep the incident highlight after a Trade round-trip
-- Blotter log empty copy should name the settlement pair the way orders and fills do
-- Playwright: leaving Architecture for Trade drops `demo=incidents` from the URL
+- Playwright: leaving Architecture for Liquidity also drops `demo=incidents`
+- Filled blotter event-log rows should name the settlement pair the way empty copy does
+- Event-log caption should name the current market's settlement pair when events exist
+- Ticket reject copy should name the settlement pair on inventory and self-trade failures
+- Depth and tape empty copy should name the settlement pair the way the blotter does
 
 ## Blockers
 
