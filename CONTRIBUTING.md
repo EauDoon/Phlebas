@@ -30,4 +30,4 @@ Do not disclose a suspected vulnerability in a public issue. Follow the private 
 
 ## License
 
-Apache License 2.0. See `LICENSE`.
+Apache License 2.0. See `LICENSE` and `docs/LICENSE_CHOICE.md`. Not MIT.

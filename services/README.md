@@ -4,6 +4,8 @@ Gateway, matcher, and the Zebra observer stub run on the operator machine. They 
 
 Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel. Those variables belong only in a local or isolated-host environment.
 
+Operator steps, health checks, and incident actions: [docs/OPERATOR_RUNBOOK.md](../docs/OPERATOR_RUNBOOK.md).
+
 ## Direct
 
 ```bash

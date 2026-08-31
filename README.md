@@ -57,6 +57,8 @@ The terminal takes structural cues from [Hyperliquid](https://app.hyperliquid.xy
 | `docs/WALLET_COMPATIBILITY.md` | Current ZEC wallet evidence and executable Testnet qualification |
 | `docs/THREAT_MODEL.md` | Abuse cases, invariants, tests, and stop conditions |
 | `docs/OPERATIONS.md` | Proposed services, observability, and incident control |
+| `docs/OPERATOR_RUNBOOK.md` | Loopback Compose start, health, and stop for gateway, matcher, observer |
+| `docs/LICENSE_CHOICE.md` | Why Apache-2.0, and that it is not MIT |
 | `docs/LEGAL_AND_COMPLIANCE.md` | Regulatory questions and jurisdiction gates |
 | `docs/LAUNCH_PLAN.md` | Testnet to restricted-mainnet sequencing |
 | `docs/SOURCES.md` | Primary technical and regulatory references |
@@ -126,7 +128,7 @@ Vercel may host the public, stateless interface, documentation, read-only public
 
 ## Licensing and publication
 
-The software in this repository is licensed under the Apache License 2.0. See `LICENSE`. That choice does not make Phlebas an exchange, a live-funds service, or an audited product.
+The software in this repository is licensed under the Apache License 2.0. See `LICENSE` and [the license choice note](docs/LICENSE_CHOICE.md). That choice does not make Phlebas an exchange, a live-funds service, or an audited product.
 
 ## Read next
 

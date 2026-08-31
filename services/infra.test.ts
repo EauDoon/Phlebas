@@ -21,6 +21,8 @@ test("Compose publishes gateway and matcher on loopback only and never sets Verc
 
 test("LICENSE is Apache-2.0 and the Sepolia manifest stays undeployed", async () => {
   const license = await readFile(join(root, "LICENSE"), "utf8");
+  const choice = await readFile(join(root, "docs/LICENSE_CHOICE.md"), "utf8");
+  const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as { license: string };
   const manifest = JSON.parse(await readFile(join(root, "infra/testnet/arbitrum-sepolia.json"), "utf8")) as {
     deployed: boolean;
     chainId: number;
@@ -29,7 +31,21 @@ test("LICENSE is Apache-2.0 and the Sepolia manifest stays undeployed", async ()
   assert.match(license, /Apache License/);
   assert.match(license, /Version 2\.0/);
   assert.doesNotMatch(license, /^MIT License/m);
+  assert.equal(pkg.license, "Apache-2.0");
+  assert.match(choice, /Apache License 2\.0/);
+  assert.match(choice, /not MIT/i);
   assert.equal(manifest.deployed, false);
   assert.equal(manifest.chainId, 421614);
   assert.equal(manifest.broadcastTx, null);
+});
+
+test("operator runbook exists and CI does not set gateway or matcher URLs", async () => {
+  const runbook = await readFile(join(root, "docs/OPERATOR_RUNBOOK.md"), "utf8");
+  const ci = await readFile(join(root, ".github/workflows/ci.yml"), "utf8");
+  assert.match(runbook, /127\.0\.0\.1:8787/);
+  assert.match(runbook, /127\.0\.0\.1:8788/);
+  assert.match(runbook, /127\.0\.0\.1:8789/);
+  assert.match(runbook, /Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel/);
+  assert.doesNotMatch(ci, /PHLEBAS_GATEWAY_URL/);
+  assert.doesNotMatch(ci, /PHLEBAS_MATCHER_URL/);
 });

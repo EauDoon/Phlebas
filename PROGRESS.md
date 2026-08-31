@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after observer HTTP tests, Compose/LICENSE structural checks, and Apache-2.0.
+Last updated: 31-08-2026 after operator runbook, hardened loopback tests, and Apache-2.0 choice note.
 
 ## Branch
 
@@ -33,7 +33,8 @@ Last updated: 31-08-2026 after observer HTTP tests, Compose/LICENSE structural c
 - Matcher persists book, receipts, recover, and sequence under `services/matcher/.data` on 127.0.0.1.
 - Isolated local Compose under `services/` for gateway, matcher, and observer. Host ports bind `127.0.0.1`. Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.
 - Zebra observer and mint-attestation stubs: textest only, 10 confirmations, one outpoint one mint. No Zebra RPC. HTTP `/attest` is covered by a live loopback test.
-- License: Apache License 2.0 (`LICENSE`). Not MIT. Product language unchanged.
+- License: Apache License 2.0 (`LICENSE`, `docs/LICENSE_CHOICE.md`). Not MIT. Product language unchanged.
+- Operator runbook for local Compose: `docs/OPERATOR_RUNBOOK.md`. Gateway, matcher, and observer health and incident steps. Loopback HTTP tests cover issue, sequence health, attest, quarantine, and disagreement.
 
 ## Next
 
