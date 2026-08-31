@@ -2362,7 +2362,7 @@ test("skip-nav two-up at 768 and 390 keeps 44px links, wrap, gutter, and Menu cl
   expect(layout768.direction).toBe("row");
   expect(layout768.wrap).toBe("wrap");
   expect(layout768.alignItems).toBe("stretch");
-  expect(layout768.columnGap).toBe("4px");
+  expect(layout768.columnGap).toBe("8px");
   expect(layout768.overflowWrap).toMatch(/anywhere|break-word/);
   expect(layout768.minWidth).toBeGreaterThanOrEqual(44);
   expect(layout768.firstHeight).toBeGreaterThanOrEqual(44);
@@ -2556,5 +2556,115 @@ test("skip-nav row-gap leftover 768 brand legal two-up and banner stacking", asy
     expect(frameLayout.firstHeight).toBeGreaterThanOrEqual(44);
     expect(frameLayout.secondHeight).toBeGreaterThanOrEqual(44);
   }
+});
+
+test("skip-nav column-gap status liquidity leftover 768 Menu and security wrap", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  const landingLayout = await nav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const links = [...element.querySelectorAll("a")];
+    const first = links[0]?.getBoundingClientRect();
+    const second = links[1]?.getBoundingClientRect();
+    return {
+      columnGap: style.columnGap,
+      minHeight: links[0] ? Number.parseFloat(getComputedStyle(links[0]).minHeight) : 0,
+      padding: links[0] ? getComputedStyle(links[0]).paddingTop : "",
+      firstRight: first?.right ?? 0,
+      secondLeft: second?.left ?? 0,
+      firstHeight: first?.height ?? 0,
+    };
+  });
+  expect(landingLayout.columnGap).toBe("8px");
+  expect(landingLayout.minHeight).toBeGreaterThanOrEqual(44);
+  expect(landingLayout.padding).toBe("8px");
+  expect(landingLayout.firstHeight).toBeGreaterThanOrEqual(44);
+  expect(landingLayout.firstRight + 4).toBeLessThanOrEqual(landingLayout.secondLeft - 4 + 0.5);
+
+  const navBox = await nav.boundingBox();
+  const headerBox = await page.locator("header").boundingBox();
+  expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((headerBox?.y ?? 0) + 1);
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expectVisibleFocus(skip);
+  const nav768 = await nav.boundingBox();
+  const menuBox = await page.getByRole("button", { name: "Menu" }).boundingBox();
+  expect((nav768?.y ?? 0) + (nav768?.height ?? 0)).toBeLessThanOrEqual((menuBox?.y ?? 0) + 1);
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/status", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const statusSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(statusSkip);
+  const statusNav = page.getByRole("navigation", { name: "Skip links" });
+  const statusLayout = await statusNav.evaluate((element) => {
+    const links = [...element.querySelectorAll("a")].map((link) => link.getBoundingClientRect());
+    const style = getComputedStyle(element);
+    return {
+      wrap: style.flexWrap,
+      direction: style.flexDirection,
+      count: links.length,
+      firstTop: links[0]?.top ?? 0,
+      secondTop: links[1]?.top ?? 0,
+      firstRight: links[0]?.right ?? 0,
+      secondLeft: links[1]?.left ?? 0,
+      firstHeight: links[0]?.height ?? 0,
+      secondHeight: links[1]?.height ?? 0,
+    };
+  });
+  expect(statusLayout.count).toBe(2);
+  expect(statusLayout.direction).toBe("row");
+  expect(statusLayout.wrap).toBe("wrap");
+  expect(Math.abs(statusLayout.firstTop - statusLayout.secondTop)).toBeLessThan(2);
+  expect(statusLayout.secondLeft).toBeGreaterThan(statusLayout.firstRight);
+  expect(statusLayout.firstHeight).toBeGreaterThanOrEqual(44);
+  expect(statusLayout.secondHeight).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const lpSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(lpSkip);
+  const lpNav = page.getByRole("navigation", { name: "Skip links" });
+  const lpLayout = await lpNav.evaluate((element) => {
+    const links = [...element.querySelectorAll("a")];
+    const last = links[links.length - 1]?.getBoundingClientRect();
+    return {
+      count: links.length,
+      lastWidth: last?.width ?? 0,
+      lastHeight: last?.height ?? 0,
+    };
+  });
+  expect(lpLayout.count).toBe(3);
+  expect(lpLayout.lastWidth).toBeGreaterThanOrEqual(44);
+  expect(lpLayout.lastHeight).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/security", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await tabTo(page, page.getByRole("link", { name: "Skip to security article" }));
+  const securitySkip = page.getByRole("link", { name: "Skip to security article" });
+  await expectVisibleFocus(securitySkip);
+  const wrap = await securitySkip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      overflowWrap: style.overflowWrap,
+      wordBreak: style.wordBreak,
+      scrollOverflow: element.scrollWidth - element.clientWidth,
+      minWidth: Number.parseFloat(style.minWidth),
+      minHeight: Number.parseFloat(style.minHeight),
+    };
+  });
+  expect(wrap.overflowWrap).toMatch(/anywhere|break-word/);
+  expect(["break-word", "normal"]).toContain(wrap.wordBreak);
+  expect(wrap.scrollOverflow).toBeLessThanOrEqual(1);
+  expect(wrap.minWidth).toBeGreaterThanOrEqual(44);
+  expect(wrap.minHeight).toBeGreaterThanOrEqual(44);
 });
 
