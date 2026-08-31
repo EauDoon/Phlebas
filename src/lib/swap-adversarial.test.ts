@@ -26,7 +26,6 @@ test("binds every mutable signed term to the terms digest", () => {
     { ...sampleSwapTerms, zecSellerId: keccak256Text("other-zec-seller") },
     { ...sampleSwapTerms, stablecoinSellerId: keccak256Text("other-quote-seller") },
     { ...sampleSwapTerms, zecChain: "bip122:11111111111111111111111111111111", zecAsset: "bip122:11111111111111111111111111111111/slip44:133" },
-    { ...sampleSwapTerms, zecAsset: `${sampleSwapTerms.zecChain}/slip44:999` },
     { ...sampleSwapTerms, quoteChain: "eip155:1", quoteAsset: "eip155:1/erc20:0x1111111111111111111111111111111111111111" },
     { ...sampleSwapTerms, quoteAsset: `${sampleSwapTerms.quoteChain}/erc20:0x2222222222222222222222222222222222222222` },
     { ...sampleSwapTerms, zecAmountZatoshis: sampleSwapTerms.zecAmountZatoshis + 1n },
@@ -57,6 +56,7 @@ test("binds every mutable signed term to the terms digest", () => {
   assert.equal(new Set(mutations.map(hashSwapTerms)).size, mutations.length);
   for (const mutation of mutations) assert.notEqual(hashSwapTerms(mutation), baseline);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, version: 2 as 1 }), /Unsupported/);
+  assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, zecAsset: `${sampleSwapTerms.zecChain}/slip44:999` }), /slip44:133/);
 });
 
 test("rejects wrong assets, destinations, contracts, and amounts without mutation", () => {

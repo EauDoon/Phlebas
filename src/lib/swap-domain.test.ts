@@ -24,8 +24,11 @@ test("rejects ambiguous identities, self-trades, and unsupported chain namespace
   const uppercaseFillId = `0x${sampleSwapTerms.fillId.slice(2).toUpperCase()}` as `0x${string}`;
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, fillId: uppercaseFillId }), /canonical/);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, stablecoinSellerId: sampleSwapTerms.zecSellerId }), /distinct/);
-  assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, quoteChain: "bip122:abc" }), /eip155/);
-  assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, quoteAsset: "eip155:1/erc20:0x11" }), /on eip155:421614/);
+  assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, quoteChain: "eip155:not-a-number" }), /numeric EIP-155/);
+  assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, zecChain: "bip122:abc" }), /32-hex/);
+  assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, quoteAsset: "eip155:421614/erc20:0x11" }), /ERC-20/);
+  assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, quoteAsset: "eip155:421614/erc20:not-a-contract" }), /ERC-20/);
+  assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, zecAsset: `${sampleSwapTerms.zecChain}/slip44:1` }), /slip44:133/);
 });
 
 test("keeps integer amounts positive and fees within the signed cap", () => {

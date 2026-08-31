@@ -43,8 +43,9 @@ export type SwapTermsV1 = Readonly<{
   evmFinalityPolicyId: Hex32;
 }>;
 
-const CAIP_CHAIN = /^[a-z0-9-]{3,8}:[A-Za-z0-9-_]{1,32}$/;
-const CAIP_ASSET = /^[a-z0-9-]{3,8}:[A-Za-z0-9-_]{1,32}\/[a-z0-9-]{3,8}:[A-Za-z0-9.%-]{1,128}$/;
+const BIP122_CHAIN = /^bip122:[0-9a-f]{32}$/;
+const EIP155_CHAIN = /^eip155:(0|[1-9][0-9]{0,19})$/;
+const EIP155_ERC20_ASSET = /^eip155:(0|[1-9][0-9]{0,19})\/erc20:0x[0-9a-f]{40}$/;
 
 function canonicalHex32(value: string, label: string): Hex32 {
   const normalized = normalizeHex32(value, label);
@@ -75,14 +76,30 @@ function canonicalUint64(value: bigint, label: string, allowZero = false): bigin
   return value;
 }
 
-function canonicalChain(value: string, label: string): string {
-  if (!CAIP_CHAIN.test(value)) throw new TypeError(`${label} must be a canonical CAIP-2 identifier`);
+function canonicalZcashChain(value: string): string {
+  if (!BIP122_CHAIN.test(value)) {
+    throw new TypeError("Zcash chain must be a canonical lowercase BIP-122 identifier with a 32-hex reference");
+  }
   return value;
 }
 
-function canonicalAsset(value: string, label: string, chain: string): string {
-  if (!CAIP_ASSET.test(value) || !value.startsWith(`${chain}/`)) {
-    throw new TypeError(`${label} must be a canonical CAIP-19 identifier on ${chain}`);
+function canonicalQuoteChain(value: string): string {
+  if (!EIP155_CHAIN.test(value)) {
+    throw new TypeError("Quote chain must be a canonical numeric EIP-155 identifier");
+  }
+  return value;
+}
+
+function canonicalZecAsset(value: string, chain: string): string {
+  if (value !== `${chain}/slip44:133`) {
+    throw new TypeError(`ZEC asset must be the native slip44:133 identity on ${chain}`);
+  }
+  return value;
+}
+
+function canonicalQuoteAsset(value: string, chain: string): string {
+  if (!EIP155_ERC20_ASSET.test(value) || !value.startsWith(`${chain}/`)) {
+    throw new TypeError(`Quote asset must be a canonical lowercase ERC-20 identity on ${chain}`);
   }
   return value;
 }
@@ -90,10 +107,8 @@ function canonicalAsset(value: string, label: string, chain: string): string {
 export function validateSwapTerms(terms: SwapTermsV1): SwapTermsV1 {
   if (terms.version !== SWAP_TERMS_VERSION) throw new TypeError("Unsupported swap terms version");
 
-  const zecChain = canonicalChain(terms.zecChain, "Zcash chain");
-  const quoteChain = canonicalChain(terms.quoteChain, "Quote chain");
-  if (!zecChain.startsWith("bip122:")) throw new TypeError("Zcash chain must use the bip122 namespace");
-  if (!quoteChain.startsWith("eip155:")) throw new TypeError("Quote chain must use the eip155 namespace");
+  const zecChain = canonicalZcashChain(terms.zecChain);
+  const quoteChain = canonicalQuoteChain(terms.quoteChain);
 
   const normalized: SwapTermsV1 = {
     ...terms,
@@ -104,9 +119,9 @@ export function validateSwapTerms(terms: SwapTermsV1): SwapTermsV1 {
     zecSellerId: canonicalHex32(terms.zecSellerId, "ZEC seller ID"),
     stablecoinSellerId: canonicalHex32(terms.stablecoinSellerId, "Stablecoin seller ID"),
     zecChain,
-    zecAsset: canonicalAsset(terms.zecAsset, "ZEC asset", zecChain),
+    zecAsset: canonicalZecAsset(terms.zecAsset, zecChain),
     quoteChain,
-    quoteAsset: canonicalAsset(terms.quoteAsset, "Quote asset", quoteChain),
+    quoteAsset: canonicalQuoteAsset(terms.quoteAsset, quoteChain),
     zecAmountZatoshis: canonicalUint64(terms.zecAmountZatoshis, "ZEC amount"),
     quoteAmountAtoms: canonicalUint64(terms.quoteAmountAtoms, "Quote amount"),
     executionPriceTicks: canonicalUint64(terms.executionPriceTicks, "Execution price"),
