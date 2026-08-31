@@ -15,6 +15,7 @@ import {
   tickerFromOperator,
   topFills,
   tradesFromReceipts,
+  zecAtomsFromHundredths,
   type MarketId,
 } from "./market-data.ts";
 
@@ -51,9 +52,19 @@ for (const marketId of Object.keys(markets) as MarketId[]) {
   });
 }
 
-test("pool quote reserves stay within one quote atom of last * pZEC reserve", () => {
+test("zecAtomsFromHundredths scales hundredths to 8-decimal atoms", () => {
+  assert.equal(zecAtomsFromHundredths(1n), 1_000000n);
+  assert.equal(zecAtomsFromHundredths(1564n), 1564n * 1_000000n);
+});
+
+test("seed book sizes use zecAtomsFromHundredths", () => {
+  assert.equal(books["ZEC/USDC"].asks[0]?.sizeAtoms, zecAtomsFromHundredths(1564n));
+  assert.equal(books["ZEC/USDT"].bids[0]?.sizeAtoms, zecAtomsFromHundredths(1549n));
+});
+
+test("pool quote reserves stay within one quote atom of last * ZEC reserve", () => {
   for (const pool of pools) {
-    const marketId = pool.id === "pZEC/USDT0" ? "ZEC/USDT" : "ZEC/USDC";
+    const marketId = pool.id === "ZEC/USDT" ? "ZEC/USDT" : "ZEC/USDC";
     const impliedQuote = (pool.reserveZecAtoms * markets[marketId].lastTicks) / 10_000n;
     const delta = impliedQuote > pool.reserveQuoteAtoms
       ? impliedQuote - pool.reserveQuoteAtoms

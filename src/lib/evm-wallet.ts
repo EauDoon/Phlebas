@@ -35,7 +35,7 @@ export function isMissingProviderCopy(copy: string): boolean {
   return copy.startsWith("No injected EVM wallet.");
 }
 
-const SETTLEMENT_PAIRS = ["pZEC-USDC", "pZEC-USDT0"] as const satisfies ReadonlyArray<Market["settlementPair"]>;
+const SETTLEMENT_PAIRS = ["ZEC-USDC", "ZEC-USDT"] as const satisfies ReadonlyArray<Market["settlementPair"]>;
 
 export function retargetSettlementCopy(
   copy: string,

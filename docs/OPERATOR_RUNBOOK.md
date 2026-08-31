@@ -70,7 +70,7 @@ set PHLEBAS_MATCHER_URL=http://127.0.0.1:8788
 
 `POST /attest` requires a `textest` destination, a fully transparent final transaction, and 10 confirmations. One `(txid, vout)` authorizes at most one mint candidate. Observer disagreement returns an error and does not mint.
 
-This stub does not open Zebra RPC and does not call `PZec.mint`.
+This stub does not open Zebra RPC and does not call `Zec.mint`.
 
 `POST /coverage` accepts a reserve snapshot and returns `calculateReserveCoverage`. It reproduces the operator's arithmetic from public inputs. It is not a live reserve monitor. `POST /attest` with `reserve` fails closed when `controlledCovered` is false.
 

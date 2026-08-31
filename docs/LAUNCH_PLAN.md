@@ -6,7 +6,7 @@ The pZEC, reserve, deposit, withdrawal, and passive-pool stages below describe A
 
 The current implementation is a local and Vercel no-value simulation with undeployed Sepolia sources and optional loopback testnet services as of 31-08-2026. Entering closed Testnet remains a separately approved gated stage.
 
-Phlebas may be developed and published as a no-value simulation, then advanced to a separately approved no-value testnet stage. It must not accept real ZEC, mint redeemable pZEC, list real USDC or USDT0, charge trading fees, or accept real liquidity until the mainnet gate passes.
+Phlebas may be developed and published as a no-value simulation, then advanced to a separately approved no-value testnet stage. It must not accept real ZEC, mint redeemable tZEC, list real USDC or USDT, charge trading fees, or accept real liquidity until the mainnet gate passes. USDT0 is abandoned.
 
 This plan is risk planning, not legal advice. [LEGAL_AND_COMPLIANCE.md](./LEGAL_AND_COMPLIANCE.md) records the current regulatory assumptions and primary sources.
 
@@ -14,11 +14,11 @@ This plan is risk planning, not legal advice. [LEGAL_AND_COMPLIANCE.md](./LEGAL_
 
 - Deny country access by default. Only a country with a current written approval may be enabled.
 - Keep user signing local. The web application never receives a seed phrase or private key.
-- Treat the ZEC reserve and pZEC mint as custody, regardless of the interface design.
+- Treat the ZEC reserve and tZEC mint as custody, regardless of the interface design.
 - Keep custody keys, ledgers, matching, screening records, and regulated operations outside Vercel.
 - Start with one chain, final-deposit-transaction transparency, spot trading, and USDC.
 - Add LP pools only after custody and order-book controls have operated successfully under real conditions.
-- Add USDT0 only through its separate later gate.
+- USDT0 is abandoned. Native USDT is a listed quote in this simulation and still needs issuer-native mainnet approval.
 - Exclude shielded ZEC, leverage, margin, lending, derivatives, staking, governance tokens, and reward programs from v1.
 
 ## 30-day critical path
@@ -75,7 +75,7 @@ Required work:
 
 - Record the architecture, trust boundaries, threat model, asset specifications, and failure states.
 - Implement deterministic matching and Uniswap v2 style pool math in tests and simulations.
-- Define pZEC supply, decimal, reserve, mint, burn, fee, fork, and reorganization invariants.
+- Define tZEC supply, decimal, reserve, mint, burn, fee, fork, and reorganization invariants.
 - Define the country-policy schema with every country disabled.
 - Add no production contracts, keys, deposits, fees, rewards, token sale, or future token entitlement.
 
@@ -92,9 +92,9 @@ Goal: test full flows with invited testers and assets that have no value.
 Controls:
 
 - Use Zcash testnet and one EVM testnet.
-- Name native Zcash faucet value `Testnet ZEC` and the EVM receipt `tpZEC`. Name quote faucets `tUSDC` and `tUSDT0`. Every balance, burn, and test vector must preserve the native `Testnet ZEC` versus EVM `tpZEC` distinction.
-- Use faucets to fund valueless native `Testnet ZEC`, `tUSDC`, and `tUSDT0`. Mint and burn `tpZEC` only through the test gateway state machine being exercised.
-- Permit `tpZEC` to map technically to valueless native `Testnet ZEC` for controlled deposit and payout tests. No test asset creates a legal or economic claim on mainnet ZEC, a future token, a reward, or monetary value.
+- Name native Zcash faucet value `Testnet ZEC` and the EVM receipt `tZEC`. Name quote faucets `tUSDC` and `tUSDT`. Every balance, burn, and test vector must preserve the native `Testnet ZEC` versus EVM `tZEC` distinction. USDT0 is abandoned.
+- Use faucets to fund valueless native `Testnet ZEC`, `tUSDC`, and `tUSDT`. Mint and burn `tZEC` only through the test gateway state machine being exercised.
+- Permit `tZEC` to map technically to valueless native `Testnet ZEC` for controlled deposit and payout tests. No test asset creates a legal or economic claim on mainnet ZEC, a future token, a reward, or monetary value.
 - Keep fees at zero.
 - Allowlist testers and cap balances, orders, mints, withdrawals, and pool deposits.
 - Use a fresh single-use test TEX address for each deposit intent and inspect every input and output in the final transaction before minting.
@@ -148,7 +148,7 @@ Goal: open a capped, single-chain, spot-only market after every mainnet gate pas
 
 Initial scope:
 
-- ZEC/pZEC against issuer-native USDC only.
+- Native ZEC against issuer-native USDC only.
 - A chain listed in [Circle's supported chains and currencies](https://developers.circle.com/circle-mint/supported-chains-and-currencies).
 - Final-transaction-transparent ZEC deposits through fresh, single-use TEX addresses.
 - A licensed custody and bridge operator.
@@ -167,30 +167,26 @@ Required LP gate:
 
 - LP token classification and country approval.
 - Independent review of pool math, rounding, first-deposit, donation, reserve-skew, price-manipulation, reentrancy, and withdrawal behavior.
-- Clear slippage, fee, impermanent-loss, price, smart-contract, pZEC custody, and stablecoin risk disclosures.
+- Clear slippage, fee, impermanent-loss, price, smart-contract, tZEC custody, and stablecoin risk disclosures.
 - Monitoring for manipulation between the order book and pool.
 - Per-pool and per-provider caps.
 - No claim of guaranteed yield, stable return, or principal protection.
 
-## Stage 5: USDT0 later
+## Stage 5: native USDT
 
-USDT0 is excluded from Stages 3 and 4. Its listing is a new launch decision.
+Native USDT is already a listed quote in this no-value simulation. USDT0 is abandoned.
 
-The [USDT0 documentation](https://docs.usdt0.to/) describes a lock-and-mint system backed by USDT locked in an Ethereum adapter. Phlebas must account for the destination contract, LayerZero messaging, verification configuration, upgrades, bridge pauses, and the underlying USDT restrictions.
+Mainnet native USDT, if ever approved, is a new launch decision after the USDC canary. It can proceed only when:
 
-USDT0 can proceed only when:
-
-- The chosen chain appears in official USDT0 deployment records.
-- The production contract, decimals, OFT configuration, and integration path are independently verified.
-- Counsel approves USDT0 for the entity and every enabled country.
+- The production contract, decimals, and issuer-native path are independently verified. USDT0 is not that path.
+- Counsel approves native USDT for the entity and every enabled country.
 - The operator receives written advice on the current [Tether terms](https://tether.to/en/legal/), including restrictions that refer to a Singaporean Person.
-- The stablecoin listing committee approves issuer, reserve, bridge, sanctions, blacklist, freeze, depeg, chain, upgrade, and redemption risks.
-- Automated controls stop deposits and trading on a blacklist, freeze, bridge halt, depeg threshold, messaging failure, or contract incident.
+- The stablecoin listing committee approves issuer, reserve, sanctions, blacklist, freeze, depeg, chain, upgrade, and redemption risks.
+- Automated controls stop deposits and trading on a blacklist, freeze, depeg threshold, or contract incident.
 - An independent security review covers the exact chain and contract integration.
-- Customer terms distinguish USDT0 from native USDT and state that Phlebas does not provide direct issuer redemption.
-- A testnet incident drill covers lock, mint, burn, message failure, duplicate delivery, stuck transfer, and emergency suspension.
+- Customer terms state that Phlebas does not provide direct issuer redemption.
 
-A failed or missing item keeps USDT0 disabled.
+A failed or missing item keeps mainnet USDT disabled. The simulation may still label `ZEC-USDT`.
 
 ## Mainnet go or no-go gate
 
@@ -203,11 +199,11 @@ Every item below requires dated evidence, a named owner, and approval by the acc
 - Each enabled country has a written licensing, marketing, custody, exchange, token-listing, Travel Rule, market-abuse, consumer, and data matrix.
 - Required licenses and registrations are active, or a licensed partner contract allocates every regulated duty.
 - Country controls have passed independent deny-by-default tests.
-- Counsel and the security owner approve one direct-contract access model across pZEC, settlement, and pools. Frontend-only geoblocking is not accepted as enforcement.
+- Counsel and the security owner approve one direct-contract access model across tZEC, settlement, and pools. Frontend-only geoblocking is not accepted as enforcement.
 
-### Custody and pZEC
+### Custody and tZEC
 
-- The licensed reserve custodian and pZEC issuer are named.
+- The licensed reserve custodian and tZEC issuer are named.
 - Customer title, trust or segregation, insolvency, loss allocation, redemption, suspension, fork, fee, and complaint terms are approved.
 - Per-intent TEX uniqueness and rejection of any shielded component or nontransparent output in the final deposit transaction are enforced.
 - Confirmation, reorganization, duplicate, and replay policies are tested.
@@ -225,11 +221,11 @@ Every item below requires dated evidence, a named owner, and approval by the acc
 
 ### Assets and stablecoins
 
-- ZEC, pZEC, USDC, and any LP token have written legal classifications and listing approval for every enabled country.
+- ZEC, tZEC, USDC, and any LP token have written legal classifications and listing approval for every enabled country.
 - USDC uses the official contract on a Circle-supported chain.
 - Chain ID, contract, decimals, transfer behavior, blacklist, pause, depeg, and issuer incident responses are tested.
 - Customer materials make no issuer sponsorship or direct redemption claim.
-- USDT0 remains disabled until its separate Stage 5 gate passes.
+- USDT0 remains abandoned. Mainnet native USDT stays disabled until its Stage 5 gate passes.
 
 ### Smart contracts and infrastructure
 
@@ -252,7 +248,7 @@ Every item below requires dated evidence, a named owner, and approval by the acc
 ### Consumer protection and operations
 
 - Terms state fees, spreads, slippage, partial fills, finality, confirmation times, outages, redemption, and complaint procedures.
-- Risk disclosures cover pZEC custody, reserve, insolvency, fork, key, smart-contract, USDC, blacklist, freeze, depeg, transparent Zcash, and liquidity risk.
+- Risk disclosures cover tZEC custody, reserve, insolvency, fork, key, smart-contract, USDC, blacklist, freeze, depeg, transparent Zcash, and liquidity risk.
 - Marketing contains no promise of privacy, stable return, guaranteed liquidity, guaranteed redemption timing, principal protection, or regulatory approval.
 - Support, incident notification, complaints, data access, data deletion, and breach procedures are tested.
 - Operating limits, incident owners, recovery targets, and stop conditions are approved.
@@ -279,7 +275,7 @@ Restart requires root-cause closure, reconciled state, written incident review, 
 - Legal entity and place of management.
 - Countries and customer types.
 - Production EVM chain.
-- Licensed custodian, pZEC issuer, and mint controller.
+- Licensed custodian, tZEC issuer, and mint controller.
 - On-chain or off-chain matching and settlement design.
 - Account, identity, and Travel Rule providers.
 - Redemption model and customer counterparty.

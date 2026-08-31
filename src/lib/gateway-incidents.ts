@@ -12,12 +12,12 @@ export const GATEWAY_INCIDENTS = [
   {
     id: "deposit-review",
     title: "Deposit credit is paused for review.",
-    body: "The observed transaction has not been approved for pZEC minting. Do not send another deposit to the same intent.",
+    body: "The observed transaction has not been approved for minting. Do not send another deposit to the same intent.",
   },
   {
     id: "withdrawal-review-before-burn",
     title: "Withdrawal review is open.",
-    body: "No pZEC has been burned. The request can still be edited or cancelled in a production gateway.",
+    body: "Nothing has been burned. The request can still be edited or cancelled in a production gateway.",
   },
   {
     id: "withdrawal-review-after-burn",
@@ -25,9 +25,14 @@ export const GATEWAY_INCIDENTS = [
     body: "Your payout claim remains recorded while processing is paused. A finalized burn is not silently discarded.",
   },
   {
+    id: "observer-disagreement",
+    title: "Observers disagree.",
+    body: "Independent Zebra observers do not agree on the observed state. Minting is paused until observers agree.",
+  },
+  {
     id: "reorg-before-mint",
     title: "Zcash confirmations changed.",
-    body: "The deposit is provisional again because its prior block is no longer in the accepted chain. No pZEC will be minted until the deposit is included and reaches the required confirmation threshold.",
+    body: "The deposit is provisional again because its prior block is no longer in the accepted chain. Nothing will be minted until the deposit is included and reaches the required confirmation threshold.",
   },
   {
     id: "reorg-after-mint",

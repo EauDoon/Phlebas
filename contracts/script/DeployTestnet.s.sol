@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {ScriptBase} from "./Cheatcodes.sol";
-import {PZec} from "../src/token/PZec.sol";
+import {Zec} from "../src/token/Zec.sol";
 import {QuoteToken} from "../src/token/QuoteToken.sol";
 import {Factory} from "../src/amm/Factory.sol";
 import {Router} from "../src/amm/Router.sol";
@@ -14,7 +14,7 @@ import {Settlement} from "../src/Settlement.sol";
 contract DeployTestnet is ScriptBase {
     error InvalidRoles();
 
-    function run() external returns (address settlement, address pzec, address factory, address router) {
+    function run() external returns (address settlement, address zec, address factory, address router) {
         address deployer = vm.envAddress("PHLEBAS_DEPLOYER");
         address minter = vm.envAddress("PHLEBAS_MINTER");
         address pauser = vm.envAddress("PHLEBAS_PAUSER");
@@ -22,17 +22,17 @@ contract DeployTestnet is ScriptBase {
         address feeRecipient = vm.envAddress("PHLEBAS_FEE_RECIPIENT");
         _assertDistinctRoles([deployer, minter, pauser, governor, feeRecipient]);
         vm.startBroadcast(deployer);
-        PZec pzecToken = new PZec(minter, pauser, governor);
+        Zec zecToken = new Zec(minter, pauser, governor);
         QuoteToken usdc = new QuoteToken("Phlebas Testnet USDC", "tUSDC");
-        QuoteToken usdt0 = new QuoteToken("Phlebas Testnet USDT0", "tUSDT0");
-        Factory factoryContract = new Factory(address(pzecToken), address(usdc), address(usdt0));
+        QuoteToken usdt = new QuoteToken("Phlebas Testnet USDT", "tUSDT");
+        Factory factoryContract = new Factory(address(zecToken), address(usdc), address(usdt));
         factoryContract.createPair(address(usdc));
-        factoryContract.createPair(address(usdt0));
+        factoryContract.createPair(address(usdt));
         Router routerContract = new Router(factoryContract, pauser, governor);
         Settlement settlementContract =
-            new Settlement(address(pzecToken), address(usdc), address(usdt0), feeRecipient, pauser, governor);
+            new Settlement(address(zecToken), address(usdc), address(usdt), feeRecipient, pauser, governor);
         vm.stopBroadcast();
-        return (address(settlementContract), address(pzecToken), address(factoryContract), address(routerContract));
+        return (address(settlementContract), address(zecToken), address(factoryContract), address(routerContract));
     }
 
     function _assertDistinctRoles(address[5] memory roles) private pure {

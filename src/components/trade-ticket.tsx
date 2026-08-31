@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as Reac
 
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
+import { custodyRedemptionCopy, publicLinkabilityCopy } from "@/lib/review-copy";
 import { sepoliaDomain, typedData, type TypedOrder } from "@/lib/eip712";
 import {
   getInjectedProvider,
@@ -37,12 +38,14 @@ import {
   calculatePreviewNotional,
   calculateWorstPrice,
   formatQuotePreviewAmount,
+  marketOrderConstraintCopy,
   parseStrictDecimal,
-  PZEC_ATOMIC_RULE,
+  sideControlCopy,
+  ZEC_ATOMIC_RULE,
   QUOTE_PRICE_ATOMIC_RULE,
 } from "@/lib/order";
 import {
-  PZEC_DECIMALS,
+  ZEC_DECIMALS,
   PRICE_DECIMALS,
   QUOTE_DECIMALS,
   formatAtomicUnits,
@@ -82,7 +85,7 @@ function parseTicks(value: string): { ticks: bigint; error: string | null } {
 
 function parseSizeAtoms(value: string): { atoms: bigint; error: string | null } {
   try {
-    return { atoms: parseAtomicUnits(value, PZEC_DECIMALS), error: null };
+    return { atoms: parseAtomicUnits(value, ZEC_DECIMALS), error: null };
   } catch (error) {
     return {
       atoms: 0n,
@@ -93,7 +96,7 @@ function parseSizeAtoms(value: string): { atoms: bigint; error: string | null } 
 
 function describeRoute(comparison: RouteComparison, quote: string): string {
   if (comparison.better === "split") {
-    return `Split: CLOB ${formatAtomicUnits(comparison.split.clobFilledAtoms, PZEC_DECIMALS)} pZEC and AMM ${formatAtomicUnits(comparison.split.ammFilledAtoms, PZEC_DECIMALS)} pZEC for ${formatAtomicUnits(comparison.split.quoteAtoms, QUOTE_DECIMALS, 2)} ${quote}`;
+    return `Split: CLOB ${formatAtomicUnits(comparison.split.clobFilledAtoms, ZEC_DECIMALS)} ZEC and AMM ${formatAtomicUnits(comparison.split.ammFilledAtoms, ZEC_DECIMALS)} ZEC for ${formatAtomicUnits(comparison.split.quoteAtoms, QUOTE_DECIMALS, 2)} ${quote}`;
   }
   if (comparison.better === "none") {
     return "neither venue fills in full inside the signed bound";
@@ -109,9 +112,9 @@ export function TradeTicket({
   book,
   lastTicks,
   priceSelection,
-  availablePzecAtoms,
+  availableZecAtoms,
   availableQuoteAtoms,
-  reservePzecAtoms,
+  reserveZecAtoms,
   reserveQuoteAtoms,
   accountEpoch,
   feedStatus,
@@ -123,9 +126,9 @@ export function TradeTicket({
   book: Book;
   lastTicks: bigint;
   priceSelection: { ticks: bigint; nonce: number } | null;
-  availablePzecAtoms: bigint;
+  availableZecAtoms: bigint;
   availableQuoteAtoms: bigint;
-  reservePzecAtoms: bigint;
+  reserveZecAtoms: bigint;
   reserveQuoteAtoms: bigint;
   accountEpoch: number;
   feedStatus: FeedStatus;
@@ -236,7 +239,7 @@ export function TradeTicket({
   const priceParse = orderType === "market"
     ? { parsed: lastPrice, error: null }
     : parsePreviewDecimal(price, { atomicRule: QUOTE_PRICE_ATOMIC_RULE });
-  const sizeParse = parsePreviewDecimal(size, { atomicRule: PZEC_ATOMIC_RULE });
+  const sizeParse = parsePreviewDecimal(size, { atomicRule: ZEC_ATOMIC_RULE });
   const parsedPrice = priceParse.parsed;
   const parsedSize = sizeParse.parsed;
   const priceIsValid = Number.isFinite(parsedPrice) && parsedPrice > 0;
@@ -300,12 +303,12 @@ export function TradeTicket({
   function applyPercent(percent: 25 | 50 | 75 | 100) {
     const share = BigInt(percent);
     if (side === "sell") {
-      const nextSize = (availablePzecAtoms * share) / 100n;
+      const nextSize = (availableZecAtoms * share) / 100n;
       if (nextSize <= 0n) {
-        setNotice("Session pZEC inventory is empty.");
+        setNotice("Session ZEC inventory is empty.");
         return;
       }
-      setSize(formatAtomicUnits(nextSize, PZEC_DECIMALS));
+      setSize(formatAtomicUnits(nextSize, ZEC_DECIMALS));
       return;
     }
 
@@ -324,7 +327,7 @@ export function TradeTicket({
       setNotice("Session quote inventory cannot fund this size.");
       return;
     }
-    setSize(formatAtomicUnits(nextSize, PZEC_DECIMALS));
+    setSize(formatAtomicUnits(nextSize, ZEC_DECIMALS));
   }
 
   function applyRoving<T extends string>(
@@ -426,7 +429,7 @@ export function TradeTicket({
       side,
       sizeAtoms: prepared.sizeAtoms,
       limitTicks: prepared.priceTicks,
-      reservePzecAtoms,
+      reserveZecAtoms,
       reserveQuoteAtoms,
     });
     const clobPreview = submitOrder(book, {
@@ -446,10 +449,10 @@ export function TradeTicket({
       return;
     }
     setRejected(null);
-    const filledPzecAtoms = clobPreview.fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
+    const filledZecAtoms = clobPreview.fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
     const clobDebitAtoms = side === "buy"
       ? quoteAtomsForFills(clobPreview.fills, "up")
-      : filledPzecAtoms;
+      : filledZecAtoms;
     const clobReservationAtoms = clobPreview.status === "open"
       ? side === "buy"
         ? quoteAtomsForFill(clobPreview.remainingAtoms, prepared.priceTicks, "up")
@@ -458,7 +461,7 @@ export function TradeTicket({
     const canonical: CanonicalOrder = {
       maker: "session",
       side,
-      baseAsset: "pZEC",
+      baseAsset: "ZEC",
       quoteAsset: market.quote,
       baseAmountAtoms: prepared.sizeAtoms.toString(),
       limitPriceTicks: prepared.priceTicks.toString(),
@@ -577,10 +580,6 @@ export function TradeTicket({
         <span className={styles.statusDot}>Local matcher</span>
       </div>
 
-      {market.id === "ZEC/USDT" && (
-        <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
-      )}
-
       {!gate.canReview && (
         <div className={styles.ticketBlocked} role="status" aria-label="Ticket blocked">
           <strong>{gate.heading}</strong>
@@ -625,7 +624,7 @@ export function TradeTicket({
               },
             )}
           >
-            {id === "buy" ? "Buy" : "Sell"}
+            {sideControlCopy(id, side === id)}
           </button>
         ))}
       </div>
@@ -719,6 +718,10 @@ export function TradeTicket({
       ) : null}
 
       {orderType === "market" && (
+        <p className={styles.inlineNotice}>{marketOrderConstraintCopy()}</p>
+      )}
+
+      {orderType === "market" && (
         <label className={styles.inputLabel}>
           <span>Maximum slippage</span>
           <div className={styles.inputShell}>
@@ -746,12 +749,12 @@ export function TradeTicket({
             inputMode="decimal"
             value={size}
             onChange={(event) => setSize(event.target.value)}
-            aria-label="Order size in pZEC"
+            aria-label="Order size in ZEC"
             aria-invalid={!sizeIsValid || Boolean(sizeError || notionalError)}
             aria-errormessage={sizeError ? sizeErrorId : undefined}
             aria-describedby={sizeError ? `${sizeErrorId} ${noticeId}` : noticeId}
           />
-          <span>pZEC</span>
+          <span>ZEC</span>
         </div>
       </label>
       {sizeError ? (
@@ -791,7 +794,7 @@ export function TradeTicket({
         ))}
       </div>
       <p id={shortcutsReasonId} className={styles.inlineNotice}>
-        Shortcuts use session inventory ({formatAtomicUnits(availablePzecAtoms, PZEC_DECIMALS)} pZEC, {formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} {market.quote}). Not a wallet.
+        Shortcuts use session inventory ({formatAtomicUnits(availableZecAtoms, ZEC_DECIMALS)} ZEC, {formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} {market.quote}). Not a wallet.
       </p>
 
       <dl className={styles.ticketSummary}>
@@ -831,11 +834,8 @@ export function TradeTicket({
 
       {review ? (
         <div className={styles.reviewBlock}>
-          {market.id === "ZEC/USDT" && (
-            <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
-          )}
           <p className={styles.gateNotice} aria-label="Review custody notice">
-            Legacy simulation only. pZEC is a custody receipt, not native ZEC or the target asset. This local fill is public and the matcher is not trustless.
+            This preview labels native ZEC. It is not live settlement. This fill is public in the simulation. The matcher is not trustless.
           </p>
           <dl className={styles.ticketSummary}>
             <div>
@@ -843,14 +843,14 @@ export function TradeTicket({
               <dd>
                 {review.side === "buy"
                   ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote} on Arbitrum Sepolia`
-                  : `${formatAtomicUnits(review.clobDebitAtoms, PZEC_DECIMALS)} pZEC on Arbitrum Sepolia`}
+                  : `${formatAtomicUnits(review.clobDebitAtoms, ZEC_DECIMALS)} ZEC on Arbitrum Sepolia`}
               </dd>
             </div>
             <div>
               <dt>Arrives in the session</dt>
               <dd>
                 {review.side === "buy"
-                  ? `pZEC on Arbitrum Sepolia, settled as ${market.settlementPair}`
+                  ? `ZEC on Arbitrum Sepolia, settled as ${market.settlementPair}`
                   : `${market.quote} on Arbitrum Sepolia, settled as ${market.settlementPair}`}
               </dd>
             </div>
@@ -859,7 +859,7 @@ export function TradeTicket({
               <dd>
                 {review.side === "buy"
                   ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`
-                  : `${formatAtomicUnits(review.clobDebitAtoms, PZEC_DECIMALS)} pZEC`}
+                  : `${formatAtomicUnits(review.clobDebitAtoms, ZEC_DECIMALS)} ZEC`}
               </dd>
             </div>
             <div>
@@ -869,7 +869,7 @@ export function TradeTicket({
                   ? "none"
                   : review.side === "buy"
                     ? `${formatAtomicUnits(review.clobReservationAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`
-                    : `${formatAtomicUnits(review.clobReservationAtoms, PZEC_DECIMALS)} pZEC`}
+                    : `${formatAtomicUnits(review.clobReservationAtoms, ZEC_DECIMALS)} ZEC`}
               </dd>
             </div>
             <div>
@@ -885,6 +885,14 @@ export function TradeTicket({
               <dd>{feeEnvelopeCopy()}</dd>
             </div>
             <div>
+              <dt>Custody and redemption</dt>
+              <dd>{custodyRedemptionCopy()}</dd>
+            </div>
+            <div>
+              <dt>Public linkability</dt>
+              <dd>{publicLinkabilityCopy("fill")}</dd>
+            </div>
+            <div>
               <dt>CLOB vs AMM</dt>
               <dd>{describeRoute(review.comparison, market.quote)}</dd>
             </div>
@@ -893,9 +901,6 @@ export function TradeTicket({
               <dd>{review.digest.slice(0, 16)}…</dd>
             </div>
           </dl>
-          <p className={styles.inlineNotice}>
-            Transparent Zcash and this Arbitrum fill are publicly linkable. pZEC redemption depends on the gateway.
-          </p>
           <p className={styles.inlineNotice}>
             Confirm submits only the local CLOB. Split and AMM figures are comparison quotes, not an executed router fill.
           </p>

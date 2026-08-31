@@ -47,26 +47,100 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Simulation disclosure/);
   assert.match(await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8"), /Simulation disclosure/);
   assert.match(landing, /No mainnet funds/);
+  assert.match(landing, /Deny by default/);
+  assert.match(landing, /no-value simulation/);
+  assert.match(landing, /not a live exchange and not a shielded market/);
+  assert.match(landing, /does not list USDT0/);
+  assert.match(landing, /native ZEC against native USDC/);
+  assert.match(landing, /USDT0 is abandoned/);
+  assert.match(landing, /Native labels are simulation names, not live settlement/);
+  assert.match(landing, /Understand native pairs/);
+  assert.match(landing, /href="#pairs"/);
+  assert.doesNotMatch(landing, /Understand pZEC/);
+  assert.doesNotMatch(landing, /wrap ZEC as pZEC/);
+  assert.match(landing, /pairsSection/);
+  assert.match(landing, /pairsCopy/);
+  assert.doesNotMatch(landing, /pzecSection/);
+  assert.doesNotMatch(landing, /pzecCopy/);
+  assert.doesNotMatch(landing, /pZEC/);
+  const landingCss = await readFile(join(root, "src/components/landing.module.css"), "utf8");
+  assert.match(landingCss, /\.pairsSection/);
+  assert.match(landingCss, /\.pairsCopy/);
+  assert.doesNotMatch(landingCss, /pzec/i);
+  assert.match(await readFile(join(root, "src/lib/session.ts"), "utf8"), /SESSION_ZEC_ATOMS/);
+  assert.match(await readFile(join(root, "src/lib/session.ts"), "utf8"), /export function availableZec/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/session.ts"), "utf8"), /availablePzec/);
+  assert.match(
+    await readFile(join(root, "src/lib/encoding.test.ts"), "utf8"),
+    /2d3360d350d50a83e69a46f50a4fedcfc77a610dc91fe0d80fee67616acb38ca/,
+  );
+  assert.match(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /nothing was minted/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /pZEC/);
+  assert.doesNotMatch(landing, /Later listing gate/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /Later listing gate/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /Later listing gate/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /Later listing gate/);
+  assert.match(await readFile(join(root, "src/lib/market-data.ts"), "utf8"), /settlementPair: "ZEC-USDT"/);
+  assert.match(await readFile(join(root, "src/lib/encoding.ts"), "utf8"), /quoteAsset: "USDC" \| "USDT"/);
+  assert.match(await readFile(join(root, "src/lib/encoding.ts"), "utf8"), /baseAsset: "ZEC"/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/encoding.ts"), "utf8"), /baseAsset: "pZEC"/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/encoding.ts"), "utf8"), /USDT0/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /4x ZEC\/quote/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /1\/4x ZEC\/quote/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /reserveZecAtoms/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /reservePzecAtoms/);
+  assert.match(await readFile(join(root, "contracts/src/token/Zec.sol"), "utf8"), /"tZEC"/);
+  assert.doesNotMatch(await readFile(join(root, "contracts/src/token/Zec.sol"), "utf8"), /tpZEC/);
+  assert.match(await readFile(join(root, "contracts/src/amm/Pair.sol"), "utf8"), /"tLP"/);
+  assert.doesNotMatch(await readFile(join(root, "contracts/src/amm/Pair.sol"), "utf8"), /tpLP/);
+  assert.match(await readFile(join(root, "src/lib/matcher.ts"), "utf8"), /8-decimal ZEC atoms/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/session.test.ts"), "utf8"), /credits pZEC/);
+  assert.match(await readFile(join(root, "src/lib/session.test.ts"), "utf8"), /credits ZEC and debits quote/);
+  assert.match(await readFile(join(root, "README.md"), "utf8"), /does not mint/);
+  assert.match(await readFile(join(root, "contracts/src/amm/Factory.sol"), "utf8"), /address public immutable zec;/);
+  assert.doesNotMatch(await readFile(join(root, "contracts/src/amm/Factory.sol"), "utf8"), /address public immutable pzec;/);
+  assert.match(await readFile(join(root, "src/lib/units.ts"), "utf8"), /ZEC_DECIMALS = 8/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/units.ts"), "utf8"), /PZEC_DECIMALS/);
+  assert.match(await readFile(join(root, "src/lib/market-data.ts"), "utf8"), /zecAtomsFromHundredths/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/market-data.ts"), "utf8"), /pzecAtomsFromHundredths/);
+  assert.match(await readFile(join(root, "src/lib/testnet.ts"), "utf8"), /zec:/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/testnet.ts"), "utf8"), /pzec:/);
+  assert.match(await readFile(join(root, "src/lib/sepolia-manifest.ts"), "utf8"), /Zec: string/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/sepolia-manifest.ts"), "utf8"), /PZec:/);
+  assert.match(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /ZEC gateway/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /ZEC to pZEC/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /pZEC/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /pZEC/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /It is not live settlement/);
+  assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /It is not live settlement/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /pZEC is a custody receipt/);
+  assert.match(await readFile(join(root, "contracts/src/amm/Factory.sol"), "utf8"), /address public immutable usdt;/);
+  assert.doesNotMatch(await readFile(join(root, "contracts/src/amm/Factory.sol"), "utf8"), /usdt0/);
+  assert.match(await readFile(join(root, "contracts/script/DeployTestnet.s.sol"), "utf8"), /"tUSDT"/);
+  assert.doesNotMatch(await readFile(join(root, "contracts/script/DeployTestnet.s.sol"), "utf8"), /tUSDT0/);
+  const journeyDocs = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
+  assert.match(journeyDocs, /Later listing gate[`']? is absent/);
+  assert.doesNotMatch(journeyDocs, /Later listing gate is visible/);
+  assert.match(await readFile(join(root, "src/lib/testnet.ts"), "utf8"), /usdt:/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/testnet.ts"), "utf8"), /usdt0/);
+  assert.match(await readFile(join(root, "docs/adr/0002-native-zec-usdc-usdt.md"), "utf8"), /USDT0 is abandoned/);
   assert.match(landing, /LANDING_LEDGER/);
   assert.match(landing, /LANDING_HERO/);
+  assert.match(landing, /LANDING_SKIP_LINKS/);
   assert.match(
     await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"),
     /not native ZEC, shielded ZEC, or a trustless bridge asset/,
   );
-  assert.match(landing, /LANDING_PZEC/);
-  assert.match(landing, /LANDING_SKIP_LINKS/);
   const skipCopy = await readFile(join(root, "src/lib/landing-copy.ts"), "utf8");
   assert.match(skipCopy, /Skip to markets/);
   assert.match(skipCopy, /Skip to evidence/);
-  assert.match(skipCopy, /Skip to pZEC/);
+  assert.match(skipCopy, /Skip to native pairs/);
+  assert.doesNotMatch(skipCopy, /Skip to pZEC/);
   assert.match(skipCopy, /Skip to terminal preview/);
   assert.match(skipCopy, /Skip to journeys/);
   assert.match(skipCopy, /Skip to launch gates/);
   assert.match(await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"), /No shielded deposit or withdrawal is planned for v1/);
   assert.match(await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"), /zips\.z\.cash\/zip-0320/);
-  assert.match(landing, /superseded pZEC pool fixture/);
-  assert.match(landing, /not the native-settlement target/);
-  assert.match(landing, /Native settlement target/);
   assert.doesNotMatch(landing, /pZEC (?:is|equals|represents) native ZEC/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(terminal), /trustless bridge/i);
@@ -75,9 +149,14 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /Wallet connection rejection/);
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /No injected EVM wallet/);
   assert.match(terminal, /not trustless/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicly linkable/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /custodyRedemptionCopy/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicLinkabilityCopy/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /marketOrderConstraintCopy/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicLinkabilityCopy\("fill"\)/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /Review custody notice/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /feeEnvelopeCopy/);
+  assert.match(await readFile(join(root, "src/lib/order.ts"), "utf8"), /no unbounded market instruction/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/order.ts"), "utf8"), /pZEC/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /parseExpiryUnix/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /Order expiry unix time/);
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /never hosted on Vercel/);
@@ -96,6 +175,11 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(bridge, /nextGatewayJourney/);
   assert.match(bridge, /interpretRovingKey/);
   assert.match(bridge, /payoutClaimForTourStep/);
+  assert.match(bridge, /payoutClaimStubCopy/);
+  assert.match(bridge, /Nothing is sent/);
+  assert.match(bridge, /gatewayOffCopy/);
+  assert.match(bridge, /gatewayUnavailableCopy/);
+  assert.match(bridge, /gatewayIssuingCopy/);
   assert.match(await readFile(join(root, "src/lib/withdrawal-tour.ts"), "utf8"), /does not invent a payout/);
   assert.match(bridge, /Nothing is sent/);
   assert.match(bridge, /id="privacy-callouts"/);
@@ -138,11 +222,10 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /:global\(#legal-article\)/);
   assert.match(terminalCss, /:global\(#security-article\)/);
   assert.match(terminalCss, /scroll-margin-top: 12px/);
-  const landingCss = await readFile(join(root, "src/components/landing.module.css"), "utf8");
   assert.match(landingCss, /:global\(#main-content\)/);
   assert.match(landingCss, /:global\(#markets\)/);
   assert.match(landingCss, /:global\(#exists-today\)/);
-  assert.match(landingCss, /:global\(#pzec\)/);
+  assert.match(landingCss, /:global\(#pairs\)/);
   assert.match(landingCss, /:global\(#terminal-preview\)/);
   assert.match(landingCss, /:global\(#journeys\)/);
   assert.match(landingCss, /:global\(#launch-gates\)/);
@@ -246,6 +329,12 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /not a return or profit projection/i);
   assert.match(liquidity, /feeEnvelopeCopy/);
   assert.match(liquidity, /Confirm simulated \{review\.kind\}/);
+  assert.match(liquidity, /custodyRedemptionCopy/);
+  assert.match(liquidity, /publicLinkabilityCopy/);
+  assert.match(liquidity, /lpRiskCopy/);
+  assert.match(liquidity, /lpFeedBlockCopy/);
+  assert.match(liquidity, /lpEmptyBookCopy/);
+  assert.doesNotMatch(liquidity, /adverse selection/);
   assert.match(liquidity, /publicly linkable/);
   assert.match(liquidity, /Review custody notice/);
   assert.match(liquidity, /Review simulated mint/);
@@ -254,7 +343,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /id="liquidity-pools"/);
   assert.match(
     await readFile(join(root, "src/lib/preview-education.ts"), "utf8"),
-    /not native ZEC, shielded ZEC, or a trustless bridge asset/,
+    /not live settlement, not shielded ZEC, and not a trustless bridge/,
   );
   assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education copy/);
   assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education, not consent/);
@@ -290,12 +379,86 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(preview, /cannot submit, sign, or fill/);
   assert.match(preview, /Fixture \{formatAtomicUnits\(market\.lastTicks/);
   assert.match(preview, /Fixture price/);
-  assert.match(preview, /Fixture size pZEC/);
+  assert.match(preview, /Fixture size ZEC/);
   assert.doesNotMatch(preview, /tex1/);
   assert.doesNotMatch(preview, /wallet balance/i);
   assert.doesNotMatch(preview, /APY|profit/i);
   const ticket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
+  assert.match(ticket, /sideControlCopy/);
+  assert.match(ticket, /sideControlCopy\(id, side === id\)/);
   assert.match(ticket, /Order rejected/);
+  assert.match(ticket, /describeSubmit/);
+  assert.match(ticket, /isTicketRejectCopy/);
+  assert.match(await readFile(join(root, "src/lib/session.ts"), "utf8"), /ticketRejectCopy/);
+  assert.match(await readFile(join(root, "src/lib/session.ts"), "utf8"), /Settled as \$\{markets\[marketId\]\.settlementPair\}/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /depthEmptyCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /feedWithheldCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /orderBookCaptionCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /bookSideControlCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /tapeSideCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /emptyBookGateCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /depthSessionLastCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /loadingGateCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /staleGateCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /unavailableGateCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /tapeCaptionCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /sessionLastStatLabel/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /tapeMiniLabel/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /chartRangeTabLabel/);
+  assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /missingProviderCopy/);
+  assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /isMissingProviderCopy/);
+  assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletConnectFailureCopy/);
+  assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /retargetSettlementCopy/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /lpPauseNoticeCopy/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /isLpPauseNotice/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /lpResetNoticeCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /chartPanelHeadingCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /chartPanelEyebrowCopy/);
+  assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletStateWithSettlement/);
+  assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletDisconnectLabel/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /priceChartLabelCopy/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /lpMintNoticeCopy/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /lpBurnNoticeCopy/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /lpSwapNoticeCopy/);
+  assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletConnectIdleTitle/);
+  assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletConnectBusyTitle/);
+  assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletConnectTitle/);
+  assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletConnectBarTitle/);
+  assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /lpResetNoticeCopy/);
+  assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /lpPauseNoticeCopy/);
+  assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /isLpPauseNotice\(notice\) \? lpPauseNoticeCopy/);
+  assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /lpBurnNoticeCopy/);
+  assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /lpMintNoticeCopy/);
+  assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /lpSwapNoticeCopy/);
+  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /missingProviderCopy/);
+  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /retargetSettlementCopy/);
+  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletDisconnectLabel/);
+  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletConnectBarTitle/);
+  assert.match(
+    await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"),
+    /busy \? walletConnectTitle\(settlementPair, true\)/,
+  );
+  assert.match(await readFile(join(root, "src/components/price-chart.tsx"), "utf8"), /priceChartLabelCopy/);
+  assert.match(
+    await readFile(join(root, "src/components/price-chart.tsx"), "utf8"),
+    /feedSurface\(feedStatus\)/,
+  );
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /market\.settlementPair/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /missingProviderCopy/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /retargetSettlementCopy/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /isTicketRejectCopy/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /isMissingProviderCopy/);
+  assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /key=\{feedStatus\}/);
+  const terminalTape = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");
+  assert.match(terminalTape, /tapeSideCopy/);
+  assert.match(terminalTape, /tapeSideCopy\(trade\.takerSide\)/);
+  assert.match(terminalTape, /tapeSideCopy\(trade\.side\)/);
+  assert.doesNotMatch(terminalTape, /srOnly\}>\{trade\.(?:takerSide|side) === "buy" \? "Buy" : "Sell"/);
+  assert.doesNotMatch(terminalTape, /srOnly\}>\{tapeSideCopy/);
+  const orderBook = await readFile(join(root, "src/components/order-book.tsx"), "utf8");
+  assert.match(orderBook, /bookSideControlCopy/);
+  assert.match(orderBook, /bookSideControlCopy\(bookSide, priceLabel\)/);
+  assert.doesNotMatch(orderBook, /\{label\} <\/span>/);
   assert.match(ticket, /Ticket blocked/);
   assert.match(ticket, /interpretTicketKey/);
   assert.match(ticket, /nextTicketSide/);
@@ -344,6 +507,9 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
   const education = await readFile(join(root, "src/lib/preview-education.ts"), "utf8");
   assert.match(education, /Education, not consent|not a financial record/);
+  assert.match(education, /Pairs are native ZEC against USDC and USDT/);
+  assert.match(education, /not live settlement/);
+  assert.doesNotMatch(education, /pZEC would depend on custody/);
   assert.doesNotMatch(education, /I agree/);
   assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education, not consent/);
   assert.match(await readFile(join(root, "src/lib/access-demo.ts"), "utf8"), /State demonstration/);
@@ -431,4 +597,139 @@ test("design docs do not claim the repo has no matcher or wallet stubs", async (
   assert.doesNotMatch(threat, /It has no wallet integration/);
   assert.match(architecture, /loopback operator stubs/);
   assert.doesNotMatch(architecture, /It has no database, wallet connection/);
+});
+
+test("architecture and accounting no longer list pZEC as the candidate ERC-20 form", async () => {
+  const architecture = await readFile(join(root, "docs/ARCHITECTURE.md"), "utf8");
+  const accounting = await readFile(join(root, "docs/ASSET_AND_ACCOUNTING.md"), "utf8");
+  assert.match(architecture, /undeployed 8-decimal receipt symbol is `tZEC`/);
+  assert.match(architecture, /That name is not the current listed form/);
+  assert.match(architecture, /ADR 0001 remains historical/);
+  assert.match(architecture, /tZEC mint controller/);
+  assert.match(architecture, /\| `tZEC` \|/);
+  assert.match(architecture, /Each pool holds `tZEC`/);
+  assert.doesNotMatch(architecture, /The candidate design uses custody-backed `pZEC`/);
+  assert.doesNotMatch(architecture, /\| `pZEC` \|/);
+  assert.doesNotMatch(architecture, /pZEC mint controller/);
+  assert.doesNotMatch(architecture, /Each pool holds `pZEC`/);
+  assert.match(accounting, /### Settlement ZEC \(`tZEC`\)/);
+  assert.match(accounting, /that name is not the current listed form/);
+  assert.match(accounting, /Outstanding tZEC/);
+  assert.doesNotMatch(accounting, /### pZEC/);
+  assert.doesNotMatch(accounting, /`pZEC` means Phlebas ZEC/);
+  assert.doesNotMatch(accounting, /Outstanding pZEC/);
+  assert.doesNotMatch(accounting, /pzatoshi/);
+  assert.doesNotMatch(accounting, /`pZEC` is custody-backed and is not native ZEC/);
+  const spec = await readFile(join(root, "docs/PRODUCT_SPEC.md"), "utf8");
+  assert.match(spec, /Cannot mint tZEC without a valid deposit attestation/);
+  assert.match(spec, /The ZEC custody and redemption dependency/);
+  assert.match(spec, /One tZEC burn can produce at most one native payout/);
+  assert.doesNotMatch(spec, /pZEC/);
+  assert.match(await readFile(join(root, "src/lib/review-copy.ts"), "utf8"), /ZEC custody and redemption/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/review-copy.ts"), "utf8"), /pZEC/);
+});
+
+test("remaining docs no longer list pZEC as the candidate ERC-20 form", async () => {
+  const adr2 = await readFile(join(root, "docs/adr/0002-native-zec-usdc-usdt.md"), "utf8");
+  assert.match(adr2, /undeployed 8-decimal receipt symbol is `tZEC`/);
+  assert.match(adr2, /that name is not the current listed form/);
+  assert.doesNotMatch(adr2, /Custody-backed `pZEC` remains the candidate ERC-20 claim/);
+  const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
+  assert.match(journeys, /Section ID: `pairs`/);
+  assert.match(journeys, /Native labels are simulation names, not live settlement/);
+  assert.doesNotMatch(journeys, /### pZEC boundary/);
+  assert.doesNotMatch(journeys, /Section ID: `pzec`/);
+  assert.doesNotMatch(journeys, /understand_pzec/);
+  const threat = await readFile(join(root, "docs/THREAT_MODEL.md"), "utf8");
+  assert.match(threat, /represented on Arbitrum One as tZEC/);
+  assert.doesNotMatch(threat, /represented on Arbitrum One as pZEC/);
+  assert.doesNotMatch(threat, /The candidate ERC-20 form remains pZEC/);
+  const readme = await readFile(join(root, "README.md"), "utf8");
+  assert.match(readme, /Settlement ZEC \(`tZEC`\)/);
+  assert.doesNotMatch(readme, /ASSET_AND_ACCOUNTING\.md` \| pZEC/);
+  assert.doesNotMatch(await readFile(join(root, "docs/LAUNCH_PLAN.md"), "utf8"), /mint redeemable pZEC/);
+  assert.doesNotMatch(await readFile(join(root, "docs/LEGAL_AND_COMPLIANCE.md"), "utf8"), /mints or burns pZEC/);
+  assert.doesNotMatch(await readFile(join(root, "docs/OPERATIONS.md"), "utf8"), /pZEC supply plus pending deposit refunds/);
+  assert.doesNotMatch(await readFile(join(root, "docs/DELIVERY_PLAN.md"), "utf8"), /what pZEC means/);
+  const wallet = await readFile(join(root, "docs/WALLET_COMPATIBILITY.md"), "utf8");
+  assert.match(wallet, /mint redeemable `tZEC`/);
+  assert.doesNotMatch(wallet, /mint redeemable `pZEC`/);
+  assert.match(wallet, /which remains historical/);
+  const spec = await readFile(join(root, "docs/PRODUCT_SPEC.md"), "utf8");
+  assert.match(spec, /tZEC restored/);
+  assert.match(spec, /refund authorization/);
+  assert.doesNotMatch(spec, /pZEC/);
+});
+
+test("source identifiers no longer use listed pZEC leftovers", async () => {
+  const lp = await readFile(join(root, "src/lib/lp.ts"), "utf8");
+  const lpTest = await readFile(join(root, "src/lib/lp.test.ts"), "utf8");
+  const order = await readFile(join(root, "src/lib/order.ts"), "utf8");
+  const ticket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
+  const foundry = await readFile(join(root, "contracts/test/Phlebas.t.sol"), "utf8");
+  assert.match(lp, /zecLabel: string/);
+  assert.doesNotMatch(lp, /pzecLabel/);
+  assert.doesNotMatch(lp, /lpPzecAtoms/);
+  assert.doesNotMatch(lpTest, /pzecLabel/);
+  assert.doesNotMatch(lpTest, /entryPzec/);
+  assert.match(order, /ZEC_ATOMIC_RULE/);
+  assert.match(order, /formatZecPreviewAmount/);
+  assert.doesNotMatch(order, /PZEC_ATOMIC_RULE/);
+  assert.doesNotMatch(order, /formatPzecPreviewAmount/);
+  assert.doesNotMatch(order, /PZEC_ATOM/);
+  assert.match(ticket, /ZEC_ATOMIC_RULE/);
+  assert.doesNotMatch(ticket, /PZEC_ATOMIC_RULE/);
+  assert.match(foundry, /reserveZec/);
+  assert.doesNotMatch(foundry, /reservePzec/);
+  assert.doesNotMatch(foundry, /backPzec/);
+});
+
+test("journeys pin expired closed withdrawal states without live payout", async () => {
+  const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
+  assert.match(journeys, /Expired evidence|closed without a finalized burn/);
+  assert.match(journeys, /unresolved/);
+  assert.doesNotMatch(journeys, /\blive payout/i);
+});
+
+test("journeys pin refunded tZEC restore without live payout", async () => {
+  const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
+  assert.match(journeys, /refunded|tZEC restored/);
+  assert.doesNotMatch(journeys, /\blive payout/i);
+});
+
+test("journeys pin unresolved recovery without live payout", async () => {
+  const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
+  assert.match(journeys, /unresolved -> exact committed transaction observed -> broadcast \| mined/);
+  assert.match(journeys, /unresolved -> verified input restoration -> payable/);
+  assert.doesNotMatch(journeys, /\blive payout/i);
+});
+
+test("PRODUCT_SPEC 9.3 pins unresolved recovery branches", async () => {
+  const spec = await readFile(join(root, "docs/PRODUCT_SPEC.md"), "utf8");
+  assert.match(spec, /unresolved -> exact committed transaction observed -> broadcast \| mined/);
+  assert.match(spec, /unresolved -> verified input restoration -> payable/);
+  assert.doesNotMatch(spec, /pZEC/);
+});
+
+test("journeys pin deposit fail-closed Unavailable Rejected Stale without minting", async () => {
+  const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
+  const start = journeys.indexOf("## Deposit journey");
+  const end = journeys.indexOf("## Withdrawal journey");
+  assert.ok(start >= 0 && end > start);
+  const deposit = journeys.slice(start, end);
+  assert.match(deposit, /Unavailable/);
+  assert.match(deposit, /Rejected/);
+  assert.match(deposit, /Stale/);
+  assert.match(deposit, /Observers unavailable or disagree/);
+  assert.match(deposit, /no receivable address/i);
+  assert.match(deposit, /Nothing is minted|nothing was minted/);
+  assert.doesNotMatch(deposit, /\blive mint/i);
+});
+
+test("accounting pins refunded tZEC not listed pZEC", async () => {
+  const accounting = await readFile(join(root, "docs/ASSET_AND_ACCOUNTING.md"), "utf8");
+  assert.match(accounting, /Outstanding tZEC/);
+  assert.match(accounting, /refunded|tZEC restoration/);
+  assert.doesNotMatch(accounting, /Outstanding pZEC/);
+  assert.doesNotMatch(accounting, /### pZEC/);
 });

@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after education Enter simulation in 320px, copy padding not pushing Continue, Continue ring #f4c95d, leftover 44px status/security 320 and loading/404 768.
+Last updated: 01-09-2026 after native ZEC-USDC/ZEC-USDT pair labels, reserve tZEC refund helper, and leftover 44px education/skip-nav work.
 
 ## Branch
 
-`feat/product-ui` now includes current `main` at `84a3224645e5ef8e3d95b49eb98345fa8fd3eb16` for PR #22. PR #22: https://github.com/EauDoon/Phlebas/pull/22. Origin `feat/simulation-hardening` remains separate; do not force-push it.
+`feat/native-zec-usdc-usdt` stacked on `feat/simulation-hardening` (open PR #23 at `146069e`). Do not add commits to PR #22 or PR #23. This merge brings current `main` audit/atomic-swap and leftover product-ui tests into the native-pair branch.
 
 ## Done
 
@@ -23,7 +23,7 @@ Last updated: 01-09-2026 after education Enter simulation in 320px, copy padding
 - Playwright fixture binds `127.0.0.1` on an OS-assigned free port
 - Transparent destination inspector: shielded, TEX, and payment-request inputs are rejected; nothing is sent
 - Keccak-256 plus EIP-712 `Order` typed-data hashing for Arbitrum Sepolia (`PhlebasSettlement` v1). Session tickets still use SHA-256.
-- No-value Arbitrum Sepolia contracts: tpZEC, quote faucets, settlement, factory, pair, router. Typehashes match the TypeScript vectors. Undeployed.
+- No-value Arbitrum Sepolia contracts: tZEC, quote faucets, settlement, factory, pair, router. Typehashes match the TypeScript vectors. Undeployed.
 - Receivable testnet TEX via a local gateway (`textest` only, single-use ledger). Public app issues nothing without `PHLEBAS_GATEWAY_URL`.
 - Injected EVM wallet connector limited to Arbitrum Sepolia. Signing does not submit a settlement transaction.
 - Local matcher operator sequences, recovers EIP-712 signatures, and matches. Not bundled into Vercel.
@@ -59,7 +59,7 @@ Last updated: 01-09-2026 after education Enter simulation in 320px, copy padding
 - Gateway issued count persists under `services/gateway/.data/issued`, so the intent cap survives a process restart. Corrupt issued files and a master key without `issued` fail closed at the cap.
 - Matcher persist stores the sequence root. A tampered root is ignored and the matcher starts empty.
 - Withdrawal tour drives `payoutClaimForTourStep` without changing tour copy. Stub claim state is visible. Nothing is sent.
-- Fills, resting orders, and the tape name the settlement pair (`pZEC-USDC` / `pZEC-USDT0`).
+- Fills, resting orders, and the tape name the settlement pair (`ZEC-USDC` / `ZEC-USDT`).
 - Account epoch is visible on the ticket and blotter. Invalidate older session orders increments it.
 - LP trading pause disables mint and swap; burn stays available.
 - Wallet connect failures are visible. Gateway issue shows an issuing state.
@@ -67,7 +67,7 @@ Last updated: 01-09-2026 after education Enter simulation in 320px, copy padding
 - Empty feed shows empty depth. Loading feed disables review.
 - `/api/status` never copies a remote operator URL. `intentCap` is 64 only when the gateway URL is loopback HTTP. `sequenceRoot` stays null without a fetched loopback matcher.
 - Blotter tables scroll inside the panel so the settlement column cannot blow the 320px page.
-- LP panel previews integer IL versus hold at 4x and 1/4x pZEC/quote, plus session IL after mint. Not a return projection.
+- LP panel previews integer IL versus holding the same deposited assets at 4x and 1/4x ZEC/quote, plus session IL after mint. Not a return projection.
 - Gateway health publishes `issued` and `cap` from the shared `GATEWAY_DEFAULT_MAX_INTENTS` (64).
 - Ticket and LP copy bind to version-1 fee constants (5 / 15 / 30 bps, max 30).
 - Public `/status` shows intent cap `unset` when no loopback gateway URL is configured.
@@ -91,6 +91,127 @@ Last updated: 01-09-2026 after education Enter simulation in 320px, copy padding
 - Session blotter log line includes expiry when a ticket is confirmed. Nonce-bitmap helper matches Settlement.sol (`word = nonce >> 8`, `bit = 1 << uint8(nonce)`).
 - In-browser matcher rejects a taker whose unix expiry has passed and drops resting orders after that unix time. Replay still omits `nowUnix` so a logged submit reconstructs.
 - Ticket shows a rejected panel (role=alert) for expiry, matcher reject, inventory, and self-trade. Retry is safe.
+- LP mint and swap use review-and-confirm repeating PRODUCT_SPEC §10 (assets, worst price, fees, custody, public-linkability). Burn stays immediate.
+- Blotter tabs expose one tabpanel each, with arrow/Home/End keys.
+- `/legal` and `/security` simulation pages. Landing, terminal, status, and frame nav cross-link them.
+- Landing journey chooser is four manually activated tabs (Trader, LP, Deposit, Withdrawal). Without JS, all four descriptions stay in the document. Liquidity nav selects LP after hydration via `#journey-lp`.
+- ZIP 321 deposit shows a non-payable placeholder QR. Clipboard failure copy does not claim a copy succeeded. Nothing is sent.
+- Chart and 24h stats withhold fixtures on empty, loading, and unavailable feeds, and name a delayed series when stale.
+- LP mint and swap stay off for loading, stale, and unavailable feeds. Burn stays available. Empty-book feed does not drain the pool.
+- First-session education dialog on `/trade` and `/liquidity` (`phlebas.previewEducationVersion = 2026-08-31-1`). Education, not consent. Force with `?education=1`.
+- Country-blocked state demonstration via allowlisted `?access=blocked`. Never infers location.
+- Chart range is a tablist. Depth and tape name loading and unavailable feeds, not only empty.
+- Landing Liquidity nav selects `#journey-lp`. Journey tabs use manual activation: arrows move focus, Enter selects.
+- Ticket keyboard G/I/F sets time in force. Escape leaves review. Shortcuts ignore an open dialog.
+- Architecture labeled incident demonstrations: blocked, review, reorg, planned and unplanned maintenance. Copy is a demonstration, not a live outage.
+- Deposit tour walks Eligibility through Complete. Address request never shows a receivable address, QR, or URI.
+- Education dialog Continue and the incident select stay at least 44px tall at 320px.
+- `/status` and `/api/status` name incidents as `architecture-demonstration`. The page links to Architecture and says the copy is not a live outage.
+- Ticket G/I/F stay locked during review-and-confirm. Escape still leaves review.
+- Empty session LP shares name the selected pool (`ZEC/USDC` or `ZEC/USDT`) and are not an order-book empty notice. The notice clears after a mint.
+- `/status` Architecture link uses allowlisted `demo=incidents` and keeps the `architecture-demonstration` label on the incident panel. Switching the Architecture market keeps `demo=incidents` in the URL.
+- Blotter empty orders and empty fills name the settlement pair (`ZEC-USDC` or `ZEC-USDT`).
+- Blotter empty event log names the settlement pair (`ZEC-USDC` or `ZEC-USDT`). Replay copy stays honest.
+- Leaving Architecture for Trade, Liquidity, or the ZEC gateway drops `demo=incidents` from the URL. Returning to Architecture restores it from tab session storage (`phlebas.incidentDemo`). A new tab or a refresh without the query starts without the highlight.
+- Filled blotter event-log submit and cancel rows name the event market's settlement pair. Reset stays session-wide. The log caption names the current market.
+- Ticket reject copy (`ticketRejectCopy` / `describeSubmit`) names the settlement pair on matcher reject, inventory, self-trade, and expiry. Retry stays safe.
+- Depth empty copy, withheld tape, withheld chart, and the order-book caption name `ZEC-USDC` or `ZEC-USDT`.
+- Ticket empty-book gate uses `emptyBookGateCopy` and names the settlement pair the way depth empty copy does. Review stays disabled.
+- 24h stats withheld copy uses `feedWithheldCopy` and names the settlement pair.
+- Depth mid-price row names the settlement pair next to session last.
+- Ticket loading, stale, and unavailable gates use `ticketGateCopy` and name the settlement pair the way the empty-book gate does.
+- Withheld tape caption names the settlement pair and does not claim fixture fills appear. The tape mini-label is `Withheld · ZEC-USDC` when fixtures are off.
+- Session-last 24h stats label names the settlement pair when fixtures are shown.
+- Chart range tab accessible names include the settlement pair (`4H · ZEC-USDC`). Visible labels stay 1H/4H/1D so 320px does not overflow.
+- Wallet connect-failure copy (`missingProviderCopy` / `walletConnectFailureCopy`) names the settlement pair. Still Arbitrum Sepolia only. Nothing is sent.
+- LP pause and resume notices name the selected market settlement pair. Burn stays available while paused.
+- Chart panel heading accessible name is `ZEC/USDC · ZEC-USDC`. The eyebrow names the settlement pair. Visible h2 stays the market id so 320px does not overflow.
+- Wrong-chain wallet state from `connectTestnetWallet` is wrapped with `walletStateWithSettlement` before it reaches the bar.
+- LP reset-pool notice names the selected market settlement pair.
+- Price chart aria-label and SVG title use `priceChartLabelCopy` and name the settlement pair from real market state.
+- Wallet disconnect control accessible name uses `walletDisconnectLabel` and names the settlement pair.
+- LP mint success notice uses `lpMintNoticeCopy` and names the settlement pair.
+- LP burn success notice uses `lpBurnNoticeCopy` from a real mint-then-burn and names the settlement pair. Local preview only.
+- Idle wallet connect title uses `walletConnectIdleTitle` and names the settlement pair.
+- After Retry illustrative from a withheld feed, the price chart img uses `priceChartLabelCopy` again.
+- LP swap success notice uses `lpSwapNoticeCopy` from a real mint-then-swap and names the settlement pair. Local preview only.
+- Connecting wallet title uses `walletConnectBusyTitle` and keeps the settlement pair while the injected provider is pending.
+- After Retry illustrative, chart 1H and 1D img labels use `priceChartLabelCopy` for the selected range.
+- LP swap success on the USDT pool uses `lpSwapNoticeCopy` from a real mint-then-swap on `pools[1]` and names `ZEC-USDT`. Local preview only.
+- Connecting wallet title uses `walletConnectTitle` and keeps the settlement pair after switching market while the injected provider is pending.
+- After Retry illustrative on ZEC/USDT, chart 1H and 1D img labels use `priceChartLabelCopy` for `ZEC-USDT`.
+- Idle wallet connect title uses `walletConnectIdleTitle` and keeps the settlement pair after switching market.
+- LP mint success on the USDT pool uses `lpMintNoticeCopy` from a real mint on `pools[1]` and names `ZEC-USDT`. Wallet actions stay disabled.
+- After switching to ZEC/USDT with the feed unavailable, withheld chart and 24h stats copy uses `feedWithheldCopy` and names `ZEC-USDT` before Retry illustrative.
+- Missing-provider copy after switching market then clicking connect names `ZEC-USDT`.
+- Wallet disconnect accessible name after switching market keeps the settlement pair. Stub is Arbitrum Sepolia only. Nothing is sent.
+- LP pause notice on the USDT pool uses `lpPauseNoticeCopy` from `pools[1]` and names `ZEC-USDT`. Burn stays available.
+- LP burn success on USDT uses `lpBurnNoticeCopy` from a real mint-then-burn and names `ZEC-USDT`. Local preview only.
+- LP reset-pool notice on USDT uses `lpResetNoticeCopy` from a real mint then restore and names `ZEC-USDT`.
+- LP pause notice names the newly selected pool if trading stays paused after a pool switch. Derived from `lpPauseNoticeCopy` when `isLpPauseNotice`; mint/burn/swap notices stay on the pool they ran on.
+- LP lifted pause notice names the newly selected pool if resume is not clicked after a pool switch while already lifted. Derived from `lpPauseNoticeCopy` whenever `isLpPauseNotice`; mint/burn/swap notices stay on the pool they ran on.
+- Ticket sign missing-provider copy uses `missingProviderCopy` with the selected market settlement pair. Wallet can stay connected after the provider is gone. Nothing is sent.
+- Missing-provider error uses `retargetSettlementCopy` so a failed connect keeps the current settlement pair after a market switch without clicking Connect again.
+- Ticket sign missing-provider copy names `ZEC-USDT` if the market switches while review is still open. `TradeTicket` stays mounted across a market switch (`key={feedStatus}`); `isMissingProviderCopy` retargets the live notice. Nothing is sent.
+- Rejected-connect failure copy (`walletConnectFailureCopy`, not missing-provider) retargets settlement after a market switch without clicking Connect again.
+- Chart withheld copy retargets if the market switches while the feed stays unavailable. `PriceChart` already calls `feedWithheldCopy` with the current market's settlement pair. No Retry.
+- Ticket reject copy uses `retargetSettlementCopy` so a market switch while the rejected panel is open names the new settlement pair. Real FOK miss plus unix-expiry Playwright. Retry is safe; nothing was submitted.
+- Connecting wallet title uses `walletConnectBarTitle` so a hanging provider after a prior reject keeps settlement if the market switches. Prior reject stays in the status span.
+- Settlement pairs are `ZEC-USDC` and `ZEC-USDT`. Quotes are native USDC and native USDT. USDT0 is abandoned.
+- Later-listing-gate copy is removed from the ticket, LP panel, and terminal.
+- Landing, architecture panel, layout, and security copy name native ZEC against native USDC and native USDT.
+- ADR 0002 records the pair-label change. ADR 0001 keeps Arbitrum One and custody-backed pZEC as the ERC-20 form.
+- Session inventory reject copy names ZEC, not pZEC. LP burn and swap notices name ZEC.
+- Product spec, README, SECURITY, threat model, architecture, landing journeys, launch plan, legal, and accounting no longer list USDT0 as a quote.
+- First-session education version `2026-08-31-1` names native ZEC against USDC and USDT and says it is not live settlement.
+- Session canonical encoding uses `baseAsset: "ZEC"`.
+- Ticket, LP, and gateway review say the preview labels native ZEC and is not live settlement.
+- IL-versus-hold labels are `4x ZEC/quote` and `1/4x ZEC/quote`.
+- Undeployed quote faucet is `tUSDT`. Solidity `usdt0` storage is `usdt`. Receipt symbol is `tZEC`.
+- Landing CTA is `Understand native pairs` and hashes `#pairs`.
+- Deposit-tour complete copy: nothing was minted. No pZEC in the tour bodies.
+- Session inventory fields are `zecAtoms` / `reservedZecAtoms` / `availableZec`.
+- Frozen SHA-256 for the sample `baseAsset=ZEC` order is `2d3360d350d50a83e69a46f50a4fedcfc77a610dc91fe0d80fee67616acb38ca`.
+- Blotter, ticket, LP amount, and depth caption name ZEC, not pZEC.
+- Undeployed receipt symbol is `tZEC`. Solidity type is `Zec`. Factory, settlement, pair, and router expose `zec`.
+- LP, AMM, and router use `reserveZecAtoms`.
+- Gateway heading is `ZEC gateway`. Incident mint copy does not name pZEC.
+- Units helper is `ZEC_DECIMALS`. Market-data helper is `zecAtomsFromHundredths`. TESTNET key is `zec`.
+- Pair LP token symbol is `tLP`. Session buy-fill test title credits ZEC.
+- Matcher `sizeAtoms` stay generic and mean 8-decimal ZEC atoms.
+- ARCHITECTURE and ASSET_AND_ACCOUNTING list `tZEC` as the undeployed receipt, not custody-backed pZEC as the candidate ERC-20 form. ADR 0001 stays historical.
+- Copy-boundary tests fail if those docs revert to listed pZEC.
+- PRODUCT_SPEC roles, LP warnings, gateway, and §10 confirmations name tZEC / ZEC custody, not pZEC.
+- Ticket and LP high-risk review surface `custodyRedemptionCopy` and `publicLinkabilityCopy`.
+- Landing pairs copy no longer says it wraps ZEC as pZEC. Native labels are simulation names, not live settlement.
+- Landing CSS classes are `pairsSection` / `pairsCopy`.
+- ADR 0002 lists `tZEC` as the undeployed receipt. Custody-backed pZEC is no longer the candidate ERC-20 claim.
+- LANDING_AND_USER_JOURNEYS, THREAT_MODEL, LAUNCH_PLAN, LEGAL, OPERATIONS, DELIVERY_PLAN, WALLET_COMPATIBILITY, and README no longer list pZEC as the current form.
+- `lpBurnNoticeCopy` takes `zecLabel`. LP IL math uses `lpZecAtoms`. Preview helpers are `ZEC_ATOMIC_RULE` / `formatZecPreviewAmount`. Foundry locals are `reserveZec`.
+- Ticket market orders show `marketOrderConstraintCopy`. A 0% slippage IOC buy at lastTicks does not fill the 52.91 ask. Playwright covers that at 320px.
+- LP risk copy is `lpRiskCopy` and names toxic flow and emergency restrictions.
+- Buy/Sell selected state is `sideControlCopy` text plus underline, not color alone. Playwright at 320px.
+- Gateway empty/error copy is `gatewayOffCopy` / `gatewayUnavailableCopy`. 320px Issue retry stays non-receivable.
+- LP empty shares, toxic-flow risk, unavailable mint/swap, and Retry illustrative are covered at 320px.
+- Ticket B/S keyboard shortcuts are unit-tested and covered at 320px (`shortcuts-320.spec.ts`).
+- Book Bid/Ask buttons use visible `bookSideControlCopy` (`Ask 52.91` / `Bid 52.78`), not `.srOnly`.
+- Withdrawal tour includes Rejected (pre-burn) and Unresolved (after mined). 320px Playwright walks both. Nothing is sent.
+- LP `feed=loading` and `feed=stale` disable mint/swap, leave burn on, and Retry illustrative is covered at 320px.
+- Tape Buy/Sell is visible `tapeSideCopy` text in the price cell, not `.srOnly`. Playwright at 320px.
+- Withdrawal tour includes Expired evidence after burn submitted (`closed` without a finalized burn). 320px Playwright. Nothing is sent.
+- Ticket `feed=loading`, `feed=stale`, and `feed=empty` gates plus Retry illustrative are dedicated 320px specs.
+- Ticket `/trade?feed=unavailable` disables review at 320px and Retry illustrative re-enables it.
+- Deposit tour includes Unavailable, Rejected, and Stale fail-closed steps. Nothing is minted. 320px Playwright.
+- LANDING_AND_USER_JOURNEYS withdrawal machine includes expired evidence and closed without a finalized burn.
+- Architecture incident demo includes observer disagreement. Copy is architecture-demonstration, not a live outage. 320px Playwright.
+- Withdrawal tour includes Refunded (tZEC restored on unrecoverable pre-signature failure). `refundPayoutBeforeSignature` refuses after signed. 320px Playwright. Nothing is sent.
+- LANDING_AND_USER_JOURNEYS withdrawal machine includes tZEC restored / refunded.
+- 320px USDT ticket reject panel (FOK miss and past expiry) names ZEC-USDT.
+- `payoutClaimForTourStep` walks `transaction_prepared`, `signed`, `broadcast`, `mined`, and `confirmed` as real states.
+- Withdrawal tour includes Observed recovery and Inputs restored. 320px Playwright. Nothing is sent.
+- LANDING_AND_USER_JOURNEYS includes unresolved recovery and deposit fail-closed Unavailable, Rejected, and Stale.
+- `refundWithdrawalBeforeSignature` restores tZEC supply from a payable reserve snapshot and refuses signed claims. Unit test starts from `burnedState`.
+- Gateway stub uses `payoutClaimStubCopy(tourClaim)` so later happy-path ids show `signed`/`broadcast`/`mined`/`confirmed`, not collapsed payable.
 - Blotter tabs expose one tabpanel each, with arrow/Home/End keys and Enter/Space select.
 - Landing hero, current-system ledger, and pZEC heading match LANDING_AND_USER_JOURNEYS copy. Wallet row is Unavailable, not Optional Sepolia.
 - Landing skip links reach journeys, evidence, and the terminal preview.
@@ -368,13 +489,17 @@ Last updated: 01-09-2026 after education Enter simulation in 320px, copy padding
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
+- ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
+- Reserve `WithdrawalClaimStatus` still has no `refunded` status token; refund removes the payable claim instead
+- Gateway stub is text-only; 320px density of stub states across USDT markets is still thin
+- Deposit Unavailable covers observer disagreement in the tour; architecture demo remains a separate surface
 
 ## Blockers
 
 - None for this slice
 - Mainnet remains a no-go: there is no production custody, reserve attester, mint controller, redemption service, identity/compliance tier, surveillance system, or independently audited deployment.
 - The local JSON persistence added for testnet is intentionally single-process and is not the production authoritative ledger.
-- Language bar still holds: never imply live, audited, trustless, private, shielded, or native-ZEC
+- Language bar still holds: never imply live, audited, trustless, private, shielded, or live native-ZEC execution
 - Vercel still must not hold spend keys, issue mainnet TEX, or run the authoritative matcher
 
 ## Done this batch (PR 22 + conditional lock)

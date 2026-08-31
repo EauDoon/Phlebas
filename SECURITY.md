@@ -21,7 +21,7 @@ The public Vercel app is a no-value interface. Local optional stubs exist and ar
 
 Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel. Public API routes refuse any operator URL that is not loopback HTTP.
 
-Do not send ZEC, pZEC, USDC, USDT0, or any other asset to an address presented by an unverified Phlebas build.
+Do not send ZEC, USDC, USDT, or any other asset to an address presented by an unverified Phlebas build.
 
 ## Reporting a vulnerability
 
@@ -49,9 +49,9 @@ Keep material details private until a fix is available and affected users can ta
 
 The proposed architecture is documented in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). Its strongest intended boundaries are:
 
-- Transparent ZEC custody and pZEC issuance are a federated gateway, not a trustless bridge.
+- Transparent ZEC custody and any future receipt issuance are a federated gateway, not a trustless bridge.
 - The central limit order book is matched offchain and settled onchain from signed limits.
-- The constrained automated market maker supports only pZEC/USDC and pZEC/USDT0.
+- The constrained automated market maker supports only ZEC/USDC and ZEC/USDT.
 - Settlement, token, router, and pool logic are intended to be versioned and non-upgradeable.
 - Emergency roles may stop new risk but must not gain seizure, arbitrary mint, or unrestricted upgrade authority.
 - Reserve assets and liabilities must reconcile in zatoshis before minting can proceed.

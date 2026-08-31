@@ -11,6 +11,21 @@ function seed() {
   return book;
 }
 
+test("matcher sizeAtoms are 8-decimal ZEC atoms", () => {
+  const oneZec = 100_000000n;
+  const result = submitOrder(emptyBook(5284n), {
+    id: "ask-1",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: oneZec,
+  });
+  assert.equal(result.status, "open");
+  assert.equal(result.remainingAtoms, oneZec);
+  const asks = levelsFromBook(result.book, "sell");
+  assert.equal(asks[0]?.sizeAtoms, oneZec);
+});
+
 test("price-time priority fills the earlier order at the same price first", () => {
   let book = emptyBook(5284n);
   book = submitOrder(book, { id: "old", side: "sell", tif: "GTC", priceTicks: 5291n, sizeAtoms: 1_00000000n }).book;

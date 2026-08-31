@@ -55,7 +55,7 @@ a.skipLink:focus-visible {
 .evidenceSection,
 .journeySection,
 .terminalPreviewSection,
-.pzecSection,
+.pairsSection,
 .marketSection,
 .gatesSection {
   scroll-margin-top: 12px;
@@ -70,7 +70,7 @@ a.skipLink:focus-visible {
   scroll-margin-top: 12px;
 }
 
-:global(#pzec),
+:global(#pairs),
 :global(#terminal-preview) {
   scroll-margin-top: 12px;
 }
@@ -449,7 +449,7 @@ a.skipLink:focus-visible {
 }
 
 .marketSection,
-.pzecSection,
+.pairsSection,
 .journeySection,
 .gatesSection,
 .evidenceSection,
@@ -466,7 +466,7 @@ a.skipLink:focus-visible {
 }
 
 .sectionIntro h2,
-.pzecCopy h2,
+.pairsCopy h2,
 .gatesSection h2,
 .evidenceSection h2,
 .terminalPreviewSection h2 {
@@ -559,14 +559,14 @@ a.skipLink:focus-visible {
   margin-left: 15px;
 }
 
-.pzecSection {
+.pairsSection {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
   gap: clamp(52px, 10vw, 160px);
   background: var(--surface);
 }
 
-.pzecCopy > p {
+.pairsCopy > p {
   max-width: 720px;
   margin-top: 28px;
   color: var(--text-secondary);
@@ -574,7 +574,7 @@ a.skipLink:focus-visible {
   line-height: 1.7;
 }
 
-.pzecCopy > strong {
+.pairsCopy > strong {
   display: block;
   max-width: 720px;
   margin-top: 24px;
@@ -586,7 +586,7 @@ a.skipLink:focus-visible {
   line-height: 1.55;
 }
 
-.pzecCopy a {
+.pairsCopy a {
   display: inline-flex;
   min-width: 44px;
   min-height: 44px;
@@ -1067,7 +1067,7 @@ a.skipLink:focus-visible {
   }
 
   .marketSection,
-  .pzecSection,
+  .pairsSection,
   .journeySection,
   .gatesSection,
   .evidenceSection,
@@ -1132,7 +1132,7 @@ a.skipLink:focus-visible {
   }
 
   .marketSection,
-  .pzecSection,
+  .pairsSection,
   .journeySection,
   .gatesSection,
   .evidenceSection,
@@ -1148,8 +1148,10 @@ a.skipLink:focus-visible {
   }
 
   .sectionIntro h2,
-  .pzecCopy h2,
-  .gatesSection h2 {
+  .pairsCopy h2,
+  .gatesSection h2,
+  .evidenceSection h2,
+  .terminalPreviewSection h2 {
     font-size: 39px;
   }
 }

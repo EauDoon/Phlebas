@@ -4,11 +4,11 @@ No-value Arbitrum Sepolia sources. They are not deployed from this tree, not aud
 
 | Contract | Role |
 | --- | --- |
-| `PZec` | 8-decimal `tpZEC`. Minter mints. Holder burns. Pauser can halt minting; only governor unpauses. |
-| `QuoteToken` | 6-decimal `tUSDC` / `tUSDT0` faucets. Not Circle USDC or USDT0. |
-| `Settlement` | EIP-712 CLOB fills, signed time-in-force, nonce bitmap, account epoch, and conservative quote rounding. |
-| `Factory` | Creates only `pZEC/tUSDC` and `pZEC/tUSDT0`. |
-| `Pair` | Fixed 30 bps constant product with locked minimum liquidity. No callbacks. |
+| `Zec` | 8-decimal `tZEC`. Minter mints. Holder burns. Pauser can halt minting; only governor unpauses. Not native ZEC. |
+| `QuoteToken` | 6-decimal `tUSDC` / `tUSDT` faucets. Not Circle USDC or Tether USDT. |
+| `Settlement` | EIP-712 CLOB fills, signed time-in-force, nonce bitmap, account epoch, buyer-up / seller-down quote rounding. |
+| `Factory` | Creates only `tZEC/tUSDC` and `tZEC/tUSDT`. |
+| `Pair` | Fixed 30 bps constant product with locked minimum liquidity. LP symbol `tLP`. No callbacks. |
 | `Router` | Stateless add/remove/swap with liquidity slippage bounds. Reverts if it retains tokens. |
 | `ConditionalLock` | EVM half of a native-ZEC atomic swap. One stablecoin deposit per lock, SHA-256 preimage release, depositor-only refund after a chain-local deadline. Non-upgradeable, no admin transfer, no fee. See [ADR 0003](../docs/adr/0003-evm-conditional-lock.md). |
 
@@ -60,7 +60,7 @@ Do not run `--mark-deployed` from CI or Vercel. Do not point this script at main
 
 ## ConditionalLock local deploy
 
-The EVM half of the native-ZEC atomic swap is independent of the pZEC deploy. It needs only the two approved stablecoin addresses, a pauser, and a governor. The constructor reverts if any role is zero, if the two stablecoins are equal, or if either stablecoin address has no deployed code.
+The EVM half of the native-ZEC atomic swap is independent of the tZEC CLOB deploy. It needs only the two approved stablecoin addresses, a pauser, and a governor. The constructor reverts if any role is zero, if the two stablecoins are equal, or if either stablecoin address has no deployed code.
 
 ```bash
 export PHLEBAS_USDC=...

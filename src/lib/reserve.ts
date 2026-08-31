@@ -246,6 +246,35 @@ export function signWithdrawal(
   return postSignature;
 }
 
+export function refundWithdrawalBeforeSignature(
+  state: ReserveCoverageState,
+  claimId: string,
+): ReserveCoverageState {
+  calculateReserveCoverage(state);
+  let restoredSupply = 0n;
+  const next = replaceClaim(state, claimId, (claim) => {
+    if (
+      claim.status === "signed" ||
+      claim.status === "broadcast" ||
+      claim.status === "mined" ||
+      claim.status === "unresolved"
+    ) {
+      throw new TypeError("once a native transaction is signed, the claim cannot be refunded");
+    }
+    if (claim.status !== "payable") {
+      throw new TypeError("only a payable claim can be refunded before signature");
+    }
+    restoredSupply = claim.payable;
+    return null;
+  });
+  const refunded = {
+    ...next,
+    tokenSupply: next.tokenSupply + restoredSupply,
+  };
+  calculateReserveCoverage(refunded);
+  return refunded;
+}
+
 export function broadcastWithdrawal(state: ReserveCoverageState, claimId: string): ReserveCoverageState {
   calculateReserveCoverage(state);
   const broadcast = replaceClaim(state, claimId, (claim) => {

@@ -3,8 +3,8 @@ export type ChartRange = "1H" | "4H" | "1D";
 
 export type Market = {
   id: MarketId;
-  settlementPair: "pZEC-USDC" | "pZEC-USDT0";
-  quote: "USDC" | "USDT0";
+  settlementPair: "ZEC-USDC" | "ZEC-USDT";
+  quote: "USDC" | "USDT";
   lastTicks: bigint;
   changeBps: number;
   highTicks: bigint;
@@ -25,7 +25,7 @@ export type RecentTrade = {
   time: string;
 };
 
-function pzecAtomsFromHundredths(hundredths: bigint): bigint {
+export function zecAtomsFromHundredths(hundredths: bigint): bigint {
   return hundredths * 1_000000n;
 }
 
@@ -48,7 +48,7 @@ function accumulate(
 export const markets: Record<MarketId, Market> = {
   "ZEC/USDC": {
     id: "ZEC/USDC",
-    settlementPair: "pZEC-USDC",
+    settlementPair: "ZEC-USDC",
     quote: "USDC",
     lastTicks: 5284n,
     changeBps: 585,
@@ -58,8 +58,8 @@ export const markets: Record<MarketId, Market> = {
   },
   "ZEC/USDT": {
     id: "ZEC/USDT",
-    settlementPair: "pZEC-USDT0",
-    quote: "USDT0",
+    settlementPair: "ZEC-USDT",
+    quote: "USDT",
     lastTicks: 5279n,
     changeBps: 583,
     highTicks: 5279n,
@@ -85,23 +85,23 @@ export const books: Record<MarketId, { asks: BookLevel[]; bids: BookLevel[] }> =
   "ZEC/USDC": {
     asks: accumulate(
       [
-        { priceTicks: 5318n, sizeAtoms: pzecAtomsFromHundredths(1564n) },
-        { priceTicks: 5312n, sizeAtoms: pzecAtomsFromHundredths(1981n) },
-        { priceTicks: 5308n, sizeAtoms: pzecAtomsFromHundredths(2398n) },
-        { priceTicks: 5302n, sizeAtoms: pzecAtomsFromHundredths(2815n) },
-        { priceTicks: 5297n, sizeAtoms: pzecAtomsFromHundredths(1132n) },
-        { priceTicks: 5291n, sizeAtoms: pzecAtomsFromHundredths(1549n) },
+        { priceTicks: 5318n, sizeAtoms: zecAtomsFromHundredths(1564n) },
+        { priceTicks: 5312n, sizeAtoms: zecAtomsFromHundredths(1981n) },
+        { priceTicks: 5308n, sizeAtoms: zecAtomsFromHundredths(2398n) },
+        { priceTicks: 5302n, sizeAtoms: zecAtomsFromHundredths(2815n) },
+        { priceTicks: 5297n, sizeAtoms: zecAtomsFromHundredths(1132n) },
+        { priceTicks: 5291n, sizeAtoms: zecAtomsFromHundredths(1549n) },
       ],
       "end",
     ),
     bids: accumulate(
       [
-        { priceTicks: 5278n, sizeAtoms: pzecAtomsFromHundredths(2815n) },
-        { priceTicks: 5273n, sizeAtoms: pzecAtomsFromHundredths(1132n) },
-        { priceTicks: 5269n, sizeAtoms: pzecAtomsFromHundredths(1549n) },
-        { priceTicks: 5263n, sizeAtoms: pzecAtomsFromHundredths(1966n) },
-        { priceTicks: 5257n, sizeAtoms: pzecAtomsFromHundredths(2383n) },
-        { priceTicks: 5251n, sizeAtoms: pzecAtomsFromHundredths(2800n) },
+        { priceTicks: 5278n, sizeAtoms: zecAtomsFromHundredths(2815n) },
+        { priceTicks: 5273n, sizeAtoms: zecAtomsFromHundredths(1132n) },
+        { priceTicks: 5269n, sizeAtoms: zecAtomsFromHundredths(1549n) },
+        { priceTicks: 5263n, sizeAtoms: zecAtomsFromHundredths(1966n) },
+        { priceTicks: 5257n, sizeAtoms: zecAtomsFromHundredths(2383n) },
+        { priceTicks: 5251n, sizeAtoms: zecAtomsFromHundredths(2800n) },
       ],
       "start",
     ),
@@ -109,23 +109,23 @@ export const books: Record<MarketId, { asks: BookLevel[]; bids: BookLevel[] }> =
   "ZEC/USDT": {
     asks: accumulate(
       [
-        { priceTicks: 5313n, sizeAtoms: pzecAtomsFromHundredths(2398n) },
-        { priceTicks: 5307n, sizeAtoms: pzecAtomsFromHundredths(2815n) },
-        { priceTicks: 5303n, sizeAtoms: pzecAtomsFromHundredths(1132n) },
-        { priceTicks: 5297n, sizeAtoms: pzecAtomsFromHundredths(1549n) },
-        { priceTicks: 5292n, sizeAtoms: pzecAtomsFromHundredths(1966n) },
-        { priceTicks: 5286n, sizeAtoms: pzecAtomsFromHundredths(2383n) },
+        { priceTicks: 5313n, sizeAtoms: zecAtomsFromHundredths(2398n) },
+        { priceTicks: 5307n, sizeAtoms: zecAtomsFromHundredths(2815n) },
+        { priceTicks: 5303n, sizeAtoms: zecAtomsFromHundredths(1132n) },
+        { priceTicks: 5297n, sizeAtoms: zecAtomsFromHundredths(1549n) },
+        { priceTicks: 5292n, sizeAtoms: zecAtomsFromHundredths(1966n) },
+        { priceTicks: 5286n, sizeAtoms: zecAtomsFromHundredths(2383n) },
       ],
       "end",
     ),
     bids: accumulate(
       [
-        { priceTicks: 5273n, sizeAtoms: pzecAtomsFromHundredths(1549n) },
-        { priceTicks: 5268n, sizeAtoms: pzecAtomsFromHundredths(1966n) },
-        { priceTicks: 5264n, sizeAtoms: pzecAtomsFromHundredths(2383n) },
-        { priceTicks: 5258n, sizeAtoms: pzecAtomsFromHundredths(2800n) },
-        { priceTicks: 5252n, sizeAtoms: pzecAtomsFromHundredths(1117n) },
-        { priceTicks: 5246n, sizeAtoms: pzecAtomsFromHundredths(1534n) },
+        { priceTicks: 5273n, sizeAtoms: zecAtomsFromHundredths(1549n) },
+        { priceTicks: 5268n, sizeAtoms: zecAtomsFromHundredths(1966n) },
+        { priceTicks: 5264n, sizeAtoms: zecAtomsFromHundredths(2383n) },
+        { priceTicks: 5258n, sizeAtoms: zecAtomsFromHundredths(2800n) },
+        { priceTicks: 5252n, sizeAtoms: zecAtomsFromHundredths(1117n) },
+        { priceTicks: 5246n, sizeAtoms: zecAtomsFromHundredths(1534n) },
       ],
       "start",
     ),
@@ -134,24 +134,24 @@ export const books: Record<MarketId, { asks: BookLevel[]; bids: BookLevel[] }> =
 
 export const recentTrades: Record<MarketId, readonly RecentTrade[]> = {
   "ZEC/USDC": [
-    { priceTicks: 5284n, sizeAtoms: pzecAtomsFromHundredths(340n), side: "buy", time: "14:32:08" },
-    { priceTicks: 5281n, sizeAtoms: pzecAtomsFromHundredths(812n), side: "sell", time: "14:31:54" },
-    { priceTicks: 5282n, sizeAtoms: pzecAtomsFromHundredths(176n), side: "buy", time: "14:31:41" },
-    { priceTicks: 5278n, sizeAtoms: pzecAtomsFromHundredths(1205n), side: "sell", time: "14:31:27" },
-    { priceTicks: 5280n, sizeAtoms: pzecAtomsFromHundredths(544n), side: "buy", time: "14:31:12" },
+    { priceTicks: 5284n, sizeAtoms: zecAtomsFromHundredths(340n), side: "buy", time: "14:32:08" },
+    { priceTicks: 5281n, sizeAtoms: zecAtomsFromHundredths(812n), side: "sell", time: "14:31:54" },
+    { priceTicks: 5282n, sizeAtoms: zecAtomsFromHundredths(176n), side: "buy", time: "14:31:41" },
+    { priceTicks: 5278n, sizeAtoms: zecAtomsFromHundredths(1205n), side: "sell", time: "14:31:27" },
+    { priceTicks: 5280n, sizeAtoms: zecAtomsFromHundredths(544n), side: "buy", time: "14:31:12" },
   ],
   "ZEC/USDT": [
-    { priceTicks: 5279n, sizeAtoms: pzecAtomsFromHundredths(340n), side: "buy", time: "14:32:08" },
-    { priceTicks: 5276n, sizeAtoms: pzecAtomsFromHundredths(812n), side: "sell", time: "14:31:54" },
-    { priceTicks: 5277n, sizeAtoms: pzecAtomsFromHundredths(176n), side: "buy", time: "14:31:41" },
-    { priceTicks: 5273n, sizeAtoms: pzecAtomsFromHundredths(1205n), side: "sell", time: "14:31:27" },
-    { priceTicks: 5275n, sizeAtoms: pzecAtomsFromHundredths(544n), side: "buy", time: "14:31:12" },
+    { priceTicks: 5279n, sizeAtoms: zecAtomsFromHundredths(340n), side: "buy", time: "14:32:08" },
+    { priceTicks: 5276n, sizeAtoms: zecAtomsFromHundredths(812n), side: "sell", time: "14:31:54" },
+    { priceTicks: 5277n, sizeAtoms: zecAtomsFromHundredths(176n), side: "buy", time: "14:31:41" },
+    { priceTicks: 5273n, sizeAtoms: zecAtomsFromHundredths(1205n), side: "sell", time: "14:31:27" },
+    { priceTicks: 5275n, sizeAtoms: zecAtomsFromHundredths(544n), side: "buy", time: "14:31:12" },
   ],
 };
 
 export const pools = [
   {
-    id: "pZEC/USDC",
+    id: "ZEC/USDC",
     quote: "USDC",
     fee: "0.30%",
     tvl: "$842,410",
@@ -160,8 +160,8 @@ export const pools = [
     reserveQuoteAtoms: 421_205_000000n,
   },
   {
-    id: "pZEC/USDT0",
-    quote: "USDT0",
+    id: "ZEC/USDT",
+    quote: "USDT",
     fee: "0.30%",
     tvl: "$516,920",
     volume: "$188,460",

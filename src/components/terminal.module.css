@@ -761,6 +761,10 @@ a.skipLink:focus-visible {
   font-weight: 680;
 }
 
+.segmented button[aria-pressed="true"] {
+  text-decoration: underline;
+}
+
 .segmented .buyActive {
   color: var(--buy);
   background: var(--buy-soft);

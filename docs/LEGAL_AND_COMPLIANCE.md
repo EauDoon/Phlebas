@@ -2,9 +2,9 @@
 
 Status: historical ADR 0001 custody analysis, superseded for the target product
 
-This document analyzes the legacy pZEC gateway and passive LP design. It does not approve or fully assess the native-ZEC atomic-swap target in [ADR 0002](adr/0002-native-zec-atomic-settlement.md). Testnet and Mainnet remain blocked until qualified counsel evaluates the non-custodial matcher, wallet-controlled cross-chain settlement, coordinator, observers, solver liquidity, stablecoin contracts, direct-contract access, operating entity, assets, users, and every served jurisdiction.
+This document analyzes the legacy custody gateway and passive LP design. ADR 0001 historically named the receipt `pZEC`; the current listed form is undeployed `tZEC`. It does not approve or fully assess the native-ZEC atomic-swap target in [ADR 0002](adr/0002-native-zec-atomic-settlement.md). Testnet and Mainnet remain blocked until qualified counsel evaluates the non-custodial matcher, wallet-controlled cross-chain settlement, coordinator, observers, solver liquidity, stablecoin contracts, direct-contract access, operating entity, assets, users, and every served jurisdiction.
 
-Phlebas must not accept real ZEC, mint redeemable pZEC, list real USDC or USDT0, charge trading fees, or offer real-value liquidity under the current project status. No test asset creates a legal or economic claim on mainnet ZEC, a future token, a reward, an airdrop, or monetary value.
+Phlebas must not accept real ZEC, mint redeemable tZEC, list real USDC or USDT, charge trading fees, or offer real-value liquidity pools under the current project status. USDT0 is abandoned. Valueless `tZEC` may exercise technical mint, burn, and native Testnet payout paths. Those paths are not payable and are not live native-ZEC execution. No test asset creates a legal or economic claim on mainnet ZEC, a future token, a reward, an airdrop, or monetary value.
 
 This document is risk planning, not legal advice. A qualified lawyer must confirm the rules for the operating entity, custody model, assets, and every country served before mainnet.
 
@@ -13,7 +13,7 @@ This document is risk planning, not legal advice. A qualified lawyer must confir
 The superseded ADR 0001 service had two different operating layers:
 
 1. A non-custodial interface that lets a user connect a wallet, review market data, create an order, and sign a transaction locally.
-2. A custody-backed bridge that receives transparent ZEC, controls reserve keys, and mints or burns pZEC.
+2. A custody-backed bridge that receives transparent ZEC, controls reserve keys, and mints or burns tZEC.
 
 The second layer made that design custodial. ADR 0002 removes it from the target. Phlebas must not describe any system as non-custodial if Phlebas or its contractor controls ZEC reserves, minting, redemption, withdrawal, recovery keys, or either asset-moving swap path.
 
@@ -56,7 +56,7 @@ FinCEN treats an administrator or exchanger that accepts and transmits convertib
 
 Federal registration does not replace state licensing. New York covers custody, transmission, buying, selling, exchange, and issuing or administering virtual currency under its [virtual currency business rules](https://www.dfs.ny.gov/virtual_currency_businesses). California requires a license for covered digital financial asset business with California residents from 01-07-2026 under its [Digital Financial Assets Law](https://dfpi.ca.gov/regulated-industries/digital-financial-assets/digital-financial-assets-law-frequently-asked-questions/).
 
-ZEC, pZEC, USDC, USDT0, and LP tokens each need a securities, commodities, payments, and state coin-listing review. A plain 1:1 wrapper does not by itself make a non-security crypto asset a security under the [SEC interpretation dated 17-03-2026](https://www.sec.gov/rules-regulations/2026/03/s7-2026-09), but the underlying asset and the transaction still require classification. Yield promises, reward programs, governance rights, and reliance on managerial work can change the result. Spot virtual currency activity can still face anti-fraud and anti-manipulation enforcement, as described by the [CFTC](https://www.cftc.gov/LearnAndProtect/AdvisoriesAndArticles/understand_risks_of_virtual_currency.html).
+ZEC, tZEC, USDC, USDT, and LP tokens each need a securities, commodities, payments, and state coin-listing review. USDT0 is abandoned. A plain 1:1 wrapper does not by itself make a non-security crypto asset a security under the [SEC interpretation dated 17-03-2026](https://www.sec.gov/rules-regulations/2026/03/s7-2026-09), but the underlying asset and the transaction still require classification. Yield promises, reward programs, governance rights, and reliance on managerial work can change the result. Spot virtual currency activity can still face anti-fraud and anti-manipulation enforcement, as described by the [CFTC](https://www.cftc.gov/LearnAndProtect/AdvisoriesAndArticles/understand_risks_of_virtual_currency.html).
 
 The United States stays blocked until federal and state analyses are complete.
 
@@ -84,7 +84,7 @@ The bridge must:
 - Inspect every input and output in the final transaction before minting.
 - Reject or quarantine a final deposit transaction with any shielded component, nontransparent output, or unresolved best-chain status.
 - Wait for the approved confirmation count and handle reorganizations before final minting.
-- Maintain a customer-level reserve liability for every pZEC unit.
+- Maintain a customer-level reserve liability for every tZEC unit.
 - Define forks, dust, fees, lost funds, redemption delays, emergency pauses, and failed redemptions in the customer terms.
 - Disclose that transparent Zcash activity exposes sender, receiver, amount, and transaction history. The [Zcash address documentation](https://zcash.readthedocs.io/en/latest/rtd_pages/addresses.html) explains the difference between transparent and shielded addresses.
 
@@ -98,22 +98,11 @@ USDC is the first production quote asset, subject to every mainnet gate.
 
 Phlebas must use the issuer-native contract on a chain listed in [Circle's supported chains and currencies](https://developers.circle.com/circle-mint/supported-chains-and-currencies). It must not create a Phlebas-wrapped USDC or accept an unsupported bridge representation. The interface must identify the chain and contract address and disclose issuer freeze, blacklist, depeg, and redemption risk. Phlebas must not imply that Circle sponsors the product or that Phlebas can redeem USDC with Circle. The [Circle USDC terms](https://www.circle.com/legal/usdc-terms) govern issuer access and restrictions.
 
-### USDT0 later
+### Native USDT
 
-USDT0 is a separate later listing gate. It is not included in the first mainnet release.
+Native USDT is a listed quote in this simulation. USDT0 is abandoned and is not a later listing gate.
 
-The [USDT0 technical documentation](https://docs.usdt0.to/) describes a lock-and-mint design in which USDT is locked in an Ethereum adapter and USDT0 is minted on supported destination chains. That model adds bridge, messaging, upgrade, reserve, contract, and destination-chain risk to the underlying USDT risk.
-
-USDT0 may be listed only when all of these conditions pass:
-
-- The chosen Phlebas chain is an official USDT0 deployment.
-- The contract address and decimals are verified against official deployment records.
-- Counsel approves the asset, bridge structure, customer disclosures, and country availability.
-- Tether and USDT0 eligibility and integration terms are cleared for the chosen operating entity and every enabled jurisdiction.
-- The team reviews the current [Tether terms](https://tether.to/en/legal/) and obtains written advice on restrictions that apply to the eventual entity, management, and customer facts. Singapore-person restrictions are reviewed only if those facts make them applicable.
-- Sanctions, blacklist, freeze, bridge halt, depeg, messaging failure, and upgrade events have automated trading and deposit controls.
-- Redemption and outage procedures are tested without Phlebas claiming direct issuer redemption.
-- The integration has a separate contract and bridge security review.
+Mainnet USDT, if ever approved, must be issuer-native USDT on the chosen chain. Phlebas must not list USDT0 or a Phlebas-wrapped USDT. Counsel must still approve the asset, customer disclosures, and country availability. The team reviews the current [Tether terms](https://tether.to/en/legal/) and obtains written advice on restrictions that apply to the eventual entity, management, and customer facts. Singapore-person restrictions are reviewed only if those facts make them applicable. Sanctions, blacklist, freeze, depeg, and upgrade events need automated trading and deposit controls. Phlebas does not provide direct issuer redemption.
 
 ## Anti-money laundering and sanctions controls
 
@@ -151,8 +140,8 @@ LP pools need separate monitoring for manipulation between the pool and order bo
 The interface and customer terms must state, in plain language:
 
 - Every fee, spread, slippage rule, minimum, confirmation period, and redemption condition.
-- pZEC custody, reserve, insolvency, smart-contract, key-loss, pause, and fork risk.
-- USDC and USDT0 issuer, blacklist, freeze, depeg, bridge, and chain risk.
+- tZEC custody, reserve, insolvency, smart-contract, key-loss, pause, and fork risk.
+- USDC and USDT issuer, blacklist, freeze, depeg, and chain risk. USDT0 is abandoned.
 - Order-book depth, partial-fill, cancellation, settlement, outage, and finality rules.
 - LP price risk, impermanent loss, fee variability, smart-contract risk, and withdrawal conditions.
 - The public nature of transparent ZEC transactions.

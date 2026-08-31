@@ -188,7 +188,15 @@ export function feedWithheldCopy(status: FeedStatus, settlementPair: Market["set
 
 export function orderBookCaptionCopy(marketId: MarketId): string {
   const market = markets[marketId];
-  return `Local ${marketId} order book, settled as ${market.settlementPair}. Totals are cumulative pZEC depth from the best price. Click a price to copy it into the ticket.`;
+  return `Local ${marketId} order book, settled as ${market.settlementPair}. Totals are cumulative ZEC depth from the best price. Click a price to copy it into the ticket.`;
+}
+
+export function bookSideControlCopy(side: "bid" | "ask", priceLabel: string): string {
+  return side === "ask" ? `Ask ${priceLabel}` : `Bid ${priceLabel}`;
+}
+
+export function tapeSideCopy(side: "buy" | "sell"): string {
+  return side === "buy" ? "Buy" : "Sell";
 }
 
 export function depthSessionLastCopy(

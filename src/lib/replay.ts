@@ -113,6 +113,6 @@ export function snapshotKey(state: ReturnType<typeof replayLog>): string {
     const rest = [...book.bids, ...book.asks]
       .map((order) => `${order.id}:${order.side}:${order.priceTicks}:${order.remainingAtoms}`)
       .join(",");
-    return `${marketId}|${book.lastTicks}|${rest}|${account.pzecAtoms}|${account.quoteAtoms}|${account.reservedPzecAtoms}|${account.reservedQuoteAtoms}`;
+    return `${marketId}|${book.lastTicks}|${rest}|${account.zecAtoms}|${account.quoteAtoms}|${account.reservedZecAtoms}|${account.reservedQuoteAtoms}`;
   }).join(";");
 }

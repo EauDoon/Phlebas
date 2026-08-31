@@ -9,6 +9,7 @@ import {
   confirmWithdrawal,
   markWithdrawalMined,
   markWithdrawalUnresolved,
+  refundWithdrawalBeforeSignature,
   signWithdrawal,
   type ReserveCoverageState,
   type WithdrawalClaim,
@@ -37,6 +38,54 @@ const burnedState: ReserveCoverageState = {
   otherLiabilities: 0n,
   requiredBuffer: 10n,
 };
+
+test("restores tZEC from a real payable snapshot and refuses a signed refund", () => {
+  const payableSnapshot: ReserveCoverageState = {
+    ...burnedState,
+    withdrawalClaims: [payableClaim()],
+  };
+  const before = calculateReserveCoverage(payableSnapshot);
+  assert.equal(before.controlledCovered, true);
+  assert.equal(before.totalCovered, true);
+  assert.equal(before.withdrawalPayables, 100n);
+
+  const refunded = refundWithdrawalBeforeSignature(payableSnapshot, "wd-1");
+  const after = calculateReserveCoverage(refunded);
+
+  assert.equal(refunded.tokenSupply, 1000n);
+  assert.equal(refunded.controlledAssets, payableSnapshot.controlledAssets);
+  assert.equal(refunded.withdrawalClaims.length, 0);
+  assert.equal(after.withdrawalPayables, 0n);
+  assert.equal(after.controlledCovered, true);
+  assert.equal(after.totalCovered, true);
+  assert.equal(after.controlledRequirement, before.controlledRequirement);
+  assert.equal(after.totalRequirement, before.totalRequirement);
+  assert.throws(
+    () => signWithdrawal(refunded, {
+      claimId: "wd-1",
+      transactionId: TX_ID,
+      selectedInput: 101n,
+      principal: 100n,
+      inFlightChange: 0n,
+      networkFee: 1n,
+    }),
+    /must exist exactly once/,
+  );
+
+  const signed = signWithdrawal(payableSnapshot, {
+    claimId: "wd-1",
+    transactionId: TX_ID,
+    selectedInput: 101n,
+    principal: 100n,
+    inFlightChange: 0n,
+    networkFee: 1n,
+  });
+  const broadcast = broadcastWithdrawal(signed, "wd-1");
+  const mined = markWithdrawalMined(broadcast, "wd-1");
+  assert.throws(() => refundWithdrawalBeforeSignature(signed, "wd-1"), /cannot be refunded/);
+  assert.throws(() => refundWithdrawalBeforeSignature(broadcast, "wd-1"), /cannot be refunded/);
+  assert.throws(() => refundWithdrawalBeforeSignature(mined, "wd-1"), /cannot be refunded/);
+});
 
 test("keeps an exactly selected withdrawal covered through broadcast, mined, and confirmed", () => {
   const signed = signWithdrawal(burnedState, {

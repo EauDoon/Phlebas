@@ -31,6 +31,7 @@ import {
   sessionLastStatLabel,
   tapeCaptionCopy,
   tapeMiniLabel,
+  tapeSideCopy,
   type FeedStatus,
 } from "@/lib/market-state";
 import { interpretRovingKey } from "@/lib/roving-keys";
@@ -44,7 +45,7 @@ import type { SessionLogEvent } from "@/lib/replay";
 import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingOrder, type TimeInForce } from "@/lib/matcher";
 import {
   applySubmit,
-  availablePzec,
+  availableZec,
   availableQuote,
   canCover,
   describeSubmit,
@@ -61,7 +62,7 @@ import {
   type PaperAccount,
   type UserFill,
 } from "@/lib/session";
-import { PZEC_DECIMALS, PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
+import { ZEC_DECIMALS, PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import { ArchitecturePanel } from "./architecture-panel";
 import { BridgePanel } from "./bridge-panel";
@@ -509,8 +510,7 @@ export function TradingTerminal({
                     ))}
                   </div>
                 </div>
-                <span className={styles.settlementBadge}>legacy simulation: {market.settlementPair}</span>
-                {marketId === "ZEC/USDT" && <span className={styles.gateBadge}>Later listing gate</span>}
+                <span className={styles.settlementBadge}>settles {market.settlementPair}</span>
                 <div>
                   <span>Market data</span>
                   <div className={styles.selectorTabs} role="radiogroup" aria-label="Market data state">
@@ -598,9 +598,9 @@ export function TradingTerminal({
                 book={displayedBook}
                 lastTicks={book.lastTicks}
                 priceSelection={priceSelection}
-                availablePzecAtoms={availablePzec(account)}
+                availableZecAtoms={availableZec(account)}
                 availableQuoteAtoms={availableQuote(account)}
-                reservePzecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
+                reserveZecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
                 reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
                 accountEpoch={accountEpoch}
                 feedStatus={feedStatus}
@@ -619,26 +619,24 @@ export function TradingTerminal({
                 <table className={styles.dataTable}>
                   <caption className={styles.srOnly}>{tapeCaptionCopy(marketId, !statsSurface.showFixtures)}</caption>
                   <thead>
-                    <tr><th scope="col">Price {market.quote}</th><th scope="col">Size pZEC</th><th scope="col">Time</th></tr>
+                    <tr><th scope="col">Price {market.quote}</th><th scope="col">Size ZEC</th><th scope="col">Time</th></tr>
                   </thead>
                   <tbody>
                     {sessionTape.map((trade) => (
                       <tr key={trade.id}>
                         <th scope="row" className={trade.takerSide === "buy" ? styles.buyText : styles.sellText}>
-                          <span className={styles.srOnly}>{trade.takerSide === "buy" ? "Buy" : "Sell"} </span>
-                          {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
+                          {tapeSideCopy(trade.takerSide)} {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
                         </th>
-                        <td>{formatAtomicUnits(trade.sizeAtoms, PZEC_DECIMALS, 2)}</td>
+                        <td>{formatAtomicUnits(trade.sizeAtoms, ZEC_DECIMALS, 2)}</td>
                         <td>{trade.time}</td>
                       </tr>
                     ))}
                     {fixtureTape.map((trade) => (
                       <tr key={`fixture-${trade.time}-${trade.priceTicks.toString()}`}>
                         <th scope="row" className={trade.side === "buy" ? styles.buyText : styles.sellText}>
-                          <span className={styles.srOnly}>{trade.side === "buy" ? "Buy" : "Sell"} </span>
-                          {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
+                          {tapeSideCopy(trade.side)} {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
                         </th>
-                        <td>{formatAtomicUnits(trade.sizeAtoms, PZEC_DECIMALS, 2)}</td>
+                        <td>{formatAtomicUnits(trade.sizeAtoms, ZEC_DECIMALS, 2)}</td>
                         <td>{trade.time}</td>
                       </tr>
                     ))}

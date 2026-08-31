@@ -11,7 +11,7 @@ function completeBroadcast() {
     chain: 421614,
     receipts: [{ transactionHash: TX, status: "0x1" }],
     transactions: [
-      { contractName: "PZec", contractAddress: address(1), hash: TX, transactionType: "CREATE" },
+      { contractName: "Zec", contractAddress: address(1), hash: TX, transactionType: "CREATE" },
       { contractName: "QuoteToken", contractAddress: address(2), transactionType: "CREATE" },
       { contractName: "QuoteToken", contractAddress: address(3), transactionType: "CREATE" },
       { contractName: "Factory", contractAddress: address(4), transactionType: "CREATE" },
@@ -31,11 +31,11 @@ test("recording a broadcast never sets deployed without an explicit mark", () =>
   const recorded = recordBroadcast(emptyManifest(), {
     chain: 421614,
     transactions: [
-      { contractName: "PZec", contractAddress: address(1), hash: TX, transactionType: "CREATE" },
+      { contractName: "Zec", contractAddress: address(1), hash: TX, transactionType: "CREATE" },
     ],
   });
   assert.equal(recorded.deployed, false);
-  assert.equal(recorded.contracts.PZec, address(1));
+  assert.equal(recorded.contracts.Zec, address(1));
   assert.equal(recorded.broadcastTx, TX);
 });
 
@@ -44,7 +44,7 @@ test("mark-deployed requires a complete broadcast, commit, and Sepolia chain id"
   assert.throws(() => recordBroadcast(emptyManifest(), { chain: 1, transactions: [] }), /421614/);
   assert.throws(() => recordBroadcast(emptyManifest("deadbeef"), {
     chain: 421614,
-    transactions: [{ contractName: "PZec", contractAddress: address(1), hash: TX, transactionType: "CREATE" }],
+    transactions: [{ contractName: "Zec", contractAddress: address(1), hash: TX, transactionType: "CREATE" }],
   }, { markDeployed: true, commit: "deadbeef" }), /every contract/);
   assert.throws(
     () => recordBroadcast(emptyManifest(), completeBroadcast(), { markDeployed: true, deployedCode: completeCode() }),
@@ -73,6 +73,6 @@ test("mark-deployed requires a complete broadcast, commit, and Sepolia chain id"
   });
   assert.equal(marked.deployed, true);
   assert.equal(marked.commit, "deadbeef");
-  assert.equal(marked.contracts.TUsdt0, address(3));
-  assert.equal(marked.contracts.PzecUsdt0Pair, address(6));
+  assert.equal(marked.contracts.TUsdt, address(3));
+  assert.equal(marked.contracts.ZecUsdtPair, address(6));
 });

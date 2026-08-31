@@ -1,4 +1,4 @@
-export const PREVIEW_EDUCATION_VERSION = "2026-08-30-1";
+export const PREVIEW_EDUCATION_VERSION = "2026-08-31-1";
 export const PREVIEW_EDUCATION_STORAGE_KEY = "phlebas.previewEducationVersion";
 
 export const PREVIEW_EDUCATION_STEPS = [
@@ -7,8 +7,8 @@ export const PREVIEW_EDUCATION_STEPS = [
     body: "Prices, orders, pools, balances, and gateway events are illustrative. Optional Arbitrum Sepolia wallet connection is sign-only by default and does not move mainnet funds.",
   },
   {
-    title: "pZEC would depend on custody.",
-    body: "pZEC is the planned settlement receipt for eligible transparent native ZEC. It is not native ZEC, shielded ZEC, or a trustless bridge asset.",
+    title: "Pairs are native ZEC against USDC and USDT.",
+    body: "This preview labels ZEC-USDC and ZEC-USDT. It is not live settlement, not shielded ZEC, and not a trustless bridge. USDT0 is abandoned. No mainnet funds move here.",
   },
   {
     title: "Preview actions stay in this browser.",

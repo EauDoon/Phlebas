@@ -87,8 +87,8 @@ function parseOrder(body: Record<string, unknown>): TypedOrder & { tif: "GTC" | 
 export function createMatcherService(verifyingContract?: string, lastTicks = 5291n): MatcherOperator {
   const settlement = verifyingContract ?? (TESTNET.deployed ? TESTNET.settlement : ZERO);
   return createMatcherOperator(sepoliaDomain(settlement), lastTicks, {
-    baseAsset: TESTNET.pzec,
-    quoteAssets: [TESTNET.usdc, TESTNET.usdt0],
+    baseAsset: TESTNET.zec,
+    quoteAssets: [TESTNET.usdc, TESTNET.usdt],
   });
 }
 

@@ -20,8 +20,8 @@ import { markets } from "@/lib/market-data";
 import type { RestingOrder } from "@/lib/matcher";
 import type { SessionLogEvent } from "@/lib/replay";
 import type { PaperAccount, UserFill } from "@/lib/session";
-import { availablePzec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
-import { PZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
+import { availableZec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
+import { ZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
@@ -140,7 +140,7 @@ export function OrderBlotter({
               <tr>
                 <th scope="col">Side</th>
                 <th scope="col">Price {market.quote}</th>
-                <th scope="col">Remaining pZEC</th>
+                <th scope="col">Remaining ZEC</th>
                 <th scope="col">Settlement</th>
                 <th scope="col">Action</th>
               </tr>
@@ -152,7 +152,7 @@ export function OrderBlotter({
                     {order.side === "buy" ? "Buy" : "Sell"}
                   </th>
                   <td>{formatAtomicUnits(order.priceTicks, PRICE_DECIMALS, 2)}</td>
-                  <td>{formatAtomicUnits(order.remainingAtoms, PZEC_DECIMALS)}</td>
+                  <td>{formatAtomicUnits(order.remainingAtoms, ZEC_DECIMALS)}</td>
                   <td>{market.settlementPair}</td>
                   <td>
                     <button type="button" className={styles.textButton} onClick={() => onCancel(order.id)}>
@@ -190,7 +190,7 @@ export function OrderBlotter({
                 <th scope="col">Time</th>
                 <th scope="col">Side</th>
                 <th scope="col">Price {market.quote}</th>
-                <th scope="col">Size pZEC</th>
+                <th scope="col">Size ZEC</th>
                 <th scope="col">Settlement</th>
               </tr>
             </thead>
@@ -202,7 +202,7 @@ export function OrderBlotter({
                     {fill.takerSide === "buy" ? "Buy" : "Sell"}
                   </td>
                   <td>{formatAtomicUnits(fill.priceTicks, PRICE_DECIMALS, 2)}</td>
-                  <td>{formatAtomicUnits(fill.sizeAtoms, PZEC_DECIMALS)}</td>
+                  <td>{formatAtomicUnits(fill.sizeAtoms, ZEC_DECIMALS)}</td>
                   <td>{market.settlementPair}</td>
                 </tr>
               ))}
@@ -217,12 +217,12 @@ export function OrderBlotter({
         <div role="tabpanel" id="blotter-panel-inventory" aria-labelledby="blotter-tab-inventory">
         <dl className={styles.statGrid}>
           <div>
-            <dt>Available pZEC</dt>
-            <dd>{formatAtomicUnits(availablePzec(account), PZEC_DECIMALS)}</dd>
+            <dt>Available ZEC</dt>
+            <dd>{formatAtomicUnits(availableZec(account), ZEC_DECIMALS)}</dd>
           </div>
           <div>
-            <dt>Reserved pZEC</dt>
-            <dd>{formatAtomicUnits(account.reservedPzecAtoms, PZEC_DECIMALS)}</dd>
+            <dt>Reserved ZEC</dt>
+            <dd>{formatAtomicUnits(account.reservedZecAtoms, ZEC_DECIMALS)}</dd>
           </div>
           <div>
             <dt>Available {market.quote}</dt>
