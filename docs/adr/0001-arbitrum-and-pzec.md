@@ -3,6 +3,7 @@
 Date: 30-08-2026
 Status: Accepted for simulation and gated design only
 Production status: Not approved
+Pair mapping: superseded by [ADR 0002](0002-native-zec-usdc-usdt.md). Arbitrum One and custody-backed `pZEC` as the ERC-20 form remain.
 
 ## Context
 
