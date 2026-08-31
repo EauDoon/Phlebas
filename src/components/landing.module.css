@@ -1187,6 +1187,11 @@ a.skipLink:focus-visible {
 
 @media (max-width: 820px) {
   .skipNav:focus-within {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
     width: 100%;
     max-width: 100%;
     overflow-y: auto;
