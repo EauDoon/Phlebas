@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after chart withheld copy retargets settlement if the market switches while the feed stays unavailable.
+Last updated: 31-08-2026 after ticket reject retarget, connecting title after reject-then-hang, and withheld chart after market switch.
 
 ## Branch
 
@@ -141,14 +141,17 @@ Last updated: 31-08-2026 after chart withheld copy retargets settlement if the m
 - Ticket sign missing-provider copy names `pZEC-USDT0` if the market switches while review is still open. `TradeTicket` stays mounted across a market switch (`key={feedStatus}`); `isMissingProviderCopy` retargets the live notice. Nothing is sent.
 - Rejected-connect failure copy (`walletConnectFailureCopy`, not missing-provider) retargets settlement after a market switch without clicking Connect again.
 - Chart withheld copy retargets if the market switches while the feed stays unavailable. `PriceChart` already calls `feedWithheldCopy` with the current market's settlement pair. No Retry.
+- Ticket reject copy uses `retargetSettlementCopy` so a market switch while the rejected panel is open names the new settlement pair. Real FOK miss plus unix-expiry Playwright. Retry is safe; nothing was submitted.
+- Connecting wallet title uses `walletConnectBarTitle` so a hanging provider after a prior reject keeps settlement if the market switches. Prior reject stays in the status span.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Ticket reject copy should retarget settlement if the market switches while the rejected panel is open
-- Wallet connecting title should keep settlement if the market switches during a hanging provider after a prior reject
+- FOK reject copy should retarget settlement if the market switches while the rejected panel is open
+- Ticket gate copy should retarget if the market switches while the feed stays unavailable
+- Depth withheld copy should retarget if the market switches while the feed stays unavailable
 
 ## Blockers
 
