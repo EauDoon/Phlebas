@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after skip-link focus-visible, 320px wrap height, overflow, unclipped ring, and hide clip-box.
+Last updated: 01-09-2026 after skip-link focus-visible, 320px wrap height, overflow, unclipped ring, and hide clip-box. Merged repaired PR #22 remote.
 
 ## Branch
 
-`feat/product-ui` off `origin/main` at `a2569b3`. PR #22: https://github.com/EauDoon/Phlebas/pull/22. Origin `feat/simulation-hardening` has diverged; do not force-push it.
+`feat/product-ui` now includes current `main` at `84a3224645e5ef8e3d95b49eb98345fa8fd3eb16` for PR #22. PR #22: https://github.com/EauDoon/Phlebas/pull/22. Origin `feat/simulation-hardening` remains separate; do not force-push it.
 
 ## Done
 

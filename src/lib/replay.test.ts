@@ -55,6 +55,24 @@ test("reset returns the session to the fixture snapshot", () => {
   assert.equal(snapshotKey(after), snapshotKey(seeded));
 });
 
+test("replay preserves expiry metadata on resting orders", () => {
+  const state = replayLog([{
+    kind: "submit",
+    marketId: "ZEC/USDC",
+    id: "user-expiring",
+    side: "buy",
+    tif: "GTC",
+    priceTicks: 5200n,
+    sizeAtoms: 1_00000000n,
+    expiryUnix: 1700000000n,
+  }]);
+
+  assert.equal(
+    state.books["ZEC/USDC"].bids.find((order) => order.id === "user-expiring")?.expiryUnix,
+    1700000000n,
+  );
+});
+
 test("session log lines include expiry when a ticket is confirmed", () => {
   assert.equal(
     describeSessionLogEvent({

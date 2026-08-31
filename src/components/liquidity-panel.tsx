@@ -343,10 +343,10 @@ export function LiquidityPanel({
       <section className={`${styles.panel} ${styles.featurePrimary}`} aria-labelledby="liquidity-title">
         <div className={styles.panelHeader}>
           <div>
-            <span className={styles.eyebrow}>Constant product pools</span>
+            <span className={styles.eyebrow}>Legacy constant-product simulation</span>
             <h2 id="liquidity-title">Provide liquidity</h2>
           </div>
-          <span className={styles.statusDot}>Preview only</span>
+          <span className={styles.statusDot}>Superseded preview</span>
         </div>
 
         <div

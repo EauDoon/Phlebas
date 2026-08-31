@@ -1,5 +1,9 @@
 # Phlebas Threat Model
 
+Status: custody threat model superseded for the target product
+
+The pZEC gateway, reserve, mint, burn, and passive AMM sections below describe ADR 0001. [ADR 0002](adr/0002-native-zec-atomic-settlement.md) replaces that target with native-ZEC atomic settlement and wallet-held solver liquidity. The next implementation milestone must add the corresponding two-chain timeout, claim, refund, observer, coordinator, and wallet threats before Testnet.
+
 > Status as of 31-08-2026: design document for a no-value simulation with undeployed Sepolia contract sources and optional local textest services. No production bridge, custody, contract, matching, routing, monitoring, or incident control is deployed or audited.
 
 ## 1. Purpose and decision

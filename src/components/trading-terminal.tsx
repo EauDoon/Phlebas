@@ -483,7 +483,7 @@ export function TradingTerminal({
                     ))}
                   </div>
                 </div>
-                <span className={styles.settlementBadge}>settles {market.settlementPair}</span>
+                <span className={styles.settlementBadge}>legacy simulation: {market.settlementPair}</span>
                 {marketId === "ZEC/USDT" && <span className={styles.gateBadge}>Later listing gate</span>}
                 <div>
                   <span>Market data</span>
