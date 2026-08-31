@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
-import { AMM_FEE_BPS, MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
+import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import { sepoliaDomain, typedData, type TypedOrder } from "@/lib/eip712";
 import { getInjectedProvider, signTypedData } from "@/lib/evm-wallet";
 import { planTestnetSubmit, sendSettlement, sepoliaSubmitEnabled } from "@/lib/sepolia-submit";
@@ -610,6 +610,10 @@ export function TradeTicket({
         <div>
           <dt>Account epoch</dt>
           <dd>{accountEpoch}</dd>
+        </div>
+        <div>
+          <dt>Session nonce</dt>
+          <dd>{nonceRef.current}</dd>
         </div>
         <div>
           <dt>Expiry</dt>
