@@ -40,8 +40,12 @@ test("landing and terminal banners stay simulation-only", async () => {
   const terminal = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");
   assert.match(landing, /Simulation only/);
   assert.match(landing, /No mainnet funds/);
-  assert.match(landing, /Deny by default/);
-  assert.match(landing, /not native ZEC, shielded ZEC, or a trustless bridge asset/);
+  assert.match(landing, /LANDING_LEDGER/);
+  assert.match(landing, /LANDING_HERO/);
+  assert.match(
+    await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"),
+    /not native ZEC, shielded ZEC, or a trustless bridge asset/,
+  );
   assert.match(landing, /No shielded deposit or withdrawal is planned for v1/);
   assert.match(landing, /zips\.z\.cash\/zip-0320/);
   assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { COUNTRY_ACCESS } from "@/lib/country-access";
+import { LANDING_HERO, LANDING_LEDGER, LANDING_LEDGER_HEADING } from "@/lib/landing-copy";
 import { LANDING_EVIDENCE } from "@/lib/landing-evidence";
 import { LANDING_GATE_STATUS, LANDING_MAINNET_GATES } from "@/lib/landing-gates";
 
@@ -8,18 +8,6 @@ import { LandingHeader } from "./landing-header";
 import { LandingJourneys } from "./landing-journeys";
 import { LandingTerminalPreview } from "./landing-terminal-preview";
 import styles from "./landing.module.css";
-
-const statusRows = [
-  ["Application", "No-value simulation"],
-  ["Matcher", "In-browser; local operator optional"],
-  ["Market data", "Fixtures plus local fills"],
-  ["Wallets", "Optional Arbitrum Sepolia"],
-  ["Contracts", "Source in repo, undeployed"],
-  ["ZEC custody", "Not operating"],
-  ["Country access", COUNTRY_ACCESS.default === "deny" && COUNTRY_ACCESS.enabled.length === 0
-    ? "Deny by default"
-    : "Misconfigured"],
-] as const;
 
 export function LandingPage() {
   return (
@@ -34,22 +22,19 @@ export function LandingPage() {
       <main id="main-content" tabIndex={-1}>
         <section className={styles.hero} aria-labelledby="hero-title">
           <div className={styles.heroStatement}>
-            <span className={styles.eyebrow}>Transparent ZEC markets</span>
-            <h1 id="hero-title">The custody line,<br />{" "}drawn in public.</h1>
-            <p>
-              Phlebas is a production-minded design for ZEC/USDC and ZEC/USDT spot markets,
-              an order book designed for auditable sequencing, and restrained onchain liquidity.
-            </p>
+            <span className={styles.eyebrow}>{LANDING_HERO.eyebrow}</span>
+            <h1 id="hero-title">{LANDING_HERO.heading}</h1>
+            <p>{LANDING_HERO.supporting}</p>
           </div>
 
           <aside className={styles.systemLedger} aria-labelledby="system-ledger-title">
             <div className={styles.ledgerHeader}>
-              <div><span className={styles.eyebrow}>Current system</span><h2 id="system-ledger-title">Nothing hidden behind the preview</h2></div>
+              <div><h2 id="system-ledger-title">{LANDING_LEDGER_HEADING}</h2></div>
               <span className={styles.designPill}>Design only</span>
             </div>
             <dl>
-              {statusRows.map(([term, detail]) => (
-                <div key={term}><dt>{term}</dt><dd>{detail}</dd></div>
+              {LANDING_LEDGER.map((row) => (
+                <div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>
               ))}
             </dl>
             <p>Every displayed price, order, trade, pool reserve, and volume is synthetic.</p>
@@ -57,9 +42,9 @@ export function LandingPage() {
           </aside>
 
           <div className={styles.heroActions}>
-            <Link href="/trade?view=trade" className={styles.primaryCta}>Enter simulation <span>↗</span></Link>
-            <a href="#pzec" className={styles.secondaryCta}>Understand pZEC</a>
-            <p>Illustrative data only. Nothing here can be bought, sold, deposited, withdrawn, or redeemed.</p>
+            <Link href="/trade?view=trade" className={styles.primaryCta}>{LANDING_HERO.primaryAction} <span>↗</span></Link>
+            <a href="#pzec" className={styles.secondaryCta}>{LANDING_HERO.secondaryAction}</a>
+            <p>{LANDING_HERO.disclosure}</p>
           </div>
         </section>
 

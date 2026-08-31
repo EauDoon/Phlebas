@@ -8,7 +8,7 @@ const routes = [
   {
     path: "/",
     disclosure: "Simulation only",
-    marker: "The custody line, drawn in public.",
+    marker: "An order book for pZEC, with the custody line drawn in public.",
   },
   {
     path: "/trade",
@@ -137,12 +137,14 @@ for (const width of viewports) {
             return Boolean(header && (banner.compareDocumentPosition(header) & Node.DOCUMENT_POSITION_FOLLOWING));
           });
           expect(bannerBeforeHeader).toBe(true);
-          await expect(page.getByRole("heading", { name: "Nothing hidden behind the preview" })).toBeVisible();
+          await expect(page.getByRole("heading", { name: "Current system" })).toBeVisible();
+          await expect(page.getByText("Wallet connection")).toBeVisible();
+          await expect(page.getByText("Unavailable", { exact: true })).toBeVisible();
           await expect(page.getByText(
             "pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.",
             { exact: true },
           )).toBeVisible();
-          await expect(page.getByText("Deny by default", { exact: true })).toBeVisible();
+          await expect(page.getByText("No-value preview", { exact: true })).toBeVisible();
           await expect(page.getByRole("link", { name: "Open status details" })).toBeVisible();
           await expect(page.getByRole("contentinfo").getByRole("link", { name: "Legal and compliance" })).toBeVisible();
           await expect(page.getByRole("heading", { name: "Choose what to inspect." })).toBeVisible();
