@@ -544,6 +544,16 @@ test("LP swap success notice names pZEC-USDT0 on the USDT0 pool", async ({ page 
   await expect(page.getByText(/Simulated pZEC→USDT0 swap\. Output .* USDT0\. Local preview only\. Settled as pZEC-USDT0\./)).toBeVisible();
 });
 
+test("LP mint success notice names pZEC-USDT0 on the USDT0 pool", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
+  await expect(page.getByRole("button", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Review simulated mint" }).click();
+  await expect(page.getByRole("button", { name: "Confirm simulated mint" })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm simulated mint" }).click();
+  await expect(page.getByText(/Minted .* local LP shares\. Wallet actions stay disabled\. Settled as pZEC-USDT0\./)).toBeVisible();
+});
+
 test("withdrawal tour drives a stub claim without changing tour copy", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Withdrawal states" }).click();
