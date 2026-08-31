@@ -1281,6 +1281,7 @@
 
 .callout {
   display: grid;
+  min-height: 44px;
   gap: 5px;
   margin-top: 18px;
   padding: 15px;
