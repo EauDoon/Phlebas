@@ -39,6 +39,18 @@ test("operator sequences before matching and is deterministic", () => {
   assert.equal(second.sequence, 2);
   assert.equal(operator.receipts.length, 2);
   assert.equal(second.digest === first.digest, false);
+  assert.equal(first.signature, "0x");
+});
+
+test("snapshot restore preserves book, sequence, and recovers stored signatures", async () => {
+  const { snapshotOperator, restoreOperator } = await import("./matcher-operator.ts");
+  const operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);
+  intakeSignedOrder(operator, { ...order(), tif: "GTC", signature: "0x" });
+  const restored = restoreOperator(snapshotOperator(operator));
+  assert.equal(restored.sequence, 1);
+  assert.equal(restored.book.bids.length, operator.book.bids.length);
+  assert.equal(restored.book.lastTicks, operator.book.lastTicks);
+  assert.equal(restored.receipts[0]?.digest, operator.receipts[0]?.digest);
 });
 
 test("frozen EIP-712 signature recovers the order maker", async () => {

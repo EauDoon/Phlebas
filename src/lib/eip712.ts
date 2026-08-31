@@ -57,7 +57,7 @@ function pad32(bytes: Uint8Array): Uint8Array {
   return out;
 }
 
-function wordUint(value: bigint): Uint8Array {
+export function wordUint(value: bigint): Uint8Array {
   if (value < 0n || value >= 1n << 256n) {
     throw new RangeError("uint256 out of range");
   }
@@ -65,11 +65,11 @@ function wordUint(value: bigint): Uint8Array {
   return hexToBytes(hex);
 }
 
-function wordAddress(value: string): Uint8Array {
+export function wordAddress(value: string): Uint8Array {
   return pad32(hexToBytes(assertAddress(value, "address")));
 }
 
-function concat(parts: Uint8Array[]): Uint8Array {
+export function concat(parts: Uint8Array[]): Uint8Array {
   const out = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
   let offset = 0;
   for (const part of parts) {

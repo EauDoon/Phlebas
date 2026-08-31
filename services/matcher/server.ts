@@ -1,11 +1,13 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { eip712DigestHex, sepoliaDomain, type TypedOrder } from "../../src/lib/eip712.ts";
 import { createMatcherOperator, intakeSignedOrder, type MatcherOperator } from "../../src/lib/matcher-operator.ts";
-import { recoverAddress } from "../../src/lib/secp256k1.ts";
+import { readOperator, writeOperator } from "./persist.ts";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
+const dataPath = join(dirname(fileURLToPath(import.meta.url)), ".data", "state.json");
 
 function send(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { "content-type": "application/json" });
@@ -45,16 +47,24 @@ export function createMatcherService(verifyingContract = ZERO, lastTicks = 5291n
   return createMatcherOperator(sepoliaDomain(verifyingContract), lastTicks);
 }
 
-export function startMatcher(options: { host?: string; port?: number; operator?: MatcherOperator } = {}) {
+export function startMatcher(options: { host?: string; port?: number; operator?: MatcherOperator; persistPath?: string } = {}) {
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 8788;
-  const operator = options.operator ?? createMatcherService();
+  const persistPath = options.persistPath ?? dataPath;
+  let operator = options.operator;
+
+  const ready = (async () => {
+    if (operator) return;
+    operator = await readOperator(persistPath) ?? createMatcherService();
+  })();
 
   const server = createServer((request, response) => {
     void (async () => {
+      await ready;
+      if (!operator) operator = createMatcherService();
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
       if (request.method === "GET" && url.pathname === "/health") {
-        send(response, 200, { ok: true, sequence: operator.sequence, matcher: "local-operator" });
+        send(response, 200, { ok: true, sequence: operator.sequence, matcher: "local-operator", persist: persistPath });
         return;
       }
       if (request.method === "GET" && url.pathname === "/sequence") {
@@ -68,12 +78,12 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
       if (request.method === "POST" && url.pathname === "/orders") {
         const order = parseOrder(await readJson(request));
         const digest = eip712DigestHex(operator.domain, order);
-        const recovered = recoverAddress(digest, order.signature);
-        if (recovered !== order.maker.toLowerCase()) {
-          send(response, 400, { ok: false, reason: "signature-mismatch", recovered });
+        const receipt = intakeSignedOrder(operator, order);
+        if (receipt.digest !== digest) {
+          send(response, 500, { ok: false, reason: "digest-mismatch" });
           return;
         }
-        const receipt = intakeSignedOrder(operator, order);
+        await writeOperator(persistPath, operator);
         send(response, 201, receipt);
         return;
       }

@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after testnet contracts, receivable TEX, Sepolia wallets, keccak EIP-712, and the local matcher operator.
+Last updated: 31-08-2026 after Sepolia deploy scripts, keccak settlement tickets, gated submit, and matcher persist.
 
 ## Branch
 
@@ -27,10 +27,17 @@ Last updated: 31-08-2026 after testnet contracts, receivable TEX, Sepolia wallet
 - Receivable testnet TEX via a local gateway (`textest` only, single-use ledger). Public app issues nothing without `PHLEBAS_GATEWAY_URL`.
 - Injected EVM wallet connector limited to Arbitrum Sepolia. Signing does not submit a settlement transaction.
 - Local matcher operator sequences, recovers EIP-712 signatures, and matches. Not bundled into Vercel.
+- Foundry Sepolia deploy script plus `scripts/record-sepolia-deploy.mjs`. Manifest stays `deployed: false` until `--mark-deployed` sees a real tx.
+- Session tickets bind keccak EIP-712 to settlement when a wallet is connected. SHA-256 remains the session-only simulation encoding.
+- Wallet sign-and-submit is behind `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1`. Default is sign-only. Zero settlement address cannot send a tx.
+- Matcher persists book, receipts, recover, and sequence under `services/matcher/.data` on 127.0.0.1.
 
 ## Next
 
-- None on this slice. Deployment of Sepolia contracts, a hosted gateway, and a hosted matcher remain explicit later asks.
+- Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
+- Hosted gateway and matcher on isolated infra, not Vercel
+- Zebra observers and mint attestation for testnet TEX
+- License pick
 
 ## Blockers
 

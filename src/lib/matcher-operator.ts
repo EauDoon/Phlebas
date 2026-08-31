@@ -1,5 +1,6 @@
 import { eip712DigestHex, type Eip712Domain, type TypedOrder } from "./eip712.ts";
-import { emptyBook, submitOrder, type Book, type Fill, type TimeInForce } from "./matcher.ts";
+import { emptyBook, submitOrder, type Book, type Fill, type RestingOrder, type TimeInForce } from "./matcher.ts";
+import { recoverAddress } from "./secp256k1.ts";
 
 export type IntakeOrder = TypedOrder & {
   tif: TimeInForce;
@@ -10,10 +11,40 @@ export type SequenceReceipt = {
   sequence: number;
   digest: string;
   maker: string;
+  signature: string;
   status: "open" | "filled" | "cancelled" | "rejected";
   remainingAtoms: string;
   fills: Fill[];
   reason?: string;
+};
+
+type SerializedOrder = {
+  id: string;
+  side: RestingOrder["side"];
+  priceTicks: string;
+  remainingAtoms: string;
+  seq: number;
+};
+
+type SerializedFill = {
+  makerId: string;
+  takerSide: Fill["takerSide"];
+  priceTicks: string;
+  sizeAtoms: string;
+};
+
+type SerializedReceipt = Omit<SequenceReceipt, "fills"> & { fills: SerializedFill[] };
+
+export type OperatorSnapshot = {
+  domain: Omit<Eip712Domain, "chainId"> & { chainId: string };
+  sequence: number;
+  book: {
+    bids: SerializedOrder[];
+    asks: SerializedOrder[];
+    seq: number;
+    lastTicks: string;
+  };
+  receipts: SerializedReceipt[];
 };
 
 export type MatcherOperator = {
@@ -32,8 +63,18 @@ export function createMatcherOperator(domain: Eip712Domain, lastTicks: bigint): 
   };
 }
 
-export function intakeSignedOrder(operator: MatcherOperator, order: IntakeOrder): SequenceReceipt {
+export function verifyMakerSignature(digest: string, signature: string, maker: string): void {
+  const recovered = recoverAddress(digest, signature);
+  if (recovered !== maker.toLowerCase()) {
+    throw new Error("Signature does not match maker");
+  }
+}
+
+export function intakeSignedOrder(operator: MatcherOperator, order: IntakeOrder, options: { verify?: boolean } = {}): SequenceReceipt {
   const digest = eip712DigestHex(operator.domain, order);
+  if (options.verify !== false && order.signature.length >= 130) {
+    verifyMakerSignature(digest, order.signature, order.maker);
+  }
   operator.sequence += 1;
   const id = `seq-${operator.sequence}`;
   const result = submitOrder(operator.book, {
@@ -48,6 +89,7 @@ export function intakeSignedOrder(operator: MatcherOperator, order: IntakeOrder)
     sequence: operator.sequence,
     digest,
     maker: order.maker.toLowerCase(),
+    signature: order.signature,
     status: result.status,
     remainingAtoms: result.remainingAtoms.toString(),
     fills: result.fills,
@@ -55,4 +97,79 @@ export function intakeSignedOrder(operator: MatcherOperator, order: IntakeOrder)
   };
   operator.receipts.push(receipt);
   return receipt;
+}
+
+function serializeResting(order: RestingOrder): SerializedOrder {
+  return {
+    id: order.id,
+    side: order.side,
+    priceTicks: order.priceTicks.toString(),
+    remainingAtoms: order.remainingAtoms.toString(),
+    seq: order.seq,
+  };
+}
+
+function restoreResting(order: SerializedOrder): RestingOrder {
+  return {
+    id: order.id,
+    side: order.side,
+    priceTicks: BigInt(order.priceTicks),
+    remainingAtoms: BigInt(order.remainingAtoms),
+    seq: order.seq,
+  };
+}
+
+export function snapshotOperator(operator: MatcherOperator): OperatorSnapshot {
+  return {
+    domain: {
+      ...operator.domain,
+      chainId: operator.domain.chainId.toString(),
+    },
+    sequence: operator.sequence,
+    book: {
+      bids: operator.book.bids.map(serializeResting),
+      asks: operator.book.asks.map(serializeResting),
+      seq: operator.book.seq,
+      lastTicks: operator.book.lastTicks.toString(),
+    },
+    receipts: operator.receipts.map((receipt) => ({
+      ...receipt,
+      fills: receipt.fills.map((fill) => ({
+        makerId: fill.makerId,
+        takerSide: fill.takerSide,
+        priceTicks: fill.priceTicks.toString(),
+        sizeAtoms: fill.sizeAtoms.toString(),
+      })),
+    })),
+  };
+}
+
+export function restoreOperator(snapshot: OperatorSnapshot): MatcherOperator {
+  const operator: MatcherOperator = {
+    domain: {
+      ...snapshot.domain,
+      chainId: BigInt(snapshot.domain.chainId),
+    },
+    sequence: snapshot.sequence,
+    receipts: snapshot.receipts.map((receipt) => ({
+      ...receipt,
+      fills: receipt.fills.map((fill) => ({
+        ...fill,
+        priceTicks: BigInt(fill.priceTicks),
+        sizeAtoms: BigInt(fill.sizeAtoms),
+      })),
+    })),
+    book: {
+      bids: snapshot.book.bids.map(restoreResting),
+      asks: snapshot.book.asks.map(restoreResting),
+      seq: snapshot.book.seq,
+      lastTicks: BigInt(snapshot.book.lastTicks),
+    },
+  };
+  for (const receipt of operator.receipts) {
+    if (receipt.signature.length >= 130) {
+      verifyMakerSignature(receipt.digest, receipt.signature, receipt.maker);
+    }
+  }
+  return operator;
 }

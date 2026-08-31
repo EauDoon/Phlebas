@@ -3,9 +3,11 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
-import { eip712DigestHex, sepoliaDomain, typedData, venuesBitmask, type TypedOrder } from "@/lib/eip712";
+import { sepoliaDomain, typedData, type TypedOrder } from "@/lib/eip712";
 import { getInjectedProvider, signTypedData } from "@/lib/evm-wallet";
-import { quoteTokenAddress, TESTNET } from "@/lib/testnet";
+import { planTestnetSubmit, sendSettlement, sepoliaSubmitEnabled } from "@/lib/sepolia-submit";
+import { TESTNET } from "@/lib/testnet";
+import { settlementDigest, typedOrderFromTicket } from "@/lib/ticket-order";
 import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
@@ -334,27 +336,22 @@ export function TradeTicket({
     let eip712 = undefined as string | undefined;
     let typed = undefined as TypedOrder | undefined;
     if (walletAddress) {
-      typed = {
+      typed = typedOrderFromTicket({
         maker: walletAddress,
-        side: side === "buy" ? 0 : 1,
-        baseAsset: TESTNET.pzec,
-        quoteAsset: quoteTokenAddress(market.quote),
-        baseAmount: prepared.sizeAtoms,
-        limitPriceTicks: prepared.priceTicks,
+        side,
+        quote: market.quote,
+        sizeAtoms: prepared.sizeAtoms,
+        priceTicks: prepared.priceTicks,
         nonce: BigInt(canonical.nonce),
         accountEpoch: BigInt(accountEpoch),
-        expiry: 0n,
-        salt: 1n,
-        recipient: walletAddress,
-        maximumFeeBps: 30,
-        allowedVenues: venuesBitmask("clob"),
-      };
-      eip712 = eip712DigestHex(sepoliaDomain(TESTNET.settlement), typed);
+        tif: prepared.tif,
+      });
+      eip712 = settlementDigest(typed);
     }
     setReview({
       ...prepared,
       side,
-      digest: await digestCanonicalOrder(canonical),
+      digest: eip712 ?? await digestCanonicalOrder(canonical),
       eip712Digest: eip712,
       typed,
       comparison,
@@ -373,12 +370,35 @@ export function TradeTicket({
       return;
     }
     try {
+      const domain = sepoliaDomain(TESTNET.settlement);
       const signature = await signTypedData(
         provider,
         walletAddress,
-        typedData(sepoliaDomain(TESTNET.settlement), review.typed),
+        typedData(domain, review.typed),
       );
-      setNotice(`Signed testnet typed data ${signature.slice(0, 10)}… Settlement is undeployed. Nothing was sent.`);
+      const plan = planTestnetSubmit({
+        counterpart: null,
+        taker: review.typed,
+        takerSignature: signature,
+        fillAtoms: review.sizeAtoms,
+      });
+      if (plan.action === "settle") {
+        const hash = await sendSettlement(provider, walletAddress, plan);
+        setNotice(`Submitted Sepolia settlement ${hash.slice(0, 10)}… Testnet only.`);
+        return;
+      }
+      if (plan.action === "sequence" && sepoliaSubmitEnabled()) {
+        await fetch("/api/matcher", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            ...typedData(domain, review.typed).message,
+            signature,
+            tif: review.tif,
+          }),
+        }).catch(() => undefined);
+      }
+      setNotice(`${plan.reason} Signature ${signature.slice(0, 10)}…`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Testnet signing failed.");
     }
@@ -596,15 +616,9 @@ export function TradeTicket({
               <dd>{describeRoute(review.comparison, market.quote)}</dd>
             </div>
             <div>
-              <dt>Simulation digest</dt>
+              <dt>{review.eip712Digest ? "Keccak EIP-712" : "Session digest"}</dt>
               <dd>{review.digest.slice(0, 16)}…</dd>
             </div>
-            {review.eip712Digest && (
-              <div>
-                <dt>Keccak EIP-712</dt>
-                <dd>{review.eip712Digest.slice(0, 16)}…</dd>
-              </div>
-            )}
           </dl>
           <p className={styles.inlineNotice}>
             Confirm submits only the local CLOB. Split and AMM figures are comparison quotes, not an executed router fill.
@@ -618,7 +632,7 @@ export function TradeTicket({
           </button>
           {review.typed && (
             <button type="button" className={styles.textButton} onClick={() => void signTestnetOrder()}>
-              Sign testnet typed data
+              {sepoliaSubmitEnabled() ? "Sign and submit testnet settlement" : "Sign testnet typed data"}
             </button>
           )}
           <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
@@ -638,7 +652,7 @@ export function TradeTicket({
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
         {inputError ?? notionalError ?? notice}
       </p>
-      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type. Click a book price to copy it here. SHA-256 is the session digest. Keccak EIP-712 appears only after an Arbitrum Sepolia wallet is connected.</p>
+      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type. Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
     </section>
   );
 }

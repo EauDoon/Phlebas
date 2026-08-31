@@ -9,6 +9,7 @@ test("status payload never claims live funds or custody", () => {
   assert.equal(status.custody, "none");
   assert.equal(status.deposits, "testnet-gateway-optional");
   assert.equal(status.wallets, "eip-1193-sepolia");
+  assert.equal(status.sepoliaSubmit, "flag-off");
   assert.equal(status.matcher, "in-browser");
   assert.equal(status.contracts, "source-undeployed");
   assert.equal(status.mode, "simulation");

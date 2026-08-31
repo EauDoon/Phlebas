@@ -1,0 +1,42 @@
+import { eip712DigestHex, sepoliaDomain, venuesBitmask, type TypedOrder } from "./eip712.ts";
+import type { TimeInForce } from "./matcher.ts";
+import { quoteTokenAddress, TESTNET } from "./testnet.ts";
+
+export const TIF_SALT = {
+  GTC: 1n,
+  IOC: 2n,
+  FOK: 3n,
+} as const;
+
+export function typedOrderFromTicket(input: {
+  maker: string;
+  recipient?: string;
+  side: "buy" | "sell";
+  quote: "USDC" | "USDT0";
+  sizeAtoms: bigint;
+  priceTicks: bigint;
+  nonce: bigint;
+  accountEpoch: bigint;
+  tif: TimeInForce;
+  expiry?: bigint;
+}): TypedOrder {
+  return {
+    maker: input.maker,
+    side: input.side === "buy" ? 0 : 1,
+    baseAsset: TESTNET.pzec,
+    quoteAsset: quoteTokenAddress(input.quote),
+    baseAmount: input.sizeAtoms,
+    limitPriceTicks: input.priceTicks,
+    nonce: input.nonce,
+    accountEpoch: input.accountEpoch,
+    expiry: input.expiry ?? 0n,
+    salt: TIF_SALT[input.tif],
+    recipient: input.recipient ?? input.maker,
+    maximumFeeBps: 30,
+    allowedVenues: venuesBitmask("clob"),
+  };
+}
+
+export function settlementDigest(order: TypedOrder): string {
+  return eip712DigestHex(sepoliaDomain(TESTNET.settlement), order);
+}

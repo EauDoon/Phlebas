@@ -23,6 +23,7 @@ export default function StatusPage() {
         <div><dt>Deposits</dt><dd>{status.deposits}</dd></div>
         <div><dt>Withdrawals</dt><dd>{status.withdrawals}</dd></div>
         <div><dt>Wallets</dt><dd>{status.wallets}</dd></div>
+        <div><dt>Sepolia submit</dt><dd>{status.sepoliaSubmit}</dd></div>
         <div><dt>Contracts</dt><dd>{status.contracts}</dd></div>
         <div><dt>Network</dt><dd>{status.network}</dd></div>
         <div><dt>Market data</dt><dd>{status.marketData}</dd></div>

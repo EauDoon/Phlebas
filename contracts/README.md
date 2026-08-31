@@ -14,13 +14,37 @@ No-value Arbitrum Sepolia sources. They are not deployed from this tree, not aud
 Core contracts are non-upgradeable. There is no seizure path, arbitrary pair creation, flash callback, or fee switch.
 
 ```bash
-forge test -vv
+forge test --root contracts -vv
 ```
 
-Deploy only with an approved Sepolia key outside this repository:
+## Arbitrum Sepolia deploy
+
+Need Foundry, an Arbitrum Sepolia RPC, and `PHLEBAS_DEPLOYER` (the address that signs). The private key stays outside git.
+
+Dry run, no state change:
 
 ```bash
-forge script script/DeployTestnet.s.sol:DeployTestnet --rpc-url $ARBITRUM_SEPOLIA_RPC --broadcast
+forge script script/DeployTestnet.s.sol:DeployTestnet --root contracts --rpc-url $ARBITRUM_SEPOLIA_RPC
 ```
 
-Record the commit and addresses in `infra/testnet/arbitrum-sepolia.json`. Leave `deployed` false until that write happens.
+Broadcast (creates a real Sepolia tx):
+
+```bash
+forge script script/DeployTestnet.s.sol:DeployTestnet --root contracts --rpc-url $ARBITRUM_SEPOLIA_RPC --broadcast --private-key $PHLEBAS_DEPLOYER_KEY
+```
+
+Foundry writes `contracts/broadcast/DeployTestnet.s.sol/421614/run-latest.json`. That file is gitignored.
+
+Copy addresses into the canonical manifest without claiming deployment:
+
+```bash
+node scripts/record-sepolia-deploy.mjs
+```
+
+`infra/testnet/arbitrum-sepolia.json` stays `"deployed": false` until a real transaction hash is in the broadcast **and** you pass `--mark-deployed` after checking the explorer:
+
+```bash
+node scripts/record-sepolia-deploy.mjs --mark-deployed
+```
+
+Do not run `--mark-deployed` from CI or Vercel. Do not point this script at mainnet.

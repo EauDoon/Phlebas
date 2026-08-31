@@ -10,6 +10,7 @@ export function simulationStatus() {
     deposits: "testnet-gateway-optional",
     withdrawals: "tour-only",
     wallets: "eip-1193-sepolia",
+    sepoliaSubmit: "flag-off",
     contracts: "source-undeployed",
     network: "arbitrum-sepolia-unconfigured",
     marketData: "illustrative",

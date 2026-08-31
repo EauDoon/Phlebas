@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.28;
+
+interface Vm {
+    function envAddress(string calldata name) external view returns (address);
+    function startBroadcast(address signer) external;
+    function stopBroadcast() external;
+}
+
+contract ScriptBase {
+    Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
+}

@@ -84,6 +84,15 @@ contract PhlebasTest is TestBase {
         );
     }
 
+    function testSettleSelectorMatchesTypescript() public pure {
+        bytes4 selector = bytes4(
+            keccak256(
+                "settle((address,uint8,address,address,uint128,uint128,uint64,uint64,uint64,uint256,address,uint16,uint8),bytes,(address,uint8,address,address,uint128,uint128,uint64,uint64,uint64,uint256,address,uint16,uint8),bytes,uint128)"
+            )
+        );
+        assertEq(uint256(uint32(selector)), uint256(0xf753db5f));
+    }
+
     function testPzecMinterAndPauseBoundaries() public {
         vm.prank(taker);
         vm.expectRevert(PZec.NotMinter.selector);
