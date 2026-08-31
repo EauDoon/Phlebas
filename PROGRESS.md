@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after matcher unix expiry, LP mint/swap review, rejected ticket panel, blotter tabpanels, and `/legal` `/security`.
+Last updated: 31-08-2026 after landing journey tabs, ZIP 321 placeholder QR, honest clipboard failure, and feed-gated chart/LP.
 
 ## Branch
 
@@ -80,17 +80,21 @@ Last updated: 31-08-2026 after matcher unix expiry, LP mint/swap review, rejecte
 - LP mint and swap use review-and-confirm repeating PRODUCT_SPEC §10 (assets, worst price, fees, custody, public-linkability). Burn stays immediate.
 - Blotter tabs expose one tabpanel each, with arrow/Home/End keys.
 - `/legal` and `/security` simulation pages. Landing, terminal, status, and frame nav cross-link them.
+- Landing journey chooser is four manually activated tabs (Trader, LP, Deposit, Withdrawal). Without JS, all four descriptions stay in the document. Liquidity nav selects LP after hydration via `#journey-lp`.
+- ZIP 321 deposit shows a non-payable placeholder QR. Clipboard failure copy does not claim a copy succeeded. Nothing is sent.
+- Chart and 24h stats withhold fixtures on empty, loading, and unavailable feeds, and name a delayed series when stale.
+- LP mint and swap stay off for loading, stale, and unavailable feeds. Burn stays available. Empty-book feed does not drain the pool.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Landing journey chooser as four manually activated tabs (Trader, LP, Deposit, Withdrawal)
-- ZIP 321 deposit QR is still copy-only; render a non-payable placeholder QR and keep the clipboard failure honest
-- Chart and 24h stats should name empty, stale, and unavailable feeds the way the ticket gate does
-- LP panel loading/empty/stale/unavailable states (PRODUCT_SPEC §10)
-- Playwright: unavailable-feed gate, blotter arrow keys, and clipboard failure on the destination inspector
+- First-session education dialog still missing on `/trade` and `/liquidity`
+- Country-blocked demonstration via allowlisted `?access=blocked` still missing
+- Chart range tabs should use tablist/tabpanel like the blotter
+- Depth chart / tape should name unavailable and loading feeds, not only empty
+- Playwright: landing journey arrow keys and hash `#journey-lp` from the Liquidity nav
 
 ## Blockers
 
