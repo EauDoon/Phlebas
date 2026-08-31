@@ -89,6 +89,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(bridge, /payoutClaimForTourStep/);
   assert.match(await readFile(join(root, "src/lib/withdrawal-tour.ts"), "utf8"), /does not invent a payout/);
   assert.match(bridge, /Nothing is sent/);
+  assert.match(bridge, /id="privacy-callouts"/);
+  assert.match(bridge, /does not provide shielded deposits/);
   assert.match(bridge, /id="destination-inspector"/);
   assert.match(bridge, /Not a payable QR/);
   assert.match(bridge, /copyUri/);

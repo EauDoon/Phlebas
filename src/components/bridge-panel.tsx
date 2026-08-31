@@ -274,7 +274,12 @@ export function BridgePanel() {
         </div>
       </section>
 
-      <aside className={`${styles.panel} ${styles.riskCard}`} aria-labelledby="privacy-title">
+      <aside
+        id="privacy-callouts"
+        className={`${styles.panel} ${styles.riskCard}`}
+        aria-labelledby="privacy-title"
+        tabIndex={-1}
+      >
         <span className={styles.eyebrow}>Privacy boundary</span>
         <h2 id="privacy-title">Transparent in, public onchain</h2>
         <p>
