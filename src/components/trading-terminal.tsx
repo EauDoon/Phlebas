@@ -415,7 +415,7 @@ export function TradingTerminal({
                 }}
               />
               <TradeTicket
-                key={`${marketId}:${feedStatus}`}
+                key={feedStatus}
                 market={market}
                 book={displayedBook}
                 lastTicks={book.lastTicks}
