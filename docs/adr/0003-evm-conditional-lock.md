@@ -1,140 +1,138 @@
-# ADR 0003: EVM Conditional Lock Contract
+# ADR 0003: Exact-token EVM conditional lock
 
 Date: 01-09-2026
-Status: Accepted for key-independent development
-Production status: Not approved
+Status: Accepted for key-independent local development
+Deployment status: Not deployed or approved for deployment
 
 ## Context
 
-ADR 0002 defines the target settlement shape: one two-chain atomic swap per matched fill, with a transparent Zcash P2SH lock on the native leg and a non-upgradeable EVM conditional lock on the stablecoin leg. The two legs share one hash, one preimage, staggered refund deadlines, and mutually exclusive terminal outcomes.
+ADR 0002 defines one two-chain atomic swap for each matched fill. The native ZEC leg uses a transparent Zcash conditional lock. The EVM leg holds the exact stablecoin amount. Both legs bind the same SHA-256 digest, while their claim and refund windows leave time for the safe cross-chain sequence.
 
-The current repository has no Zcash transaction builder, no EVM conditional lock contract, no wallet adapter, no chain client, and no real assets. The onchain settlement surfaces that are present (`Settlement.sol`, `Pair.sol`, `Router.sol`, `PZec.sol`) implement the superseded custody-backed pZEC design and remain as legacy simulation and testnet code only.
-
-The EVM conditional lock is the only piece of the atomic-swap workflow that can be implemented and adversarially tested without a wallet key, a deployer key, or a live chain. Implementing it now gives the rest of the swap state machine and the wallet adapter a concrete contract to call, a deterministic ABI, and a complete failure-mode test surface.
+This repository can build and test the EVM primitive without a wallet, key, signature, RPC call, broadcast, or live asset. The contract must remain useful as a local reference while failing closed if any fill identity, role, asset, amount, hash, deadline, or token transfer is wrong.
 
 ## Decision
 
-Add a new non-upgradeable EVM contract `ConditionalLock` under `contracts/src/swap/` that holds exactly one ERC-20 stablecoin deposit per lock, releases the deposit to a fixed counterparty on a correct preimage, and returns the deposit to the funder after a chain-local refund deadline.
+Deploy one non-upgradeable `ConditionalLock` instance for one matched fill. Every economic term is immutable. The contract starts unfunded and has only three state-changing methods: `fund`, `claim`, and `refund`.
 
-### Lock shape
+### Immutable terms
 
-One lock is the entire EVM state for one matched fill.
-
-| Field | Meaning | Constraint |
+| Field | Meaning | Constructor constraint |
 | --- | --- | --- |
-| `depositor` | EVM address that funded the lock | Set from `msg.sender` at deposit |
-| `token` | Approved stablecoin contract | Must equal `usdc` or `usdt0` |
-| `amount` | Token units locked | Strictly positive |
-| `hashlock` | SHA-256 of the preimage | Strictly non-zero |
-| `refundAfter` | Unix timestamp after which `refund` is allowed | Must exceed `block.timestamp + MIN_REFUND_DELAY` at deposit |
-| `refundTo` | Recipient of the refund | Strictly non-zero |
-| `claimTo` | Recipient of the claim | Strictly non-zero; set to the ZEC seller by the matcher |
-| `claimed` | Terminal state | `false` until `claim` succeeds |
-| `refunded` | Terminal state | `false` until `refund` succeeds |
+| `swapId` | Cross-chain fill identity | Nonzero `bytes32` |
+| `termsHash` | Commitment to the canonical full swap terms | Nonzero `bytes32` |
+| `token` | Exact ERC-20 contract for this fill | Nonzero address with deployed code |
+| `funder` | Wallet that supplies the EVM asset | Nonzero and distinct from `claimRecipient` |
+| `claimRecipient` | Only wallet allowed to claim | Nonzero and distinct from `funder` |
+| `refundRecipient` | Fixed refund destination | Must equal `funder` |
+| `amount` | Exact token units for this fill | Greater than zero |
+| `hashlock` | SHA-256 commitment to the preimage | Nonzero `bytes32` |
+| `fundingCutoff` | Last timestamp at which funding is allowed | Future timestamp before `claimCutoff` |
+| `claimCutoff` | Last timestamp at which claiming is allowed | After `fundingCutoff` and before `refundTime` |
+| `refundTime` | First timestamp at which refund is allowed | After `claimCutoff` |
 
-The lock identifier is a monotonic `uint256` counter. Sequential ids make offchain lookups, observer proofs, and replay logs trivial and remove the need for a secondary index.
+The constructor also rejects any role that equals the token or the lock itself. The contract cannot determine whether a role wallet is usable or whether an issuer may later block it. The signing surface must show and verify every immutable value before funding.
 
-### Hash function
+`termsHash` is an opaque cross-chain commitment. The contract proves that the supplied commitment never changes, but it does not recompute the full offchain terms. The canonical terms encoder, matcher, observer, and wallet must independently confirm that the commitment matches the same fill.
 
-The hash function is SHA-256 via the EVM precompile at `address(0x02)`. The ZEC P2SH leg uses SHA-256 in its standard script. The same preimage and the same digest are valid on both chains, which is the only way the swap can stay trustless. Keccak-256 is not used on the lock surface even though it is cheaper in EVM gas.
+### State machine
 
-### Public methods
+| Current state | Method | Caller | Time rule | Next state |
+| --- | --- | --- | --- | --- |
+| `Unfunded` | `fund()` | `funder` | `block.timestamp <= fundingCutoff` | `Funded` |
+| `Funded` | `claim(bytes32)` | `claimRecipient` | `block.timestamp <= claimCutoff` and preimage valid | `Claimed` |
+| `Funded` | `refund()` | `funder` | `block.timestamp >= refundTime` | `Refunded` |
 
-`deposit(LockParams calldata params) external returns (uint256 lockId)` pulls `params.amount` of `params.token` from `msg.sender` using `transferFrom`, stores the lock, and emits `Deposited`. The call reverts if any constraint above fails or if the token transfer returns false.
+The interval after `claimCutoff` and before `refundTime` is a deliberate safety gap. Neither claim nor refund is available there. `Claimed` and `Refunded` are terminal and mutually exclusive. A second funding call and every terminal replay revert.
 
-`claim(uint256 lockId, bytes32 preimage) external` checks `sha256(preimage) == locks[lockId].hashlock`, checks `msg.sender == locks[lockId].claimTo`, checks the lock is not already terminal, transfers the locked amount to `claimTo`, marks the lock claimed, and emits `Claimed(preimage)`.
+The contract does not prove that the native ZEC leg was funded or claimed. The coordinator, observers, and wallets enforce the cross-chain ordering. They never receive authority to sign or submit a user's transaction.
 
-`refund(uint256 lockId) external` checks `msg.sender == locks[lockId].depositor`, checks `block.timestamp >= locks[lockId].refundAfter`, checks the lock is not already terminal, transfers the locked amount to `refundTo`, marks the lock refunded, and emits `Refunded`.
+### Hashlock
 
-### Safety rails
+The lock verifies `sha256(abi.encode(preimage)) == hashlock` for one fixed `bytes32` preimage. This is the same 32-byte input representation used by the transparent Zcash script design. Keccak-256 is not used for the cross-chain hashlock.
 
-The contract is non-upgradeable, has no admin key, no oracle, no callback, no flashloan path, and no proxy surface. It exposes a pause switch that halts new deposits only; in-flight locks always retain a wallet-controlled refund path. The pauser role can pause, the governor role can unpause, and the two are configured at deploy time. There is no way for any role to move a locked balance.
+The claim transaction necessarily reveals the preimage in calldata. The contract does not repeat it in an event. Observers read the transaction input only after the user has chosen to submit it.
 
-The `MIN_REFUND_DELAY` is a deploy-time constant. The first cut uses one hour. This forces a real safety margin between the EVM claim window and any EVM refund attempt and gives the ZEC leg a strictly later refund deadline, which is required by ADR 0002.
+### Exact token accounting
 
-A simple boolean reentrancy guard wraps every state-changing method. The existing pattern in `Settlement.sol` and `Pair.sol` is reused so reviewers do not learn a new idiom.
+The token address cannot change after construction. `fund` uses OpenZeppelin `SafeERC20.safeTransferFrom`. `claim` and `refund` use `SafeERC20.safeTransfer`. OpenZeppelin Contracts is pinned to version `5.6.1`.
 
-The contract does not hold a balance of any token other than what is locked. There is no `withdraw`, `sweep`, `rescue`, or admin transfer. There is no fee, no fee recipient, and no revenue path.
+Every transfer also checks balance deltas:
+
+1. Funding must increase the lock balance by exactly `amount`.
+2. Claim or refund must reduce the lock balance by exactly `amount`.
+3. The fixed recipient balance must increase by exactly `amount`.
+
+False returns, malformed returns, transfer reverts, no-op success, fee-on-transfer behavior, and reentrant callbacks fail or roll back. Legacy tokens that return no value can succeed only when the observed deltas are exact.
+
+An unsolicited token transfer may leave surplus tokens in the contract. Surplus does not change the exact fill payout and cannot block funding through a zero-balance precondition. There is no sweep or rescue method, so unsolicited surplus remains unreachable. Observers must account for it separately and must never treat it as fill value.
+
+Issuer controls remain outside the contract's control. A stablecoin proxy upgrade, pause, denylist, or account freeze can prevent funding or payout. Immutable token identity prevents substitution, not issuer intervention.
+
+### Interaction surface
+
+All three state-changing methods use OpenZeppelin `ReentrancyGuard`. State becomes terminal before the outgoing token call, and a revert restores both state and balances.
+
+The contract has no proxy, upgrade hook, owner, governor, pauser, oracle, callback, native-value receiver, fee, fee recipient, seizure, allowance grant, arbitrary recipient, arbitrary token, rescue, or sweep surface. It does not execute a supplied target and does not call either user role.
 
 ### Events
 
-| Event | Trigger | Indexed fields |
-| --- | --- | --- |
-| `Deposited` | Successful `deposit` | `lockId`, `depositor`, `token`, `claimTo`, `refundTo` |
-| `Claimed` | Successful `claim` | `lockId`, `claimTo` |
-| `Refunded` | Successful `refund` | `lockId`, `refundTo` |
+| Event | Purpose |
+| --- | --- |
+| `LockCreated` | Publishes all immutable terms once at construction |
+| `Funded` | Records the exact token amount accepted from the funder |
+| `Claimed` | Records the fixed recipient and exact amount, without the preimage |
+| `Refunded` | Records the original funder and exact amount |
 
-`hashlock` and `preimage` are not emitted in plain. `hashlock` is part of `Deposited` data, which is fine because it is a public commitment. `preimage` is not emitted at all; the offchain coordinator records it once the ZEC leg claims so observers can verify the EVM claim later.
+### Identity and deployment records
 
-## Why this design
+`swapId` identifies the fill inside one contract instance. Independent instances can be constructed with the same `swapId`; there is no global onchain registry. Duplicate prevention therefore belongs to the deterministic deployment policy and observer index. A duplicate, conflicting, or absent deployment record is a stop condition.
 
-The lock is the minimum contract surface that satisfies the deterministic safety rules in ADR 0002. One lock per fill keeps the contract state linear, makes the ABI small, and lets the matcher and observers index by lock id without ambiguity. A pull-based deposit, a single-claimant release, and a depositor-only refund cover the three terminal states the workflow can reach.
-
-A `claimTo` field instead of an open claim is what prevents MEV theft of the seller. The seller is the only address that can submit the preimage on the EVM side. A frontrunner can see the preimage in the ZEC mempool but cannot call `claim` against the EVM lock because the EVM leg only pays the seller.
-
-The lock holds the exact approved stablecoin and the exact approved amount. There is no wrapped ZEC, no LP share, no receipt, and no internal ledger, which is the only shape that satisfies the non-custodial rule.
-
-Sequential ids and SHA-256 match the rest of the project. The offchain matcher, the EIP-712 order digest, and the Zcash script builder all use deterministic, integer-only encodings. A more elaborate key derivation or a hash-based id would add cost for no observable benefit at the scale of one lock per fill.
+The versioned manifest schema records the exact source commit, compiler and optimizer settings, dependency version, constructor values, creation bytecode hash, runtime bytecode hash, transaction evidence, and verification status. The checked-in record is `deployed: false`, disables network action, and uses null for every absent chain value. It contains no sample address or transaction that could be mistaken for a deployment.
 
 ## Alternatives considered
 
-### Open claim with anyone-can-claim preimage
+### One contract holding many locks
 
-This trades the `claimTo` restriction for a simpler interface. It is rejected because the EVM mempool exposes the preimage the moment the ZEC claim lands, and any MEV bot could submit the EVM claim before the seller does. The seller would lose the stablecoin. The `claimTo` field is the only safe option.
+Rejected. A mapping and sequential counter enlarge the state and replay surface. One instance per fill makes every token, role, amount, and deadline immutable and removes recipient or token selection from later calls.
 
-### Per-token contracts
+### Permissionless claim
 
-One contract per stablecoin would shrink the deployed surface per token but double the audit surface, double the deployment ceremony, and force the matcher to keep two ABI variants. The single contract with an immutable `usdc` and `usdt0` address matches the existing `Settlement.sol` pattern and is preferred.
+Rejected. A public caller could copy the revealed preimage. The fixed `claimRecipient` must call and receive the claim.
 
-### EIP-712 signed authorization
+### Arbitrary refund recipient
 
-A signed offchain message could authorize a release without a hashlock. This is rejected because the entire point of the atomic swap is that neither side can take the other's funds without the preimage. A signature-based release would be a custody contract in disguise.
+Rejected. The only refund caller and recipient is the original funder. This removes refund redirection from the constructor and call surface.
 
-### Upgradeable proxy
+### Admin pause or rescue
 
-A proxy would let the team patch bugs after deployment. This is rejected for the same reason as ADR 0002: the EVM side of a non-custodial swap must be a constant. Any change to the lock surface is a new contract, a new audit, and a new deploy.
+Rejected. These controls add authority over a user's settlement state or balance. A new contract and new review are required for any future behavior change.
+
+### Zero-balance funding precondition
+
+Rejected. Anyone can transfer tokens directly to a contract and permanently block funding if zero balance is required. Exact before-and-after deltas preserve the fill amount without adding a griefing switch.
 
 ## Consequences
 
-The contract is the EVM anchor for the atomic-swap workflow. The ZEC P2SH builder, the matcher, the coordinator, the observers, and the UI all bind to its ABI.
+The EVM primitive can lock and release only the exact immutable ERC-20 amount. It cannot verify the Zcash transaction, enforce global `swapId` uniqueness, prove the offchain `termsHash` encoding, reverse an issuer freeze, or recover unsolicited tokens.
 
-The contract cannot act on Zcash. It can hold stablecoins, release them against a preimage, and return them after a deadline. Everything else is the responsibility of the offchain services and the wallet adapter.
+The TypeScript ABI must match the one-instance methods and eleven constructor arguments. Any ABI, source, dependency, compiler, setting, constructor, creation bytecode, or runtime bytecode change creates a different review and verification target.
 
-A second contract family, the Zcash script builder, is still required. This ADR only fixes the EVM half. The ZEC half is the subject of a later ADR and a separate PR.
+## Required verification
 
-The contract is not deployed. The existing `infra/testnet/arbitrum-sepolia.json` manifest stays at `"deployed": false`. The first deploy target is a local Anvil instance or a public testnet that the operators have not yet selected.
+Local acceptance requires:
 
-## Required guardrails
+* unit tests for terms, roles, happy paths, and terminal replay;
+* exact funding, claim, safety-gap, and refund deadline tests;
+* malicious-token and reentrancy tests;
+* fuzz tests for amounts, preimages, and timelines;
+* stateful invariants for conservation and terminal exclusivity;
+* gas ceilings for deployment, funding, claim, and refund;
+* TypeScript selector, event, constructor, and calldata vectors;
+* a deterministic undeployed manifest validation;
+* independent P0, P1, and P2 review of the exact final commit.
 
-* The lock is the only state. No proxy, no admin transfer, no fee path.
-* Every lock has a `refundAfter` strictly greater than `block.timestamp + MIN_REFUND_DELAY` at deposit.
-* The EVM `refundAfter` must be strictly earlier than the ZEC `refundAfter`. The matcher enforces this offchain; the contract trusts whatever value the depositor submits.
-* The `preimage` is never emitted. Observers reconstruct it from the ZEC claim.
-* The matcher and the observers never hold a wallet key, never call `claim` or `refund` on a user's behalf, and never see the preimage before the user reveals it on Zcash.
-* Local Foundry tests run on every push. The CI run includes `forge test --root contracts`.
+## Deployment gate
 
-## Mainnet gate
+No deployment is authorized by this ADR. A later testnet or mainnet action requires an exact approved network, token contract, constructor packet, wallet, source commit, compiler environment, bytecode evidence, review result, and deployment procedure. It also requires live-chain stablecoin identity checks, Zcash-leg completion, wallet testing, legal and compliance approval, and explicit user authorization.
 
-This ADR advances to a production decision only after:
-
-* the ZEC P2SH builder and its tests are complete;
-* the ZEC `refundAfter` construction is reviewed and tested against a current wallet;
-* the stablecoin identities are verified from the current issuer registry;
-* an independent review of the contract and the deposit, claim, and refund paths;
-* deterministic, fuzz, and adversarial timeout tests on a local chain;
-* executed wallet tests for the exact preimage reveal and refund paths;
-* a final-byte review of the deployed bytecode and the constructor arguments;
-* legal and compliance approval for the named operator and jurisdictions;
-* explicit approval for any testnet or mainnet deploy.
-
-Until then, `ConditionalLock` is a local-foundry contract. It must not be deployed to a public chain.
-
-## Revisit conditions
-
-Revisit this decision if any of the following occurs:
-
-* the ZEC P2SH path changes in a way that makes SHA-256 the wrong choice;
-* an audited cross-chain settlement primitive that does not need a hashlock becomes available;
-* the approved stablecoin identity, decimals, or behaviour changes;
-* MEV mitigation requires a different claimant model;
-* a wallet or chain constraint forces the contract surface to grow.
+Until every gate is satisfied, all deployment records remain false and every network-action path remains disabled.

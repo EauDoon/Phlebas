@@ -39,7 +39,7 @@ The current repository contains a Next.js no-value simulation, undeployed Arbitr
 | Order book | In-browser matcher and optional loopback operator | Persistent signed-order matcher with receipts |
 | Settlement | Local inventory updates and undeployed legacy Sepolia contracts | One two-chain atomic swap per fill |
 | Zcash path | Local textest gateway, ZIP 321, TEX, and payout-tour stubs | Transparent P2SH fund, claim, and refund transactions |
-| EVM path | Optional Sepolia wallet flow against an undeployed legacy manifest | Exact-token conditional-lock contract |
+| EVM path | Local exact-token lock source, ABI, manifest, and tests; no deployment | Wallet-reviewed funding, claim, and refund against one verified deployment |
 | Liquidity | Simulation AMM and LP previews. Each pool holds `tZEC` | Wallet-held maker and solver quotes |
 | Simulation mint | tZEC mint controller in undeployed Sepolia sources | Not live native-ZEC execution |
 | `tZEC` | Undeployed 8-decimal receipt; display label is native ZEC | Simulation label, not live native-ZEC execution |
@@ -143,7 +143,7 @@ USDC is the first quote candidate. Circle publishes its [current contract regist
 | `ZEC/USDC` | Native Circle USDC on Arbitrum | [Circle USDC address registry](https://developers.circle.com/stablecoins/usdc-contract-addresses) |
 | `ZEC/USDT` | Native USDT. USDT0 is abandoned. | Issuer-native USDT at the mainnet gate. No address is approved by this document. |
 
-Contract code and test dependencies remain local until Testnet deployment receives separate approval.
+Contract code, deterministic build evidence, and test dependencies remain local. The checked-in lock manifest is undeployed and disables network action. Any testnet or mainnet step requires separate approval.
 
 ## Order book
 

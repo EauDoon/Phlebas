@@ -493,29 +493,30 @@ Last updated: 01-09-2026 after native ZEC-USDC/ZEC-USDT pair labels, reserve tZE
 - Reserve `WithdrawalClaimStatus` still has no `refunded` status token; refund removes the payable claim instead
 - Gateway stub is text-only; 320px density of stub states across USDT markets is still thin
 - Deposit Unavailable covers observer disagreement in the tour; architecture demo remains a separate surface
+- Complete external review of the transparent Zcash lock, wallet adapters, observer policy, canonical terms encoder, and recovery paths before considering an EVM deployment
+- Keep every ConditionalLock deployment field absent and every network action disabled until a separate exact deployment packet is approved
+- Use only the pull-request Vercel preview for this branch; do not promote it to production
 
 ## Blockers
 
-- None for this slice
-- Mainnet remains a no-go: there is no production custody, reserve attester, mint controller, redemption service, identity/compliance tier, surveillance system, or independently audited deployment.
+- None for local contract, ABI, manifest, and test work
+- Mainnet remains a no-go: live testnet evidence, current token and network choice, wallet and key custody controls, independent audit, legal controls, and exact deployment review are incomplete.
 - The local JSON persistence added for testnet is intentionally single-process and is not the production authoritative ledger.
 - Language bar still holds: never imply live, audited, trustless, private, shielded, or live native-ZEC execution
 - Vercel still must not hold spend keys, issue mainnet TEX, or run the authoritative matcher
 
-## Done this batch (PR 22 + conditional lock)
+## Done this batch: exact-token EVM conditional lock
 
-PR 1 added the EVM half of the native-ZEC atomic swap. The contract is key-independent and remains undeployed.
+The EVM primitive for one native ZEC atomic-swap fill is key-independent and remains undeployed.
 
-- `docs/adr/0003-evm-conditional-lock.md` — design, hash function choice, claim/refund semantics, safety rails
-- `contracts/src/swap/IConditionalLock.sol` — interface, error surface, event signatures
-- `contracts/src/swap/ConditionalLock.sol` — non-upgradeable deposit, claim, refund, reentrancy guard, SHA-256 preimage check, pauser/governor roles
-- `contracts/test/ConditionalLock.t.sol` — happy path, edge cases, double-claim, double-refund, wrong preimage, unauthorized claimant, paused-deposits-keep-refund
-- `contracts/script/DeployConditionalLock.s.sol` — standalone Anvil/testnet deploy with role distinctness check
-- `src/lib/conditional-lock-abi.ts` and `.test.ts` — pinned selectors (`deposit 7402f10a`, `claim 31d14457`, `refund 278ecde1`, `pause 8456cb59`, `unpause 3f4ba83a`) and event topics, plus calldata encoders
-- `docs/THREAT_MODEL.md` — section 18 for the lock surface
-- `contracts/README.md` — contract table and standalone deploy section
-- 273 node tests pass, secret-pattern scan clean over 190 files, production build clean
-- Foundry tests will run on GitHub Verify
+- `IConditionalLock.sol` and `ConditionalLock.sol`: eleven immutable terms, one exact token amount, three ordered deadlines, fixed roles, SHA-256 claim, original-funder refund, terminal exclusivity, `SafeERC20`, exact balance deltas, and `ReentrancyGuard`
+- Removed the lock deployment script and every pauser, governor, recipient-selection, token-selection, fee, proxy, rescue, and broadcast surface from this workstream
+- Unit, deadline, replay, role, malicious-token, donation, callback, fuzz, invariant, and gas-ceiling tests
+- TypeScript constructor and action encoders with pinned selectors and event topics
+- Network-neutral undeployed manifest schema and fail-closed validator, with network action disabled
+- Source, constructor, creation-code, runtime-code, and manifest verification procedure
+- ADR, architecture, threat model, sources, and contracts README reconciled to the exact implementation
+- No wallet, key, signature, RPC request, broadcast, deployment, mainnet action, or live-funds action
 
 ## Done this batch (PR 23 + atomic swap state machine)
 
