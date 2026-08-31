@@ -229,24 +229,6 @@ export function BridgePanel() {
                 Stub claim: {tourClaim.state}. Nothing is sent.
               </p>
             </div>
-            <label className={styles.inputLabel}>
-              <span>Transparent destination inspector</span>
-              <div className={styles.inputShell}>
-                <input
-                  value={destination}
-                  onChange={(event) => setDestination(event.target.value)}
-                  aria-label="Transparent destination to inspect"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </div>
-            </label>
-            <p className={styles.inlineNotice} aria-live="polite">
-              {destinationCheck.message}
-              {payoutPreview?.state === "screened"
-                ? " Payout stub would accept this destination shape. Nothing is sent."
-                : ""}
-            </p>
             <div className={styles.tourNav}>
               <button
                 type="button"
@@ -265,6 +247,31 @@ export function BridgePanel() {
             </div>
           </>
         )}
+        <div
+          id="destination-inspector"
+          tabIndex={-1}
+          role="region"
+          aria-label="Transparent destination inspector"
+        >
+          <label className={styles.inputLabel}>
+            <span>Transparent destination inspector</span>
+            <div className={styles.inputShell}>
+              <input
+                value={destination}
+                onChange={(event) => setDestination(event.target.value)}
+                aria-label="Transparent destination to inspect"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+          </label>
+          <p className={styles.inlineNotice} aria-live="polite">
+            {destinationCheck.message}
+            {payoutPreview?.state === "screened"
+              ? " Payout stub would accept this destination shape. Nothing is sent."
+              : ""}
+          </p>
+        </div>
       </section>
 
       <aside className={`${styles.panel} ${styles.riskCard}`} aria-labelledby="privacy-title">
