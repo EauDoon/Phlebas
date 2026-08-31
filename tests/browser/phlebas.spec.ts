@@ -1311,3 +1311,41 @@ test("GTC and order book price rows stay 44px on desktop", async ({ page }) => {
   expect(askBox?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("Reset session Cancel Retry illustrative and tape rows stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const reset = page.getByRole("button", { name: "Reset session" });
+  const tape = page.getByRole("table", { name: /Recent ZEC\/USDC trades/ }).locator("tbody tr").first();
+  await expect(reset).toBeVisible();
+  await expect(tape).toBeVisible();
+  expect((await reset.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect((await tape.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  const cancel = page.getByRole("button", { name: "Cancel", exact: true });
+  await expect(cancel).toBeVisible();
+  expect((await cancel.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.getByRole("radio", { name: "Stale" }).click();
+  const retry = page.getByRole("button", { name: "Retry illustrative feed" });
+  await expect(retry).toBeVisible();
+  expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("terminal skip link reaches recent trades", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipTape = page.getByRole("link", { name: "Skip to recent trades" });
+  await expect(skipTape).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#recent-trades")).toBeFocused();
+});
+
