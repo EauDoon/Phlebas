@@ -13,6 +13,7 @@ import {
   minePayoutClaim,
   observeUnresolvedTransaction,
   payoutClaimForTourStep,
+  payoutClaimStubCopy,
   preparePayoutTransaction,
   refundPayoutBeforeSignature,
   rejectPayoutBeforeBurn,
@@ -212,6 +213,31 @@ test("unresolved recovery helpers observe the committed tx or restore inputs", (
   assert.equal(observeUnresolvedTransaction(payable).state, "rejected");
   assert.equal(restoreUnresolvedInputs(payable).state, "rejected");
   assert.equal(markPayoutUnresolved(signPayoutClaim(payable)).state, "unresolved");
+});
+
+test("payoutClaimStubCopy surfaces walker claim state", () => {
+  for (const id of withdrawalTourIds()) {
+    const claim = payoutClaimForTourStep(id, DEST);
+    assert.equal(payoutClaimStubCopy(claim), `Stub claim: ${claim.state}`);
+  }
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("requested", DEST)), "Stub claim: requested");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("screened", DEST)), "Stub claim: screened");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("rejected", DEST)), "Stub claim: rejected");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("burn submitted", DEST)), "Stub claim: burn-submitted");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("expired", DEST)), "Stub claim: closed");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("burn finalized", DEST)), "Stub claim: burn-finalized");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("payable", DEST)), "Stub claim: payable");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("transaction_prepared", DEST)), "Stub claim: transaction_prepared");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("signed", DEST)), "Stub claim: signed");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("broadcast", DEST)), "Stub claim: broadcast");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("mined", DEST)), "Stub claim: mined");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("confirmed", DEST)), "Stub claim: confirmed");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("refunded", DEST)), "Stub claim: refunded");
+  assert.equal(payoutClaimStubCopy(payoutClaimForTourStep("unresolved", DEST)), "Stub claim: unresolved");
+  assert.notEqual(payoutClaimStubCopy(payoutClaimForTourStep("signed", DEST)), "Stub claim: payable");
+  assert.notEqual(payoutClaimStubCopy(payoutClaimForTourStep("broadcast", DEST)), "Stub claim: payable");
+  assert.notEqual(payoutClaimStubCopy(payoutClaimForTourStep("mined", DEST)), "Stub claim: payable");
+  assert.notEqual(payoutClaimStubCopy(payoutClaimForTourStep("confirmed", DEST)), "Stub claim: payable");
 });
 
 test("every withdrawal tour id walks through payoutClaimForTourStep without sending", () => {

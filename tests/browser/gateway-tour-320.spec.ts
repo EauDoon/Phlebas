@@ -1,5 +1,8 @@
 import { expect, test } from "./fixtures";
+import { payoutClaimForTourStep, payoutClaimStubCopy } from "../../src/lib/payout.ts";
 import { WITHDRAWAL_TOUR, withdrawalTourById } from "../../src/lib/withdrawal-tour.ts";
+
+const DEST = "t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc";
 
 test("320px gateway tour shows rejected and unresolved", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
@@ -51,6 +54,8 @@ test("320px gateway tour shows refunded tZEC restore", async ({ page }) => {
   }
   await expect(page.getByText(refunded.title, { exact: true })).toBeVisible();
   await expect(page.getByText(refunded.body)).toBeVisible();
+  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill(DEST);
+  await expect(page.getByText(payoutClaimStubCopy(payoutClaimForTourStep("refunded", DEST)))).toBeVisible();
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
   await expect(page.getByText("Nothing is sent", { exact: false }).first()).toBeVisible();
 });
@@ -99,4 +104,27 @@ test("320px gateway tour shows unresolved recovery", async ({ page }) => {
     await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
     await expect(page.getByText("Nothing is sent", { exact: false }).first()).toBeVisible();
   }
+});
+
+test("320px gateway tour shows confirmed walker stub claim", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Withdrawal states" }).click();
+
+  const next = page.getByRole("button", { name: "Next state" });
+  const confirmed = withdrawalTourById("confirmed");
+  expect(confirmed).toBeTruthy();
+  if (!confirmed) return;
+
+  for (let i = 0; i < WITHDRAWAL_TOUR.length; i += 1) {
+    if (await page.getByText(confirmed.title, { exact: true }).isVisible()) break;
+    await expect(next).toBeEnabled();
+    await next.click();
+  }
+  await expect(page.getByText(confirmed.title, { exact: true })).toBeVisible();
+  await expect(page.getByText(confirmed.body)).toBeVisible();
+  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill(DEST);
+  await expect(page.getByText(payoutClaimStubCopy(payoutClaimForTourStep("confirmed", DEST)))).toBeVisible();
+  await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Nothing is sent", { exact: false }).first()).toBeVisible();
 });

@@ -1,6 +1,7 @@
 import { type Locator, type Page } from "@playwright/test";
 
 import { ARBITRUM_SEPOLIA_HEX } from "../../src/lib/evm-wallet.ts";
+import { payoutClaimForTourStep, payoutClaimStubCopy } from "../../src/lib/payout.ts";
 import { expect, test } from "./fixtures";
 
 const viewports = [320, 390, 768, 1440] as const;
@@ -633,11 +634,12 @@ test("withdrawal tour drives a stub claim without changing tour copy", async ({ 
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Withdrawal states" }).click();
   await expect(page.getByText("Amount, transparent destination, network fee, service fee, and net output would be reviewed before any burn.")).toBeVisible();
-  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
-  await expect(page.getByText("Stub claim: requested. Nothing is sent.")).toBeVisible();
+  const dest = "t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc";
+  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill(dest);
+  await expect(page.getByText(payoutClaimStubCopy(payoutClaimForTourStep("requested", dest)))).toBeVisible();
   await page.getByRole("button", { name: "Next state" }).click();
   await expect(page.getByText("Screened", { exact: true })).toBeVisible();
-  await expect(page.getByText("Stub claim: screened. Nothing is sent.")).toBeVisible();
+  await expect(page.getByText(payoutClaimStubCopy(payoutClaimForTourStep("screened", dest)))).toBeVisible();
 });
 
 test("IOC cancels an unfilled remainder and FOK rejects a full miss", async ({ page }) => {
