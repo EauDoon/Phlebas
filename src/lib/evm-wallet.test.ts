@@ -84,7 +84,10 @@ test("idle connect title names the settlement pair", () => {
     walletConnectIdleTitle(markets["ZEC/USDC"].settlementPair),
     "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDC.",
   );
-  assert.match(walletConnectIdleTitle(markets["ZEC/USDT"].settlementPair), /pZEC-USDT0/);
+  assert.equal(
+    walletConnectIdleTitle(markets["ZEC/USDT"].settlementPair),
+    "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDT0.",
+  );
   assert.doesNotMatch(walletConnectIdleTitle("pZEC-USDC"), /native ZEC/);
 });
 
