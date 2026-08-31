@@ -1773,6 +1773,7 @@ a.skipLink:focus-visible {
     max-width: calc(50% - 2px);
     min-width: 44px;
     min-height: 44px;
+    align-self: stretch;
     height: auto;
     white-space: normal;
     overflow-wrap: anywhere;
@@ -2044,6 +2045,7 @@ a.skipLink:focus-visible {
     box-sizing: border-box;
     flex-direction: row;
     flex-wrap: wrap;
+    align-items: stretch;
     column-gap: 4px;
     row-gap: 4px;
     overflow-y: auto;
