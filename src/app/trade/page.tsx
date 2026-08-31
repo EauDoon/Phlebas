@@ -22,17 +22,19 @@ function isMarketId(value: string | undefined): value is MarketId {
 export default async function TradePage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string | string[]; market?: string | string[]; feed?: string | string[] }>;
+  searchParams: Promise<{ view?: string | string[]; market?: string | string[]; feed?: string | string[]; journey?: string | string[] }>;
 }) {
   const params = await searchParams;
   const view = Array.isArray(params.view) ? params.view[0] : params.view;
   const market = Array.isArray(params.market) ? params.market[0] : params.market;
   const feed = Array.isArray(params.feed) ? params.feed[0] : params.feed;
+  const journey = Array.isArray(params.journey) ? params.journey[0] : params.journey;
   return (
     <TradingTerminal
       initialView={isTradeView(view) ? view : "trade"}
       initialMarket={isMarketId(market) ? market : "ZEC/USDC"}
       initialFeed={isFeedStatus(feed) ? feed : "illustrative"}
+      initialBridgeJourney={journey === "withdrawal" ? "withdrawal" : "deposit"}
     />
   );
 }

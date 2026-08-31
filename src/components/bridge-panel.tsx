@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 
+import { copyUri } from "@/lib/copy-uri";
 import { inspectTransparentDestination } from "@/lib/zcash-address";
 import { payoutClaimForTourStep, screenPayout } from "@/lib/payout";
 import { isTestnetTex } from "@/lib/tex";
+import { syntheticDepositRequest } from "@/lib/zip321";
 
+import { PlaceholderQr } from "./placeholder-qr";
 import styles from "./terminal.module.css";
 
 const depositSteps = [
@@ -44,8 +47,12 @@ const withdrawalTour = [
   { id: "confirmed", title: "Confirmed", body: "State demonstration complete. No pZEC was burned and no native ZEC was sent." },
 ] as const;
 
-export function BridgePanel() {
-  const [journey, setJourney] = useState<"deposit" | "withdrawal">("deposit");
+export function BridgePanel({
+  initialJourney = "deposit",
+}: {
+  initialJourney?: "deposit" | "withdrawal";
+}) {
+  const [journey, setJourney] = useState<"deposit" | "withdrawal">(initialJourney);
   const [tourIndex, setTourIndex] = useState(0);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const [destination, setDestination] = useState("");
@@ -58,6 +65,7 @@ export function BridgePanel() {
     ? null
     : screenPayout(destination, 1n);
   const tourClaim = payoutClaimForTourStep(tour.id, destination);
+  const request = intent?.request ?? syntheticDepositRequest();
 
   async function issueTestnetTex() {
     setIssuing(true);
@@ -122,7 +130,8 @@ export function BridgePanel() {
             </p>
             <div className={styles.uriBlock}>
               <span className={styles.eyebrow}>ZIP 321 testnet request</span>
-              <code>{intent?.request ?? "zcash:{TEX_ADDRESS}?amount=1&label=Phlebas"}</code>
+              <code>{request}</code>
+              <PlaceholderQr payload={request} />
               <small>
                 {intent
                   ? `Receivable testnet TEX ${intent.tex}. Independent observation still required. No pZEC is minted here.`
@@ -131,15 +140,14 @@ export function BridgePanel() {
               <button type="button" onClick={() => void issueTestnetTex()} disabled={issuing} aria-busy={issuing}>
                 {issuing ? "Issuing" : "Issue testnet TEX"}
               </button>
-              {intent && (
-                <button type="button" onClick={() => {
-                  void navigator.clipboard?.writeText(intent.request).catch(() => undefined);
-                  setCopyNotice("Copied a Zcash testnet payment request. Not mainnet and not a mint.");
+              <button
+                type="button"
+                onClick={() => {
+                  void copyUri(request, navigator.clipboard).then(setCopyNotice);
                 }}
-                >
-                  Copy testnet URI
-                </button>
-              )}
+              >
+                Copy testnet URI
+              </button>
               {copyNotice && <p>{copyNotice}</p>}
             </div>
             <ol className={styles.stepList}>
