@@ -1636,6 +1636,11 @@ a.skipLink:focus-visible {
   flex: 1 0 auto;
 }
 
+.educationDialog .tourNav button:disabled {
+  min-width: 44px;
+  min-height: 44px;
+}
+
 .blockedPanel {
   margin: 16px;
   max-width: 720px;
