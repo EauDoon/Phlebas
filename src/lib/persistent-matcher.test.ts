@@ -178,6 +178,21 @@ test("preserves IOC remainder cancellation and FOK all-or-nothing semantics", ()
   assert.equal(Object.values(fok.state.openOrders)[0]?.sequenced.remainingBaseAtoms, 100n);
 });
 
+test("prunes expired resting orders before enforcing active book limits", () => {
+  const limited = {
+    ...configuration,
+    limits: { ...configuration.limits, maximumOpenOrders: 1, maximumOpenOrdersPerAccount: 1 },
+  };
+  const expiring = intent("expiring", 1, 100n, 5_000n, 0, 11n, VENUE_CLOB);
+  const expired = { ...expiring, order: { ...expiring.order, expiry: now + 1n } };
+  let state = applyPersistentMatcherEvent(createPersistentMatcher(limited), acceptEvent("expiring", expired), 1n, verifier).state;
+  assert.equal(Object.keys(state.openOrders).length, 1);
+
+  const replacement = intent("replacement", 1, 100n, 5_100n, 0, 12n, VENUE_CLOB);
+  state = applyPersistentMatcherEvent(state, acceptEvent("replacement", replacement, now + 2n), 2n, verifier).state;
+  assert.deepEqual(Object.keys(state.openOrders), [hashTypedOrder(domain, replacement.order)]);
+});
+
 test("accepts and consumes wallet-held solver capacity under the same sequence", () => {
   let state = createPersistentMatcher(configuration);
   const quote = solverQuote("one", 1, 200_000_000n, 5_000n, 1n);

@@ -267,8 +267,8 @@ function withReferenceRemaining(reference: OrderReferenceState, orderHash: Hex32
   };
 }
 
-function activeRestingOrders(state: PersistentMatcherState, nowSeconds: bigint): RestingRouteOrder[] {
-  return Object.values(state.openOrders).filter((entry) => orderActivity(
+function activeRestingOrderEntries(state: PersistentMatcherState, nowSeconds: bigint): [string, RestingRouteOrder][] {
+  return Object.entries(state.openOrders).filter(([, entry]) => orderActivity(
     state.orderReference.lifecycle,
     entry.sequenced.orderHash,
     entry.sequenced.order,
@@ -308,10 +308,11 @@ function applyOrderAcceptance(
   const accepted = acceptOrderIntent(state.orderReference, order, event.occurredAtSeconds);
   const orderHash = accepted.accepted.orderHash;
   const taker: SequencedOrder = { ...accepted.accepted, sequence };
+  const activeRestingEntries = activeRestingOrderEntries(state, event.occurredAtSeconds);
   const comparison = compareExecutableRoutes({
     taker,
     takerAccounts: event.submission.accounts,
-    restingOrders: activeRestingOrders(state, event.occurredAtSeconds),
+    restingOrders: activeRestingEntries.map(([, entry]) => entry),
     solverQuotes: activeSolverQuotes(state),
     acceptedAtSeconds: event.occurredAtSeconds,
     atomicSwapPolicy: state.configuration.atomicSwapPolicy,
@@ -320,7 +321,7 @@ function applyOrderAcceptance(
   });
   const selected = comparison.selected;
   let reference = accepted.state;
-  const openOrders = { ...state.openOrders };
+  const openOrders = Object.fromEntries(activeRestingEntries);
   const solverQuotes = { ...state.solverQuotes };
   if (selected) {
     for (const fill of selected.fills) {
