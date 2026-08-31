@@ -1241,6 +1241,8 @@ test("architecture skip link reaches the incident demonstration", async ({ page 
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
   await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to architecture layers" })).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to honesty bar" })).toBeFocused();
   await page.keyboard.press("Tab");
   const skipIncident = page.getByRole("link", { name: "Skip to incident demonstration" });
@@ -1502,9 +1504,53 @@ test("architecture skip link reaches the honesty bar", async ({ page }) => {
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
   await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to architecture layers" })).toBeFocused();
+  await page.keyboard.press("Tab");
   const skipHonesty = page.getByRole("link", { name: "Skip to honesty bar" });
   await expect(skipHonesty).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#honesty-bar")).toBeFocused();
+});
+
+test("privacy callouts evidence rows and layer cards stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  const callout = page.locator("#privacy-callouts").getByText("Public linkability", { exact: true }).locator("xpath=ancestor::div[1]");
+  await expect(callout).toBeVisible();
+  expect((await callout.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/", { waitUntil: "networkidle" });
+  const evidence = page.getByRole("list", { name: "What exists today" }).getByRole("listitem").first();
+  await expect(evidence).toBeVisible();
+  expect((await evidence.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  const card = page.getByRole("region", { name: "Architecture layers" }).locator("article").first();
+  await expect(card).toBeVisible();
+  expect((await card.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("bridge skip link reaches privacy callouts", async ({ page }) => {
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to destination inspector" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipPrivacy = page.getByRole("link", { name: "Skip to privacy callouts" });
+  await expect(skipPrivacy).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#privacy-callouts")).toBeFocused();
+});
+
+test("architecture skip link reaches the layer cards", async ({ page }) => {
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipLayers = page.getByRole("link", { name: "Skip to architecture layers" });
+  await expect(skipLayers).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#architecture-layers")).toBeFocused();
 });
 
