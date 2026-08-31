@@ -1222,4 +1222,9 @@ a.skipLink:focus-visible {
     min-width: 44px;
     min-height: 44px;
   }
+
+  .skipLink:last-child {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
