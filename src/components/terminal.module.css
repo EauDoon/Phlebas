@@ -1900,6 +1900,7 @@ a.skipLink:focus-visible {
   .educationDialog h2 {
     position: relative;
     z-index: 2;
+    flex-shrink: 0;
   }
 }
 
