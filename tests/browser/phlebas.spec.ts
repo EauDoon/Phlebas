@@ -1,5 +1,6 @@
 import { type Locator, type Page } from "@playwright/test";
 
+import { ARBITRUM_SEPOLIA_HEX } from "../../src/lib/evm-wallet.ts";
 import { expect, test } from "./fixtures";
 
 const viewports = [320, 390, 768, 1440] as const;
@@ -716,6 +717,44 @@ test("idle Connect wallet title keeps settlement after switching market", async 
     "title",
     "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDT0.",
   );
+});
+
+test("wallet disconnect accessible name keeps settlement after switching market", async ({ page }) => {
+  await page.addInitScript((chainId) => {
+    Object.defineProperty(window, "ethereum", {
+      configurable: true,
+      value: {
+        request(args) {
+          if (args.method === "eth_requestAccounts") {
+            return Promise.resolve(["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]);
+          }
+          if (args.method === "eth_chainId") {
+            return Promise.resolve(chainId);
+          }
+          return Promise.reject(new Error(args.method));
+        },
+      },
+    });
+  }, ARBITRUM_SEPOLIA_HEX);
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
+  const connectedUsdc = page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as pZEC-USDC." });
+  await expect(connectedUsdc).toHaveText("0xf39f…2266");
+  await expect(connectedUsdc).toHaveAttribute(
+    "aria-label",
+    "Disconnect 0xf39f…2266. Settled as pZEC-USDC.",
+  );
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  const connectedUsdt = page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as pZEC-USDT0." });
+  await expect(connectedUsdt).toHaveText("0xf39f…2266");
+  await expect(connectedUsdt).toHaveAttribute(
+    "aria-label",
+    "Disconnect 0xf39f…2266. Settled as pZEC-USDT0.",
+  );
+  await connectedUsdt.click();
+  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  await expect(connect).toHaveText("Connect wallet");
+  await expect(connect).toBeEnabled();
 });
 
 test("past unix expiry rejects before review and names the rejected panel", async ({ page }) => {
