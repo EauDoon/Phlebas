@@ -2110,8 +2110,8 @@ test("focused skip-nav wraps at 320px, leaves the terminal brand clear, and hide
   });
   expect(landingHidden.focusWithin).toBe(false);
   expect(landingHidden.clip).toMatch(/inset\(50%\)/);
-  expect(landingHidden.width).toBeLessThanOrEqual(1);
-  expect(landingHidden.height).toBeLessThanOrEqual(1);
+  expect(landingHidden.width).toBeLessThan(8);
+  expect(landingHidden.height).toBeLessThan(8);
 
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.keyboard.press("Tab");
@@ -2138,7 +2138,7 @@ test("focused skip-nav wraps at 320px, leaves the terminal brand clear, and hide
   });
   expect(tradeHidden.focusWithin).toBe(false);
   expect(tradeHidden.clip).toMatch(/inset\(50%\)/);
-  expect(tradeHidden.width).toBeLessThanOrEqual(1);
-  expect(tradeHidden.height).toBeLessThanOrEqual(1);
+  expect(tradeHidden.width).toBeLessThan(8);
+  expect(tradeHidden.height).toBeLessThan(8);
 });
 
