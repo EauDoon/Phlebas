@@ -1166,6 +1166,7 @@
     gap: 0;
     min-width: 0;
     min-height: 0;
+    transition: none !important;
   }
 
   .skipNav:focus-within {
