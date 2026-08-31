@@ -704,8 +704,11 @@
 }
 
 .journeyTabs button {
+  display: inline-flex;
   min-width: 44px;
   min-height: 44px;
+  flex-shrink: 0;
+  align-items: center;
   padding: 0 14px;
   border: 0;
   border-bottom: 2px solid transparent;
