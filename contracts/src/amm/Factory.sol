@@ -7,7 +7,7 @@ import {Pair} from "./Pair.sol";
 contract Factory {
     address public immutable pzec;
     address public immutable usdc;
-    address public immutable usdt0;
+    address public immutable usdt;
 
     mapping(address => mapping(address => address)) public getPair;
     address[2] public allPairs;
@@ -16,12 +16,12 @@ contract Factory {
     error PairNotAllowed();
     error ZeroAddress();
 
-    constructor(address pzec_, address usdc_, address usdt0_) {
-        if (pzec_ == address(0) || usdc_ == address(0) || usdt0_ == address(0)) revert ZeroAddress();
-        if (pzec_ == usdc_ || pzec_ == usdt0_ || usdc_ == usdt0_) revert PairNotAllowed();
+    constructor(address pzec_, address usdc_, address usdt_) {
+        if (pzec_ == address(0) || usdc_ == address(0) || usdt_ == address(0)) revert ZeroAddress();
+        if (pzec_ == usdc_ || pzec_ == usdt_ || usdc_ == usdt_) revert PairNotAllowed();
         pzec = pzec_;
         usdc = usdc_;
-        usdt0 = usdt0_;
+        usdt = usdt_;
     }
 
     function allPairsLength() external view returns (uint256) {
@@ -32,7 +32,7 @@ contract Factory {
     }
 
     function createPair(address quote) external returns (address pair) {
-        if (quote != usdc && quote != usdt0) revert PairNotAllowed();
+        if (quote != usdc && quote != usdt) revert PairNotAllowed();
         if (getPair[pzec][quote] != address(0)) revert PairExists();
         pair = address(new Pair(pzec, quote));
         getPair[pzec][quote] = pair;

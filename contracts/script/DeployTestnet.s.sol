@@ -17,15 +17,15 @@ contract DeployTestnet is ScriptBase {
         vm.startBroadcast(deployer);
         PZec pzecToken = new PZec(deployer, deployer, deployer);
         QuoteToken usdc = new QuoteToken("Phlebas Testnet USDC", "tUSDC");
-        QuoteToken usdt0 = new QuoteToken("Phlebas Testnet USDT0", "tUSDT0");
-        Factory factoryContract = new Factory(address(pzecToken), address(usdc), address(usdt0));
+        QuoteToken usdt = new QuoteToken("Phlebas Testnet USDT", "tUSDT");
+        Factory factoryContract = new Factory(address(pzecToken), address(usdc), address(usdt));
         factoryContract.createPair(address(usdc));
-        factoryContract.createPair(address(usdt0));
+        factoryContract.createPair(address(usdt));
         Router routerContract = new Router(factoryContract, deployer, deployer);
         Settlement settlementContract = new Settlement(
             address(pzecToken),
             address(usdc),
-            address(usdt0),
+            address(usdt),
             deployer,
             deployer,
             deployer

@@ -15,7 +15,7 @@ contract PhlebasTest is TestBase {
 
     PZec internal pzec;
     QuoteToken internal usdc;
-    QuoteToken internal usdt0;
+    QuoteToken internal usdt;
     Factory internal factory;
     Pair internal pair;
     Router internal router;
@@ -28,15 +28,15 @@ contract PhlebasTest is TestBase {
         taker = vm.addr(TAKER_KEY);
         pzec = new PZec(address(this), address(this), address(this));
         usdc = new QuoteToken("Phlebas Testnet USDC", "tUSDC");
-        usdt0 = new QuoteToken("Phlebas Testnet USDT0", "tUSDT0");
-        factory = new Factory(address(pzec), address(usdc), address(usdt0));
+        usdt = new QuoteToken("Phlebas Testnet USDT", "tUSDT");
+        factory = new Factory(address(pzec), address(usdc), address(usdt));
         pair = Pair(factory.createPair(address(usdc)));
-        factory.createPair(address(usdt0));
+        factory.createPair(address(usdt));
         router = new Router(factory, address(this), address(this));
         settlement = new Settlement(
             address(pzec),
             address(usdc),
-            address(usdt0),
+            address(usdt),
             address(this),
             address(this),
             address(this)

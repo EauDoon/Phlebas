@@ -102,6 +102,6 @@ contract Router {
     function _assertEmpty() internal view {
         if (IERC20Router(pzec).balanceOf(address(this)) != 0) revert Residual();
         if (IERC20Router(factory.usdc()).balanceOf(address(this)) != 0) revert Residual();
-        if (IERC20Router(factory.usdt0()).balanceOf(address(this)) != 0) revert Residual();
+        if (IERC20Router(factory.usdt()).balanceOf(address(this)) != 0) revert Residual();
     }
 }

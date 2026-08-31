@@ -41,7 +41,7 @@ contract Settlement {
 
     address public immutable pzec;
     address public immutable usdc;
-    address public immutable usdt0;
+    address public immutable usdt;
     address public feeRecipient;
     address public pauser;
     address public governor;
@@ -70,14 +70,14 @@ contract Settlement {
     constructor(
         address pzec_,
         address usdc_,
-        address usdt0_,
+        address usdt_,
         address feeRecipient_,
         address pauser_,
         address governor_
     ) {
         pzec = pzec_;
         usdc = usdc_;
-        usdt0 = usdt0_;
+        usdt = usdt_;
         feeRecipient = feeRecipient_;
         pauser = pauser_;
         governor = governor_;
@@ -209,7 +209,7 @@ contract Settlement {
     }
 
     function _assertQuote(address quote) internal view {
-        if (quote != usdc && quote != usdt0) revert Pair();
+        if (quote != usdc && quote != usdt) revert Pair();
     }
 
     function _assertLiveOrder(Order calldata order, bytes calldata signature) internal view {
