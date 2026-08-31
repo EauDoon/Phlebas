@@ -276,3 +276,7 @@ export function payoutClaimForTourStep(stepId: string, destination: string): Pay
   }
   return confirmPayoutClaim(claim);
 }
+
+export function payoutClaimStubCopy(claim: PayoutClaim): string {
+  return `Stub claim: ${claim.state}`;
+}
