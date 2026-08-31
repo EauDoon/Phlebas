@@ -11,7 +11,7 @@ import {
   gatewayUnavailableCopy,
 } from "@/lib/gateway-copy";
 import { inspectTransparentDestination } from "@/lib/zcash-address";
-import { payoutClaimForTourStep, screenPayout } from "@/lib/payout";
+import { payoutClaimForTourStep, payoutClaimStubCopy, screenPayout } from "@/lib/payout";
 import { isTestnetTex } from "@/lib/tex";
 import { WITHDRAWAL_TOUR, withdrawalTourStep } from "@/lib/withdrawal-tour";
 import { syntheticDepositRequest } from "@/lib/zip321";
@@ -192,7 +192,7 @@ export function BridgePanel({
               <strong>{tour.title}</strong>
               <p>{tour.body}</p>
               <p className={styles.inlineNotice}>
-                Stub claim: {tourClaim.state}. Nothing is sent.
+                {payoutClaimStubCopy(tourClaim)}. Nothing is sent.
               </p>
             </div>
             <label className={styles.inputLabel}>
