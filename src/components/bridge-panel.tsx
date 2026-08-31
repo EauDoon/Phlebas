@@ -51,6 +51,7 @@ export function BridgePanel() {
   const [destination, setDestination] = useState("");
   const [intent, setIntent] = useState<{ tex: string; request: string } | null>(null);
   const [gatewayNotice, setGatewayNotice] = useState("Local gateway off. No receivable address is displayed.");
+  const [issuing, setIssuing] = useState(false);
   const tour = withdrawalTour[tourIndex];
   const destinationCheck = inspectTransparentDestination(destination);
   const payoutPreview = destination.trim().length === 0
@@ -59,6 +60,8 @@ export function BridgePanel() {
   const tourClaim = payoutClaimForTourStep(tour.id, destination);
 
   async function issueTestnetTex() {
+    setIssuing(true);
+    setGatewayNotice("Issuing a local textest intent. Nothing is receivable until a loopback gateway answers.");
     try {
       const response = await fetch("/api/deposit-intent", { method: "POST" });
       const body = await response.json() as { tex?: string; request?: string; reason?: string };
@@ -72,6 +75,8 @@ export function BridgePanel() {
     } catch {
       setIntent(null);
       setGatewayNotice("Local gateway unavailable. No receivable address is displayed.");
+    } finally {
+      setIssuing(false);
     }
   }
 
@@ -123,8 +128,8 @@ export function BridgePanel() {
                   ? `Receivable testnet TEX ${intent.tex}. Independent observation still required. No pZEC is minted here.`
                   : "Placeholder until the local gateway issues a textest address. Mainnet TEX is never shown."}
               </small>
-              <button type="button" onClick={() => void issueTestnetTex()}>
-                Issue testnet TEX
+              <button type="button" onClick={() => void issueTestnetTex()} disabled={issuing} aria-busy={issuing}>
+                {issuing ? "Issuing" : "Issue testnet TEX"}
               </button>
               {intent && (
                 <button type="button" onClick={() => {
