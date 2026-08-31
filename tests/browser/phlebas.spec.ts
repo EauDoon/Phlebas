@@ -1626,3 +1626,40 @@ test("simulation-frame and terminal footer links stay 44px on desktop", async ({
   expect((await tradeFooter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("status legal and security ledgers are named lists", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/status", { waitUntil: "networkidle" });
+  const status = page.getByRole("list", { name: "Simulation status ledger" }).getByRole("listitem").first();
+  await expect(status).toBeVisible();
+  expect((await status.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/legal", { waitUntil: "networkidle" });
+  const legal = page.getByRole("list", { name: "Legal and compliance ledger" }).getByRole("listitem").first();
+  await expect(legal).toBeVisible();
+  expect((await legal.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/security", { waitUntil: "networkidle" });
+  const security = page.getByRole("list", { name: "Security ledger" }).getByRole("listitem").first();
+  await expect(security).toBeVisible();
+  expect((await security.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("landing header CTA journey tabs pZEC source and simulation-frame nav stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const headerCta = page.locator("header").getByRole("link", { name: "Enter simulation" });
+  await expect(headerCta).toBeVisible();
+  expect((await headerCta.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const tab = page.getByRole("tab", { name: "Trader" });
+  await expect(tab).toBeVisible();
+  expect((await tab.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const source = page.getByRole("link", { name: "Read the ZIP 320 TEX address specification" });
+  await expect(source).toBeVisible();
+  expect((await source.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/status", { waitUntil: "networkidle" });
+  const nav = page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "Trade" });
+  await expect(nav).toBeVisible();
+  expect((await nav.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
