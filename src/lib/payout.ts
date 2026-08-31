@@ -124,22 +124,41 @@ export function markPayoutPayable(claim: PayoutClaim): PayoutClaim {
   return { ...claim, state: "payable" };
 }
 
-export function payoutClaimForTourStep(stepId: string, destination: string): PayoutClaim {
-  const spent = emptyPayoutLedger();
-  let claim = requestPayout({ burnId: "tour-preview", destination, amountZatoshis: 1n });
-  if (stepId === "requested") return claim;
-  claim = screenPayoutClaim(claim);
-  if (stepId === "screened" || claim.state === "rejected") return claim;
-  claim = submitPayoutBurn(claim, spent);
-  if (stepId === "burn submitted" || claim.state === "rejected") return claim;
-  claim = finalizePayoutBurn(claim);
-  if (stepId === "burn finalized" || claim.state === "rejected") return claim;
-  return markPayoutPayable(claim);
+export function rejectPayoutBeforeBurn(claim: PayoutClaim): PayoutClaim {
+  if (claim.state === "rejected") return claim;
+  if (claim.state !== "requested" && claim.state !== "screened") {
+    return { ...claim, state: "rejected", reason: "Only a requested or screened claim can be rejected before burn." };
+  }
+  return {
+    ...claim,
+    state: "rejected",
+    reason: "Destination or eligibility failed before burn. Nothing was burned.",
+  };
 }
 
 export function markPayoutUnresolved(claim: PayoutClaim): PayoutClaim {
   if (claim.state !== "payable" && claim.state !== "burn-submitted") {
     return { ...claim, state: "rejected", reason: "Only a burn-submitted or payable claim can become unresolved." };
   }
-  return { ...claim, state: "unresolved" };
+  return {
+    ...claim,
+    state: "unresolved",
+    reason: "Committed transaction is invalid, stale, conflicted, or reorganized.",
+  };
+}
+
+export function payoutClaimForTourStep(stepId: string, destination: string): PayoutClaim {
+  const spent = emptyPayoutLedger();
+  let claim = requestPayout({ burnId: "tour-preview", destination, amountZatoshis: 1n });
+  if (stepId === "requested") return claim;
+  claim = screenPayoutClaim(claim);
+  if (stepId === "screened" || claim.state === "rejected") return claim;
+  if (stepId === "rejected") return rejectPayoutBeforeBurn(claim);
+  claim = submitPayoutBurn(claim, spent);
+  if (stepId === "burn submitted" || claim.state === "rejected") return claim;
+  claim = finalizePayoutBurn(claim);
+  if (stepId === "burn finalized" || claim.state === "rejected") return claim;
+  claim = markPayoutPayable(claim);
+  if (stepId === "unresolved") return markPayoutUnresolved(claim);
+  return claim;
 }

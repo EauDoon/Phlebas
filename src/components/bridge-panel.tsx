@@ -13,6 +13,7 @@ import {
 import { inspectTransparentDestination } from "@/lib/zcash-address";
 import { payoutClaimForTourStep, screenPayout } from "@/lib/payout";
 import { isTestnetTex } from "@/lib/tex";
+import { WITHDRAWAL_TOUR, withdrawalTourStep } from "@/lib/withdrawal-tour";
 import { syntheticDepositRequest } from "@/lib/zip321";
 
 import { PlaceholderQr } from "./placeholder-qr";
@@ -41,19 +42,6 @@ const depositSteps = [
   },
 ] as const;
 
-const withdrawalTour = [
-  { id: "requested", title: "Requested", body: "Amount, transparent destination, network fee, service fee, and net output would be reviewed before any burn." },
-  { id: "screened", title: "Screened", body: "Eligibility and destination checks run here. Signing the burn is the last action of this state." },
-  { id: "burn submitted", title: "Burn submitted", body: "An unfinalized burn is on Arbitrum. The simulation does not submit a transaction." },
-  { id: "burn finalized", title: "Burn finalized", body: "After Arbitrum finality the burn is consumed once and a native payout claim exists." },
-  { id: "payable", title: "Payable", body: "The ledger owes transparent ZEC. No Zcash transaction has been signed." },
-  { id: "transaction_prepared", title: "Transaction prepared", body: "One claim maps to one native transaction. No completion time is promised." },
-  { id: "signed", title: "Signed", body: "The exact bytes and transaction ID are committed. They cannot be swapped for a different payout." },
-  { id: "broadcast", title: "Broadcast", body: "Only those committed bytes may be rebroadcast. Transparent activity is public." },
-  { id: "mined", title: "Mined", body: "The payout is in a Zcash block. The close threshold has not been met." },
-  { id: "confirmed", title: "Confirmed", body: "State demonstration complete. Nothing was burned and no native ZEC was sent." },
-] as const;
-
 export function BridgePanel({
   initialJourney = "deposit",
 }: {
@@ -67,7 +55,7 @@ export function BridgePanel({
   const [intent, setIntent] = useState<{ tex: string; request: string } | null>(null);
   const [gatewayNotice, setGatewayNotice] = useState(gatewayOffCopy());
   const [issuing, setIssuing] = useState(false);
-  const tour = withdrawalTour[tourIndex];
+  const tour = withdrawalTourStep(tourIndex);
   const deposit = depositTourStep(depositIndex);
   const destinationCheck = inspectTransparentDestination(destination);
   const payoutPreview = destination.trim().length === 0
@@ -200,7 +188,7 @@ export function BridgePanel({
               Preview withdrawal states, not Withdraw ZEC. Canonical names follow PRODUCT_SPEC 9.3.
             </p>
             <div className={styles.uriBlock} aria-live="polite">
-              <span className={styles.eyebrow}>{String(tourIndex + 1).padStart(2, "0")} / {String(withdrawalTour.length).padStart(2, "0")}</span>
+              <span className={styles.eyebrow}>{String(tourIndex + 1).padStart(2, "0")} / {String(WITHDRAWAL_TOUR.length).padStart(2, "0")}</span>
               <strong>{tour.title}</strong>
               <p>{tour.body}</p>
               <p className={styles.inlineNotice}>
@@ -235,7 +223,7 @@ export function BridgePanel({
               </button>
               <button
                 type="button"
-                disabled={tourIndex === withdrawalTour.length - 1}
+                disabled={tourIndex === WITHDRAWAL_TOUR.length - 1}
                 onClick={() => setTourIndex((index) => index + 1)}
               >
                 Next state
