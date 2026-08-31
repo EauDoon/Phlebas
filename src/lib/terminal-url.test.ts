@@ -28,3 +28,27 @@ test("demo=incidents is omitted off architecture and for invalid values", () => 
     /^\/liquidity\?market=ZEC%2FUSDC&feed=stale$/,
   );
 });
+
+test("Trade and Liquidity drop demo=incidents and Architecture restores it", () => {
+  const demo = "incidents" as const;
+  assert.equal(
+    terminalUrl({ view: "architecture", market: "ZEC/USDC", demo }),
+    "/trade?market=ZEC%2FUSDC&demo=incidents&view=architecture",
+  );
+  assert.equal(
+    terminalUrl({ view: "trade", market: "ZEC/USDC", demo }),
+    "/trade?market=ZEC%2FUSDC&view=trade",
+  );
+  assert.equal(
+    terminalUrl({ view: "liquidity", market: "ZEC/USDT", demo }),
+    "/liquidity?market=ZEC%2FUSDT",
+  );
+  assert.equal(
+    terminalUrl({ view: "bridge", market: "ZEC/USDC", demo }),
+    "/trade?market=ZEC%2FUSDC&view=bridge",
+  );
+  assert.equal(
+    terminalUrl({ view: "architecture", market: "ZEC/USDT", demo }),
+    "/trade?market=ZEC%2FUSDT&demo=incidents&view=architecture",
+  );
+});
