@@ -2,7 +2,7 @@
 
 Status: local no-value simulation only as of 30-08-2026. Testnet remains a future gated stage.
 
-Phlebas may be developed and published as a no-value simulation, then advanced to a separately approved no-value testnet stage. It must not accept real ZEC, mint redeemable pZEC, list real USDC or USDT, charge trading fees, or accept real liquidity until the mainnet gate passes. USDT0 is abandoned.
+Phlebas may be developed and published as a no-value simulation, then advanced to a separately approved no-value testnet stage. It must not accept real ZEC, mint redeemable tZEC, list real USDC or USDT, charge trading fees, or accept real liquidity until the mainnet gate passes. USDT0 is abandoned.
 
 This plan is risk planning, not legal advice. [LEGAL_AND_COMPLIANCE.md](./LEGAL_AND_COMPLIANCE.md) records the current regulatory assumptions and primary sources.
 
@@ -10,7 +10,7 @@ This plan is risk planning, not legal advice. [LEGAL_AND_COMPLIANCE.md](./LEGAL_
 
 - Deny country access by default. Only a country with a current written approval may be enabled.
 - Keep user signing local. The web application never receives a seed phrase or private key.
-- Treat the ZEC reserve and pZEC mint as custody, regardless of the interface design.
+- Treat the ZEC reserve and tZEC mint as custody, regardless of the interface design.
 - Keep custody keys, ledgers, matching, screening records, and regulated operations outside Vercel.
 - Start with one chain, final-deposit-transaction transparency, spot trading, and USDC.
 - Add LP pools only after custody and order-book controls have operated successfully under real conditions.
@@ -60,7 +60,7 @@ Required work:
 
 - Record the architecture, trust boundaries, threat model, asset specifications, and failure states.
 - Implement deterministic matching and Uniswap v2 style pool math in tests and simulations.
-- Define pZEC supply, decimal, reserve, mint, burn, fee, fork, and reorganization invariants.
+- Define tZEC supply, decimal, reserve, mint, burn, fee, fork, and reorganization invariants.
 - Define the country-policy schema with every country disabled.
 - Add no production contracts, keys, deposits, fees, rewards, token sale, or future token entitlement.
 
@@ -133,7 +133,7 @@ Goal: open a capped, single-chain, spot-only market after every mainnet gate pas
 
 Initial scope:
 
-- ZEC/pZEC against issuer-native USDC only.
+- Native ZEC against issuer-native USDC only.
 - A chain listed in [Circle's supported chains and currencies](https://developers.circle.com/circle-mint/supported-chains-and-currencies).
 - Final-transaction-transparent ZEC deposits through fresh, single-use TEX addresses.
 - A licensed custody and bridge operator.
@@ -152,7 +152,7 @@ Required LP gate:
 
 - LP token classification and country approval.
 - Independent review of pool math, rounding, first-deposit, donation, reserve-skew, price-manipulation, reentrancy, and withdrawal behavior.
-- Clear slippage, fee, impermanent-loss, price, smart-contract, pZEC custody, and stablecoin risk disclosures.
+- Clear slippage, fee, impermanent-loss, price, smart-contract, tZEC custody, and stablecoin risk disclosures.
 - Monitoring for manipulation between the order book and pool.
 - Per-pool and per-provider caps.
 - No claim of guaranteed yield, stable return, or principal protection.
@@ -184,11 +184,11 @@ Every item below requires dated evidence, a named owner, and approval by the acc
 - Each enabled country has a written licensing, marketing, custody, exchange, token-listing, Travel Rule, market-abuse, consumer, and data matrix.
 - Required licenses and registrations are active, or a licensed partner contract allocates every regulated duty.
 - Country controls have passed independent deny-by-default tests.
-- Counsel and the security owner approve one direct-contract access model across pZEC, settlement, and pools. Frontend-only geoblocking is not accepted as enforcement.
+- Counsel and the security owner approve one direct-contract access model across tZEC, settlement, and pools. Frontend-only geoblocking is not accepted as enforcement.
 
-### Custody and pZEC
+### Custody and tZEC
 
-- The licensed reserve custodian and pZEC issuer are named.
+- The licensed reserve custodian and tZEC issuer are named.
 - Customer title, trust or segregation, insolvency, loss allocation, redemption, suspension, fork, fee, and complaint terms are approved.
 - Per-intent TEX uniqueness and rejection of any shielded component or nontransparent output in the final deposit transaction are enforced.
 - Confirmation, reorganization, duplicate, and replay policies are tested.
@@ -206,7 +206,7 @@ Every item below requires dated evidence, a named owner, and approval by the acc
 
 ### Assets and stablecoins
 
-- ZEC, pZEC, USDC, and any LP token have written legal classifications and listing approval for every enabled country.
+- ZEC, tZEC, USDC, and any LP token have written legal classifications and listing approval for every enabled country.
 - USDC uses the official contract on a Circle-supported chain.
 - Chain ID, contract, decimals, transfer behavior, blacklist, pause, depeg, and issuer incident responses are tested.
 - Customer materials make no issuer sponsorship or direct redemption claim.
@@ -233,7 +233,7 @@ Every item below requires dated evidence, a named owner, and approval by the acc
 ### Consumer protection and operations
 
 - Terms state fees, spreads, slippage, partial fills, finality, confirmation times, outages, redemption, and complaint procedures.
-- Risk disclosures cover pZEC custody, reserve, insolvency, fork, key, smart-contract, USDC, blacklist, freeze, depeg, transparent Zcash, and liquidity risk.
+- Risk disclosures cover tZEC custody, reserve, insolvency, fork, key, smart-contract, USDC, blacklist, freeze, depeg, transparent Zcash, and liquidity risk.
 - Marketing contains no promise of privacy, stable return, guaranteed liquidity, guaranteed redemption timing, principal protection, or regulatory approval.
 - Support, incident notification, complaints, data access, data deletion, and breach procedures are tested.
 - Operating limits, incident owners, recovery targets, and stop conditions are approved.
@@ -260,7 +260,7 @@ Restart requires root-cause closure, reconciled state, written incident review, 
 - Legal entity and place of management.
 - Countries and customer types.
 - Production EVM chain.
-- Licensed custodian, pZEC issuer, and mint controller.
+- Licensed custodian, tZEC issuer, and mint controller.
 - On-chain or off-chain matching and settlement design.
 - Account, identity, and Travel Rule providers.
 - Redemption model and customer counterparty.

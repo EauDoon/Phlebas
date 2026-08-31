@@ -2,7 +2,7 @@
 
 Status: local no-value simulation only as of 30-08-2026. Testnet remains a future gated stage.
 
-Phlebas must not accept real ZEC, mint redeemable pZEC, list real USDC or USDT, charge trading fees, or offer real-value liquidity pools under the current project status. USDT0 is abandoned. Valueless `tZEC` may exercise technical mint, burn, and native Testnet payout paths. No test asset creates a legal or economic claim on mainnet ZEC, a future token, a reward, an airdrop, or monetary value.
+Phlebas must not accept real ZEC, mint redeemable tZEC, list real USDC or USDT, charge trading fees, or offer real-value liquidity pools under the current project status. USDT0 is abandoned. Valueless `tZEC` may exercise technical mint, burn, and native Testnet payout paths. No test asset creates a legal or economic claim on mainnet ZEC, a future token, a reward, an airdrop, or monetary value.
 
 This document is risk planning, not legal advice. A qualified lawyer must confirm the rules for the operating entity, custody model, assets, and every country served before mainnet.
 
@@ -11,7 +11,7 @@ This document is risk planning, not legal advice. A qualified lawyer must confir
 The planned service has two different operating layers:
 
 1. A non-custodial interface that lets a user connect a wallet, review market data, create an order, and sign a transaction locally.
-2. A custody-backed bridge that receives transparent ZEC, controls reserve keys, and mints or burns pZEC.
+2. A custody-backed bridge that receives transparent ZEC, controls reserve keys, and mints or burns tZEC.
 
 The second layer makes the product custodial. Phlebas must not describe the full service as non-custodial while Phlebas or its contractor controls ZEC reserves, minting, redemption, withdrawal, or recovery keys.
 
@@ -54,7 +54,7 @@ FinCEN treats an administrator or exchanger that accepts and transmits convertib
 
 Federal registration does not replace state licensing. New York covers custody, transmission, buying, selling, exchange, and issuing or administering virtual currency under its [virtual currency business rules](https://www.dfs.ny.gov/virtual_currency_businesses). California requires a license for covered digital financial asset business with California residents from 01-07-2026 under its [Digital Financial Assets Law](https://dfpi.ca.gov/regulated-industries/digital-financial-assets/digital-financial-assets-law-frequently-asked-questions/).
 
-ZEC, pZEC, USDC, USDT, and LP tokens each need a securities, commodities, payments, and state coin-listing review. USDT0 is abandoned. A plain 1:1 wrapper does not by itself make a non-security crypto asset a security under the [SEC interpretation dated 17-03-2026](https://www.sec.gov/rules-regulations/2026/03/s7-2026-09), but the underlying asset and the transaction still require classification. Yield promises, reward programs, governance rights, and reliance on managerial work can change the result. Spot virtual currency activity can still face anti-fraud and anti-manipulation enforcement, as described by the [CFTC](https://www.cftc.gov/LearnAndProtect/AdvisoriesAndArticles/understand_risks_of_virtual_currency.html).
+ZEC, tZEC, USDC, USDT, and LP tokens each need a securities, commodities, payments, and state coin-listing review. USDT0 is abandoned. A plain 1:1 wrapper does not by itself make a non-security crypto asset a security under the [SEC interpretation dated 17-03-2026](https://www.sec.gov/rules-regulations/2026/03/s7-2026-09), but the underlying asset and the transaction still require classification. Yield promises, reward programs, governance rights, and reliance on managerial work can change the result. Spot virtual currency activity can still face anti-fraud and anti-manipulation enforcement, as described by the [CFTC](https://www.cftc.gov/LearnAndProtect/AdvisoriesAndArticles/understand_risks_of_virtual_currency.html).
 
 The United States stays blocked until federal and state analyses are complete.
 
@@ -82,7 +82,7 @@ The bridge must:
 - Inspect every input and output in the final transaction before minting.
 - Reject or quarantine a final deposit transaction with any shielded component, nontransparent output, or unresolved best-chain status.
 - Wait for the approved confirmation count and handle reorganizations before final minting.
-- Maintain a customer-level reserve liability for every pZEC unit.
+- Maintain a customer-level reserve liability for every tZEC unit.
 - Define forks, dust, fees, lost funds, redemption delays, emergency pauses, and failed redemptions in the customer terms.
 - Disclose that transparent Zcash activity exposes sender, receiver, amount, and transaction history. The [Zcash address documentation](https://zcash.readthedocs.io/en/latest/rtd_pages/addresses.html) explains the difference between transparent and shielded addresses.
 
@@ -138,7 +138,7 @@ LP pools need separate monitoring for manipulation between the pool and order bo
 The interface and customer terms must state, in plain language:
 
 - Every fee, spread, slippage rule, minimum, confirmation period, and redemption condition.
-- pZEC custody, reserve, insolvency, smart-contract, key-loss, pause, and fork risk.
+- tZEC custody, reserve, insolvency, smart-contract, key-loss, pause, and fork risk.
 - USDC and USDT issuer, blacklist, freeze, depeg, and chain risk. USDT0 is abandoned.
 - Order-book depth, partial-fill, cancellation, settlement, outage, and finality rules.
 - LP price risk, impermanent loss, fee variability, smart-contract risk, and withdrawal conditions.
