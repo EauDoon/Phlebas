@@ -942,6 +942,8 @@
 
 .simpleMain dl > div {
   display: flex;
+  min-height: 44px;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding: 8px 0;
