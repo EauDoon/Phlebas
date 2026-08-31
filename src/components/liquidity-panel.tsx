@@ -15,6 +15,7 @@ import {
   type PoolShares,
 } from "@/lib/lp";
 import { pools, type MarketId } from "@/lib/market-data";
+import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import { parseAtomicUnits, formatAtomicUnits, PZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -50,10 +51,16 @@ function emptyDeposits(): Record<PoolId, EntryDeposit> {
 
 export function LiquidityPanel({
   marketId,
+  feedStatus,
   onMarketChange,
+  onFeedChange,
+  onRetryFeed,
 }: {
   marketId: MarketId;
+  feedStatus: FeedStatus;
   onMarketChange: (market: MarketId) => void;
+  onFeedChange: (status: FeedStatus) => void;
+  onRetryFeed: () => void;
 }) {
   const amountHelpId = useId();
   const selectedPool = marketId === "ZEC/USDT" ? pools[1] : pools[0];
@@ -66,6 +73,9 @@ export function LiquidityPanel({
   const [review, setReview] = useState<LpReview | null>(null);
   const poolReserves = poolState[selectedPool.id];
   const sessionEntry = entryDeposits[selectedPool.id];
+  const gate = ticketGate(feedStatus, false);
+  const mintEnabled = lpOperationAllowed("mint", tradingPaused) && gate.canReview;
+  const swapEnabled = lpOperationAllowed("swap", tradingPaused) && gate.canReview;
 
   const amountPreview = useMemo(() => {
     try {
@@ -138,6 +148,10 @@ export function LiquidityPanel({
   }));
 
   function requestMintReview() {
+    if (!gate.canReview) {
+      setNotice(gate.message);
+      return;
+    }
     if (!lpOperationAllowed("mint", tradingPaused)) {
       setNotice("Trading is paused. LP withdrawal remains available.");
       return;
@@ -197,6 +211,10 @@ export function LiquidityPanel({
   }
 
   function requestSwapReview() {
+    if (!gate.canReview) {
+      setNotice(gate.message);
+      return;
+    }
     if (!lpOperationAllowed("swap", tradingPaused)) {
       setNotice("Trading is paused. LP withdrawal remains available.");
       return;
@@ -267,8 +285,40 @@ export function LiquidityPanel({
           ))}
         </div>
 
+        <label className={styles.inputLabel}>
+          <span>Market data</span>
+          <div className={styles.inputShell}>
+            <select
+              value={feedStatus}
+              aria-label="Market data state"
+              onChange={(event) => {
+                setReview(null);
+                onFeedChange(event.target.value as FeedStatus);
+              }}
+            >
+              <option value="illustrative">Illustrative</option>
+              <option value="loading">Loading</option>
+              <option value="empty">Empty</option>
+              <option value="stale">Stale</option>
+              <option value="unavailable">Unavailable</option>
+            </select>
+          </div>
+        </label>
+
         {selectedPool.id === "pZEC/USDT0" && (
           <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
+        )}
+
+        {!gate.canReview && (
+          <p className={styles.gateNotice}>
+            <strong>{gate.heading}</strong>
+            {" "}
+            {gate.message}
+            {" "}
+            <button type="button" className={styles.textButton} onClick={() => { setReview(null); onRetryFeed(); }}>
+              Retry illustrative feed
+            </button>
+          </p>
         )}
 
         <div className={styles.depositStack}>
@@ -302,7 +352,10 @@ export function LiquidityPanel({
           <div><dt>pZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reservePzecAtoms, PZEC_DECIMALS, 2)}</dd></div>
           <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
           <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
-          <div><dt>Session LP shares</dt><dd>{heldShares[selectedPool.id].toString()}</dd></div>
+          <div>
+            <dt>Session LP shares</dt>
+            <dd>{heldShares[selectedPool.id].toString()}</dd>
+          </div>
           <div>
             <dt>Session IL vs hold</dt>
             <dd>{formatAtomicUnits(sessionIl.lossQuoteAtoms, QUOTE_DECIMALS, 2)} {selectedPool.quote}</dd>
@@ -314,6 +367,11 @@ export function LiquidityPanel({
             </div>
           ))}
         </dl>
+        {heldShares[selectedPool.id] === 0n && (
+          <p className={styles.inlineNotice}>
+            No session LP shares. Burn stays available when shares exist. Mint is a local preview.
+          </p>
+        )}
         <p className={styles.inlineNotice}>
           Not a return or profit projection. Local integer preview of constant-product divergence versus holding the same deposited assets.
         </p>
@@ -379,9 +437,9 @@ export function LiquidityPanel({
         ) : null}
 
         <div className={styles.tourNav}>
-          <button type="button" onClick={requestMintReview} disabled={!lpOperationAllowed("mint", tradingPaused)}>Review simulated mint</button>
+          <button type="button" onClick={requestMintReview} disabled={!mintEnabled}>Review simulated mint</button>
           <button type="button" onClick={simulateBurn} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
-          <button type="button" onClick={requestSwapReview} disabled={!lpOperationAllowed("swap", tradingPaused)}>Review simulated swap</button>
+          <button type="button" onClick={requestSwapReview} disabled={!swapEnabled}>Review simulated swap</button>
           <button
             type="button"
             aria-pressed={tradingPaused}
