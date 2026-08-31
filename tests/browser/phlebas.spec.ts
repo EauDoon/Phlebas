@@ -1981,3 +1981,35 @@ test("terminal skip-link focus ring skip-nav inset and remaining landing skip-ma
   }
 });
 
+test("reduced-motion keeps skip-nav in place and skip-nav stacks above the banner", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expect(skip).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  expect(await nav.evaluate((element) => getComputedStyle(element).transform)).toBe("none");
+  const box = await skip.boundingBox();
+  expect(box?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect(box?.y ?? 900).toBeLessThan(80);
+
+  const stacking = await page.evaluate(() => {
+    const skipNav = document.querySelector('nav[aria-label="Skip links"]');
+    const banner = document.querySelector('[aria-label="Simulation disclosure"]');
+    const root = skipNav?.parentElement;
+    return {
+      navZ: Number.parseInt(skipNav ? getComputedStyle(skipNav).zIndex : "0", 10),
+      bannerZ: Number.parseInt(banner ? getComputedStyle(banner).zIndex : "0", 10) || 0,
+      clipMargin: root ? getComputedStyle(root).overflowClipMargin : "",
+    };
+  });
+  expect(stacking.navZ).toBeGreaterThan(stacking.bannerZ);
+  expect(stacking.clipMargin).toMatch(/8px/);
+
+  await page.keyboard.press("Tab");
+  await expectVisibleFocus(skip);
+  const focused = await skip.boundingBox();
+  expect(focused?.x ?? 0).toBeGreaterThanOrEqual(0);
+  expect(focused?.y ?? 0).toBeGreaterThanOrEqual(0);
+});
+
