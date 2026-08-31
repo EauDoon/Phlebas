@@ -1,5 +1,9 @@
 # Phlebas Asset and Accounting Model
 
+Status: superseded custody model
+
+The pZEC reserve, mint, burn, deposit, and withdrawal model below is retained as historical design evidence. [ADR 0002](adr/0002-native-zec-atomic-settlement.md) replaces it with per-swap conditional-lock accounting for the target product. Do not extend this model into a live path.
+
 Status: Simulation only
 As of: 30-08-2026
 

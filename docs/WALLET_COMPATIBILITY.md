@@ -1,5 +1,9 @@
 # Phlebas Wallet Compatibility
 
+Status: existing payment-request evidence only
+
+The current matrix covers transparent payments, TEX, and ZIP 321. It does not prove compatibility with the fund, claim, or refund transactions required by [ADR 0002](adr/0002-native-zec-atomic-settlement.md). No wallet is approved for native atomic settlement.
+
 Status: Simulation only
 As of: 30-08-2026
 

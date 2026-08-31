@@ -1,6 +1,10 @@
 # Phlebas Launch Plan
 
-Status: local no-value simulation with undeployed Sepolia sources and optional local testnet services as of 31-08-2026. Entering closed testnet remains a separately approved gated stage.
+Status: custody launch stages superseded
+
+The pZEC, reserve, deposit, withdrawal, and passive-pool stages below describe ADR 0001. The active sequence is in [DELIVERY_PLAN.md](DELIVERY_PLAN.md) and [ADR 0002](adr/0002-native-zec-atomic-settlement.md). No Testnet or Mainnet action is approved by this historical plan.
+
+The current implementation is a local and Vercel no-value simulation with undeployed Sepolia sources and optional loopback testnet services as of 31-08-2026. Entering closed Testnet remains a separately approved gated stage.
 
 Phlebas may be developed and published as a no-value simulation, then advanced to a separately approved no-value testnet stage. It must not accept real ZEC, mint redeemable pZEC, list real USDC or USDT0, charge trading fees, or accept real liquidity until the mainnet gate passes.
 
