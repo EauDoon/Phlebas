@@ -323,6 +323,7 @@ test("local matcher fills a buy against the fixture ask", async ({ page }) => {
   await expect(page.getByText("pZEC is a custody receipt, not native ZEC.")).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText(/Filled against the local ZEC\/USDC book/)).toBeVisible();
+  await expect(page.getByText("Nothing was signed or submitted to a chain.")).toBeVisible();
   await expect(page.getByRole("tab", { name: "Fills" })).toBeVisible();
   await page.getByRole("tab", { name: "Fills" }).click();
   await expect(page.getByRole("table", { name: /Session fills for ZEC\/USDC/ })).toBeVisible();
@@ -917,3 +918,68 @@ test("incident select is a 44px target at 320px", async ({ page }) => {
   await page.keyboard.press("ArrowDown");
   await expect(select).toBeFocused();
 });
+
+test("chart range arrows select the next radio", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const fourHour = page.getByRole("radio", { name: "4H" });
+  await expect(fourHour).toHaveAttribute("aria-checked", "true");
+  await fourHour.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("radio", { name: "1D" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("radio", { name: "1D" })).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(page.getByRole("radio", { name: "1H" })).toHaveAttribute("aria-checked", "true");
+});
+
+test("terminal skip links reach the price chart after the ticket", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipChart = page.getByRole("link", { name: "Skip to price chart" });
+  await expect(skipChart).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#price-chart")).toBeFocused();
+});
+
+test("invalid size shows a field error and keeps review closed", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("abc");
+  await expect(page.getByRole("alert")).toContainText("Value must use plain decimal notation");
+  await expect(page.getByRole("textbox", { name: "Order size in pZEC" })).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+});
+
+test("USDT review repeats the later listing gate", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByText("Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.")).toHaveCount(2);
+});
+
+test("LP pool arrows move to the later listing pair", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  const usdc = page.getByRole("radio", { name: /pZEC\/USDC/ });
+  await expect(usdc).toHaveAttribute("aria-checked", "true");
+  await usdc.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("radio", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByText(/Later listing gate\. This is a preview/)).toBeVisible();
+});
+
+test("document metadata names a no-value simulation", async ({ page }) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+    "content",
+    "No-value simulation of a pZEC market design. Not an exchange or an offer of financial services.",
+  );
+  await expect(page.locator('meta[name="twitter:description"]')).toHaveAttribute(
+    "content",
+    "No-value simulation of a pZEC market design. Not an exchange or an offer of financial services.",
+  );
+});
+
