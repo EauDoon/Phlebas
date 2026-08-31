@@ -6,6 +6,7 @@ import { quoteConstantProductSwapAtoms } from "@/lib/amm";
 import { AMM_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import {
   burnShares,
+  emptyShareCopy,
   hypotheticalImpermanentLoss,
   IL_PRICE_SCENARIOS,
   lpOperationAllowed,
@@ -193,7 +194,7 @@ export function LiquidityPanel({
   function simulateBurn() {
     const shares = heldShares[selectedPool.id];
     if (shares <= 0n) {
-      setNotice("No session LP shares to burn.");
+      setNotice(emptyShareCopy(selectedPool.id));
       return;
     }
     try {
@@ -335,7 +336,10 @@ export function LiquidityPanel({
           <div><dt>pZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reservePzecAtoms, PZEC_DECIMALS, 2)}</dd></div>
           <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
           <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
-          <div><dt>Session LP shares</dt><dd>{heldShares[selectedPool.id].toString()}</dd></div>
+          <div>
+            <dt>Session LP shares</dt>
+            <dd>{heldShares[selectedPool.id].toString()}</dd>
+          </div>
           <div>
             <dt>Session IL vs hold</dt>
             <dd>{formatAtomicUnits(sessionIl.lossQuoteAtoms, QUOTE_DECIMALS, 2)} {selectedPool.quote}</dd>
@@ -347,6 +351,11 @@ export function LiquidityPanel({
             </div>
           ))}
         </dl>
+        {heldShares[selectedPool.id] === 0n && (
+          <p className={styles.inlineNotice} role="status">
+            {emptyShareCopy(selectedPool.id)}
+          </p>
+        )}
         <p className={styles.inlineNotice}>
           Not a return or profit projection. Local integer preview of constant-product divergence versus holding the same deposited assets.
         </p>
