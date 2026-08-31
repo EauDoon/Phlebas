@@ -113,6 +113,16 @@ test("missing provider copy keeps settlement after the market pair changes", () 
   assert.doesNotMatch(retargetSettlementCopy(usdc, markets["ZEC/USDT"].settlementPair), /native ZEC/);
 });
 
+test("wallet connect-failure copy keeps settlement after the market pair changes", () => {
+  const usdc = walletConnectFailureCopy("User rejected the request.", markets["ZEC/USDC"].settlementPair);
+  const usdt = walletConnectFailureCopy("User rejected the request.", markets["ZEC/USDT"].settlementPair);
+  assert.equal(usdc, "User rejected the request. Settled as pZEC-USDC.");
+  assert.equal(usdt, "User rejected the request. Settled as pZEC-USDT0.");
+  assert.equal(retargetSettlementCopy(usdc, markets["ZEC/USDT"].settlementPair), usdt);
+  assert.equal(retargetSettlementCopy(usdt, markets["ZEC/USDC"].settlementPair), usdc);
+  assert.doesNotMatch(retargetSettlementCopy(usdc, markets["ZEC/USDT"].settlementPair), /native ZEC/);
+});
+
 test("disconnect label names the settlement pair from a connected address", () => {
   const address = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
   assert.equal(
