@@ -4,7 +4,7 @@ Status: the landing page, terminal shell, local matcher, LP preview, ZIP 321 dep
 
 Phlebas currently does not accept live funds or operate custody. Optional Arbitrum Sepolia wallet connection is sign-only by default. Contract sources are undeployed. Market data is illustrative. This specification does not authorize mainnet, custody, publication, or financial services.
 
-The user-facing market aliases are `ZEC / USDC` and `ZEC / USDT`, matching the requested markets. Every market ticket, review, and history surface must also state the exact proposed settlement pair, `pZEC / USDC` or `pZEC / USDT0`. Pool labels use the settlement assets. Native `ZEC` refers only to Zcash that would enter or leave the transparent gateway.
+The user-facing market aliases are `ZEC / USDC` and `ZEC / USDT`, matching the requested markets. Every market ticket, review, and history surface must also state the exact settlement pair, `ZEC-USDC` or `ZEC-USDT`. Those pairs are native ZEC against native USDC or native USDT. Pool labels use the same assets. USDT0 is abandoned. This remains a no-value simulation and must not claim live native-ZEC execution.
 
 ## Product outcome
 
@@ -12,7 +12,7 @@ The landing page should answer four questions before asking a visitor to enter t
 
 - What is Phlebas?
 - What exists today?
-- What is pZEC, and where does custody begin?
+- What are the native pairs, and where would custody begin?
 - What can a visitor safely do in the current preview?
 
 The intended first impression is a serious market design with its limits shown in public. The page must not resemble a live exchange launch, token sale, rewards campaign, or liquidity solicitation.
@@ -111,8 +111,8 @@ Do not render a placeholder GitHub URL. Omit `Source repository` until a real pu
 +-----------------------------------------------------------------------+
 |                                                                       |
 |  7 columns                              5 columns                      |
-|  A transparent pZEC market design        CURRENT SYSTEM               |
-|  An order book for pZEC,                 No-value preview              |
+|  Transparent ZEC markets                 CURRENT SYSTEM               |
+|  The custody line, drawn in public.      No-value preview              |
 |  with the custody line drawn             Market data: illustrative    |
 |  in public.                              Wallets: unavailable          |
 |                                          Custody: not operating        |
@@ -146,9 +146,8 @@ Use a 12-column content grid with a maximum content width of 1,440 pixels. The h
 +----------------------------------+
 | PHLEBAS                    Menu  |
 +----------------------------------+
-| A transparent pZEC market design|
-| An order book for pZEC, with     |
-| the custody line drawn in public.|
+| Transparent ZEC markets         |
+| The custody line, drawn in public.|
 | Supporting copy                 |
 +----------------------------------+
 | CURRENT SYSTEM                  |
@@ -181,15 +180,15 @@ On mobile, the status ledger must appear before the primary call to action. No e
 
 Eyebrow:
 
-> A transparent pZEC market design
+> Transparent ZEC markets
 
 Heading:
 
-> An order book for pZEC, with the custody line drawn in public.
+> The custody line, drawn in public.
 
 Supporting copy:
 
-> Phlebas models ZEC / USDC and ZEC / USDT spot markets that would settle with pZEC against USDC and USDT0, plus small constant-product pools. The current product is a no-value simulation. pZEC does not exist today, and no native ZEC or stablecoin enters this application.
+> Phlebas models ZEC / USDC and ZEC / USDT spot markets that settle as ZEC-USDC and ZEC-USDT, plus small constant-product pools. Settlement assets are native ZEC, native USDC, and native USDT. USDT0 is abandoned. The current product is a no-value simulation. No live funds enter this application.
 
 Primary action:
 
@@ -333,7 +332,7 @@ Show six rows, all marked `Not cleared`:
 - Independent contract and infrastructure reviews.
 - Anti-money laundering, sanctions, Travel Rule, and market surveillance controls.
 - Reserve and liability reconciliation with tested incident handling.
-- Final approval for USDC. USDT0 has a separate later gate.
+- Final approval for native USDC and native USDT. USDT0 is abandoned.
 
 Action:
 
@@ -415,7 +414,7 @@ Preserve the current operating pattern:
 - Chart on the left, order book in the middle, order ticket on the right.
 - Recent trades below the chart.
 
-The terminal defaults to the `ZEC / USDC` display market and states `Settles pZEC / USDC`. `ZEC / USDT` remains selectable as an illustrative later-market fixture, states `Settles pZEC / USDT0`, and carries the label `Later listing gate`.
+The terminal defaults to the `ZEC / USDC` display market and states `Settles ZEC / USDC`. `ZEC / USDT` remains selectable, states `Settles ZEC / USDT`, and does not carry a later-listing-gate label.
 
 ### Mobile
 
@@ -439,8 +438,8 @@ For LP and gateway views, show the action model before the risk explanation, the
 
 1. A no-data availability demonstration defaults to `Unavailable in simulation` and never requests location, identity, or account information. Production country decisions remain outside Vercel and outside PR 2.
 2. First-session education appears when required.
-3. Trade opens on the `ZEC / USDC` display market, states `Settles pZEC / USDC`, and keeps `Illustrative market data` and `Simulation` visible.
-4. The visitor may select the `ZEC / USDT` display market. It states `Settles pZEC / USDT0` and shows `Later listing gate` beside the pair.
+3. Trade opens on the `ZEC / USDC` display market, states `Settles ZEC / USDC`, and keeps `Illustrative market data` and `Simulation` visible.
+4. The visitor may select the `ZEC / USDT` display market. It states `Settles ZEC / USDT` and does not show `Later listing gate`.
 5. The visitor chooses Buy or Sell and Limit or Market.
 6. The visitor enters preview values. These values remain local to the component and are never sent to analytics, logs, URLs, or storage.
 7. Inline validation rejects empty, nonnumeric, zero, negative, or unsafe numeric values.
@@ -460,8 +459,8 @@ The future production path may replace `Complete preview` with local wallet sign
 ### PR 2 target behavior
 
 1. The visitor opens Liquidity.
-2. The view defaults to the `pZEC / USDC` pool. The `pZEC / USDT0` pool carries `Later listing gate`.
-3. The visitor enters a preview pZEC amount. The paired fixture amount is calculated locally.
+2. The view defaults to the `ZEC / USDC` pool. The `ZEC / USDT` pool is a listed native pair, not a later listing gate.
+3. The visitor enters a preview ZEC amount. The paired fixture amount is calculated locally.
 4. The panel shows pool ratio, fixed simulation fee, estimated share, and price impact. It does not show APY, APR, projected earnings, historical returns, rewards, or a dollar-profit estimate.
 5. Before the action, the interface repeats pZEC custody risk, stablecoin risk, smart-contract risk, impermanent loss, toxic flow, and withdrawal limits.
 6. `Preview LP position` opens a review sheet with both fixture amounts and the same risks.
@@ -760,7 +759,7 @@ PR 1 creates the landing page and preserves the current simulation behind `/trad
 
 1. Given a visitor opens `/`, when the page renders, then the persistent simulation banner appears before the header and the hero states that no real assets or systems are connected.
 2. Given the hero renders, when the visitor reads it in DOM order, then the current-system ledger appears before the primary action on mobile and beside the statement on desktop.
-3. Given the visitor selects `Enter simulation`, when navigation completes, then `/trade?view=trade` opens with first-session education and `ZEC / USDC` as the default display market, with `Settles pZEC / USDC` visible.
+3. Given the visitor selects `Enter simulation`, when navigation completes, then `/trade?view=trade` opens with first-session education and `ZEC / USDC` as the default display market, with `Settles ZEC / USDC` visible.
 4. Given the visitor selects `Understand pZEC`, when the page moves to `#pzec`, then the custody-backed receipt, transparent native ZEC, and no-shielding boundaries are visible without another interaction.
 5. Given the landing terminal slice renders, then it is labeled `Simulation` and contains no wallet balance, real address, reserve figure, transaction hash, fill, return, profit, countdown, or live-data claim.
 6. Given the repository URL is absent, then no GitHub placeholder or dead source link renders.
@@ -774,8 +773,8 @@ PR 1 creates the landing page and preserves the current simulation behind `/trad
 
 PR 2 completes the simulation journeys and state demonstrations.
 
-1. Given any terminal surface, then market aliases use `ZEC / USDC` or `ZEC / USDT`, while every order and history surface also states the exact `pZEC / USDC` or `pZEC / USDT0` settlement pair.
-2. Given the `ZEC / USDT` market or `pZEC / USDT0` pool is selected, then `Later listing gate` is visible in the market, LP, review, and disclosure surfaces.
+1. Given any terminal surface, then market aliases use `ZEC / USDC` or `ZEC / USDT`, while every order and history surface also states the exact `ZEC-USDC` or `ZEC-USDT` settlement pair.
+2. Given the `ZEC / USDT` market or `ZEC / USDT` pool is selected, then `Later listing gate` is absent and USDT0 is not named as a listed quote.
 3. Given order preview values are invalid, then the review sheet cannot open, errors are linked to their fields, and no value enters analytics, logs, storage, or the URL.
 4. Given an order preview completes, then the interface states that nothing was signed or submitted and creates no order identifier or fake fill.
 5. Given an LP preview opens, then custody, stablecoin, smart-contract, impermanent-loss, and toxic-flow risks appear before completion, with no return or profit projection.

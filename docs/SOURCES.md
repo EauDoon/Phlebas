@@ -25,8 +25,8 @@ This register supports the reference design as reviewed on 30-08-2026. Runtime i
 
 - [Arbitrum chain information](https://docs.arbitrum.io/for-devs/dev-tools-and-resources/chain-info)
 - [Circle USDC contract addresses](https://developers.circle.com/stablecoins/usdc-contract-addresses)
-- [USDT0 on Arbitrum](https://usdt0.to/ecosystem/arbitrum)
-- [USDT0 developer documentation](https://docs.usdt0.to/technical-documentation/developer/)
+- [Tether legal](https://tether.to/en/legal/)
+- USDT0 sources are retained only as the abandoned listing path: [USDT0 on Arbitrum](https://usdt0.to/ecosystem/arbitrum), [USDT0 developer documentation](https://docs.usdt0.to/technical-documentation/developer/)
 - [ERC-20](https://eips.ethereum.org/EIPS/eip-20)
 - [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271)
 - [EIP-712](https://eips.ethereum.org/EIPS/eip-712)

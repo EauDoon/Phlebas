@@ -25,9 +25,9 @@ One `pZEC` would represent a contractual redemption claim for one ZEC, subject t
 
 The candidate USDC quote asset is native Circle USDC on Arbitrum One. Circle lists the current Arbitrum mainnet address in its [official USDC contract registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). No address is approved for Phlebas configuration until the mainnet gate revalidates it.
 
-### USDT0
+### USDT
 
-The interface uses `USDT0` as the candidate settlement label for the displayed `ZEC/USDT` market. The [USDT0 deployment registry](https://docs.usdt0.to/technical-documentation/deployments) lists the Arbitrum One token and OFT integration addresses. No address is approved for Phlebas configuration until the mainnet gate revalidates the token, OFT path, decimals, bytecode, and control structure.
+The interface uses native `USDT` as the candidate settlement label for the displayed `ZEC/USDT` market. USDT0 is abandoned. No address is approved for Phlebas configuration until the mainnet gate revalidates issuer-native USDT, decimals, bytecode, and control structure.
 
 ### LP shares
 
@@ -42,7 +42,7 @@ All ledger and contract amounts use unsigned integers in the asset's smallest un
 | Native ZEC | 8 | zatoshi |
 | `pZEC` | 8 | pzatoshi, equal in scale to one zatoshi |
 | USDC | 6 | token base unit |
-| USDT0 | 6 | token base unit |
+| USDT | 6 | token base unit |
 | LP share | Contract-defined | token base unit |
 
 Floating-point numbers are prohibited for balances, fills, fees, reserves, minting, burns, and withdrawals. Display rounding never changes the ledger amount.
@@ -335,7 +335,7 @@ Before any mainnet interaction, the interface must state:
 * redemption depends on the custody operator, signer availability, chain operation, and approved withdrawal policy;
 * deposits may wait for more confirmations based on value or network conditions;
 * contracts may include approved pause or recovery powers, with the exact powers disclosed;
-* USDC and USDT0 remain subject to their issuers and contract controls;
+* USDC and USDT remain subject to their issuers and contract controls. USDT0 is abandoned;
 * the current application is a simulation until the mainnet gate passes.
 
 ## Mainnet accounting gate

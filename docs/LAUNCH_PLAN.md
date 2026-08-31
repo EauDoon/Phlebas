@@ -2,7 +2,7 @@
 
 Status: local no-value simulation only as of 30-08-2026. Testnet remains a future gated stage.
 
-Phlebas may be developed and published as a no-value simulation, then advanced to a separately approved no-value testnet stage. It must not accept real ZEC, mint redeemable pZEC, list real USDC or USDT0, charge trading fees, or accept real liquidity until the mainnet gate passes.
+Phlebas may be developed and published as a no-value simulation, then advanced to a separately approved no-value testnet stage. It must not accept real ZEC, mint redeemable pZEC, list real USDC or USDT, charge trading fees, or accept real liquidity until the mainnet gate passes. USDT0 is abandoned.
 
 This plan is risk planning, not legal advice. [LEGAL_AND_COMPLIANCE.md](./LEGAL_AND_COMPLIANCE.md) records the current regulatory assumptions and primary sources.
 
@@ -14,7 +14,7 @@ This plan is risk planning, not legal advice. [LEGAL_AND_COMPLIANCE.md](./LEGAL_
 - Keep custody keys, ledgers, matching, screening records, and regulated operations outside Vercel.
 - Start with one chain, final-deposit-transaction transparency, spot trading, and USDC.
 - Add LP pools only after custody and order-book controls have operated successfully under real conditions.
-- Add USDT0 only through its separate later gate.
+- USDT0 is abandoned. Native USDT is a listed quote in this simulation and still needs issuer-native mainnet approval.
 - Exclude shielded ZEC, leverage, margin, lending, derivatives, staking, governance tokens, and reward programs from v1.
 
 ## Product boundary
@@ -157,25 +157,21 @@ Required LP gate:
 - Per-pool and per-provider caps.
 - No claim of guaranteed yield, stable return, or principal protection.
 
-## Stage 5: USDT0 later
+## Stage 5: native USDT
 
-USDT0 is excluded from Stages 3 and 4. Its listing is a new launch decision.
+Native USDT is already a listed quote in this no-value simulation. USDT0 is abandoned.
 
-The [USDT0 documentation](https://docs.usdt0.to/) describes a lock-and-mint system backed by USDT locked in an Ethereum adapter. Phlebas must account for the destination contract, LayerZero messaging, verification configuration, upgrades, bridge pauses, and the underlying USDT restrictions.
+Mainnet native USDT, if ever approved, is a new launch decision after the USDC canary. It can proceed only when:
 
-USDT0 can proceed only when:
-
-- The chosen chain appears in official USDT0 deployment records.
-- The production contract, decimals, OFT configuration, and integration path are independently verified.
-- Counsel approves USDT0 for the entity and every enabled country.
+- The production contract, decimals, and issuer-native path are independently verified. USDT0 is not that path.
+- Counsel approves native USDT for the entity and every enabled country.
 - The operator receives written advice on the current [Tether terms](https://tether.to/en/legal/), including restrictions that refer to a Singaporean Person.
-- The stablecoin listing committee approves issuer, reserve, bridge, sanctions, blacklist, freeze, depeg, chain, upgrade, and redemption risks.
-- Automated controls stop deposits and trading on a blacklist, freeze, bridge halt, depeg threshold, messaging failure, or contract incident.
+- The stablecoin listing committee approves issuer, reserve, sanctions, blacklist, freeze, depeg, chain, upgrade, and redemption risks.
+- Automated controls stop deposits and trading on a blacklist, freeze, depeg threshold, or contract incident.
 - An independent security review covers the exact chain and contract integration.
-- Customer terms distinguish USDT0 from native USDT and state that Phlebas does not provide direct issuer redemption.
-- A testnet incident drill covers lock, mint, burn, message failure, duplicate delivery, stuck transfer, and emergency suspension.
+- Customer terms state that Phlebas does not provide direct issuer redemption.
 
-A failed or missing item keeps USDT0 disabled.
+A failed or missing item keeps mainnet USDT disabled. The simulation may still label `ZEC-USDT`.
 
 ## Mainnet go or no-go gate
 
@@ -214,7 +210,7 @@ Every item below requires dated evidence, a named owner, and approval by the acc
 - USDC uses the official contract on a Circle-supported chain.
 - Chain ID, contract, decimals, transfer behavior, blacklist, pause, depeg, and issuer incident responses are tested.
 - Customer materials make no issuer sponsorship or direct redemption claim.
-- USDT0 remains disabled until its separate Stage 5 gate passes.
+- USDT0 remains abandoned. Mainnet native USDT stays disabled until its Stage 5 gate passes.
 
 ### Smart contracts and infrastructure
 
