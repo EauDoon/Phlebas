@@ -1939,6 +1939,8 @@ a.skipLink:focus-visible {
     position: sticky;
     bottom: 0;
     z-index: 1;
+    box-sizing: border-box;
+    width: 100%;
     flex-shrink: 0;
     margin-top: auto;
     overflow: visible;
