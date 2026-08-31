@@ -572,27 +572,95 @@ export function matcherConfigurationHash(configuration: PersistentMatcherConfigu
   ].join("\n"));
 }
 
+function canonicalStateValue(value: unknown, ancestors = new Set<object>(), depth = 0, counter = { value: 0 }): string {
+  counter.value += 1;
+  if (counter.value > 1_000_000) throw new RangeError("Matcher state exceeds the canonical node limit");
+  if (depth > 64) throw new RangeError("Matcher state exceeds the canonical depth limit");
+  if (value === null) return "null";
+  if (typeof value === "string" || typeof value === "boolean") return JSON.stringify(value);
+  if (typeof value === "bigint") return `{"$bigint":${JSON.stringify(value.toString())}}`;
+  if (typeof value === "number") {
+    if (!Number.isSafeInteger(value)) throw new TypeError("Matcher state numbers must be safe integers");
+    return JSON.stringify(value);
+  }
+  if (typeof value !== "object") throw new TypeError("Matcher state must contain only canonical data values");
+  if (ancestors.has(value)) throw new TypeError("Matcher state must not contain cycles");
+  ancestors.add(value);
+  try {
+    if (Array.isArray(value)) {
+      return `[${value.map((item) => canonicalStateValue(item, ancestors, depth + 1, counter)).join(",")}]`;
+    }
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) throw new TypeError("Matcher state objects must be plain");
+    return `{${Object.keys(value).sort().map((key) => {
+      const item = (value as Record<string, unknown>)[key];
+      if (item === undefined) throw new TypeError("Matcher state cannot contain undefined");
+      return `${JSON.stringify(key)}:${canonicalStateValue(item, ancestors, depth + 1, counter)}`;
+    }).join(",")}}`;
+  } finally {
+    ancestors.delete(value);
+  }
+}
+
 export function matcherStateRoot(state: PersistentMatcherState): Hex32 {
-  const openOrders = Object.entries(state.openOrders).sort(([left], [right]) => left.localeCompare(right)).map(([hash, entry]) =>
-    `${hash}:${entry.sequenced.sequence}:${entry.sequenced.remainingBaseAtoms}:${entry.accounts.sourceAccount}:${entry.accounts.recipientAccount}`).join(",");
-  const solverQuotes = Object.entries(state.solverQuotes).sort(([left], [right]) => left.localeCompare(right)).map(([hash, quote]) =>
-    `${hash}:${quote.acceptedSequence}:${quote.remainingCapacityBaseAtoms}:${state.cancelledSolverQuotes[hash] ? "cancelled" : "open"}`).join(",");
-  const executions = state.executions.map((execution) =>
-    `${execution.sequence}:${execution.takerOrderHash}:${execution.route?.kind ?? "none"}:${execution.route?.fills.map((fill) => fill.swapPlan.planId).join(",") ?? ""}`).join(";");
-  const receipts = state.receipts.map((receipt) =>
-    `${receipt.sequence}:${receipt.requestId}:${receipt.commandHash}:${receipt.status}:${receipt.subjectHash ?? "none"}`).join(";");
-  const signers = Object.entries(state.accountSigners).sort(([left], [right]) => left.localeCompare(right)).map(([account, signer]) => `${account}:${signer}`).join(",");
-  return keccak256Text([
-    "PhlebasPersistentMatcherState",
-    `version=${state.version}`,
-    `configuration=${matcherConfigurationHash(state.configuration)}`,
-    `sequence=${state.sequence}`,
-    `lastEventAtSeconds=${state.lastEventAtSeconds}`,
-    `orderReference=${orderReferenceSnapshot(state.orderReference)}`,
-    `openOrders=${openOrders}`,
-    `solverQuotes=${solverQuotes}`,
-    `executions=${executions}`,
-    `receipts=${receipts}`,
-    `signers=${signers}`,
-  ].join("\n"));
+  if (state.version !== PERSISTENT_MATCHER_VERSION) throw new Error("Matcher state version is unsupported");
+  if (typeof state.sequence !== "bigint" || state.sequence < 0n || state.sequence > UINT64_MAX) {
+    throw new RangeError("Matcher state sequence is invalid");
+  }
+  if (typeof state.lastEventAtSeconds !== "bigint" || state.lastEventAtSeconds < 0n || state.lastEventAtSeconds > UINT64_MAX) {
+    throw new RangeError("Matcher state event time is invalid");
+  }
+  matcherConfigurationHash(state.configuration);
+  orderReferenceSnapshot(state.orderReference);
+  if (state.sequence > BigInt(Number.MAX_SAFE_INTEGER) || state.receipts.length !== Number(state.sequence)) {
+    throw new Error("Matcher receipts do not cover the complete event sequence");
+  }
+  const indexedRequestIds = Object.keys(state.requestIndex).sort();
+  const receiptRequestIds: string[] = [];
+  const seenRequestIds = new Set<string>();
+  for (let index = 0; index < state.receipts.length; index += 1) {
+    const receipt = state.receipts[index];
+    if (!receipt || receipt.sequence !== BigInt(index + 1)) throw new Error("Matcher receipt sequence is not contiguous");
+    const requestId = canonicalRequestId(receipt.requestId);
+    if (seenRequestIds.has(requestId)) throw new Error("Matcher receipt request ID is duplicated");
+    seenRequestIds.add(requestId);
+    receiptRequestIds.push(requestId);
+    const indexed = state.requestIndex[requestId];
+    if (!indexed || canonicalStateValue(indexed) !== canonicalStateValue(receipt)) {
+      throw new Error("Matcher request index does not match its receipt");
+    }
+  }
+  if (indexedRequestIds.join("\n") !== [...receiptRequestIds].sort().join("\n")) {
+    throw new Error("Matcher request index has missing or unsupported entries");
+  }
+  const accountKeys = Object.keys(state.orderAccounts).sort();
+  const acceptedKeys = Object.keys(state.orderReference.acceptedOrders).sort();
+  if (accountKeys.join("\n") !== acceptedKeys.join("\n")) throw new Error("Matcher settlement accounts do not cover accepted orders");
+  for (const [orderHash, accounts] of Object.entries(state.orderAccounts)) {
+    const accepted = state.orderReference.acceptedOrders[orderHash];
+    if (!accepted) throw new Error("Matcher settlement accounts reference an unknown order");
+    assertSettlementAccounts(accepted.order, accounts);
+  }
+  for (const [orderHash, entry] of Object.entries(state.openOrders)) {
+    if (normalizeHex32(orderHash, "Open order key") !== normalizeHex32(entry.sequenced.orderHash, "Open order hash")) {
+      throw new Error("Open order key does not match its order hash");
+    }
+    if (hashTypedOrder(state.configuration.domain, entry.sequenced.order) !== orderHash) throw new Error("Open order body does not match its hash");
+    assertSettlementAccounts(entry.sequenced.order, entry.accounts);
+  }
+  for (const [quoteHash, accepted] of Object.entries(state.solverQuotes)) {
+    if (normalizeHex32(quoteHash, "Solver quote key") !== normalizeHex32(accepted.quoteHash, "Solver quote hash")
+      || hashSolverQuote(accepted.quote) !== quoteHash) {
+      throw new Error("Solver quote body does not match its hash");
+    }
+    if (accepted.remainingCapacityBaseAtoms < 0n || accepted.remainingCapacityBaseAtoms > accepted.quote.capacityBaseAtoms) {
+      throw new Error("Solver remaining capacity is invalid");
+    }
+  }
+  for (const [quoteHash, marker] of Object.entries(state.cancelledSolverQuotes)) {
+    if (marker !== true || !state.solverQuotes[normalizeHex32(quoteHash, "Cancelled solver quote hash")]) {
+      throw new Error("Cancelled solver quote marker is invalid");
+    }
+  }
+  return keccak256Text(`PhlebasPersistentMatcherState\n${canonicalStateValue(state)}`);
 }

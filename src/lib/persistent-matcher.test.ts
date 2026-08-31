@@ -262,6 +262,41 @@ test("replays identical state roots and rejects sequence, time, request, and siz
   assert.equal(matcherStateRoot(replayed), before);
 });
 
+test("commits the complete replay state canonically and rejects a corrupt request index", () => {
+  const first = acceptEvent("root-one", intent("root-one", 1, 100n, 5_000n, 0, 41n), now);
+  const second = acceptEvent("root-two", intent("root-two", 0, 100n, 5_000n, 1, 42n), now + 1n);
+  const replayed = replayPersistentMatcher(createPersistentMatcher(configuration), [first, second], verifier);
+  const root = matcherStateRoot(replayed);
+  const reordered = {
+    ...replayed,
+    orderAccounts: Object.fromEntries(Object.entries(replayed.orderAccounts).reverse()),
+    requestIndex: Object.fromEntries(Object.entries(replayed.requestIndex).reverse()),
+  };
+  assert.equal(matcherStateRoot(reordered), root);
+
+  const signerEntry = Object.entries(replayed.accountSigners)[0];
+  assert.ok(signerEntry);
+  const changedSigner = {
+    ...replayed,
+    accountSigners: {
+      ...replayed.accountSigners,
+      [signerEntry[0]]: keccak256Text("different-signer"),
+    },
+  };
+  assert.notEqual(matcherStateRoot(changedSigner), root);
+
+  const indexed = replayed.requestIndex[first.requestId];
+  assert.ok(indexed);
+  const corruptIndex = {
+    ...replayed,
+    requestIndex: {
+      ...replayed.requestIndex,
+      [first.requestId]: { ...indexed, commandHash: keccak256Text("corrupt-command") },
+    },
+  };
+  assert.throws(() => matcherStateRoot(corruptIndex), /request index does not match/);
+});
+
 test("solver cancellation is authenticated and makes the quote unmatchable", () => {
   const quote = solverQuote("cancel", 1, 100n, 5_000n, 1n);
   let state = apply(createPersistentMatcher(configuration), {
