@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after empty-book ticket gate, 24h stats withheld copy, and depth session last name the settlement pair.
+Last updated: 31-08-2026 after loading/stale/unavailable ticket gates, withheld tape caption, and session-last stats label name the settlement pair.
 
 ## Branch
 
@@ -105,15 +105,18 @@ Last updated: 31-08-2026 after empty-book ticket gate, 24h stats withheld copy, 
 - Ticket empty-book gate uses `emptyBookGateCopy` and names the settlement pair the way depth empty copy does. Review stays disabled.
 - 24h stats withheld copy uses `feedWithheldCopy` and names the settlement pair.
 - Depth mid-price row names the settlement pair next to session last.
+- Ticket loading, stale, and unavailable gates use `ticketGateCopy` and name the settlement pair the way the empty-book gate does.
+- Withheld tape caption names the settlement pair and does not claim fixture fills appear. The tape mini-label is `Withheld · pZEC-USDC` when fixtures are off.
+- Session-last 24h stats label names the settlement pair when fixtures are shown.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Ticket loading, stale, and unavailable gates should name the settlement pair the way the empty-book gate does
-- Tape caption should name the settlement pair when the feed is withheld
-- Session-last 24h stats label should name the settlement pair when fixtures are shown
+- Chart range tab labels should name the settlement pair for the selected market
+- Wallet bar connect-failure copy should name the settlement pair
+- LP pause notice should name the selected pool settlement pair
 
 ## Blockers
 
