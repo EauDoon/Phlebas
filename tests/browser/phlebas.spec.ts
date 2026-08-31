@@ -2788,3 +2788,71 @@ test("skip-nav 404 loading bridge leftover architecture 320 and status 768", asy
   expect(status768.ringBottom).toBeLessThanOrEqual(1024.5);
 });
 
+test("skip-nav error country-block architecture leftover and 768 loading 404 bridge", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  async function expectTwoUp(path: string, viewportWidth: number, viewportHeight: number) {
+    await page.setViewportSize({ width: viewportWidth, height: viewportHeight });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")].map((link) => link.getBoundingClientRect());
+      const style = getComputedStyle(element);
+      const first = links[0];
+      return {
+        wrap: style.flexWrap,
+        direction: style.flexDirection,
+        minWidth: Number.parseFloat(getComputedStyle(element.querySelector("a") ?? element).minWidth),
+        count: links.length,
+        firstTop: first?.top ?? 0,
+        secondTop: links[1]?.top ?? 0,
+        firstRight: first?.right ?? 0,
+        secondLeft: links[1]?.left ?? 0,
+        widths: links.map((link) => link.width),
+        heights: links.map((link) => link.height),
+        ringLeft: (first?.left ?? 0) - 4,
+        ringRight: (first?.right ?? 0) + 4,
+        ringTop: (first?.top ?? 0) - 4,
+        ringBottom: (first?.bottom ?? 0) + 4,
+      };
+    });
+    expect(layout.direction).toBe("row");
+    expect(layout.wrap).toBe("wrap");
+    expect(layout.minWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.count).toBeGreaterThanOrEqual(2);
+    expect(Math.abs(layout.firstTop - layout.secondTop)).toBeLessThan(2);
+    expect(layout.secondLeft).toBeGreaterThan(layout.firstRight);
+    for (const width of layout.widths) {
+      expect(width).toBeGreaterThanOrEqual(44);
+    }
+    for (const height of layout.heights) {
+      expect(height).toBeGreaterThanOrEqual(44);
+    }
+    expect(layout.ringLeft).toBeGreaterThanOrEqual(-0.5);
+    expect(layout.ringTop).toBeGreaterThanOrEqual(-0.5);
+    expect(layout.ringRight).toBeLessThanOrEqual(viewportWidth + 0.5);
+    expect(layout.ringBottom).toBeLessThanOrEqual(viewportHeight + 0.5);
+    return layout;
+  }
+
+  const errorLayout = await expectTwoUp("/trade?error=1", 320, 900);
+  expect(errorLayout.count).toBe(2);
+
+  const blockedLayout = await expectTwoUp("/trade?access=blocked", 320, 900);
+  expect(blockedLayout.count).toBe(2);
+
+  const architecture390 = await expectTwoUp("/trade?view=architecture", 390, 844);
+  expect(architecture390.count).toBe(4);
+  expect(architecture390.widths[architecture390.widths.length - 1] ?? 0).toBeGreaterThanOrEqual(44);
+
+  await expectTwoUp("/trade?loading=1", 768, 1024);
+  await expectTwoUp("/this-route-is-not-part-of-the-simulation", 768, 1024);
+  const bridge768 = await expectTwoUp("/trade?view=bridge", 768, 1024);
+  expect(bridge768.count).toBe(3);
+  expect(bridge768.widths[bridge768.widths.length - 1] ?? 0).toBeGreaterThanOrEqual(44);
+});
+
