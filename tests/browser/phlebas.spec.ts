@@ -820,6 +820,41 @@ test("ticket sign missing-provider copy names the selected market settlement pai
   await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDT0.")).toBeVisible();
 });
 
+test("ticket sign missing-provider copy names pZEC-USDT0 if market switches while review is open", async ({ page }) => {
+  await page.addInitScript((chainId) => {
+    Object.defineProperty(window, "ethereum", {
+      configurable: true,
+      value: {
+        request(args: { method: string }) {
+          if (args.method === "eth_requestAccounts") {
+            return Promise.resolve(["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]);
+          }
+          if (args.method === "eth_chainId") {
+            return Promise.resolve(chainId);
+          }
+          return Promise.reject(new Error(args.method));
+        },
+      },
+    });
+  }, ARBITRUM_SEPOLIA_HEX);
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
+  await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as pZEC-USDC." })).toBeVisible();
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toBeVisible();
+  await page.evaluate(() => {
+    Object.defineProperty(window, "ethereum", { configurable: true, value: undefined });
+  });
+  await page.getByRole("button", { name: "Sign testnet typed data" }).click();
+  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDC.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toBeVisible();
+  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDT0.")).toBeVisible();
+});
+
 test("wallet disconnect accessible name keeps settlement after switching market", async ({ page }) => {
   await page.addInitScript((chainId) => {
     Object.defineProperty(window, "ethereum", {
