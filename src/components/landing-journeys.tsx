@@ -21,7 +21,7 @@ function JourneyArticle({
   journey: (typeof LANDING_JOURNEYS)[number];
 }) {
   return (
-    <article>
+    <article role="listitem">
       <span className={styles.journeyNumber}>{String(LANDING_JOURNEYS.indexOf(journey) + 1).padStart(2, "0")}</span>
       <div>
         <span className={styles.eyebrow}>{journey.tab}</span>
@@ -90,7 +90,7 @@ export function LandingJourneys() {
 
   if (!hydrated) {
     return (
-      <div className={styles.journeyList}>
+      <div className={styles.journeyList} role="list" aria-label="Preview journeys">
         {LANDING_JOURNEYS.map((journey) => (
           <JourneyArticle key={journey.id} journey={journey} />
         ))}

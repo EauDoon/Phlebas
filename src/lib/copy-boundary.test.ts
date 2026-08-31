@@ -163,6 +163,10 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /role="listitem"/);
   assert.match(landing, /Not cleared for real assets/);
   assert.match(landing, /Mainnet launch gates/);
+  assert.match(
+    await readFile(join(root, "src/components/landing-journeys.tsx"), "utf8"),
+    /styles.journeyList\} role="list" aria-label="Preview journeys"/,
+  );
   assert.doesNotMatch(landing, /github.com/);
   const journeys = await readFile(join(root, "src/lib/landing-journeys.ts"), "utf8");
   assert.match(journeys, /Preview trading/);
