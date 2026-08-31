@@ -678,6 +678,22 @@ test("connecting wallet title keeps settlement after switching market", async ({
   );
 });
 
+test("idle Connect wallet title keeps settlement after switching market", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  await expect(connect).toHaveText("Connect wallet");
+  await expect(connect).toHaveAttribute(
+    "title",
+    "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDC.",
+  );
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(connect).toHaveText("Connect wallet");
+  await expect(connect).toHaveAttribute(
+    "title",
+    "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDT0.",
+  );
+});
+
 test("past unix expiry rejects before review and names the rejected panel", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
