@@ -37,7 +37,7 @@ test("blocks a buy that exceeds session quote inventory", () => {
   assert.equal(canCover(account, "sell", 10_00000000n, 5278n), true);
 });
 
-test("credits pZEC and debits quote on a buy fill", () => {
+test("credits ZEC and debits quote on a buy fill", () => {
   const book = seedBook("ZEC/USDC");
   const account = seedPaperAccount();
   const result = submitOrder(book, {
