@@ -15,6 +15,7 @@ export type SwapLegPhase =
   | "refund-seen"
   | "refunded-confirmed";
 export type SwapPhase =
+  | "disputed"
   | "awaiting-authorizations"
   | "awaiting-zec-funding"
   | "awaiting-zec-confirmation"
@@ -76,6 +77,16 @@ export type SwapState = Readonly<{
   evm: SwapLegState;
   secret?: `0x${string}`;
   secretEvidenceId?: Hex32;
+  disputes: readonly SwapDispute[];
+  retractedEvidenceIds: Readonly<Record<string, true>>;
+}>;
+
+export type SwapDisputeReason = "observer-conflict" | "observer-stale" | "reorganization" | "semantic-mismatch";
+
+export type SwapDispute = Readonly<{
+  reason: SwapDisputeReason;
+  evidenceId?: Hex32;
+  detail: string;
 }>;
 
 const EMPTY_LEG: SwapLegState = Object.freeze({ phase: "unfunded" });
@@ -95,6 +106,10 @@ function canonicalHex32(value: string, label: string): Hex32 {
 
 function allAuthorized(state: SwapState): boolean {
   return state.authorizations["zec-seller"] === true && state.authorizations["stablecoin-seller"] === true;
+}
+
+function assertNotDisputed(state: SwapState): void {
+  if (state.disputes.length > 0) throw new Error("Swap is disputed; funding and claim actions are disabled");
 }
 
 function expectedFunding(terms: SwapTermsV1, leg: SwapLeg) {
@@ -126,6 +141,8 @@ export function createSwapState(terms: SwapTermsV1, timingPolicy: SwapTimingPoli
     authorizations: Object.freeze({}),
     zec: EMPTY_LEG,
     evm: EMPTY_LEG,
+    disputes: Object.freeze([]),
+    retractedEvidenceIds: Object.freeze({}),
   });
 }
 
@@ -152,6 +169,7 @@ export function prepareSwapFunding(
   artifactHash: Hex32,
   nowSeconds: bigint,
 ): SwapState {
+  assertNotDisputed(state);
   uint64(nowSeconds, "Funding preparation time");
   if (!allAuthorized(state)) throw new Error("Both parties must authorize exact swap terms before funding");
   const current = state[leg];
@@ -189,6 +207,7 @@ function validateFundingEvidence(state: SwapState, evidence: FundingEvidence): F
 }
 
 export function observeSwapFunding(state: SwapState, evidence: FundingEvidence): SwapState {
+  assertNotDisputed(state);
   const current = state[evidence.leg];
   if (current.phase !== "funding-prepared") throw new Error(`${evidence.leg.toUpperCase()} funding was not prepared`);
   const funding = validateFundingEvidence(state, evidence);
@@ -196,6 +215,7 @@ export function observeSwapFunding(state: SwapState, evidence: FundingEvidence):
 }
 
 export function confirmSwapFunding(state: SwapState, leg: SwapLeg, evidenceId: Hex32): SwapState {
+  assertNotDisputed(state);
   const current = state[leg];
   if (current.phase !== "funding-seen" || !current.funding) throw new Error(`${leg.toUpperCase()} funding has not been observed`);
   if (canonicalHex32(evidenceId, "Evidence ID") !== current.funding.evidenceId) throw new Error("Funding confirmation evidence does not match");
@@ -233,6 +253,7 @@ function validateSpendEvidence(state: SwapState, evidence: SpendEvidence): Spend
 }
 
 export function observeSwapSpend(state: SwapState, evidence: SpendEvidence): SwapState {
+  assertNotDisputed(state);
   const current = state[evidence.leg];
   if (current.phase !== "funded-confirmed") throw new Error(`${evidence.leg.toUpperCase()} leg is not available to spend`);
   const spend = validateSpendEvidence(state, evidence);
@@ -259,6 +280,7 @@ export function observeSwapSpend(state: SwapState, evidence: SpendEvidence): Swa
 }
 
 export function confirmSwapSpend(state: SwapState, leg: SwapLeg, evidenceId: Hex32): SwapState {
+  assertNotDisputed(state);
   const current = state[leg];
   if ((current.phase !== "claim-seen" && current.phase !== "refund-seen") || !current.spend) {
     throw new Error(`${leg.toUpperCase()} spend has not been observed`);
@@ -268,7 +290,49 @@ export function confirmSwapSpend(state: SwapState, leg: SwapLeg, evidenceId: Hex
   return Object.freeze({ ...state, [leg]: Object.freeze({ ...current, phase }) });
 }
 
+export function flagSwapDispute(
+  state: SwapState,
+  reason: SwapDisputeReason,
+  detail: string,
+  evidenceId?: Hex32,
+): SwapState {
+  if (detail.length === 0 || detail.length > 500 || detail.trim() !== detail) {
+    throw new TypeError("Dispute detail must be a non-empty canonical message");
+  }
+  const normalizedEvidenceId = evidenceId === undefined ? undefined : canonicalHex32(evidenceId, "Disputed evidence ID");
+  const duplicate = state.disputes.some((item) => (
+    item.reason === reason && item.detail === detail && item.evidenceId === normalizedEvidenceId
+  ));
+  if (duplicate) return state;
+  const dispute: SwapDispute = Object.freeze({ reason, detail, ...(normalizedEvidenceId ? { evidenceId: normalizedEvidenceId } : {}) });
+  return Object.freeze({ ...state, disputes: Object.freeze([...state.disputes, dispute]) });
+}
+
+function hasEvidence(state: SwapState, evidenceId: Hex32): boolean {
+  return [state.zec.funding, state.zec.spend, state.evm.funding, state.evm.spend]
+    .some((evidence) => evidence?.evidenceId === evidenceId);
+}
+
+export function retractSwapEvidence(
+  state: SwapState,
+  evidenceId: Hex32,
+  detail: string,
+): SwapState {
+  const normalized = canonicalHex32(evidenceId, "Retracted evidence ID");
+  if (!hasEvidence(state, normalized)) throw new Error("Cannot retract unknown swap evidence");
+  if (state.retractedEvidenceIds[normalized]) return state;
+  const retracted = Object.freeze({ ...state.retractedEvidenceIds, [normalized]: true as const });
+  const disputed = flagSwapDispute(
+    Object.freeze({ ...state, retractedEvidenceIds: retracted }),
+    "reorganization",
+    detail,
+    normalized,
+  );
+  return disputed;
+}
+
 export function swapPhase(state: SwapState): SwapPhase {
+  if (state.disputes.length > 0) return "disputed";
   if (state.zec.phase === "claimed-confirmed" && state.evm.phase === "claimed-confirmed") return "settled";
   const refundStarted = state.zec.phase.startsWith("refund") || state.evm.phase.startsWith("refund");
   if (refundStarted) {

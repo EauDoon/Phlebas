@@ -12,6 +12,8 @@ import {
   observeSwapSpend,
   prepareSwapFunding,
   confirmSwapSpend,
+  flagSwapDispute,
+  retractSwapEvidence,
   swapPhase,
   type FundingEvidence,
   type SpendEvidence,
@@ -175,4 +177,42 @@ test("rejects EVM claims at the refund deadline", () => {
   const evmSeen = observeSwapFunding(evmPrepared, fundingEvidence("evm"));
   const bothFunded = confirmSwapFunding(evmSeen, "evm", fundingEvidence("evm").evidenceId);
   assert.throws(() => observeSwapSpend(bothFunded, spendEvidence("evm", "claim", terms.evmRefundTime)), /at or after/);
+});
+
+test("fails closed on stale or conflicting observer evidence", () => {
+  const bothFunded = fundedSwap();
+  const stale = flagSwapDispute(bothFunded, "observer-stale", "Approved observer watermark is stale");
+  assert.equal(swapPhase(stale), "disputed");
+  assert.throws(() => observeSwapSpend(stale, spendEvidence("evm", "refund", sampleSwapTerms.evmRefundTime)), /disputed/);
+  const same = flagSwapDispute(stale, "observer-stale", "Approved observer watermark is stale");
+  assert.equal(same, stale);
+  const conflict = flagSwapDispute(stale, "observer-conflict", "Observers disagree on the EVM funding outpoint");
+  assert.equal(conflict.disputes.length, 2);
+});
+
+test("preserves a revealed secret when its EVM claim reorganizes", () => {
+  const terms = { ...sampleSwapTerms, secretHash: "0x425ed4e4a36b30ea21b90e21c712c649e8214c29b7eaf68089d1039c6e55384c" as const };
+  const created = createSwapState(terms, sampleTimingPolicy);
+  const first = authorizeSwapTerms(created, terms.zecSellerId, created.termsHash, 1n);
+  const authorized = authorizeSwapTerms(first, terms.stablecoinSellerId, created.termsHash, 2n);
+  const zecPrepared = prepareSwapFunding(authorized, "zec", keccak256Text("zr"), 3n);
+  const zecSeen = observeSwapFunding(zecPrepared, fundingEvidence("zec"));
+  const zecFunded = confirmSwapFunding(zecSeen, "zec", fundingEvidence("zec").evidenceId);
+  const evmPrepared = prepareSwapFunding(zecFunded, "evm", keccak256Text("er"), 4n);
+  const evmSeen = observeSwapFunding(evmPrepared, fundingEvidence("evm"));
+  const bothFunded = confirmSwapFunding(evmSeen, "evm", fundingEvidence("evm").evidenceId);
+  const claimEvidence = spendEvidence("evm", "claim", terms.evmRefundTime - 1n);
+  const revealed = observeSwapSpend(bothFunded, claimEvidence);
+  const disputed = retractSwapEvidence(revealed, claimEvidence.evidenceId, "Canonical EVM claim left the best chain");
+  assert.equal(disputed.secret, fixturePreimage);
+  assert.equal(disputed.retractedEvidenceIds[claimEvidence.evidenceId], true);
+  assert.equal(swapPhase(disputed), "disputed");
+  assert.throws(() => prepareSwapFunding(disputed, "evm", keccak256Text("blocked"), 5n), /disputed/);
+});
+
+test("rejects retraction of unknown evidence without changing state", () => {
+  const funded = fundedSwap();
+  const before = structuredClone(funded);
+  assert.throws(() => retractSwapEvidence(funded, keccak256Text("unknown"), "Unknown reorg"), /unknown/);
+  assert.deepEqual(funded, before);
 });
