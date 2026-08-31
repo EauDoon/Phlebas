@@ -856,6 +856,13 @@
   font-size: 11px;
 }
 
+.blotter .panelHeader .textButton {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+}
+
 .emptyState {
   margin: 14px;
   color: var(--text-muted);
