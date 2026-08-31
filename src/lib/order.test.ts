@@ -4,10 +4,10 @@ import test from "node:test";
 import {
   calculatePreviewNotional,
   calculateWorstPrice,
-  formatPzecPreviewAmount,
+  formatZecPreviewAmount,
   formatQuotePreviewAmount,
   parseStrictDecimal,
-  PZEC_ATOMIC_RULE,
+  ZEC_ATOMIC_RULE,
   QUOTE_PRICE_ATOMIC_RULE,
   QUOTE_TOKEN_ATOM,
   QUOTE_TOKEN_ATOMIC_RULE,
@@ -30,14 +30,14 @@ test("calculates a positive preview notional", () => {
 
 test("enforces exact order-input atomic precision", () => {
   assert.equal(parseStrictDecimal("0.01", { atomicRule: QUOTE_PRICE_ATOMIC_RULE }), 0.01);
-  assert.equal(parseStrictDecimal("0.00000001", { atomicRule: PZEC_ATOMIC_RULE }), 0.00000001);
+  assert.equal(parseStrictDecimal("0.00000001", { atomicRule: ZEC_ATOMIC_RULE }), 0.00000001);
   assert.equal(parseStrictDecimal("0.000001", { atomicRule: QUOTE_TOKEN_ATOMIC_RULE }), 0.000001);
   assert.throws(
     () => parseStrictDecimal("0.001", { atomicRule: QUOTE_PRICE_ATOMIC_RULE }),
     /no more than 2 decimal places/,
   );
   assert.throws(
-    () => parseStrictDecimal("0.000000001", { atomicRule: PZEC_ATOMIC_RULE }),
+    () => parseStrictDecimal("0.000000001", { atomicRule: ZEC_ATOMIC_RULE }),
     /no more than 8 decimal places/,
   );
   assert.throws(
@@ -65,9 +65,9 @@ test("rejects underflow, sub-tick price, sub-atom size, and sub-atom quote notio
 });
 
 test("never formats accepted atomic amounts as zero", () => {
-  assert.equal(formatPzecPreviewAmount(0.00000001), "0.00000001");
+  assert.equal(formatZecPreviewAmount(0.00000001), "0.00000001");
   assert.equal(formatQuotePreviewAmount(QUOTE_TOKEN_ATOM), "0.000001");
-  assert.throws(() => formatPzecPreviewAmount(0.000000001), /at least 0.00000001/);
+  assert.throws(() => formatZecPreviewAmount(0.000000001), /at least 0.00000001/);
 });
 
 test("caps a market buy above the reference price", () => {

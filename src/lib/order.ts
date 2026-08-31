@@ -10,7 +10,7 @@ export const QUOTE_PRICE_ATOMIC_RULE = {
   minimumAtomicUnits: 1n,
 } as const satisfies AtomicDecimalRule;
 
-export const PZEC_ATOMIC_RULE = {
+export const ZEC_ATOMIC_RULE = {
   decimalPlaces: 8,
   minimumAtomicUnits: 1n,
 } as const satisfies AtomicDecimalRule;
@@ -21,7 +21,7 @@ export const QUOTE_TOKEN_ATOMIC_RULE = {
 } as const satisfies AtomicDecimalRule;
 
 export const QUOTE_PRICE_TICK = 0.01;
-export const PZEC_ATOM = 0.00000001;
+export const ZEC_ATOM = 0.00000001;
 export const QUOTE_TOKEN_ATOM = 0.000001;
 
 function atomicScale(decimalPlaces: number): bigint {
@@ -114,8 +114,8 @@ function formatAtomicPreviewAmount(
   return trimmedFraction.length > 0 ? `${whole}.${trimmedFraction}` : whole;
 }
 
-export function formatPzecPreviewAmount(value: number): string {
-  return formatAtomicPreviewAmount(value, PZEC_ATOMIC_RULE, 0);
+export function formatZecPreviewAmount(value: number): string {
+  return formatAtomicPreviewAmount(value, ZEC_ATOMIC_RULE, 0);
 }
 
 export function formatQuotePreviewAmount(value: number): string {
@@ -137,8 +137,8 @@ export function calculatePreviewNotional(price: number, size: number): number {
   if (price < QUOTE_PRICE_TICK) {
     throw new Error(`Price must be at least ${formatAtomicMinimum(QUOTE_PRICE_ATOMIC_RULE)}`);
   }
-  if (size < PZEC_ATOM) {
-    throw new Error(`Size must be at least ${formatAtomicMinimum(PZEC_ATOMIC_RULE)}`);
+  if (size < ZEC_ATOM) {
+    throw new Error(`Size must be at least ${formatAtomicMinimum(ZEC_ATOMIC_RULE)}`);
   }
   if (notional < QUOTE_TOKEN_ATOM) {
     throw new Error(`Notional must be at least ${formatAtomicMinimum(QUOTE_TOKEN_ATOMIC_RULE)}`);

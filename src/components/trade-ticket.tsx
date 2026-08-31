@@ -27,7 +27,7 @@ import {
   calculateWorstPrice,
   formatQuotePreviewAmount,
   parseStrictDecimal,
-  PZEC_ATOMIC_RULE,
+  ZEC_ATOMIC_RULE,
   QUOTE_PRICE_ATOMIC_RULE,
 } from "@/lib/order";
 import {
@@ -196,7 +196,7 @@ export function TradeTicket({
   const priceParse = orderType === "market"
     ? { parsed: lastPrice, error: null }
     : parsePreviewDecimal(price, { atomicRule: QUOTE_PRICE_ATOMIC_RULE });
-  const sizeParse = parsePreviewDecimal(size, { atomicRule: PZEC_ATOMIC_RULE });
+  const sizeParse = parsePreviewDecimal(size, { atomicRule: ZEC_ATOMIC_RULE });
   const parsedPrice = priceParse.parsed;
   const parsedSize = sizeParse.parsed;
   const priceIsValid = Number.isFinite(parsedPrice) && parsedPrice > 0;
