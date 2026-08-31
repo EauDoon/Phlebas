@@ -92,6 +92,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminal, /Skip to order ticket/);
   assert.match(terminal, /Skip to price chart/);
   assert.match(terminal, /Skip to order book/);
+  assert.match(terminal, /Skip to recent trades/);
   assert.match(terminal, /Skip to incident demonstration/);
   assert.match(terminal, /Skip to pool tabs/);
   assert.match(terminal, /Skip to destination inspector/);

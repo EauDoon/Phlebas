@@ -386,6 +386,7 @@ export function TradingTerminal({
             <a className={styles.skipLink} href="#price-chart">Skip to price chart</a>
             <a className={styles.skipLink} href="#order-book">Skip to order book</a>
             <a className={styles.skipLink} href="#session-blotter">Skip to blotter</a>
+            <a className={styles.skipLink} href="#recent-trades">Skip to recent trades</a>
           </>
         ) : null}
         {view === "architecture" ? (
