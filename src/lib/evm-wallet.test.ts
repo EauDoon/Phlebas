@@ -75,7 +75,10 @@ test("disconnect label names the settlement pair from a connected address", () =
     walletDisconnectLabel(address, markets["ZEC/USDC"].settlementPair),
     "Disconnect 0xf39f…2266. Settled as pZEC-USDC.",
   );
-  assert.match(walletDisconnectLabel(address, markets["ZEC/USDT"].settlementPair), /pZEC-USDT0/);
+  assert.equal(
+    walletDisconnectLabel(address, markets["ZEC/USDT"].settlementPair),
+    "Disconnect 0xf39f…2266. Settled as pZEC-USDT0.",
+  );
   assert.doesNotMatch(walletDisconnectLabel(address, "pZEC-USDC"), /native ZEC/);
 });
 
