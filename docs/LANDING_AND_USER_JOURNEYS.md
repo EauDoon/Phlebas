@@ -533,11 +533,12 @@ Do not render an address input, paste target, QR scanner, wallet connector, or t
 
 ### Production-intent state machine
 
-Canonical names are [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) section 9.3. The tour uses title-case labels of those names. Signing the tZEC burn is the last action of `screened`, not a separate machine state.
+Canonical names are [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) section 9.3. The tour uses title-case labels of those names. Signing the tZEC burn is the last action of `screened`, not a separate machine state. Expired evidence is a branch from `burn submitted`: closed without a finalized burn. The tour is a simulation. Nothing is sent.
 
 ```text
 requested -> screened -> burn submitted -> burn finalized -> payable
 payable -> transaction_prepared -> signed -> broadcast -> mined -> confirmed
+burn submitted -> expired or reorganized evidence -> closed without finalized burn
 signed | broadcast | mined -> unresolved
 ```
 
@@ -548,6 +549,8 @@ Future state requirements:
 | requested | tZEC amount, transparent native ZEC destination, network fee, service fee, net output, limits, and custody terms | Review request |
 | screened | Eligibility result, exact tZEC burn, destination, fees, and irreversible consequences | Wait, edit before burn, sign locally, or exit |
 | burn submitted | Unfinalized burn on Arbitrum | Wait |
+| expired | Expired evidence. Burn evidence expired or was reorganized. Closed without a finalized burn. Nothing is sent. This is not live settlement. | Close |
+| closed | Closed without a finalized burn. Nothing is sent. Simulation only. | Close |
 | burn finalized | Finality status and payout claim reference | Wait |
 | payable | Native payout claim exists; no signed Zcash transaction yet | Wait |
 | transaction_prepared | Single-claim transaction status with no exact completion promise | Wait |
@@ -557,7 +560,7 @@ Future state requirements:
 | confirmed | Gross tZEC, fees, net native ZEC, confirmations, and completion time | Close |
 | unresolved | Committed transaction is invalid, stale, conflicted, or reorganized | Wait for observation or restoration |
 
-Every finalized tZEC burn must end in one transparent native ZEC payout or an approved refund outcome under the custody ledger. The Vercel UI may collect and transmit a future destination to the regulated backend after launch approval. It must not store the destination, hold tZEC, create the payout, sign the Zcash transaction, or control the withdrawal queue.
+Every finalized tZEC burn must end in one transparent native ZEC payout or an approved refund outcome under the custody ledger. Expired or reorganized burn evidence is closed without a finalized burn. Nothing is sent. The current tour is a simulation. The Vercel UI may collect and transmit a future destination to the regulated backend after launch approval. It must not store the destination, hold tZEC, create the payout, sign the Zcash transaction, or control the withdrawal queue.
 
 ## Blocked, review, reorganization, and maintenance states
 
