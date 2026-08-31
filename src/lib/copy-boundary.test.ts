@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,7 +9,13 @@ import { simulationStatus } from "./status.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
-test("status payload cannot be read as live funds or custody", () => {
+function withoutHonestBridgeNegation(copy: string) {
+  return copy.replace(/not (?:native ZEC, shielded ZEC, or )?a trustless bridge asset/gi, "");
+}
+
+test("status payload cannot be read as live funds or custody", async () => {
+  const statusRoute = await readFile(join(root, "src/app/api/status/route.ts"), "utf8");
+  assert.match(statusRoute, /Response\.json\(simulationStatus\(\)/);
   const status = simulationStatus();
   assert.equal(status.liveFunds, false);
   assert.equal(status.mode, "simulation");
@@ -37,6 +44,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /not native ZEC, shielded ZEC, or a trustless bridge asset/);
   assert.match(landing, /No shielded deposit or withdrawal is planned for v1/);
   assert.match(landing, /zips\.z\.cash\/zip-0320/);
+  assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);
+  assert.doesNotMatch(withoutHonestBridgeNegation(terminal), /trustless bridge/i);
   assert.match(terminal, /do not move mainnet funds/);
   assert.match(terminal, /not trustless/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicly linkable/);
@@ -51,14 +60,12 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(bridge, /Preview deposit states, not Deposit ZEC/);
   assert.match(bridge, /payoutClaimForTourStep/);
   assert.match(bridge, /Nothing is sent/);
-  assert.match(
-    await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"),
-    /not a return or profit projection/i,
-  );
-  assert.match(
-    await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"),
-    /Review simulated mint/,
-  );
+  const liquidity = await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8");
+  assert.match(liquidity, /not a return or profit projection/i);
+  assert.match(liquidity, /feeEnvelopeCopy/);
+  assert.match(liquidity, /Confirm simulated \{review\.kind\}/);
+  assert.match(liquidity, /publicly linkable/);
+  assert.match(liquidity, /Review simulated mint/);
   assert.match(
     await readFile(join(root, "src/lib/preview-education.ts"), "utf8"),
     /not native ZEC, shielded ZEC, or a trustless bridge asset/,
@@ -87,6 +94,25 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(preview, /tex1/);
   assert.doesNotMatch(preview, /wallet balance/i);
   assert.doesNotMatch(preview, /APY|profit/i);
+  const ticket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
+  assert.match(ticket, /Order rejected/);
+  const blotter = await readFile(join(root, "src/components/order-blotter.tsx"), "utf8");
+  assert.match(blotter, /role="tabpanel"/);
+  assert.match(blotter, /describeSessionLogEvent/);
+  assert.match(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /not a live exchange/);
+  assert.match(await readFile(join(root, "src/app/security/page.tsx"), "utf8"), /no production support commitment/);
+  assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
+});
+
+test("vercel.json does not assign operator URLs", async () => {
+  const vercelPath = join(root, "vercel.json");
+  if (!existsSync(vercelPath)) {
+    assert.equal(existsSync(vercelPath), false);
+    return;
+  }
+  const vercel = await readFile(vercelPath, "utf8");
+  assert.doesNotMatch(vercel, /PHLEBAS_GATEWAY_URL\s*[:=]/);
+  assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_URL\s*[:=]/);
 });
 
 test("robots and security headers keep the public app noindex", async () => {

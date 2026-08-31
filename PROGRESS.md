@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after landing journey tabs, evidence rows, terminal preview, mainnet gates, blotter expiry, and browser checks.
+Last updated: 31-08-2026 after merging PR #19 (matcher expiry, rejected panel, blotter tabpanels) with local landing journeys, evidence, terminal preview, and education.
 
 ## Branch
 
-`feat/simulation-hardening` off `main` at `873e1cd` (PR #19). One multi-feature PR.
+`feat/simulation-hardening` off `main` at `62d5a7d` (PR #19 merged). Next PR is the remaining product UI.
 
 ## Done
 
@@ -78,7 +78,7 @@ Last updated: 31-08-2026 after landing journey tabs, evidence rows, terminal pre
 - Country-blocked state demonstration via allowlisted `?access=blocked` on `/trade` and `/liquidity`. Never infers location.
 - Deposit state tour: Eligibility through Complete. Address request never shows a receivable address.
 - `/legal` and `/security` simulation pages. Landing and terminal footers: Architecture, Legal, Security, Status. No GitHub URL.
-- LP mint and swap use review-and-confirm. Burn stays available during a trading pause.
+- LP mint and swap use review-and-confirm repeating PRODUCT_SPEC §10. Burn stays available during a trading pause.
 - Architecture labeled incident demonstrations: blocked, review, reorg, planned and unplanned maintenance. Incident select is a 44px target.
 - Ticket keyboard: G/I/F time in force, Escape back from review. Shortcuts ignore an open dialog.
 - Landing journey chooser: four manual tabs (Trader, LP, Deposit, Withdrawal). Arrow keys move focus; Enter/Space selects. Without JavaScript, all four descriptions remain. Header Liquidity selects LP after hydration.
@@ -87,8 +87,10 @@ Last updated: 31-08-2026 after landing journey tabs, evidence rows, terminal pre
 - Mainnet gates: six evidence rows, all `Not cleared`. Action is Read the launch gates.
 - pZEC section cites ZIP 320 and states no shielded deposit or withdrawal for v1.
 - `/status` links to legal, security, architecture, and launch gates.
-- Session blotter log line includes expiry when a ticket is confirmed.
-- Checks this tree: lint, typecheck, 198 unit tests, Foundry, secret scan, production build, Playwright 56/56.
+- Session blotter log line includes expiry when a ticket is confirmed. Nonce-bitmap helper matches Settlement.sol (`word = nonce >> 8`, `bit = 1 << uint8(nonce)`).
+- In-browser matcher rejects a taker whose unix expiry has passed and drops resting orders after that unix time. Replay still omits `nowUnix` so a logged submit reconstructs.
+- Ticket shows a rejected panel (role=alert) for expiry, matcher reject, inventory, and self-trade. Retry is safe.
+- Blotter tabs expose one tabpanel each, with arrow/Home/End keys (automatic activation until the manual-activation slice).
 
 ## Next
 
@@ -97,6 +99,9 @@ Last updated: 31-08-2026 after landing journey tabs, evidence rows, terminal pre
 - Playwright: Menu → Markets at 320px; incident select overflow at 320px
 - Blotter tablist keyboard (arrow focus, Enter/Space select)
 - Landing skip-link then sequential journey/evidence/preview landmarks
+- Chart and 24h stats should name empty, stale, and unavailable feeds the way the ticket gate does
+- LP panel loading/empty/stale/unavailable states (PRODUCT_SPEC §10)
+- ZIP 321 deposit QR is still copy-only; render a non-payable placeholder QR and keep the clipboard failure honest
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available

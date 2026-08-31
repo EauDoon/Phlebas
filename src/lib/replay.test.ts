@@ -14,7 +14,7 @@ test("replaying the same submit and cancel log yields the same book and balances
       tif: "IOC",
       priceTicks: 5291n,
       sizeAtoms: 1_00000000n,
-      expiryUnix: 0n,
+      expiryUnix: 1700000000n;
     },
     {
       kind: "submit",
@@ -34,6 +34,7 @@ test("replaying the same submit and cancel log yields the same book and balances
   assert.equal(snapshotKey(first), snapshotKey(second));
   assert.equal(first.accounts["ZEC/USDC"].pzecAtoms, SESSION_PZEC_ATOMS + 1_00000000n);
   assert.equal(first.accounts["ZEC/USDC"].reservedQuoteAtoms, 0n);
+  assert.equal(events[0]?.kind === "submit" ? events[0].expiryUnix : 0n, 1700000000n);
 });
 
 test("reset returns the session to the fixture snapshot", () => {

@@ -21,6 +21,14 @@ import styles from "./terminal.module.css";
 
 type PoolId = (typeof pools)[number]["id"];
 type EntryDeposit = { pzecAtoms: bigint; quoteAtoms: bigint };
+type LpReview = {
+  kind: "mint" | "swap";
+  zecAtoms: bigint;
+  quoteAtoms: bigint;
+  shares: bigint;
+  swapOut: string;
+  swapFee: string;
+};
 
 function initialPools(): Record<PoolId, PoolShares> {
   return {
@@ -55,7 +63,7 @@ export function LiquidityPanel({
   const [entryDeposits, setEntryDeposits] = useState<Record<PoolId, EntryDeposit>>(emptyDeposits);
   const [notice, setNotice] = useState("Integer pool math. Wallet actions stay disabled.");
   const [tradingPaused, setTradingPaused] = useState(false);
-  const [review, setReview] = useState<"mint" | "swap" | null>(null);
+  const [review, setReview] = useState<LpReview | null>(null);
   const poolReserves = poolState[selectedPool.id];
   const sessionEntry = entryDeposits[selectedPool.id];
 
@@ -129,11 +137,26 @@ export function LiquidityPanel({
       : { hodlQuoteAtoms: 0n, positionQuoteAtoms: 0n, lossQuoteAtoms: 0n },
   }));
 
-  function simulateAdd() {
+  function requestMintReview() {
     if (!lpOperationAllowed("mint", tradingPaused)) {
       setNotice("Trading is paused. LP withdrawal remains available.");
       return;
     }
+    if (!amountPreview.valid || amountPreview.zecAtoms <= 0n || amountPreview.quoteAtoms <= 0n) {
+      setNotice(amountPreview.message);
+      return;
+    }
+    setReview({
+      kind: "mint",
+      zecAtoms: amountPreview.zecAtoms,
+      quoteAtoms: amountPreview.quoteAtoms,
+      shares: amountPreview.shares,
+      swapOut: amountPreview.swapOut,
+      swapFee: amountPreview.swapFee,
+    });
+  }
+
+  function executeMint() {
     if (!amountPreview.valid || amountPreview.zecAtoms <= 0n || amountPreview.quoteAtoms <= 0n) {
       setNotice(amountPreview.message);
       return;
@@ -173,11 +196,26 @@ export function LiquidityPanel({
     }
   }
 
-  function simulateSwap() {
+  function requestSwapReview() {
     if (!lpOperationAllowed("swap", tradingPaused)) {
       setNotice("Trading is paused. LP withdrawal remains available.");
       return;
     }
+    if (!amountPreview.valid || amountPreview.zecAtoms <= 0n) {
+      setNotice(amountPreview.message);
+      return;
+    }
+    setReview({
+      kind: "swap",
+      zecAtoms: amountPreview.zecAtoms,
+      quoteAtoms: amountPreview.quoteAtoms,
+      shares: 0n,
+      swapOut: amountPreview.swapOut,
+      swapFee: amountPreview.swapFee,
+    });
+  }
+
+  function executeSwap() {
     if (!amountPreview.valid || amountPreview.zecAtoms <= 0n) {
       setNotice(amountPreview.message);
       return;
@@ -288,82 +326,62 @@ export function LiquidityPanel({
         {review ? (
           <div className={styles.reviewBlock}>
             <p className={styles.gateNotice}>
-              pZEC is a custody receipt, not native ZEC. LP preview stays in this browser. Wallet actions stay disabled.
+              pZEC is a custody receipt, not native ZEC. This LP preview is public in the simulation. The matcher is not trustless.
             </p>
-            <dl className={styles.statGrid}>
+            <dl className={styles.ticketSummary}>
               <div>
                 <dt>Leaves the session</dt>
                 <dd>
-                  {review === "mint"
-                    ? `${formatAtomicUnits(amountPreview.zecAtoms, PZEC_DECIMALS)} pZEC and ${amountPreview.balancedQuote} ${selectedPool.quote} on Arbitrum Sepolia`
-                    : `${formatAtomicUnits(amountPreview.zecAtoms, PZEC_DECIMALS)} pZEC on Arbitrum Sepolia`}
+                  {review.kind === "mint"
+                    ? `${formatAtomicUnits(review.zecAtoms, PZEC_DECIMALS)} pZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} on Arbitrum Sepolia`
+                    : `${formatAtomicUnits(review.zecAtoms, PZEC_DECIMALS)} pZEC on Arbitrum Sepolia`}
                 </dd>
               </div>
               <div>
                 <dt>Arrives in the session</dt>
                 <dd>
-                  {review === "mint"
-                    ? `${amountPreview.shares.toString()} local LP shares for ${selectedPool.id}`
-                    : `${amountPreview.swapOut} ${selectedPool.quote} from the ${selectedPool.id} pool`}
+                  {review.kind === "mint"
+                    ? `${review.shares.toString()} local LP shares for ${selectedPool.id}`
+                    : `${review.swapOut} ${selectedPool.quote} on Arbitrum Sepolia`}
+                </dd>
+              </div>
+              <div>
+                <dt>Worst acceptable price</dt>
+                <dd>
+                  {review.kind === "mint"
+                    ? "Balanced add. No swap price bound."
+                    : `${review.swapOut} ${selectedPool.quote} out, integer quote`}
                 </dd>
               </div>
               <div>
                 <dt>Fees</dt>
-                <dd>{review === "mint" ? "Balanced add pays no swap fee" : feeEnvelopeCopy()}</dd>
+                <dd>{feeEnvelopeCopy()} AMM swap fee paid in pZEC: {review.swapFee}.</dd>
               </div>
             </dl>
             <p className={styles.inlineNotice}>
               Transparent Zcash and this Arbitrum LP action are publicly linkable. pZEC redemption depends on the gateway.
               LPs also face stablecoin risk, smart-contract risk, impermanent loss, and toxic flow from the order book.
             </p>
+            <p className={styles.inlineNotice}>
+              Confirm runs the local integer pool preview. Wallet actions stay disabled.
+            </p>
             <button
               type="button"
               className={styles.primaryAction}
-              onClick={review === "mint" ? simulateAdd : simulateSwap}
+              onClick={review.kind === "mint" ? executeMint : executeSwap}
             >
-              Confirm simulated {review}
+              Confirm simulated {review.kind}
             </button>
             <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
               Back
             </button>
           </div>
-        ) : (
+        ) : null}
+
         <div className={styles.tourNav}>
-          <button
-            type="button"
-            onClick={() => {
-              if (!lpOperationAllowed("mint", tradingPaused)) {
-                setNotice("Trading is paused. LP withdrawal remains available.");
-                return;
-              }
-              if (!amountPreview.valid || amountPreview.zecAtoms <= 0n || amountPreview.quoteAtoms <= 0n) {
-                setNotice(amountPreview.message);
-                return;
-              }
-              setReview("mint");
-            }}
-            disabled={!lpOperationAllowed("mint", tradingPaused)}
-          >
-            Review simulated mint
-          </button>
+          <button type="button" onClick={requestMintReview} disabled={!lpOperationAllowed("mint", tradingPaused)}>Review simulated mint</button>
           <button type="button" onClick={simulateBurn} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
-          <button
-            type="button"
-            onClick={() => {
-              if (!lpOperationAllowed("swap", tradingPaused)) {
-                setNotice("Trading is paused. LP withdrawal remains available.");
-                return;
-              }
-              if (!amountPreview.valid || amountPreview.zecAtoms <= 0n) {
-                setNotice(amountPreview.message);
-                return;
-              }
-              setReview("swap");
-            }}
-            disabled={!lpOperationAllowed("swap", tradingPaused)}
-          >
-            Review simulated swap
-          </button>
+          <button type="button" onClick={requestSwapReview} disabled={!lpOperationAllowed("swap", tradingPaused)}>Review simulated swap</button>
           <button
             type="button"
             aria-pressed={tradingPaused}
@@ -380,7 +398,6 @@ export function LiquidityPanel({
             Reset pool
           </button>
         </div>
-        )}
         <p className={styles.inlineNotice} aria-live="polite">{notice}</p>
         <button type="button" className={styles.primaryAction} disabled>
           Wallet actions disabled in simulation

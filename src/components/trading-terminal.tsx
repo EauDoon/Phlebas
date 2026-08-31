@@ -11,7 +11,7 @@ import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
 import { type FeedStatus } from "@/lib/market-state";
 import type { SessionLogEvent } from "@/lib/replay";
-import { cancelOrder, emptyBook, submitOrder, type TimeInForce } from "@/lib/matcher";
+import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingOrder, type TimeInForce } from "@/lib/matcher";
 import {
   applySubmit,
   availablePzec,
@@ -22,6 +22,7 @@ import {
   releaseRestingOrder,
   seedBook,
   seedPaperAccount,
+  USER_ORDER_PREFIX,
   userOrders,
   wouldSelfTrade,
   type PaperAccount,
@@ -124,6 +125,21 @@ export function TradingTerminal({
     router.replace(viewUrl(view, marketId, nextFeed), { scroll: false });
   }
 
+  function sweepExpired(sourceBook = book, sourceAccount = account) {
+    const nowUnix = BigInt(Math.floor(Date.now() / 1000));
+    const { book: nextBook, expired } = expireRestingOrders(sourceBook, nowUnix);
+    const userExpired = expired.filter((order) => order.id.startsWith(USER_ORDER_PREFIX));
+    let nextAccount = sourceAccount;
+    for (const resting of userExpired) {
+      nextAccount = releaseRestingOrder(nextAccount, resting);
+    }
+    return { nowUnix, nextBook, nextAccount, userExpired };
+  }
+
+  function expireEvents(userExpired: RestingOrder[]): SessionLogEvent[] {
+    return userExpired.map((resting) => ({ kind: "cancel" as const, marketId, orderId: resting.id }));
+  }
+
   function submitUserOrder(order: {
     side: "buy" | "sell";
     tif: TimeInForce;
@@ -131,7 +147,13 @@ export function TradingTerminal({
     sizeAtoms: bigint;
     expiryUnix: bigint;
   }): string {
-    if (!canCover(account, order.side, order.sizeAtoms, order.priceTicks)) {
+    const { nowUnix, nextBook, nextAccount, userExpired } = sweepExpired();
+    if (!canCover(nextAccount, order.side, order.sizeAtoms, order.priceTicks)) {
+      if (userExpired.length > 0) {
+        setBooks({ ...books, [marketId]: nextBook });
+        setAccounts({ ...accounts, [marketId]: nextAccount });
+        setEvents((current) => [...current, ...expireEvents(userExpired)]);
+      }
       return order.side === "buy"
         ? "Session quote inventory is insufficient."
         : "Session pZEC inventory is insufficient.";
@@ -139,25 +161,30 @@ export function TradingTerminal({
 
     const id = `user-${nextOrderId.current}`;
     nextOrderId.current += 1;
-    const result = submitOrder(book, {
-      id,
-      side: order.side,
-      tif: order.tif,
-      priceTicks: order.priceTicks,
-      sizeAtoms: order.sizeAtoms,
-    });
+    const { expiryUnix, ...matcherOrder } = order;
+    const result = submitOrder(nextBook, { id, ...matcherOrder, expiryUnix, nowUnix });
     if (wouldSelfTrade(result.fills)) {
+      if (userExpired.length > 0) {
+        setBooks({ ...books, [marketId]: nextBook });
+        setAccounts({ ...accounts, [marketId]: nextAccount });
+        setEvents((current) => [...current, ...expireEvents(userExpired)]);
+      }
       return "Self-trade prevented. Cancel the resting session order or choose another price.";
     }
 
-    const applied = applySubmit(account, order, result);
+    const applied = applySubmit(nextAccount, order, result);
     if (applied.blockedReason) {
+      if (userExpired.length > 0) {
+        setBooks({ ...books, [marketId]: nextBook });
+        setAccounts({ ...accounts, [marketId]: nextAccount });
+        setEvents((current) => [...current, ...expireEvents(userExpired)]);
+      }
       return applied.blockedReason;
     }
 
     setBooks({ ...books, [marketId]: result.book });
     setAccounts({ ...accounts, [marketId]: applied.account });
-    setEvents((current) => [...current, { kind: "submit", marketId, id, ...order }]);
+    setEvents((current) => [...current, ...expireEvents(userExpired), { kind: "submit", marketId, id, ...order }]);
     if (result.fills.length > 0) {
       const time = formatFillTime();
       setFills((current) => [

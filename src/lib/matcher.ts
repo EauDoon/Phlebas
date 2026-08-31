@@ -12,6 +12,7 @@ export type RestingOrder = {
   priceTicks: bigint;
   remainingAtoms: bigint;
   seq: number;
+  expiryUnix?: bigint;
 };
 
 export type Fill = {
@@ -111,6 +112,25 @@ export function emptyBook(lastTicks: bigint): Book {
   return { bids: [], asks: [], seq: 0, lastTicks };
 }
 
+export function orderExpired(expiryUnix: bigint | undefined, nowUnix: bigint | undefined): boolean {
+  return (expiryUnix ?? 0n) > 0n && nowUnix !== undefined && nowUnix > (expiryUnix ?? 0n);
+}
+
+export function expireRestingOrders(book: Book, nowUnix: bigint): { book: Book; expired: RestingOrder[] } {
+  const expired: RestingOrder[] = [];
+  const next = cloneBook(book);
+  const keep = (order: RestingOrder) => {
+    if (orderExpired(order.expiryUnix, nowUnix)) {
+      expired.push(order);
+      return false;
+    }
+    return true;
+  };
+  next.bids = next.bids.filter(keep);
+  next.asks = next.asks.filter(keep);
+  return { book: next, expired };
+}
+
 export function submitOrder(
   book: Book,
   order: {
@@ -119,8 +139,13 @@ export function submitOrder(
     tif: TimeInForce;
     priceTicks: bigint;
     sizeAtoms: bigint;
+    expiryUnix?: bigint;
+    nowUnix?: bigint;
   },
 ): SubmitResult {
+  if (orderExpired(order.expiryUnix, order.nowUnix)) {
+    return { book, fills: [], remainingAtoms: order.sizeAtoms, status: "rejected", reason: "Order expiry has passed" };
+  }
   if (order.sizeAtoms <= 0n || order.priceTicks <= 0n) {
     return { book, fills: [], remainingAtoms: order.sizeAtoms, status: "rejected", reason: "Size and price must be positive" };
   }
@@ -173,6 +198,7 @@ export function submitOrder(
     priceTicks: order.priceTicks,
     remainingAtoms: matched.remainingAtoms,
     seq: next.seq,
+    ...((order.expiryUnix ?? 0n) > 0n ? { expiryUnix: order.expiryUnix } : {}),
   };
   if (order.side === "buy") {
     next.bids.push(rest);
