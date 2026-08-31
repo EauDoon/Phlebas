@@ -53,7 +53,46 @@ export function gatewayIncidentById(id: string): (typeof GATEWAY_INCIDENTS)[numb
 }
 
 export const INCIDENT_DEMO_QUERY = "incidents";
+export const INCIDENT_DEMO_STORAGE_KEY = "phlebas.incidentDemo";
 
 export function isIncidentDemoQuery(value: string | undefined): boolean {
   return value === INCIDENT_DEMO_QUERY;
+}
+
+const incidentDemoListeners = new Set<() => void>();
+
+export function rememberIncidentDemo(
+  fromUrl: boolean,
+  storage?: Pick<Storage, "getItem" | "setItem"> | null,
+): boolean {
+  const session = storage === undefined
+    ? (typeof window === "undefined" ? null : window.sessionStorage)
+    : storage;
+  try {
+    if (fromUrl) {
+      session?.setItem(INCIDENT_DEMO_STORAGE_KEY, INCIDENT_DEMO_QUERY);
+      if (storage === undefined) {
+        for (const listener of incidentDemoListeners) listener();
+      }
+      return true;
+    }
+    return session?.getItem(INCIDENT_DEMO_STORAGE_KEY) === INCIDENT_DEMO_QUERY;
+  } catch {
+    return fromUrl;
+  }
+}
+
+export function subscribeIncidentDemo(listener: () => void): () => void {
+  incidentDemoListeners.add(listener);
+  return () => {
+    incidentDemoListeners.delete(listener);
+  };
+}
+
+export function getIncidentDemoSnapshot(): boolean {
+  return rememberIncidentDemo(false);
+}
+
+export function getIncidentDemoServerSnapshot(): boolean {
+  return false;
 }
