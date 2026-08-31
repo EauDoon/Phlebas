@@ -455,7 +455,8 @@
   font-size: 11px;
 }
 
-.rangeTabs button {
+.rangeTabs button,
+.ticket .orderTypes button {
   min-width: 44px;
   min-height: 44px;
 }
