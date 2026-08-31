@@ -1,3 +1,8 @@
+import {
+  meetsMinimumQuoteSettlement,
+  minimumSizeAtomsForQuoteSettlement,
+} from "./units.ts";
+
 export type OrderSide = "buy" | "sell";
 export type TimeInForce = "GTC" | "IOC" | "FOK";
 
@@ -63,15 +68,30 @@ function matchAgainst(
   side: OrderSide,
   limitTicks: bigint,
   sizeAtoms: bigint,
-): { fills: Fill[]; remainingAtoms: bigint } {
+): { fills: Fill[]; remainingAtoms: bigint; blockedByDust: boolean } {
   const resting = side === "buy" ? book.asks : book.bids;
   const fills: Fill[] = [];
   let remaining = sizeAtoms;
+  let blockedByDust = false;
 
   while (remaining > 0n && resting.length > 0) {
     const maker = resting[0];
     if (!pricesCross(side, limitTicks, maker.priceTicks)) break;
-    const traded = remaining < maker.remainingAtoms ? remaining : maker.remainingAtoms;
+    let traded = remaining < maker.remainingAtoms ? remaining : maker.remainingAtoms;
+    const minimumSettlementSize = minimumSizeAtomsForQuoteSettlement(maker.priceTicks);
+    if (traded < minimumSettlementSize) {
+      blockedByDust = true;
+      break;
+    }
+    if (traded < maker.remainingAtoms) {
+      if (maker.remainingAtoms - traded < minimumSettlementSize) {
+        traded = maker.remainingAtoms - minimumSettlementSize;
+      }
+    }
+    if (traded < minimumSettlementSize) {
+      blockedByDust = true;
+      break;
+    }
     fills.push({
       makerId: maker.id,
       takerSide: side,
@@ -84,7 +104,7 @@ function matchAgainst(
     if (maker.remainingAtoms === 0n) resting.shift();
   }
 
-  return { fills, remainingAtoms: remaining };
+  return { fills, remainingAtoms: remaining, blockedByDust };
 }
 
 export function emptyBook(lastTicks: bigint): Book {
@@ -104,6 +124,15 @@ export function submitOrder(
   if (order.sizeAtoms <= 0n || order.priceTicks <= 0n) {
     return { book, fills: [], remainingAtoms: order.sizeAtoms, status: "rejected", reason: "Size and price must be positive" };
   }
+  if (!meetsMinimumQuoteSettlement(order.sizeAtoms, order.priceTicks)) {
+    return {
+      book,
+      fills: [],
+      remainingAtoms: order.sizeAtoms,
+      status: "rejected",
+      reason: "Order notional must settle to at least one quote atom",
+    };
+  }
 
   const next = cloneBook(book);
   const preview = matchAgainst(cloneBook(book), order.side, order.priceTicks, order.sizeAtoms);
@@ -117,6 +146,24 @@ export function submitOrder(
   }
   if (order.tif === "IOC") {
     return { book: next, fills: matched.fills, remainingAtoms: matched.remainingAtoms, status: "cancelled" };
+  }
+  if (matched.blockedByDust) {
+    return {
+      book: next,
+      fills: matched.fills,
+      remainingAtoms: matched.remainingAtoms,
+      status: "cancelled",
+      reason: "Dust-blocked crossed remainder was cancelled",
+    };
+  }
+  if (!meetsMinimumQuoteSettlement(matched.remainingAtoms, order.priceTicks)) {
+    return {
+      book: next,
+      fills: matched.fills,
+      remainingAtoms: matched.remainingAtoms,
+      status: "cancelled",
+      reason: "Unsettleable remainder was cancelled",
+    };
   }
 
   next.seq += 1;

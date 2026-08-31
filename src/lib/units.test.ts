@@ -5,6 +5,7 @@ import {
   formatAtomicUnits,
   parseAtomicUnits,
   quoteAtomsForFill,
+  quoteAtomsForFills,
   sizeAtomsForQuote,
   worstPriceTicks,
 } from "./units.ts";
@@ -22,10 +23,21 @@ test("formats prices as 0.01 ticks", () => {
 });
 
 test("converts one pZEC at 52.84 to 52.84 quote atoms", () => {
-  const quoteAtoms = quoteAtomsForFill(100_000000n, 5284n);
+  const quoteAtoms = quoteAtomsForFill(100_000000n, 5284n, "up");
   assert.equal(quoteAtoms, 52_840000n);
   assert.equal(formatAtomicUnits(quoteAtoms, 6, 2), "52.84");
   assert.equal(sizeAtomsForQuote(quoteAtoms, 5284n), 100_000000n);
+});
+
+test("uses explicit side-aware rounding after aggregating every fill", () => {
+  assert.equal(quoteAtomsForFill(1n, 5291n, "down"), 0n);
+  assert.equal(quoteAtomsForFill(1n, 5291n, "up"), 1n);
+  const fills = [
+    { sizeAtoms: 1n, priceTicks: 5291n },
+    { sizeAtoms: 1n, priceTicks: 5297n },
+  ];
+  assert.equal(quoteAtomsForFills(fills, "down"), 1n);
+  assert.equal(quoteAtomsForFills(fills, "up"), 2n);
 });
 
 test("rejects extra precision and empty strings", () => {
