@@ -1,7 +1,7 @@
 # Phlebas Asset and Accounting Model
 
 Status: Simulation only
-As of: 30-08-2026
+As of: 01-09-2026
 
 Phlebas has no real assets, customer accounts, reserve wallets, deployed tokens, bridge ledger, or operational custody today. The current application uses sample values. This document defines a candidate accounting model for review and testing. It does not authorize deposits, minting, trading, or withdrawals.
 
@@ -13,13 +13,13 @@ Native ZEC is the asset recorded on the Zcash blockchain. Phlebas's candidate ga
 
 The deposit interface would use ZIP 320 `tex...` addresses. [ZIP 320](https://zips.z.cash/zip-0320) requires conforming wallets to fund these outputs with transparent UTXOs, but the restriction is not a consensus rule. The bridge must validate the final transaction itself.
 
-### pZEC
+### Settlement ZEC (`tZEC`)
 
-`pZEC` means Phlebas ZEC. It is a proposed custody-backed ERC-20 representation of transparent native ZEC.
+`tZEC` is the undeployed 8-decimal Arbitrum receipt symbol for the displayed native ZEC market. The Solidity type is `Zec`. Product copy labels this native ZEC. [ADR 0001](adr/0001-arbitrum-and-pzec.md) historically named the same custody-backed ERC-20 claim `pZEC`; that name is not the current listed form.
 
-One `pZEC` would represent a contractual redemption claim for one ZEC, subject to the published withdrawal rules. `pZEC` would have 8 decimals to preserve ZEC's zatoshi unit. It would not provide Zcash shielding, native Zcash finality, trustless redemption, or protection from custody failure.
+One `tZEC` would represent a contractual redemption claim for one ZEC, subject to the published withdrawal rules. `tZEC` would have 8 decimals to preserve ZEC's zatoshi unit. It would not provide Zcash shielding, native Zcash finality, trustless redemption, or protection from custody failure.
 
-`pZEC` is only a display and simulation label today. No token contract exists.
+`tZEC` is only an undeployed contract source and a simulation label today. No token contract is deployed. This is not live native-ZEC execution.
 
 ### USDC
 
@@ -40,7 +40,7 @@ All ledger and contract amounts use unsigned integers in the asset's smallest un
 | Asset | Candidate decimals | Smallest unit |
 | --- | ---: | --- |
 | Native ZEC | 8 | zatoshi |
-| `pZEC` | 8 | pzatoshi, equal in scale to one zatoshi |
+| Settlement ZEC (`tZEC`) | 8 | zatoshi, equal in scale to native ZEC |
 | USDC | 6 | token base unit |
 | USDT | 6 | token base unit |
 | LP share | Contract-defined | token base unit |
