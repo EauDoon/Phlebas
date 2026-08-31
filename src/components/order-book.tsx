@@ -1,6 +1,7 @@
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
 import {
+  bookSideControlCopy,
   depthEmptyCopy,
   depthSessionLastCopy,
   feedSurface,
@@ -114,7 +115,8 @@ function BookRow({
   onPriceSelect: (priceTicks: bigint) => void;
 }) {
   const depthPercent = Number((level.totalAtoms * 1000n) / maxAtoms) / 10;
-  const label = side === "buy" ? "Bid" : "Ask";
+  const bookSide = side === "buy" ? "bid" : "ask";
+  const priceLabel = formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2);
 
   return (
     <tr>
@@ -132,8 +134,7 @@ function BookRow({
           className={styles.bookButton}
           onClick={() => onPriceSelect(level.priceTicks)}
         >
-          <span className={styles.srOnly}>{label} </span>
-          {formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}
+          {bookSideControlCopy(bookSide, priceLabel)}
         </button>
       </th>
       <td>{formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS, 2)}</td>

@@ -16,6 +16,7 @@ import {
   isFeedStatus,
   loadingGateCopy,
   orderBookCaptionCopy,
+  bookSideControlCopy,
   sessionLastStatLabel,
   staleGateCopy,
   tapeCaptionCopy,
@@ -195,6 +196,15 @@ test("price chart label names the settlement pair from real market state", () =>
   );
   assert.doesNotMatch(priceChartLabelCopy(marketId, range), /native ZEC/);
   assert.doesNotMatch(priceChartLabelCopy(marketId, range), /live/);
+});
+
+test("book side control copy names Bid and Ask in visible control text", () => {
+  assert.equal(bookSideControlCopy("ask", "52.91"), "Ask 52.91");
+  assert.equal(bookSideControlCopy("bid", "52.78"), "Bid 52.78");
+  assert.notEqual(bookSideControlCopy("ask", "52.91"), bookSideControlCopy("bid", "52.91"));
+  assert.match(bookSideControlCopy("ask", "52.91"), /Ask/);
+  assert.match(bookSideControlCopy("bid", "52.78"), /Bid/);
+  assert.doesNotMatch(bookSideControlCopy("ask", "52.91"), /pZEC/);
 });
 
 test("allowlists only documented feed states", () => {

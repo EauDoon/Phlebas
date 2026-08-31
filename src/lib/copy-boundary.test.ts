@@ -151,6 +151,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /depthEmptyCopy/);
   assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /feedWithheldCopy/);
   assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /orderBookCaptionCopy/);
+  assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /bookSideControlCopy/);
   assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /emptyBookGateCopy/);
   assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /depthSessionLastCopy/);
   assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /loadingGateCopy/);
@@ -204,6 +205,10 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /isTicketRejectCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /isMissingProviderCopy/);
   assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /key=\{feedStatus\}/);
+  const orderBook = await readFile(join(root, "src/components/order-book.tsx"), "utf8");
+  assert.match(orderBook, /bookSideControlCopy/);
+  assert.match(orderBook, /bookSideControlCopy\(bookSide, priceLabel\)/);
+  assert.doesNotMatch(orderBook, /\{label\} <\/span>/);
   const blotter = await readFile(join(root, "src/components/order-blotter.tsx"), "utf8");
   assert.match(blotter, /role="tabpanel"/);
   assert.match(blotter, /blotterLogEventCopy/);

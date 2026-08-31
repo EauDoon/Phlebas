@@ -169,6 +169,10 @@ export function orderBookCaptionCopy(marketId: MarketId): string {
   return `Local ${marketId} order book, settled as ${market.settlementPair}. Totals are cumulative ZEC depth from the best price. Click a price to copy it into the ticket.`;
 }
 
+export function bookSideControlCopy(side: "bid" | "ask", priceLabel: string): string {
+  return side === "ask" ? `Ask ${priceLabel}` : `Bid ${priceLabel}`;
+}
+
 export function depthSessionLastCopy(
   settlementPair: Market["settlementPair"],
   spreadLabel: string | null,
