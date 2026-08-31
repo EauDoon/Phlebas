@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the 404-skip, loading-skip, education-Back, and education-Enter-simulation slice.
+Last updated: 31-08-2026 after the tour-buttons, retry-copy, and country-block-skip slice.
 
 ## Branch
 
@@ -222,13 +222,17 @@ Last updated: 31-08-2026 after the 404-skip, loading-skip, education-Back, and e
 - Loading skip and withheld-price notice stay 44px on desktop
 - Education Back and Enter simulation stay 44px on desktop
 - Playwright covers 44px 404 skip, loading skip, education Back, and education Enter simulation
+- Deposit and withdrawal tour buttons stay 44px on desktop
+- Retry copy region stays 44px on desktop
+- Country-block skip stays 44px on desktop
+- Playwright covers 44px tour buttons, retry copy, and country-block skip
 
 ## Next
 
-- Deposit and withdrawal tour buttons should stay 44px on desktop
-- Retry copy region should stay 44px on desktop
-- Country-block skip should stay 44px on desktop
-- Playwright: 44px tour buttons, retry copy, and country-block skip
+- Architecture skip, honesty-bar skip, and layers skip should stay 44px on desktop
+- Liquidity pool-tabs skip and pool-stats skip should stay 44px on desktop
+- Bridge destination-inspector skip and privacy-callouts skip should stay 44px on desktop
+- Playwright: 44px architecture, liquidity, and bridge skip links
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
