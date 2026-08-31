@@ -19,6 +19,7 @@ import {
   tickerFromOperator,
   tradesFromReceipts,
 } from "../../src/lib/market-data.ts";
+import { buildPublicSnapshot } from "../../src/lib/market-data-snapshot.ts";
 import { TESTNET } from "../../src/lib/testnet.ts";
 import { atomicWriteFile } from "../durable-file.ts";
 import { readOperator, writeOperator } from "./persist.ts";
@@ -198,6 +199,22 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
       }
       if (request.method === "GET" && url.pathname === "/version") {
         send(response, 200, { ok: true, service: "matcher", version: "0.1.0" });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/snapshot") {
+        const depthLevels = Number(url.searchParams.get("depth") ?? "20");
+        const tradeLimit = Number(url.searchParams.get("trades") ?? "50");
+        if (!Number.isInteger(depthLevels) || depthLevels < 0 || depthLevels > 200) {
+          send(response, 400, { ok: false, reason: "depth-must-be-an-integer-between-0-and-200" });
+          return;
+        }
+        if (!Number.isInteger(tradeLimit) || tradeLimit < 0 || tradeLimit > 1000) {
+          send(response, 400, { ok: false, reason: "trades-must-be-an-integer-between-0-and-1000" });
+          return;
+        }
+        const now = Math.floor(Date.now() / 1000);
+        const snap = buildPublicSnapshot(operator.book, operator.receipts, BigInt(now), depthLevels, tradeLimit);
+        send(response, 200, snap);
         return;
       }
       if (request.method === "POST" && url.pathname === "/orders") {
