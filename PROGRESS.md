@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after remaining public copy dropped listed pZEC.
+Last updated: 01-09-2026 after leftover pZEC identifiers and market-order worst-price flow.
 
 ## Branch
 
@@ -173,6 +173,8 @@ Last updated: 01-09-2026 after remaining public copy dropped listed pZEC.
 - Landing CSS classes are `pairsSection` / `pairsCopy`.
 - ADR 0002 lists `tZEC` as the undeployed receipt. Custody-backed pZEC is no longer the candidate ERC-20 claim.
 - LANDING_AND_USER_JOURNEYS, THREAT_MODEL, LAUNCH_PLAN, LEGAL, OPERATIONS, DELIVERY_PLAN, WALLET_COMPATIBILITY, and README no longer list pZEC as the current form.
+- `lpBurnNoticeCopy` takes `zecLabel`. LP IL math uses `lpZecAtoms`. Preview helpers are `ZEC_ATOMIC_RULE` / `formatZecPreviewAmount`. Foundry locals are `reserveZec`.
+- Ticket market orders show `marketOrderConstraintCopy`. A 0% slippage IOC buy at lastTicks does not fill the 52.91 ask. Playwright covers that at 320px.
 
 ## Next
 
@@ -180,9 +182,9 @@ Last updated: 01-09-2026 after remaining public copy dropped listed pZEC.
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
 - ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
-- `lpBurnNoticeCopy` still takes a `pzecLabel` argument name
-- PRODUCT_SPEC UI density: remaining clickable flows, empty/error states, and DX leftover identifiers
-- Next no-key item after identifier cleanup: more PRODUCT_SPEC §10–§12 Playwright coverage at 320px
+- LP risk copy still says adverse selection instead of PRODUCT_SPEC toxic flow
+- PRODUCT_SPEC §11: confirm buy/sell are never distinguished by color alone at 320px
+- PRODUCT_SPEC §10 remaining: more empty/error/retry Playwright at 320px on LP and gateway
 
 ## Blockers
 
