@@ -20,6 +20,7 @@
 
 .skipLink {
   display: inline-flex;
+  min-width: 44px;
   min-height: 44px;
   align-items: center;
   padding: 9px 12px;
