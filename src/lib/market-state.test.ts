@@ -88,6 +88,22 @@ test("chart and stats withhold fixtures for empty, loading, and unavailable feed
   assert.match(feedSurface("unavailable").message, /withheld/);
 });
 
+test("unavailable withheld copy names pZEC-USDT0 from real market state", () => {
+  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  assert.equal(
+    feedWithheldCopy("unavailable", markets["ZEC/USDT"].settlementPair),
+    "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDT0.",
+  );
+  assert.doesNotMatch(
+    feedWithheldCopy("unavailable", markets["ZEC/USDT"].settlementPair),
+    /native ZEC/,
+  );
+  assert.doesNotMatch(
+    feedWithheldCopy("unavailable", markets["ZEC/USDT"].settlementPair),
+    /live feed/,
+  );
+});
+
 test("depth and tape empty copy names the settlement pair", () => {
   assert.equal(
     depthEmptyCopy("pZEC-USDC"),
