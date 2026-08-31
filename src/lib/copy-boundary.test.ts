@@ -212,6 +212,13 @@ test("landing and terminal banners stay simulation-only", async () => {
     terminalCss,
     /\.skipLink \{\r?\n    box-sizing: border-box;\r?\n    flex: 1 1 calc\(50% - 4px\);\r?\n    max-width: min\(100%, calc\(50% - 4px\)\);/,
   );
+  assert.match(landingCss, /overflow-y: auto;\r?\n    padding: 8px;/);
+  assert.match(terminalCss, /overflow-y: auto;\r?\n    padding: 8px;/);
+  assert.match(terminalCss, /margin-top: min\(40vh, 17\.5rem\)/);
+  assert.match(
+    await readFile(join(root, "src/components/preview-education.tsx"), "utf8"),
+    /skipNavFocused/,
+  );
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /id="status-ledger"/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /role="list" aria-label="Simulation status ledger"/);
   assert.match(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /Nothing was sent/);
