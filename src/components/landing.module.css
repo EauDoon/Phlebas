@@ -500,6 +500,10 @@
   min-width: 44px;
 }
 
+.marketCards article > a {
+  min-width: 44px;
+}
+
 .marketCards article > a span {
   margin-left: 15px;
 }
