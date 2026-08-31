@@ -13,6 +13,12 @@ import {
   type MatcherOperator,
 } from "../../src/lib/matcher-operator.ts";
 import { listenHost } from "../../src/lib/operator-url.ts";
+import {
+  depthFromBook,
+  marketsFromOperator,
+  tickerFromOperator,
+  tradesFromReceipts,
+} from "../../src/lib/market-data.ts";
 import { TESTNET } from "../../src/lib/testnet.ts";
 import { atomicWriteFile } from "../durable-file.ts";
 import { readOperator, writeOperator } from "./persist.ts";
@@ -155,6 +161,39 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
       }
       if (request.method === "GET" && url.pathname === "/book") {
         send(response, 200, operator.book);
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/ticker") {
+        const now = Math.floor(Date.now() / 1000);
+        const t = tickerFromOperator(operator.book, operator.receipts, BigInt(now));
+        send(response, 200, t);
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/trades") {
+        const limit = Number(url.searchParams.get("limit") ?? "50");
+        if (!Number.isInteger(limit) || limit < 0 || limit > 1000) {
+          send(response, 400, { ok: false, reason: "limit-must-be-an-integer-between-0-and-1000" });
+          return;
+        }
+        const now = Math.floor(Date.now() / 1000);
+        const snap = tradesFromReceipts(operator.receipts, limit, BigInt(now));
+        send(response, 200, snap);
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/depth") {
+        const levels = Number(url.searchParams.get("levels") ?? "20");
+        if (!Number.isInteger(levels) || levels < 0 || levels > 200) {
+          send(response, 400, { ok: false, reason: "levels-must-be-an-integer-between-0-and-200" });
+          return;
+        }
+        const now = Math.floor(Date.now() / 1000);
+        const snap = depthFromBook(operator.book, levels, BigInt(now));
+        send(response, 200, snap);
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/markets") {
+        const m = marketsFromOperator(operator.baseAsset, operator.quoteAssets, operator.book);
+        send(response, 200, m);
         return;
       }
       if (request.method === "POST" && url.pathname === "/orders") {
