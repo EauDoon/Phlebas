@@ -34,6 +34,15 @@ export function SimulationFrame({
         <h1>{title}</h1>
         {children}
       </main>
+      <footer className={styles.footer}>
+        <span>Phlebas is a protocol preview, not a live exchange or an offer of financial services.</span>
+        <nav aria-label="Footer">
+          <Link href="/trade?view=architecture">Architecture</Link>
+          <Link href="/legal">Legal and compliance</Link>
+          <Link href="/security">Security</Link>
+          <Link href="/status">Status</Link>
+        </nav>
+      </footer>
     </div>
   );
 }
