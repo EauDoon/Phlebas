@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after leftover pZEC identifiers and market-order worst-price flow.
+Last updated: 01-09-2026 after §10/§11 320px LP, gateway, and Buy/Sell flows.
 
 ## Branch
 
@@ -175,6 +175,10 @@ Last updated: 01-09-2026 after leftover pZEC identifiers and market-order worst-
 - LANDING_AND_USER_JOURNEYS, THREAT_MODEL, LAUNCH_PLAN, LEGAL, OPERATIONS, DELIVERY_PLAN, WALLET_COMPATIBILITY, and README no longer list pZEC as the current form.
 - `lpBurnNoticeCopy` takes `zecLabel`. LP IL math uses `lpZecAtoms`. Preview helpers are `ZEC_ATOMIC_RULE` / `formatZecPreviewAmount`. Foundry locals are `reserveZec`.
 - Ticket market orders show `marketOrderConstraintCopy`. A 0% slippage IOC buy at lastTicks does not fill the 52.91 ask. Playwright covers that at 320px.
+- LP risk copy is `lpRiskCopy` and names toxic flow and emergency restrictions.
+- Buy/Sell selected state is `sideControlCopy` text plus underline, not color alone. Playwright at 320px.
+- Gateway empty/error copy is `gatewayOffCopy` / `gatewayUnavailableCopy`. 320px Issue retry stays non-receivable.
+- LP empty shares, toxic-flow risk, unavailable mint/swap, and Retry illustrative are covered at 320px.
 
 ## Next
 
@@ -182,9 +186,10 @@ Last updated: 01-09-2026 after leftover pZEC identifiers and market-order worst-
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
 - ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
-- LP risk copy still says adverse selection instead of PRODUCT_SPEC toxic flow
-- PRODUCT_SPEC §11: confirm buy/sell are never distinguished by color alone at 320px
-- PRODUCT_SPEC §10 remaining: more empty/error/retry Playwright at 320px on LP and gateway
+- Book bid/ask actionable prices still hide Bid/Ask in `.srOnly` (color and column)
+- Ticket B/S keyboard shortcuts are untested in Playwright
+- Gateway tour still omits PRODUCT_SPEC 9.3 rejected, unresolved, and stale-proof states
+- LP loading and stale feed states are not yet covered at 320px
 
 ## Blockers
 
