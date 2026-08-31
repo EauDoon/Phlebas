@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { keccak256Text } from "./keccak.ts";
-import { fundingEvidence, sampleEvidencePolicies, sampleSwapTerms, sampleTimingPolicy } from "./swap-test-fixtures.ts";
+import {
+  authorizedSwap,
+  fundingEvidence,
+  sampleEvidencePolicies,
+  sampleMarketPolicy,
+  sampleSwapTerms,
+  sampleTimingPolicy,
+} from "./swap-test-fixtures.ts";
 import {
   appendSwapEvent,
   emptySwapJournal,
@@ -10,10 +17,10 @@ import {
   verifySwapJournal,
   type SwapEventPayload,
 } from "./swap-journal.ts";
-import { createSwapState } from "./swap-state.ts";
+import { createSwapState, prepareSwapFunding } from "./swap-state.ts";
 
 function fixture() {
-  const state = createSwapState(sampleSwapTerms, sampleTimingPolicy, sampleEvidencePolicies);
+  const state = createSwapState(sampleSwapTerms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy);
   return { state, journal: emptySwapJournal(state) };
 }
 
@@ -96,6 +103,29 @@ test("forbids JavaScript numbers inside hashed journal payloads", () => {
   }), /numbers are forbidden/);
 });
 
+test("rejects missing, extra, and undefined runtime payload fields", () => {
+  const evidence = fundingEvidence("zec");
+  assert.throws(() => hashSwapEventPayload({
+    kind: "observe-funding",
+    evidence: { ...evidence, unexpected: true },
+  } as unknown as SwapEventPayload), /unknown fields/);
+  assert.throws(() => hashSwapEventPayload({
+    kind: "observe-funding",
+    evidence: { ...evidence, fact: { ...evidence.fact, unexpected: true } },
+  } as unknown as SwapEventPayload), /unknown fields/);
+  assert.throws(() => hashSwapEventPayload({
+    kind: "authorize-terms",
+    partyId: sampleSwapTerms.zecSellerId,
+    termsHash: sampleSwapTerms.zecOrderHash,
+  } as unknown as SwapEventPayload), /missing required fields/);
+  assert.throws(() => hashSwapEventPayload({
+    kind: "flag-dispute",
+    reason: "observer-stale",
+    detail: "Undefined is not canonical",
+    evidenceId: undefined,
+  }), /undefined/);
+});
+
 test("rejects unknown payload kinds and histories that cannot replay", () => {
   const initial = fixture();
   const appended = appendSwapEvent(initial.journal, initial.state, {
@@ -123,4 +153,24 @@ test("rejects unknown payload kinds and histories that cannot replay", () => {
     initialState: { ...initial.state, termsHash: keccak256Text("wrong") },
   };
   assert.equal(verifySwapJournal(unreplayable), false);
+});
+
+test("journals two independent observers that agree on one funding fact", () => {
+  const prepared = prepareSwapFunding(
+    authorizedSwap(),
+    "zec",
+    keccak256Text("two-observer-artifact"),
+    sampleSwapTerms.zecFundBy - 1n,
+  );
+  const empty = emptySwapJournal(prepared);
+  const first = appendSwapEvent(empty, prepared, {
+    kind: "observe-funding",
+    evidence: fundingEvidence("zec", "1", sampleSwapTerms, 0),
+  });
+  const second = appendSwapEvent(first.journal, first.state, {
+    kind: "observe-funding",
+    evidence: fundingEvidence("zec", "1", sampleSwapTerms, 1),
+  });
+  assert.equal(second.state.zec.fundingAttestations?.length, 2);
+  assert.equal(verifySwapJournal(second.journal), true);
 });

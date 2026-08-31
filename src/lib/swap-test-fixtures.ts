@@ -1,9 +1,15 @@
 import { keccak256Text } from "./keccak.ts";
 import type { Hex32 } from "./order-domain.ts";
-import type { SwapTermsV1 } from "./swap-domain.ts";
+import {
+  deriveSwapFillId,
+  hashSwapMarketPolicy,
+  type SwapMarketPolicyV1,
+  type SwapTermsV1,
+} from "./swap-domain.ts";
 import {
   hashSwapFinalityPolicy,
   hashSwapObserverPolicy,
+  hashSwapTimingPolicy,
   type SwapEvidencePolicies,
 } from "./swap-policy.ts";
 import {
@@ -26,6 +32,16 @@ const sampleQuoteChain = "eip155:421614";
 const sampleObserverSourceIds = [keccak256Text("fixture-observer-a"), keccak256Text("fixture-observer-b")]
   .sort() as Hex32[];
 
+export const sampleMarketPolicy: SwapMarketPolicyV1 = {
+  version: 1,
+  markets: [{
+    zecChain: sampleZecChain,
+    zecAsset: `${sampleZecChain}/slip44:133`,
+    quoteChain: sampleQuoteChain,
+    quoteAsset: `${sampleQuoteChain}/erc20:0x1111111111111111111111111111111111111111`,
+  }],
+};
+
 export const sampleEvidencePolicies: SwapEvidencePolicies = {
   observer: {
     version: 1,
@@ -47,22 +63,35 @@ export const sampleEvidencePolicies: SwapEvidencePolicies = {
   },
 };
 
+export const sampleTimingPolicy = {
+  minimumFundingWindowSeconds: 100n,
+  minimumClaimWindowSeconds: 100n,
+  minimumSafetyWindowSeconds: 500n,
+};
+
+const sampleZecOrderHash = keccak256Text("zec-order");
+const sampleStablecoinOrderHash = keccak256Text("stablecoin-order");
+const sampleFillFields = {
+  zecOrderHash: sampleZecOrderHash,
+  stablecoinOrderHash: sampleStablecoinOrderHash,
+  fillIndex: 0n,
+  zecAmountZatoshis: 100_000_000n,
+  quoteAmountAtoms: 52_910_000n,
+  executionPriceTicks: 5_291n,
+};
+
 export const sampleSwapTerms: SwapTermsV1 = {
   version: 1,
-  fillId: keccak256Text("fill-1"),
-  fillIndex: 0n,
-  zecOrderHash: keccak256Text("zec-order"),
-  stablecoinOrderHash: keccak256Text("stablecoin-order"),
+  fillId: deriveSwapFillId(sampleFillFields),
+  ...sampleFillFields,
   zecSellerId: keccak256Text("zec-seller"),
   stablecoinSellerId: keccak256Text("stablecoin-seller"),
   zecChain: sampleZecChain,
   zecAsset: `${sampleZecChain}/slip44:133`,
   quoteChain: sampleQuoteChain,
   quoteAsset: "eip155:421614/erc20:0x1111111111111111111111111111111111111111",
-  zecAmountZatoshis: 100_000_000n,
-  quoteAmountAtoms: 5_291_000n,
-  executionPriceTicks: 5_291n,
   protocolFeeQuoteAtoms: 7_936n,
+  feeRecipient: hex20("7"),
   maximumFeeBps: 30n,
   zcashLockScriptHash: hex20("a"),
   zcashClaimPubKeyHash: hex20("1"),
@@ -78,23 +107,18 @@ export const sampleSwapTerms: SwapTermsV1 = {
   evmClaimSafetyCutoff: 1_700_000_400n,
   evmRefundTime: 1_700_000_500n,
   zecRefundTime: 1_700_001_000n,
-  timeoutPolicyId: keccak256Text("timeout-policy-fixture-v1"),
+  timeoutPolicyId: hashSwapTimingPolicy(sampleTimingPolicy),
+  marketPolicyId: hashSwapMarketPolicy(sampleMarketPolicy),
   observerPolicyId: hashSwapObserverPolicy(sampleEvidencePolicies.observer),
   zecFinalityPolicyId: hashSwapFinalityPolicy(sampleEvidencePolicies.zecFinality),
   evmFinalityPolicyId: hashSwapFinalityPolicy(sampleEvidencePolicies.evmFinality),
-};
-
-export const sampleTimingPolicy = {
-  minimumFundingWindowSeconds: 100n,
-  minimumClaimWindowSeconds: 100n,
-  minimumSafetyWindowSeconds: 500n,
 };
 
 export const fixturePreimage = `0x${"42".repeat(32)}` as const;
 export const fixtureSecretHash = "0x425ed4e4a36b30ea21b90e21c712c649e8214c29b7eaf68089d1039c6e55384c" as const;
 
 export function authorizedSwap(terms = sampleSwapTerms): SwapState {
-  const created = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies);
+  const created = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy);
   const first = authorizeSwapTerms(created, terms.zecSellerId, created.termsHash, terms.authorizationDeadline - 2n);
   return authorizeSwapTerms(first, terms.stablecoinSellerId, first.termsHash, terms.authorizationDeadline - 1n);
 }
@@ -109,8 +133,8 @@ export function fundingEvidence(
   const executedAtSeconds = (leg === "zec" ? terms.zecFundBy : terms.evmFundBy) - 100n;
   const unsigned = {
     leg,
-    swapId: createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies).swapId,
-    termsHash: createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies).termsHash,
+    swapId: createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy).swapId,
+    termsHash: createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy).termsHash,
     transactionId: keccak256Text(`${leg}-transaction-${suffix}`),
     blockHash: keccak256Text(`${leg}-block-${suffix}`),
     blockHeight,
@@ -120,7 +144,7 @@ export function fundingEvidence(
     asset: leg === "zec" ? terms.zecAsset : terms.quoteAsset,
     amountAtoms: leg === "zec" ? terms.zecAmountZatoshis : terms.quoteAmountAtoms,
     lockIdentity: leg === "zec" ? terms.zcashLockScriptHash : terms.evmEscrowContract,
-    escrowRecordId: createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies).swapId,
+    escrowRecordId: createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy).swapId,
     funder: leg === "zec" ? terms.zecSellerId : terms.evmFunder,
     claimRecipient: leg === "zec" ? terms.zcashClaimPubKeyHash : terms.evmClaimRecipient,
     refundRecipient: leg === "zec" ? terms.zcashRefundPubKeyHash : terms.evmRefundRecipient,

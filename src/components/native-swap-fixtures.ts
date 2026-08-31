@@ -1,8 +1,15 @@
 import type { MarketId } from "@/lib/market-data";
-import { type SwapTermsV1, validateSwapTerms } from "@/lib/swap-domain";
+import {
+  deriveSwapFillId,
+  hashSwapMarketPolicy,
+  type SwapMarketPolicyV1,
+  type SwapTermsV1,
+  validateSwapTerms,
+} from "@/lib/swap-domain";
 import {
   hashSwapFinalityPolicy,
   hashSwapObserverPolicy,
+  hashSwapTimingPolicy,
   swapDeadlineStatus,
   type SwapEvidencePolicies,
   type SwapTimingPolicy,
@@ -70,6 +77,16 @@ const hex20 = (byte: string) => `0x${byte.repeat(20)}` as `0x${string}`;
 const fixtureZecChain = "bip122:00040fe8ec8471911baa1db1266ea15d";
 const fixtureQuoteChain = "eip155:421614";
 
+const fixtureMarketPolicy: SwapMarketPolicyV1 = {
+  version: 1,
+  markets: [{
+    zecChain: fixtureZecChain,
+    zecAsset: `${fixtureZecChain}/slip44:133`,
+    quoteChain: fixtureQuoteChain,
+    quoteAsset: `${fixtureQuoteChain}/erc20:0x1111111111111111111111111111111111111111`,
+  }],
+};
+
 const fixtureEvidencePolicies: SwapEvidencePolicies = {
   observer: {
     version: 1,
@@ -91,22 +108,35 @@ const fixtureEvidencePolicies: SwapEvidencePolicies = {
   },
 };
 
+const fixtureTimingPolicy: SwapTimingPolicy = {
+  minimumFundingWindowSeconds: 100n,
+  minimumClaimWindowSeconds: 100n,
+  minimumSafetyWindowSeconds: 500n,
+};
+
+const fixtureZecOrderHash = hex32("12");
+const fixtureStablecoinOrderHash = hex32("13");
+const fixtureFillFields = {
+  zecOrderHash: fixtureZecOrderHash,
+  stablecoinOrderHash: fixtureStablecoinOrderHash,
+  fillIndex: 0n,
+  zecAmountZatoshis: 100_000_000n,
+  quoteAmountAtoms: 52_910_000n,
+  executionPriceTicks: 5_291n,
+};
+
 const fixtureTerms: SwapTermsV1 = {
   version: 1,
-  fillId: hex32("11"),
-  fillIndex: 0n,
-  zecOrderHash: hex32("12"),
-  stablecoinOrderHash: hex32("13"),
+  fillId: deriveSwapFillId(fixtureFillFields),
+  ...fixtureFillFields,
   zecSellerId: hex32("14"),
   stablecoinSellerId: hex32("15"),
   zecChain: fixtureZecChain,
   zecAsset: `${fixtureZecChain}/slip44:133`,
   quoteChain: fixtureQuoteChain,
   quoteAsset: "eip155:421614/erc20:0x1111111111111111111111111111111111111111",
-  zecAmountZatoshis: 100_000_000n,
-  quoteAmountAtoms: 52_910_000n,
-  executionPriceTicks: 5_291n,
   protocolFeeQuoteAtoms: 0n,
+  feeRecipient: hex20("a3"),
   maximumFeeBps: 30n,
   zcashLockScriptHash: hex20("a1"),
   zcashClaimPubKeyHash: hex20("b1"),
@@ -122,22 +152,22 @@ const fixtureTerms: SwapTermsV1 = {
   evmClaimSafetyCutoff: 1_700_000_700n,
   evmRefundTime: 1_700_001_000n,
   zecRefundTime: 1_700_001_600n,
-  timeoutPolicyId: hex32("21"),
+  timeoutPolicyId: hashSwapTimingPolicy(fixtureTimingPolicy),
+  marketPolicyId: hashSwapMarketPolicy(fixtureMarketPolicy),
   observerPolicyId: hashSwapObserverPolicy(fixtureEvidencePolicies.observer),
   zecFinalityPolicyId: hashSwapFinalityPolicy(fixtureEvidencePolicies.zecFinality),
   evmFinalityPolicyId: hashSwapFinalityPolicy(fixtureEvidencePolicies.evmFinality),
 };
 
-const fixtureTimingPolicy: SwapTimingPolicy = {
-  minimumFundingWindowSeconds: 100n,
-  minimumClaimWindowSeconds: 100n,
-  minimumSafetyWindowSeconds: 500n,
-};
-
 const fixturePreimage = `0x${"42".repeat(32)}` as const;
 
 function fundingEvidence(leg: "zec" | "evm", observerIndex: 0 | 1 = 0): FundingEvidence {
-  const identity = createSwapState(validateSwapTerms(fixtureTerms), fixtureTimingPolicy, fixtureEvidencePolicies);
+  const identity = createSwapState(
+    validateSwapTerms(fixtureTerms),
+    fixtureTimingPolicy,
+    fixtureEvidencePolicies,
+    fixtureMarketPolicy,
+  );
   const blockHeight = leg === "zec" ? 2_100_001n : 12_300_001n;
   const executedAtSeconds = (leg === "zec" ? fixtureTerms.zecFundBy : fixtureTerms.evmFundBy) - 100n;
   const unsigned = {
@@ -241,7 +271,7 @@ function spendEvidence(
 }
 
 function createdSwap(): SwapState {
-  return createSwapState(validateSwapTerms(fixtureTerms), fixtureTimingPolicy, fixtureEvidencePolicies);
+  return createSwapState(validateSwapTerms(fixtureTerms), fixtureTimingPolicy, fixtureEvidencePolicies, fixtureMarketPolicy);
 }
 
 function authorizedSwap(): SwapState {

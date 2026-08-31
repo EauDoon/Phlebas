@@ -11,6 +11,7 @@ import {
   fundedZecSwap,
   fundingEvidence,
   sampleEvidencePolicies,
+  sampleMarketPolicy,
   sampleSwapTerms,
   sampleTimingPolicy,
   spendEvidence,
@@ -60,7 +61,7 @@ function replaceSpendFact(evidence: SpendEvidence, changes: Partial<Omit<SpendEv
 }
 
 test("requires both exact terms authorizations before ZEC funding", () => {
-  const created = createSwapState(sampleSwapTerms, sampleTimingPolicy, sampleEvidencePolicies);
+  const created = createSwapState(sampleSwapTerms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy);
   assert.equal(swapPhase(created), "awaiting-authorizations");
   assert.throws(() => prepareSwapFunding(created, "zec", keccak256Text("artifact"), 1n), /Both parties/);
   assert.throws(
@@ -111,7 +112,7 @@ test("funds the EVM leg only inside its safe window", () => {
 
 test("reveals the secret only from a successful canonical EVM claim", () => {
   const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
-  const created = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies);
+  const created = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy);
   const first = authorizeSwapTerms(created, terms.zecSellerId, created.termsHash, 1n);
   const authorized = authorizeSwapTerms(first, terms.stablecoinSellerId, created.termsHash, 2n);
   const zecPrepared = prepareSwapFunding(authorized, "zec", keccak256Text("zec-artifact"), terms.zecFundBy - 1n);
@@ -166,7 +167,7 @@ test("keeps claim and refund mutually exclusive and rejects early refunds", () =
 
 test("rejects EVM claims at the refund deadline", () => {
   const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
-  const created = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies);
+  const created = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy);
   const first = authorizeSwapTerms(created, terms.zecSellerId, created.termsHash, 1n);
   const authorized = authorizeSwapTerms(first, terms.stablecoinSellerId, created.termsHash, 2n);
   const zecPrepared = prepareSwapFunding(authorized, "zec", keccak256Text("za"), 3n);
@@ -191,7 +192,7 @@ test("fails closed on stale or conflicting observer evidence", () => {
 
 test("preserves a revealed secret when its EVM claim reorganizes", () => {
   const terms = { ...sampleSwapTerms, secretHash: "0x425ed4e4a36b30ea21b90e21c712c649e8214c29b7eaf68089d1039c6e55384c" as const };
-  const created = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies);
+  const created = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy);
   const first = authorizeSwapTerms(created, terms.zecSellerId, created.termsHash, 1n);
   const authorized = authorizeSwapTerms(first, terms.stablecoinSellerId, created.termsHash, 2n);
   const zecPrepared = prepareSwapFunding(authorized, "zec", keccak256Text("zr"), 3n);

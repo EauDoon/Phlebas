@@ -134,6 +134,13 @@ export function assertSwapTimingPolicy(terms: SwapTermsV1, policy: SwapTimingPol
   const fundingWindow = positiveUint64(policy.minimumFundingWindowSeconds, "Minimum funding window");
   const claimWindow = positiveUint64(policy.minimumClaimWindowSeconds, "Minimum claim window");
   const safetyWindow = positiveUint64(policy.minimumSafetyWindowSeconds, "Minimum safety window");
+  if (hashSwapTimingPolicy({
+    minimumFundingWindowSeconds: fundingWindow,
+    minimumClaimWindowSeconds: claimWindow,
+    minimumSafetyWindowSeconds: safetyWindow,
+  }) !== validated.timeoutPolicyId) {
+    throw new Error("Timing policy does not match signed terms");
+  }
 
   const ordered = [
     validated.authorizationDeadline,
@@ -159,6 +166,19 @@ export function assertSwapTimingPolicy(terms: SwapTermsV1, policy: SwapTimingPol
     throw new RangeError("Cross-chain safety window is below the policy minimum");
   }
   return validated;
+}
+
+export function hashSwapTimingPolicy(policy: SwapTimingPolicy): Hex32 {
+  const fundingWindow = positiveUint64(policy.minimumFundingWindowSeconds, "Minimum funding window");
+  const claimWindow = positiveUint64(policy.minimumClaimWindowSeconds, "Minimum claim window");
+  const safetyWindow = positiveUint64(policy.minimumSafetyWindowSeconds, "Minimum safety window");
+  return sha256Hex([
+    "PhlebasSwapTimingPolicy",
+    "version=1",
+    `minimumFundingWindowSeconds=${fundingWindow}`,
+    `minimumClaimWindowSeconds=${claimWindow}`,
+    `minimumSafetyWindowSeconds=${safetyWindow}`,
+  ].join("\n"));
 }
 
 export function swapDeadlineStatus(terms: SwapTermsV1, nowSeconds: bigint): SwapDeadlineStatus {

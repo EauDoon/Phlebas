@@ -1,6 +1,6 @@
 import type { Hex32 } from "./order-domain.ts";
 import { sha256Hex } from "./sha256.ts";
-import { encodeSwapTerms } from "./swap-domain.ts";
+import { encodeSwapTerms, hashSwapMarketPolicy } from "./swap-domain.ts";
 import { hashSwapFinalityPolicy, hashSwapObserverPolicy } from "./swap-policy.ts";
 import { assertSwapStateIntegrity, type SwapState } from "./swap-state.ts";
 
@@ -26,6 +26,7 @@ export function encodeSwapState(state: SwapState): string {
     termsHash: state.termsHash,
     terms: encodeSwapTerms(state.terms),
     timingPolicy: state.timingPolicy,
+    marketPolicy: hashSwapMarketPolicy(state.marketPolicy),
     evidencePolicies: {
       observer: hashSwapObserverPolicy(state.evidencePolicies.observer),
       zecFinality: hashSwapFinalityPolicy(state.evidencePolicies.zecFinality),

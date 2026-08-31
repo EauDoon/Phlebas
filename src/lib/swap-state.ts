@@ -1,5 +1,13 @@
 import { UINT64_MAX, normalizeHex32, type Hex32 } from "./order-domain.ts";
-import { hashSwapTerms, roleForParty, swapIdForTerms, type SwapRole, type SwapTermsV1 } from "./swap-domain.ts";
+import {
+  assertApprovedSwapMarket,
+  hashSwapTerms,
+  roleForParty,
+  swapIdForTerms,
+  type SwapMarketPolicyV1,
+  type SwapRole,
+  type SwapTermsV1,
+} from "./swap-domain.ts";
 import {
   assertSwapEvidencePolicies,
   assertSwapTimingPolicy,
@@ -110,6 +118,7 @@ export type SwapState = Readonly<{
   termsHash: Hex32;
   swapId: Hex32;
   timingPolicy: SwapTimingPolicy;
+  marketPolicy: SwapMarketPolicyV1;
   evidencePolicies: SwapEvidencePolicies;
   authorizations: Readonly<Partial<Record<SwapRole, true>>>;
   zec: SwapLegState;
@@ -209,6 +218,7 @@ function assertNotDisputed(state: SwapState): void {
 
 export function assertSwapStateIntegrity(state: SwapState): SwapState {
   const validated = assertSwapTimingPolicy(state.terms, state.timingPolicy);
+  assertApprovedSwapMarket(validated, state.marketPolicy);
   assertSwapEvidencePolicies(validated, state.evidencePolicies);
   if (hashSwapTerms(validated) !== state.termsHash) throw new Error("Swap state terms do not match the signed terms hash");
   if (swapIdForTerms(validated) !== state.swapId) throw new Error("Swap state terms do not match the swap ID");
@@ -249,14 +259,17 @@ export function createSwapState(
   terms: SwapTermsV1,
   timingPolicy: SwapTimingPolicy,
   evidencePolicies: SwapEvidencePolicies,
+  marketPolicy: SwapMarketPolicyV1,
 ): SwapState {
   const validated = assertSwapTimingPolicy(terms, timingPolicy);
+  const validatedMarketPolicy = assertApprovedSwapMarket(validated, marketPolicy);
   const validatedEvidencePolicies = assertSwapEvidencePolicies(validated, evidencePolicies);
   return Object.freeze({
     terms: validated,
     termsHash: hashSwapTerms(validated),
     swapId: swapIdForTerms(validated),
     timingPolicy: Object.freeze({ ...timingPolicy }),
+    marketPolicy: validatedMarketPolicy,
     evidencePolicies: validatedEvidencePolicies,
     authorizations: Object.freeze({}),
     zec: EMPTY_LEG,

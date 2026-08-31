@@ -65,6 +65,38 @@ const EVENT_KEYS: Readonly<Record<SwapEventPayload["kind"], readonly string[]>> 
   "retract-evidence": ["kind", "evidenceId", "detail"],
 });
 
+const FUNDING_FACT_KEYS = [
+  "factId", "leg", "swapId", "termsHash", "transactionId", "blockHash", "blockHeight", "executedAtSeconds",
+  "outputIndex", "chain", "asset", "amountAtoms", "lockIdentity", "escrowRecordId", "funder", "claimRecipient",
+  "refundRecipient", "secretHash", "refundTime", "successful",
+] as const;
+const SPEND_FACT_KEYS = [
+  "factId", "fundingFactId", "fundingTransactionId", "fundingOutputIndex", "leg", "action", "swapId", "termsHash",
+  "transactionId", "blockHash", "blockHeight", "executedAtSeconds", "inputOrLogIndex", "chain", "asset", "amountAtoms",
+  "lockIdentity", "escrowRecordId", "recipient", "successful", "preimage",
+] as const;
+const ATTESTATION_KEYS = [
+  "evidenceId", "factId", "sourceId", "observerPolicyId", "finalityPolicyId", "observedAtSeconds", "tipBlockHash",
+  "tipBlockHeight",
+] as const;
+
+function assertExactObject(
+  value: unknown,
+  label: string,
+  allowed: readonly string[],
+  optional: readonly string[] = [],
+): asserts value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new TypeError(`${label} must be an object`);
+  const actual = Object.keys(value);
+  if (actual.some((key) => !allowed.includes(key))) throw new TypeError(`${label} contains unknown fields`);
+  if (allowed.some((key) => !optional.includes(key) && !Object.prototype.hasOwnProperty.call(value, key))) {
+    throw new TypeError(`${label} is missing required fields`);
+  }
+  if (actual.some((key) => (value as Record<string, unknown>)[key] === undefined)) {
+    throw new TypeError(`${label} cannot contain undefined fields`);
+  }
+}
+
 function assertSwapEventPayload(payload: unknown): asserts payload is SwapEventPayload {
   if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
     throw new TypeError("Swap event payload must be an object");
@@ -79,6 +111,17 @@ function assertSwapEventPayload(payload: unknown): asserts payload is SwapEventP
   const required = record.kind === "flag-dispute" ? allowed.filter((key) => key !== "evidenceId") : allowed;
   if (required.some((key) => !Object.prototype.hasOwnProperty.call(record, key))) {
     throw new TypeError("Swap event payload is missing required fields");
+  }
+  if (actual.some((key) => record[key] === undefined)) throw new TypeError("Swap event payload cannot contain undefined fields");
+  if (record.kind === "observe-funding" || record.kind === "observe-spend") {
+    assertExactObject(record.evidence, "Swap event evidence", ["fact", "attestation"]);
+    const evidence = record.evidence;
+    if (record.kind === "observe-funding") {
+      assertExactObject(evidence.fact, "Funding fact", FUNDING_FACT_KEYS);
+    } else {
+      assertExactObject(evidence.fact, "Spend fact", SPEND_FACT_KEYS, ["preimage"]);
+    }
+    assertExactObject(evidence.attestation, "Observer attestation", ATTESTATION_KEYS);
   }
 }
 
