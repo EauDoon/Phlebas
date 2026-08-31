@@ -24,8 +24,14 @@ function observation(overrides: Partial<Parameters<typeof parseStubObservation>[
 
 test("one outpoint authorizes at most one mint after ten confirmations", () => {
   const spent = emptyMintLedger();
-  const first = attestMint(observation(), spent);
+  const observed = observation();
+  const first = attestMint(observed, spent);
   assert.equal(first.status, "eligible");
+  if (first.status === "eligible") {
+    assert.equal(first.amountZatoshis, observed.amountZatoshis.toString());
+    assert.equal(first.outpointKey, `${TXID}:0`);
+    assert.equal(first.tex, TEX);
+  }
   const second = attestMint(observation(), spent);
   assert.equal(second.status, "rejected");
   assert.match(second.reason, /already authorized/);

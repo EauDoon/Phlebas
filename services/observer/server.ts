@@ -6,7 +6,6 @@ import { agreeObservations, parseStubObservation, type ObservedOutpoint } from "
 
 const bind = process.env.PHLEBAS_BIND ?? "127.0.0.1";
 const port = Number(process.env.PHLEBAS_PORT ?? 8789);
-const spent = emptyMintLedger();
 
 function send(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { "content-type": "application/json" });
@@ -25,6 +24,7 @@ async function readJson(request: IncomingMessage): Promise<Record<string, unknow
 export function startObserver(options: { host?: string; port?: number } = {}) {
   const host = options.host ?? bind;
   const listenPort = options.port ?? port;
+  const spent = emptyMintLedger();
   const server = createServer((request, response) => {
     void (async () => {
       const url = new URL(request.url ?? "/", `http://${host}:${listenPort}`);
