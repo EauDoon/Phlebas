@@ -119,6 +119,7 @@ export function TradeTicket({
     tif: TimeInForce;
     priceTicks: bigint;
     sizeAtoms: bigint;
+    expiryUnix: bigint;
   }) => string;
 }) {
   const noticeId = useId();
@@ -438,6 +439,7 @@ export function TradeTicket({
       tif: review.tif,
       priceTicks: review.priceTicks,
       sizeAtoms: review.sizeAtoms,
+      expiryUnix: review.expiryUnix,
     }));
     setReview(null);
   }

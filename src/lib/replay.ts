@@ -17,6 +17,7 @@ export type LoggedSubmit = {
   tif: TimeInForce;
   priceTicks: bigint;
   sizeAtoms: bigint;
+  expiryUnix: bigint;
 };
 
 export type LoggedCancel = {
@@ -76,7 +77,13 @@ export function replayLog(events: readonly SessionLogEvent[]): {
     }
 
     const book = state.books[event.marketId];
-    const result = submitOrder(book, event);
+    const result = submitOrder(book, {
+      id: event.id,
+      side: event.side,
+      tif: event.tif,
+      priceTicks: event.priceTicks,
+      sizeAtoms: event.sizeAtoms,
+    });
     if (wouldSelfTrade(result.fills)) {
       continue;
     }
@@ -91,6 +98,17 @@ export function replayLog(events: readonly SessionLogEvent[]): {
   }
 
   return state;
+}
+
+export function describeSessionLogEvent(event: SessionLogEvent): string {
+  if (event.kind === "submit") {
+    const expiry = event.expiryUnix === 0n ? "none" : event.expiryUnix.toString();
+    return `${event.side} ${event.tif} ${event.id} expiry ${expiry}`;
+  }
+  if (event.kind === "cancel") {
+    return event.orderId;
+  }
+  return "session reset";
 }
 
 export function snapshotKey(state: ReturnType<typeof replayLog>): string {

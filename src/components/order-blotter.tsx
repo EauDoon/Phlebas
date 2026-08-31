@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
 import type { RestingOrder } from "@/lib/matcher";
-import type { SessionLogEvent } from "@/lib/replay";
+import { describeSessionLogEvent, type SessionLogEvent } from "@/lib/replay";
 import type { PaperAccount, UserFill } from "@/lib/session";
 import { availablePzec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
 import { PZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
@@ -207,13 +207,7 @@ export function OrderBlotter({
                 <tr key={`${event.kind}-${index}`}>
                   <th scope="row">{events.length - Math.min(events.length, 20) + index + 1}</th>
                   <td>{event.kind}</td>
-                  <td>
-                    {event.kind === "submit"
-                      ? `${event.side} ${event.tif} ${event.id}`
-                      : event.kind === "cancel"
-                        ? event.orderId
-                        : "session reset"}
-                  </td>
+                  <td>{describeSessionLogEvent(event)}</td>
                 </tr>
               ))}
             </tbody>

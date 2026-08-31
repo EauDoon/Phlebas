@@ -129,6 +129,7 @@ export function TradingTerminal({
     tif: TimeInForce;
     priceTicks: bigint;
     sizeAtoms: bigint;
+    expiryUnix: bigint;
   }): string {
     if (!canCover(account, order.side, order.sizeAtoms, order.priceTicks)) {
       return order.side === "buy"
@@ -138,7 +139,13 @@ export function TradingTerminal({
 
     const id = `user-${nextOrderId.current}`;
     nextOrderId.current += 1;
-    const result = submitOrder(book, { id, ...order });
+    const result = submitOrder(book, {
+      id,
+      side: order.side,
+      tif: order.tif,
+      priceTicks: order.priceTicks,
+      sizeAtoms: order.sizeAtoms,
+    });
     if (wouldSelfTrade(result.fills)) {
       return "Self-trade prevented. Cancel the resting session order or choose another price.";
     }
