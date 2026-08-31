@@ -9,6 +9,7 @@ import {
   getInjectedProvider,
   missingProviderCopy,
   walletConnectFailureCopy,
+  walletConnectIdleTitle,
   walletDisconnectLabel,
   walletStateWithSettlement,
   type WalletState,
@@ -74,7 +75,7 @@ export function WalletBar({
         onClick={() => void connect()}
         disabled={busy}
         aria-label="Connect Arbitrum Sepolia wallet"
-        title={wallet.error ?? "Connect an injected EVM wallet on Arbitrum Sepolia"}
+        title={wallet.error ?? walletConnectIdleTitle(settlementPair)}
       >
         {busy ? "Connecting" : "Connect wallet"}
       </button>

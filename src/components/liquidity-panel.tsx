@@ -8,6 +8,7 @@ import {
   burnShares,
   emptyShareCopy,
   lpPauseNoticeCopy,
+  lpBurnNoticeCopy,
   lpMintNoticeCopy,
   lpResetNoticeCopy,
   hypotheticalImpermanentLoss,
@@ -205,7 +206,7 @@ export function LiquidityPanel({
       setPoolState((current) => ({ ...current, [selectedPool.id]: burned.pool }));
       setHeldShares((current) => ({ ...current, [selectedPool.id]: 0n }));
       setEntryDeposits((current) => ({ ...current, [selectedPool.id]: { pzecAtoms: 0n, quoteAtoms: 0n } }));
-      setNotice(`Burned session shares for ${formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS)} pZEC. Local preview only.`);
+      setNotice(lpBurnNoticeCopy(formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS), markets[marketId].settlementPair));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Share amount is outside the preview range");
     }
