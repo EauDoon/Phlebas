@@ -380,7 +380,9 @@
 .marketSection,
 .pzecSection,
 .journeySection,
-.gatesSection {
+.gatesSection,
+.evidenceSection,
+.terminalPreviewSection {
   padding: clamp(72px, 9vw, 144px) clamp(20px, 5vw, 72px);
   border-bottom: 1px solid var(--border);
 }
@@ -394,7 +396,9 @@
 
 .sectionIntro h2,
 .pzecCopy h2,
-.gatesSection h2 {
+.gatesSection h2,
+.evidenceSection h2,
+.terminalPreviewSection h2 {
   margin-top: 18px;
   font-size: clamp(38px, 5vw, 76px);
   font-weight: 610;
@@ -497,6 +501,15 @@
   line-height: 1.55;
 }
 
+.pzecCopy a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .assetFlow {
   display: grid;
   align-content: center;
@@ -535,6 +548,124 @@
 
 .journeySection {
   grid-template-columns: minmax(260px, 0.55fr) minmax(0, 1.45fr);
+}
+
+.evidenceSection {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.3fr);
+  gap: clamp(42px, 8vw, 130px);
+}
+
+.evidenceList {
+  display: grid;
+  border-top: 1px solid var(--border-strong);
+}
+
+.evidenceList article {
+  display: grid;
+  min-height: 112px;
+  grid-template-columns: 45px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.evidenceList h3 {
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+
+.evidenceList p {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.terminalPreviewSection {
+  display: grid;
+  gap: 36px;
+  background: var(--surface);
+}
+
+.terminalPreviewFrame {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--background);
+}
+
+.terminalPreviewHeader {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.terminalPreviewHeader p,
+.terminalPreviewSummary dd,
+.terminalPreviewBook {
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+}
+
+.terminalPreviewSummary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+}
+
+.terminalPreviewSummary dt {
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.terminalPreviewGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
+  gap: 18px;
+}
+
+.terminalPreviewBook {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.terminalPreviewBook caption {
+  caption-side: bottom;
+  padding-top: 10px;
+  color: var(--text-muted);
+  text-align: left;
+  font-size: 10px;
+}
+
+.terminalPreviewBook th,
+.terminalPreviewBook td {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.terminalPreviewTicket {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-raised);
+}
+
+.terminalPreviewTicket p {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .journeyChooser {
@@ -655,10 +786,23 @@
 
 .gateCopy li {
   position: relative;
+  display: flex;
+  min-height: 44px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   padding-left: 17px;
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.55;
+}
+
+.gateCopy li strong {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .gateCopy li::before {
@@ -798,10 +942,16 @@
   .marketSection,
   .pzecSection,
   .journeySection,
-  .gatesSection {
+  .gatesSection,
+  .evidenceSection,
+  .terminalPreviewSection {
     grid-template-columns: 1fr;
     gap: 50px;
     padding: 84px 24px;
+  }
+
+  .terminalPreviewGrid {
+    grid-template-columns: 1fr;
   }
 
   .marketCards article {
@@ -856,6 +1006,8 @@
   .pzecSection,
   .journeySection,
   .gatesSection,
+  .evidenceSection,
+  .terminalPreviewSection,
   .systemLedger {
     padding-right: 16px;
     padding-left: 16px;

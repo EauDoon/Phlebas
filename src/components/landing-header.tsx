@@ -6,7 +6,7 @@ import { useRef } from "react";
 import styles from "./landing.module.css";
 
 const navigation = [
-  { href: "#markets", label: "Markets" },
+  { href: "#terminal-preview", label: "Markets" },
   { href: "#journeys", label: "Liquidity" },
   { href: "#pzec", label: "Gateway" },
   { href: "/trade?view=architecture", label: "Architecture" },

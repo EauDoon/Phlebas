@@ -1,9 +1,12 @@
 import Link from "next/link";
 
 import { COUNTRY_ACCESS } from "@/lib/country-access";
+import { LANDING_EVIDENCE } from "@/lib/landing-evidence";
+import { LANDING_GATE_STATUS, LANDING_MAINNET_GATES } from "@/lib/landing-gates";
 
 import { LandingHeader } from "./landing-header";
 import { LandingJourneys } from "./landing-journeys";
+import { LandingTerminalPreview } from "./landing-terminal-preview";
 import styles from "./landing.module.css";
 
 const statusRows = [
@@ -80,6 +83,24 @@ export function LandingPage() {
           </div>
         </section>
 
+        <section className={styles.evidenceSection} id="exists-today" aria-labelledby="exists-title">
+          <div className={styles.sectionIntro}>
+            <span className={styles.eyebrow}>What exists today</span>
+            <h2 id="exists-title">A working preview, bounded on purpose.</h2>
+          </div>
+          <div className={styles.evidenceList}>
+            {LANDING_EVIDENCE.map((row, index) => (
+              <article key={row.title}>
+                <span className={styles.journeyNumber}>{String(index + 1).padStart(2, "0")}</span>
+                <div>
+                  <h3>{row.title}</h3>
+                  <p>{row.body}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
         <section className={styles.pzecSection} id="pzec" aria-labelledby="pzec-title">
           <div className={styles.pzecCopy}>
             <span className={styles.eyebrow}>Why pZEC exists</span>
@@ -88,6 +109,11 @@ export function LandingPage() {
               Phlebas therefore specifies pZEC, an 8-decimal custody receipt intended to be backed one for one by eligible transparent native ZEC. That choice enables common settlement, but it introduces reserve, signer, redemption, legal, and operator risk.
             </p>
             <strong>pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.</strong>
+            <p>
+              No shielded deposit or withdrawal is planned for v1. Transparent Zcash and pZEC activity may be publicly linkable.
+              {" "}
+              <a href="https://zips.z.cash/zip-0320">Read the ZIP 320 TEX address specification</a>.
+            </p>
           </div>
           <ol className={styles.assetFlow} aria-label="Proposed ZEC to market flow">
             <li><span>01</span><div><strong>Transparent ZEC</strong><small>Unique TEX deposit intent</small></div></li>
@@ -96,6 +122,8 @@ export function LandingPage() {
             <li><span>04</span><div><strong>Trade or LP</strong><small>Offchain matcher, onchain settlement or pool swap</small></div></li>
           </ol>
         </section>
+
+        <LandingTerminalPreview />
 
         <section className={styles.journeySection} id="journeys" aria-labelledby="journeys-title">
           <div className={styles.sectionIntro}>
@@ -107,17 +135,20 @@ export function LandingPage() {
 
         <section className={styles.gatesSection} id="launch-gates" aria-labelledby="gates-title">
           <div>
-            <span className={styles.eyebrow}>Mainnet is not a feature flag</span>
-            <h2 id="gates-title">A working preview is not permission to hold funds.</h2>
+            <span className={styles.eyebrow}>Not cleared for real assets</span>
+            <h2 id="gates-title">Mainnet starts after evidence, not before it.</h2>
           </div>
           <div className={styles.gateCopy}>
             <p>Real assets stay blocked until entity, licensing, custody, reserve, signer, audit, market-integrity, jurisdiction, insurance, monitoring, and incident gates have current written evidence.</p>
             <ul>
-              <li>USDC is the first proposed quote asset.</li>
-              <li>USDT0 requires a separate later listing decision.</li>
-              <li>Shielded deposits, leverage, lending, and token incentives remain out of scope.</li>
+              {LANDING_MAINNET_GATES.map((gate) => (
+                <li key={gate}>
+                  <span>{gate}</span>
+                  <strong>{LANDING_GATE_STATUS}</strong>
+                </li>
+              ))}
             </ul>
-            <Link href="/trade?view=architecture">Inspect the architecture <span>→</span></Link>
+            <Link href="/trade?view=architecture">Read the launch gates <span>→</span></Link>
           </div>
         </section>
       </main>
