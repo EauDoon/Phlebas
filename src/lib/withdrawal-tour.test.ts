@@ -14,6 +14,8 @@ test("withdrawal tour list includes rejected, expired, refunded, and unresolved 
   assert.equal(ids.includes("expired"), true);
   assert.equal(ids.includes("refunded"), true);
   assert.equal(ids.includes("unresolved"), true);
+  assert.equal(ids.includes("unresolved-observed"), true);
+  assert.equal(ids.includes("input-restored"), true);
   assert.ok(ids.indexOf("rejected") > ids.indexOf("screened"));
   assert.ok(ids.indexOf("rejected") < ids.indexOf("burn submitted"));
   assert.ok(ids.indexOf("expired") > ids.indexOf("burn submitted"));
@@ -22,7 +24,9 @@ test("withdrawal tour list includes rejected, expired, refunded, and unresolved 
   assert.ok(ids.indexOf("refunded") < ids.indexOf("signed"));
   assert.ok(ids.indexOf("refunded") < ids.indexOf("transaction_prepared"));
   assert.ok(ids.indexOf("unresolved") > ids.indexOf("mined"));
-  assert.ok(ids.indexOf("unresolved") < ids.indexOf("confirmed"));
+  assert.ok(ids.indexOf("unresolved-observed") > ids.indexOf("unresolved"));
+  assert.ok(ids.indexOf("input-restored") > ids.indexOf("unresolved-observed"));
+  assert.ok(ids.indexOf("input-restored") < ids.indexOf("confirmed"));
 });
 
 test("rejected and unresolved tour copy stays a simulation that sends nothing", () => {
@@ -55,6 +59,26 @@ test("refunded tour copy restores tZEC before signature and sends nothing", () =
   assert.doesNotMatch(refunded.body, /tex1/i);
   assert.doesNotMatch(refunded.body, /\blive payout/i);
   assert.doesNotMatch(refunded.body, /pZEC/);
+});
+
+test("unresolved recovery tour copy observes the committed tx or restores inputs", () => {
+  const observed = withdrawalTourById("unresolved-observed");
+  const restored = withdrawalTourById("input-restored");
+  assert.ok(observed);
+  assert.ok(restored);
+  assert.equal(observed.title, "Observed recovery");
+  assert.match(observed.body, /exact committed transaction was observed/i);
+  assert.match(observed.body, /returns to broadcast/);
+  assert.match(observed.body, /Nothing is sent/);
+  assert.match(observed.body, /not live settlement/);
+  assert.equal(restored.title, "Inputs restored");
+  assert.match(restored.body, /Verified input restoration/);
+  assert.match(restored.body, /returns the claim to payable/);
+  assert.match(restored.body, /Nothing is sent/);
+  assert.doesNotMatch(observed.body, /pZEC/);
+  assert.doesNotMatch(restored.body, /pZEC/);
+  assert.doesNotMatch(observed.body, /tex1/i);
+  assert.doesNotMatch(restored.body, /tex1/i);
 });
 
 test("expired evidence tour copy closes without a finalized burn and sends nothing", () => {
