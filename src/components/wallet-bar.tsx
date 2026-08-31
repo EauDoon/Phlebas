@@ -9,6 +9,7 @@ import {
   getInjectedProvider,
   missingProviderCopy,
   walletConnectFailureCopy,
+  walletConnectBusyTitle,
   walletConnectIdleTitle,
   walletDisconnectLabel,
   walletStateWithSettlement,
@@ -75,7 +76,7 @@ export function WalletBar({
         onClick={() => void connect()}
         disabled={busy}
         aria-label="Connect Arbitrum Sepolia wallet"
-        title={wallet.error ?? walletConnectIdleTitle(settlementPair)}
+        title={wallet.error ?? (busy ? walletConnectBusyTitle(settlementPair) : walletConnectIdleTitle(settlementPair))}
       >
         {busy ? "Connecting" : "Connect wallet"}
       </button>
