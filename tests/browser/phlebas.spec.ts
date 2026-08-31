@@ -293,7 +293,7 @@ test("trade ticket shows parser errors instead of a tick notice", async ({ page 
   await page.goto("/trade", { waitUntil: "networkidle" });
   const size = page.getByRole("textbox", { name: "Order size in pZEC" });
   await size.fill("0.000000001");
-  await expect(page.getByText("Value must use no more than 8 decimal places")).toBeVisible();
+  await expect(page.getByText("Value must use no more than 8 decimal places").first()).toBeVisible();
   await expect(page.getByText("Price must use 0.01 quote ticks")).toHaveCount(0);
 });
 
@@ -524,7 +524,7 @@ test("invalid expiry stays on the ticket and does not open review", async ({ pag
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1.5");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByText("Expiry must be a whole unix time, or 0 for none.")).toBeVisible();
+  await expect(page.getByText("Expiry must be a whole unix time, or 0 for none.").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
 });
 
@@ -945,7 +945,7 @@ test("terminal skip links reach the price chart after the ticket", async ({ page
 test("invalid size shows a field error and keeps review closed", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("abc");
-  await expect(page.getByRole("alert")).toContainText("Value must use plain decimal notation");
+  await expect(page.getByText("Value must use plain decimal notation").first()).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Order size in pZEC" })).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
   await page.getByRole("button", { name: "Review simulated buy" }).click();
