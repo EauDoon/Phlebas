@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the order-type, view, blotter, liquidity-skip, and bridge-skip slice.
+Last updated: 31-08-2026 after the error-skip, global-error Retry, book-row, and GTC slice.
 
 ## Branch
 
@@ -145,14 +145,18 @@ Last updated: 31-08-2026 after the order-type, view, blotter, liquidity-skip, an
 - Liquidity skips to the pool tabs
 - Destination inspector stays on both gateway journeys; bridge skips to it
 - Playwright covers desktop 44px order-type, view, and blotter tabs, liquidity skip, and bridge skip
+- Allowlisted `?error=1` is a labeled rendering-failure demonstration; Retry is safe; nothing is submitted
+- Error page skips to the retry copy
+- Global-error Retry stays 44px and skips to the retry copy
+- Order book price rows stay 44px on desktop
+- Playwright covers error skip, 44px GTC, and 44px order-book price rows. Global-error Retry is asserted in copy-boundary because it is not a public route.
 
 ## Next
 
-- Error page should skip to the retry copy
-- Global error Retry should stay 44px
-- Order book price rows should stay 44px on desktop
-- Ticket time-in-force already shares the 44px order-type rule; cover it in Playwright
-- Playwright: error skip, global-error Retry, 44px book rows, 44px GTC
+- Blotter Cancel and Reset session should stay 44px on desktop
+- Retry illustrative feed should stay 44px on desktop
+- Recent-trade tape rows should stay 44px on desktop
+- Playwright: 44px Cancel, Reset session, Retry illustrative, and tape rows
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
