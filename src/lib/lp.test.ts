@@ -4,13 +4,21 @@ import test from "node:test";
 import { quoteConstantProductSwapAtoms } from "./amm.ts";
 import {
   burnShares,
+  emptyShareCopy,
+  isLpPauseNotice,
+  lpPauseNoticeCopy,
+  lpBurnNoticeCopy,
+  lpMintNoticeCopy,
+  lpResetNoticeCopy,
+  lpSwapNoticeCopy,
   hypotheticalImpermanentLoss,
   lpOperationAllowed,
   mintShares,
   realizedImpermanentLoss,
   seedPool,
 } from "./lp.ts";
-import { pools } from "./market-data.ts";
+import { markets, pools } from "./market-data.ts";
+import { PZEC_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "./units.ts";
 
 test("mint then burn returns the added reserves on a fresh pool ratio", () => {
   const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
@@ -30,12 +38,242 @@ test("rejects a zero mint", () => {
   assert.throws(() => mintShares(pool, 0n), /positive/);
 });
 
+test("empty share copy names the selected pool and is not a book-empty notice", () => {
+  assert.equal(emptyShareCopy("pZEC/USDC"), "No session LP shares in pZEC/USDC. Burn stays idle until a local mint.");
+  assert.equal(emptyShareCopy("pZEC/USDT0"), "No session LP shares in pZEC/USDT0. Burn stays idle until a local mint.");
+  assert.doesNotMatch(emptyShareCopy("pZEC/USDC"), /order book empty/i);
+  assert.doesNotMatch(emptyShareCopy("pZEC/USDT0"), /resting depth/i);
+});
+
 test("LP burn stays available when trading is paused", () => {
   assert.equal(lpOperationAllowed("burn", true), true);
   assert.equal(lpOperationAllowed("mint", true), false);
   assert.equal(lpOperationAllowed("swap", true), false);
   assert.equal(lpOperationAllowed("mint", false), true);
   assert.equal(lpOperationAllowed("swap", false), true);
+});
+
+test("LP pause notice names the selected pool settlement pair", () => {
+  const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
+  assert.ok(pool.totalShares > 0n);
+  assert.equal(lpOperationAllowed("mint", true), false);
+  assert.equal(
+    lpPauseNoticeCopy(markets["ZEC/USDC"].settlementPair, true),
+    "Trading paused. LP withdrawal remains available. Settled as pZEC-USDC.",
+  );
+  assert.equal(
+    lpPauseNoticeCopy(markets["ZEC/USDT"].settlementPair, false),
+    "Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDT0.",
+  );
+  assert.doesNotMatch(lpPauseNoticeCopy("pZEC-USDC", true), /native ZEC/);
+});
+
+test("LP pause notice names the newly selected pool after a switch while paused", () => {
+  const usdcPaused = lpPauseNoticeCopy(markets["ZEC/USDC"].settlementPair, true);
+  assert.equal(usdcPaused, "Trading paused. LP withdrawal remains available. Settled as pZEC-USDC.");
+  assert.equal(isLpPauseNotice(usdcPaused), true);
+  const usdt0Paused = lpPauseNoticeCopy(markets["ZEC/USDT"].settlementPair, true);
+  assert.equal(usdt0Paused, "Trading paused. LP withdrawal remains available. Settled as pZEC-USDT0.");
+  assert.equal(isLpPauseNotice(usdt0Paused), true);
+  const usdt0Lifted = lpPauseNoticeCopy(markets["ZEC/USDT"].settlementPair, false);
+  assert.equal(
+    usdt0Lifted,
+    "Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDT0.",
+  );
+  assert.equal(isLpPauseNotice(usdt0Lifted), true);
+  const minted = mintShares(seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms), 10_00000000n);
+  assert.equal(
+    isLpPauseNotice(lpMintNoticeCopy(minted.shares, markets["ZEC/USDC"].settlementPair)),
+    false,
+  );
+});
+
+test("LP lifted pause notice names the newly selected pool after a switch", () => {
+  assert.equal(markets["ZEC/USDC"].settlementPair, "pZEC-USDC");
+  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  const usdcLifted = lpPauseNoticeCopy(markets["ZEC/USDC"].settlementPair, false);
+  assert.equal(
+    usdcLifted,
+    "Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDC.",
+  );
+  assert.equal(isLpPauseNotice(usdcLifted), true);
+  const usdt0Lifted = lpPauseNoticeCopy(markets["ZEC/USDT"].settlementPair, false);
+  assert.equal(
+    usdt0Lifted,
+    "Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDT0.",
+  );
+  assert.equal(isLpPauseNotice(usdt0Lifted), true);
+  const minted = mintShares(seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms), 10_00000000n);
+  assert.equal(
+    isLpPauseNotice(lpMintNoticeCopy(minted.shares, markets["ZEC/USDC"].settlementPair)),
+    false,
+  );
+});
+
+test("LP pause notice names pZEC-USDT0 from a real USDT0 pool", () => {
+  const pool = seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms);
+  assert.ok(pool.totalShares > 0n);
+  assert.equal(pools[1].quote, "USDT0");
+  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  assert.equal(lpOperationAllowed("mint", true), false);
+  assert.equal(lpOperationAllowed("swap", true), false);
+  assert.equal(lpOperationAllowed("burn", true), true);
+  assert.equal(
+    lpPauseNoticeCopy(markets["ZEC/USDT"].settlementPair, true),
+    "Trading paused. LP withdrawal remains available. Settled as pZEC-USDT0.",
+  );
+  assert.equal(
+    lpPauseNoticeCopy(markets["ZEC/USDT"].settlementPair, false),
+    "Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDT0.",
+  );
+  assert.doesNotMatch(
+    lpPauseNoticeCopy(markets["ZEC/USDT"].settlementPair, true),
+    /native ZEC/,
+  );
+});
+
+test("LP reset notice names the selected pool settlement pair", () => {
+  const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
+  const minted = mintShares(pool, 10_00000000n);
+  assert.ok(minted.shares > 0n);
+  const restored = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
+  assert.equal(restored.reservePzecAtoms, pool.reservePzecAtoms);
+  assert.equal(
+    lpResetNoticeCopy(markets["ZEC/USDC"].settlementPair),
+    "Local pool reserves restored. Settled as pZEC-USDC.",
+  );
+  assert.equal(
+    lpResetNoticeCopy(markets["ZEC/USDT"].settlementPair),
+    "Local pool reserves restored. Settled as pZEC-USDT0.",
+  );
+  assert.doesNotMatch(lpResetNoticeCopy("pZEC-USDC"), /native ZEC/);
+});
+
+test("LP reset notice names pZEC-USDT0 from a real USDT0 mint then restore", () => {
+  const pool = seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms);
+  const minted = mintShares(pool, 10_00000000n);
+  assert.ok(minted.shares > 0n);
+  assert.equal(pools[1].quote, "USDT0");
+  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  const restored = seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms);
+  assert.equal(restored.reservePzecAtoms, pool.reservePzecAtoms);
+  assert.equal(restored.reserveQuoteAtoms, pool.reserveQuoteAtoms);
+  assert.equal(
+    lpResetNoticeCopy(markets["ZEC/USDT"].settlementPair),
+    "Local pool reserves restored. Settled as pZEC-USDT0.",
+  );
+  assert.doesNotMatch(
+    lpResetNoticeCopy(markets["ZEC/USDT"].settlementPair),
+    /native ZEC/,
+  );
+});
+
+test("LP mint notice names the settlement pair from a real mint", () => {
+  const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
+  const minted = mintShares(pool, 10_00000000n);
+  assert.ok(minted.shares > 0n);
+  assert.equal(
+    lpMintNoticeCopy(minted.shares, markets["ZEC/USDC"].settlementPair),
+    `Minted ${minted.shares.toString()} local LP shares. Wallet actions stay disabled. Settled as pZEC-USDC.`,
+  );
+  assert.match(lpMintNoticeCopy(minted.shares, markets["ZEC/USDT"].settlementPair), /pZEC-USDT0/);
+  assert.doesNotMatch(lpMintNoticeCopy(minted.shares, "pZEC-USDC"), /native ZEC/);
+});
+
+test("LP mint notice names pZEC-USDT0 from a real USDT0 mint", () => {
+  const pool = seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms);
+  const minted = mintShares(pool, 10_00000000n);
+  assert.ok(minted.shares > 0n);
+  assert.equal(pools[1].quote, "USDT0");
+  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  assert.equal(
+    lpMintNoticeCopy(minted.shares, markets["ZEC/USDT"].settlementPair),
+    `Minted ${minted.shares.toString()} local LP shares. Wallet actions stay disabled. Settled as pZEC-USDT0.`,
+  );
+  assert.doesNotMatch(
+    lpMintNoticeCopy(minted.shares, markets["ZEC/USDT"].settlementPair),
+    /native ZEC/,
+  );
+});
+
+test("LP burn notice names the settlement pair from a real mint then burn", () => {
+  const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
+  const minted = mintShares(pool, 10_00000000n);
+  const burned = burnShares(minted.pool, minted.shares);
+  assert.equal(burned.pzecAtoms, 10_00000000n);
+  const pzecLabel = formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS);
+  assert.equal(
+    lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDC"].settlementPair),
+    `Burned session shares for ${pzecLabel} pZEC. Local preview only. Settled as pZEC-USDC.`,
+  );
+  assert.match(lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDT"].settlementPair), /pZEC-USDT0/);
+  assert.doesNotMatch(lpBurnNoticeCopy(pzecLabel, "pZEC-USDC"), /native ZEC/);
+});
+
+test("LP burn notice names pZEC-USDT0 from a real USDT0 mint then burn", () => {
+  const pool = seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms);
+  const minted = mintShares(pool, 10_00000000n);
+  const burned = burnShares(minted.pool, minted.shares);
+  assert.ok(minted.shares > 0n);
+  assert.equal(pools[1].quote, "USDT0");
+  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  const pzecLabel = formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS);
+  assert.equal(
+    lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDT"].settlementPair),
+    `Burned session shares for ${pzecLabel} pZEC. Local preview only. Settled as pZEC-USDT0.`,
+  );
+  assert.doesNotMatch(
+    lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDT"].settlementPair),
+    /native ZEC/,
+  );
+});
+
+test("LP swap notice names the settlement pair from a real mint then swap", () => {
+  const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
+  const minted = mintShares(pool, 10_00000000n);
+  assert.ok(minted.shares > 0n);
+  const swap = quoteConstantProductSwapAtoms(
+    10_00000000n,
+    minted.pool.reservePzecAtoms,
+    minted.pool.reserveQuoteAtoms,
+  );
+  assert.ok(swap.amountOut > 0n);
+  const outputLabel = formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2);
+  assert.equal(
+    lpSwapNoticeCopy(outputLabel, pools[0].quote, markets["ZEC/USDC"].settlementPair),
+    `Simulated pZEC→USDC swap. Output ${outputLabel} USDC. Local preview only. Settled as pZEC-USDC.`,
+  );
+  assert.match(
+    lpSwapNoticeCopy(outputLabel, pools[1].quote, markets["ZEC/USDT"].settlementPair),
+    /pZEC-USDT0/,
+  );
+  assert.doesNotMatch(
+    lpSwapNoticeCopy(outputLabel, pools[0].quote, "pZEC-USDC"),
+    /native ZEC/,
+  );
+});
+
+test("LP swap notice names pZEC-USDT0 from a real USDT0 mint then swap", () => {
+  const pool = seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms);
+  const minted = mintShares(pool, 10_00000000n);
+  assert.ok(minted.shares > 0n);
+  const swap = quoteConstantProductSwapAtoms(
+    10_00000000n,
+    minted.pool.reservePzecAtoms,
+    minted.pool.reserveQuoteAtoms,
+  );
+  assert.ok(swap.amountOut > 0n);
+  assert.equal(pools[1].quote, "USDT0");
+  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  const outputLabel = formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2);
+  assert.equal(
+    lpSwapNoticeCopy(outputLabel, pools[1].quote, markets["ZEC/USDT"].settlementPair),
+    `Simulated pZEC→USDT0 swap. Output ${outputLabel} USDT0. Local preview only. Settled as pZEC-USDT0.`,
+  );
+  assert.doesNotMatch(
+    lpSwapNoticeCopy(outputLabel, pools[1].quote, markets["ZEC/USDT"].settlementPair),
+    /native ZEC/,
+  );
 });
 
 test("hypothetical 4x IL equals the deposited quote on an even size", () => {

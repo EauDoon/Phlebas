@@ -6,7 +6,7 @@ import { GATEWAY_INCIDENTS, type GatewayIncidentId } from "@/lib/gateway-inciden
 
 import styles from "./terminal.module.css";
 
-export function IncidentDemo() {
+export function IncidentDemo({ highlight = false }: { highlight?: boolean }) {
   const labelId = useId();
   const [incidentId, setIncidentId] = useState<GatewayIncidentId>(GATEWAY_INCIDENTS[0].id);
   const incident = GATEWAY_INCIDENTS.find((item) => item.id === incidentId) ?? GATEWAY_INCIDENTS[0];
@@ -40,6 +40,7 @@ export function IncidentDemo() {
         </div>
       </label>
       <div
+        id="incident-demo"
         className={styles.uriBlock}
         role="region"
         aria-label="Selected incident demonstration"
@@ -49,6 +50,11 @@ export function IncidentDemo() {
         <strong>{incident.title}</strong>
         <p>{incident.body}</p>
       </div>
+      {highlight && (
+        <p className={styles.inlineNotice}>
+          Status field architecture-demonstration. Labeled demonstration, not a live outage.
+        </p>
+      )}
       <p className={styles.inlineNotice}>
         These screens are labeled demonstrations. They do not imply a live account, incident, or outage.
       </p>

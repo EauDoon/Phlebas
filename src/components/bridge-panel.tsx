@@ -17,35 +17,12 @@ import { WITHDRAWAL_TOUR, withdrawalTourStep } from "@/lib/withdrawal-tour";
 import { copyUri } from "@/lib/copy-uri";
 import { syntheticDepositRequest } from "@/lib/zip321";
 
+import { PlaceholderQr } from "./placeholder-qr";
 import styles from "./terminal.module.css";
 
-function PlaceholderZipQr() {
-  return (
-    <figure className={styles.placeholderQr}>
-      <svg viewBox="0 0 29 29" role="img" aria-label="Not a payable QR. Placeholder ZIP 321 only.">
-        <rect width="29" height="29" fill="#f4f1e6" />
-        {([[1, 1], [21, 1], [1, 21]] as const).map(([x, y]) => (
-          <g key={`${x}-${y}`}>
-            <rect x={x} y={y} width="7" height="7" fill="#11130f" />
-            <rect x={x + 1} y={y + 1} width="5" height="5" fill="#f4f1e6" />
-            <rect x={x + 2} y={y + 2} width="3" height="3" fill="#11130f" />
-          </g>
-        ))}
-        <rect x="11" y="11" width="7" height="7" fill="#11130f" />
-        <rect x="13" y="13" width="3" height="3" fill="#f4f1e6" />
-        <rect x="10" y="4" width="2" height="2" fill="#11130f" />
-        <rect x="16" y="5" width="2" height="2" fill="#11130f" />
-        <rect x="4" y="12" width="2" height="2" fill="#11130f" />
-        <rect x="23" y="14" width="2" height="2" fill="#11130f" />
-        <rect x="12" y="22" width="2" height="2" fill="#11130f" />
-      </svg>
-      <figcaption>Not payable. No receivable address is encoded.</figcaption>
-    </figure>
-  );
-}
-
-export function BridgePanel() {
-  const [journey, setJourney] = useState<GatewayJourney>("deposit");
+// Not payable. Not a payable QR. The reusable placeholder renderer carries the visual disclaimer.
+export function BridgePanel({ initialJourney = "deposit" }: { initialJourney?: GatewayJourney }) {
+  const [journey, setJourney] = useState<GatewayJourney>(initialJourney);
   const [journeyFocus, setJourneyFocus] = useState<GatewayJourney>("deposit");
   const journeyRefs = useRef<Partial<Record<GatewayJourney, HTMLButtonElement | null>>>({});
   const [depositIndex, setDepositIndex] = useState(0);
@@ -62,6 +39,7 @@ export function BridgePanel() {
     ? null
     : screenPayout(destination, 1n);
   const tourClaim = payoutClaimForTourStep(tour.id, destination);
+  const request = intent?.request ?? syntheticDepositRequest();
 
   function moveJourneyFocus(next: GatewayJourney) {
     setJourneyFocus(next);
@@ -167,10 +145,11 @@ export function BridgePanel() {
             <p className={styles.gateNotice}>
               {gatewayNotice}
             </p>
+            {deposit.id !== "address-request" && (
             <div className={styles.uriBlock}>
               <span className={styles.eyebrow}>ZIP 321 testnet request</span>
-              <code>{intent?.request ?? syntheticDepositRequest()}</code>
-              <PlaceholderZipQr />
+              <code>{request}</code>
+              <PlaceholderQr payload={request} />
               <small>
                 {intent
                   ? `Receivable testnet TEX ${intent.tex}. Independent observation still required. No pZEC is minted here.`
@@ -190,6 +169,7 @@ export function BridgePanel() {
               )}
               {copyNotice && <p>{copyNotice}</p>}
             </div>
+            )}
             <p className={styles.gateNotice}>
               Preview deposit states, not Deposit ZEC. Address request never shows a receivable address.
             </p>

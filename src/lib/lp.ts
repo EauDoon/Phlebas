@@ -1,4 +1,5 @@
 import { balancedQuoteAtoms } from "./amm.ts";
+import type { Market } from "./market-data.ts";
 
 export type PoolShares = {
   reservePzecAtoms: bigint;
@@ -9,6 +10,49 @@ export type PoolShares = {
 export function lpOperationAllowed(operation: "mint" | "swap" | "burn", tradingPaused: boolean): boolean {
   if (operation === "burn") return true;
   return !tradingPaused;
+}
+
+export function emptyShareCopy(poolId: "pZEC/USDC" | "pZEC/USDT0"): string {
+  return `No session LP shares in ${poolId}. Burn stays idle until a local mint.`;
+}
+
+export function lpPauseNoticeCopy(
+  settlementPair: Market["settlementPair"],
+  paused: boolean,
+): string {
+  return paused
+    ? `Trading paused. LP withdrawal remains available. Settled as ${settlementPair}.`
+    : `Trading pause lifted. Mint and swap are available again. Settled as ${settlementPair}.`;
+}
+
+export function isLpPauseNotice(copy: string): boolean {
+  return copy.startsWith("Trading paused.") || copy.startsWith("Trading pause lifted.");
+}
+
+export function lpResetNoticeCopy(settlementPair: Market["settlementPair"]): string {
+  return `Local pool reserves restored. Settled as ${settlementPair}.`;
+}
+
+export function lpMintNoticeCopy(
+  shares: bigint,
+  settlementPair: Market["settlementPair"],
+): string {
+  return `Minted ${shares.toString()} local LP shares. Wallet actions stay disabled. Settled as ${settlementPair}.`;
+}
+
+export function lpBurnNoticeCopy(
+  pzecLabel: string,
+  settlementPair: Market["settlementPair"],
+): string {
+  return `Burned session shares for ${pzecLabel} pZEC. Local preview only. Settled as ${settlementPair}.`;
+}
+
+export function lpSwapNoticeCopy(
+  outputLabel: string,
+  quote: Market["quote"],
+  settlementPair: Market["settlementPair"],
+): string {
+  return `Simulated pZEC→${quote} swap. Output ${outputLabel} ${quote}. Local preview only. Settled as ${settlementPair}.`;
 }
 
 export function seedPool(reservePzecAtoms: bigint, reserveQuoteAtoms: bigint): PoolShares {
