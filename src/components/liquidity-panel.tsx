@@ -15,6 +15,7 @@ import {
   type PoolShares,
 } from "@/lib/lp";
 import { pools, type MarketId } from "@/lib/market-data";
+import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import { parseAtomicUnits, formatAtomicUnits, PZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -51,9 +52,13 @@ function emptyDeposits(): Record<PoolId, EntryDeposit> {
 export function LiquidityPanel({
   marketId,
   onMarketChange,
+  feedStatus = "illustrative",
+  onRetryFeed,
 }: {
   marketId: MarketId;
   onMarketChange: (market: MarketId) => void;
+  feedStatus?: FeedStatus;
+  onRetryFeed?: () => void;
 }) {
   const amountHelpId = useId();
   const selectedPool = marketId === "ZEC/USDT" ? pools[1] : pools[0];
@@ -64,6 +69,8 @@ export function LiquidityPanel({
   const [notice, setNotice] = useState("Integer pool math. Wallet actions stay disabled.");
   const [tradingPaused, setTradingPaused] = useState(false);
   const [review, setReview] = useState<LpReview | null>(null);
+  const gate = ticketGate(feedStatus, false);
+  const feedBlocksLp = feedStatus === "loading" || feedStatus === "stale" || feedStatus === "unavailable";
   const poolReserves = poolState[selectedPool.id];
   const sessionEntry = entryDeposits[selectedPool.id];
 
@@ -138,6 +145,10 @@ export function LiquidityPanel({
   }));
 
   function requestMintReview() {
+    if (feedBlocksLp) {
+      setNotice(gate.message);
+      return;
+    }
     if (!lpOperationAllowed("mint", tradingPaused)) {
       setNotice("Trading is paused. LP withdrawal remains available.");
       return;
@@ -197,6 +208,10 @@ export function LiquidityPanel({
   }
 
   function requestSwapReview() {
+    if (feedBlocksLp) {
+      setNotice(gate.message);
+      return;
+    }
     if (!lpOperationAllowed("swap", tradingPaused)) {
       setNotice("Trading is paused. LP withdrawal remains available.");
       return;
@@ -269,6 +284,24 @@ export function LiquidityPanel({
 
         {selectedPool.id === "pZEC/USDT0" && (
           <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
+        )}
+        {feedStatus !== "illustrative" && (
+          <div className={styles.ticketBlocked} role="status">
+            <strong>{gate.heading}</strong>
+            <p>
+              {gate.message}
+              {gate.asOf ? ` As of ${gate.asOf}.` : ""}
+              {" "}
+              {feedBlocksLp
+                ? "Burn stays available. Mint and swap stay off while the market-data feed is not illustrative."
+                : "Pool math is still a local preview. The empty book does not drain the pool."}
+            </p>
+            {onRetryFeed && (
+              <button type="button" className={styles.textButton} onClick={onRetryFeed}>
+                Retry illustrative feed
+              </button>
+            )}
+          </div>
         )}
 
         <div className={styles.depositStack}>
@@ -378,9 +411,9 @@ export function LiquidityPanel({
         ) : null}
 
         <div className={styles.tourNav}>
-          <button type="button" onClick={requestMintReview} disabled={!lpOperationAllowed("mint", tradingPaused)}>Review simulated mint</button>
+          <button type="button" onClick={requestMintReview} disabled={feedBlocksLp || !lpOperationAllowed("mint", tradingPaused)}>Review simulated mint</button>
           <button type="button" onClick={simulateBurn} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
-          <button type="button" onClick={requestSwapReview} disabled={!lpOperationAllowed("swap", tradingPaused)}>Review simulated swap</button>
+          <button type="button" onClick={requestSwapReview} disabled={feedBlocksLp || !lpOperationAllowed("swap", tradingPaused)}>Review simulated swap</button>
           <button
             type="button"
             aria-pressed={tradingPaused}
