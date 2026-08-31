@@ -6,10 +6,10 @@ No-value Arbitrum Sepolia sources. They are not deployed from this tree, not aud
 | --- | --- |
 | `PZec` | 8-decimal `tpZEC`. Minter mints. Holder burns. Pauser can halt minting; only governor unpauses. |
 | `QuoteToken` | 6-decimal `tUSDC` / `tUSDT0` faucets. Not Circle USDC or USDT0. |
-| `Settlement` | EIP-712 CLOB fills, nonce bitmap, account epoch, buyer-up / seller-down quote rounding. |
+| `Settlement` | EIP-712 CLOB fills, signed time-in-force, nonce bitmap, account epoch, and conservative quote rounding. |
 | `Factory` | Creates only `pZEC/tUSDC` and `pZEC/tUSDT0`. |
-| `Pair` | Fixed 30 bps constant product. No callbacks. |
-| `Router` | Stateless add/remove/swap. Reverts if it retains tokens. |
+| `Pair` | Fixed 30 bps constant product with locked minimum liquidity. No callbacks. |
+| `Router` | Stateless add/remove/swap with liquidity slippage bounds. Reverts if it retains tokens. |
 
 Core contracts are non-upgradeable. There is no seizure path, arbitrary pair creation, flash callback, or fee switch.
 
@@ -19,7 +19,15 @@ forge test --root contracts -vv
 
 ## Arbitrum Sepolia deploy
 
-Need Foundry, an Arbitrum Sepolia RPC, and `PHLEBAS_DEPLOYER` (the address that signs). The private key stays outside git.
+Need Foundry, an Arbitrum Sepolia RPC, and approved, distinct deployer, minter, pauser, governor, and fee-recipient addresses. The private key stays outside git.
+
+```bash
+export PHLEBAS_DEPLOYER=...
+export PHLEBAS_MINTER=...
+export PHLEBAS_PAUSER=...
+export PHLEBAS_GOVERNOR=...
+export PHLEBAS_FEE_RECIPIENT=...
+```
 
 Dry run, no state change:
 

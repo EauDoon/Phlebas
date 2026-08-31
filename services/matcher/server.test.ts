@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { once } from "node:events";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AddressInfo } from "node:net";
@@ -31,7 +31,7 @@ test("matcher HTTP health is loopback-only and starts at sequence zero", async (
     assert.match(body.sequenceRoot, /^[0-9a-f]{64}$/);
     assert.equal(typeof body.startedAt, "number");
     assert.equal(body.lastSequenceAt, body.startedAt);
-    assert.equal(body.persistReadable, false);
+    assert.equal(body.persistReadable, true);
     const sequence = await fetch(`http://127.0.0.1:${address.port}/sequence`);
     const sequenceBody = await sequence.json() as {
       sequence: number;
@@ -57,7 +57,7 @@ test("matcher HTTP health is loopback-only and starts at sequence zero", async (
   }
 });
 
-test("matcher HTTP rejects a signature that does not recover to the maker", async () => {
+test("matcher HTTP rejects live signing while the settlement manifest is undeployed", async () => {
   const dir = await mkdtemp(join(tmpdir(), "phlebas-matcher-sig-"));
   const server = startMatcher({ host: "127.0.0.1", port: 0, persistPath: join(dir, "state.json") });
   await once(server, "listening");
@@ -86,11 +86,37 @@ test("matcher HTTP rejects a signature that does not recover to the maker", asyn
       }),
     });
     const body = await response.json() as { reason: string };
-    assert.equal(response.status, 400);
-    assert.match(body.reason, /does not match maker|Invalid signature|Recovery/);
+    assert.equal(response.status, 503);
+    assert.equal(body.reason, "settlement-domain-unavailable");
   } finally {
     server.close();
     await once(server, "close");
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("matcher fails closed when initialized replay state disappears", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "phlebas-matcher-missing-"));
+  const persistPath = join(dir, "state.json");
+  const first = startMatcher({ host: "127.0.0.1", port: 0, persistPath });
+  await once(first, "listening");
+  const firstPort = (first.address() as AddressInfo).port;
+  assert.equal((await fetch(`http://127.0.0.1:${firstPort}/health`)).status, 200);
+  first.close();
+  await once(first, "close");
+  await unlink(persistPath);
+
+  const restarted = startMatcher({ host: "127.0.0.1", port: 0, persistPath });
+  await once(restarted, "listening");
+  const restartedPort = (restarted.address() as AddressInfo).port;
+  try {
+    const response = await fetch(`http://127.0.0.1:${restartedPort}/health`);
+    const body = await response.json() as { reason: string };
+    assert.equal(response.status, 400);
+    assert.match(body.reason, /state is missing after initialization/);
+  } finally {
+    restarted.close();
+    await once(restarted, "close");
     await rm(dir, { recursive: true, force: true });
   }
 });

@@ -50,7 +50,7 @@ The current repository contains a Next.js no-value simulation, undeployed Arbitr
 | Zcash withdrawals | Tour-only payout stub; nothing is sent | Burn-authorized transparent withdrawals |
 | `pZEC` | Display label; undeployed contract source | Custody-backed ERC-20 with controlled mint and burn |
 | Custody | None | Approved operator, threshold policy, reserve ledger, and recovery plan |
-| Wallets | Optional EIP-1193 on Arbitrum Sepolia, sign-only default | Production wallet path after launch gates |
+| Wallets | Optional EIP-1193 on Arbitrum Sepolia, signing disabled until verified deployment | Production wallet path after launch gates |
 
 ## Candidate topology
 

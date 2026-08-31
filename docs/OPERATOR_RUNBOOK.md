@@ -84,7 +84,7 @@ Direct processes: interrupt the three Node jobs. Data directories under `service
 
 ## Data
 
-Gateway master key: `services/gateway/.data/master.key`. Issued count: `services/gateway/.data/issued`. Matcher persist: `services/matcher/.data/state.json`. Those paths are gitignored. `writeFile` requests mode `0o600`; Windows ignores POSIX mode bits, so do not copy that directory onto another host, into git, or onto Vercel. The issued count is what the intent cap survives a process restart on.
+Gateway master key: `services/gateway/.data/master.key`. Gateway replay state: `services/gateway/.data/state.json`. Matcher persist: `services/matcher/.data/state.json`. Observer persist: `services/observer/.data/state.json`. Those paths are gitignored. File writes are fsynced and atomically renamed. Windows does not provide a portable directory-fsync barrier, so the implementation skips only that unsupported final barrier after file fsync and rename. Windows also ignores POSIX mode bits, so do not copy these directories onto another host, into git, or onto Vercel. The gateway replay state is what preserves the intent cap across a process restart.
 
 ## Incidents
 
@@ -94,7 +94,7 @@ Gateway master key: `services/gateway/.data/master.key`. Issued count: `services
 | Observer disagreement | Stop new attestations. Inspect the payload. Do not mint. |
 | Shielded or mixed final tx | Quarantine. Do not mint. |
 | Reorg drops an observation | Observer drops off-chain and under-confirmed outpoints. Do not mint. |
-| Persist file missing or unreadable | Matcher starts empty at sequence 0. Do not copy state onto Vercel. |
+| Persist file missing or unreadable after initialization | Service fails closed. Restore a verified snapshot or rebuild under the incident procedure. Never reset sequence or mint history silently. |
 | Port bound on `0.0.0.0` on the host | Stop. Host publish must be `127.0.0.1`. |
 | Temptation to set gateway/matcher URLs on Vercel | Do not. Vercel stays the public UI only. |
 

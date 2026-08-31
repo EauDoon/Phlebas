@@ -54,6 +54,15 @@ test("flag without a counterpart or deployed settlement sequences only", () => {
     fillAtoms: 1n,
   });
   assert.equal(undeployed.action, "sequence");
+  const malformed = planTestnetSubmit({
+    flag: true,
+    settlement: "not-an-address",
+    counterpart: { order: sample("sell"), signature: SIG },
+    taker: sample("buy"),
+    takerSignature: SIG,
+    fillAtoms: 1n,
+  });
+  assert.equal(malformed.action, "sequence");
 });
 
 test("flag plus counterpart plus settlement encodes a Sepolia settle plan", () => {

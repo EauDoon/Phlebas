@@ -14,14 +14,19 @@ contract Settlement {
     bytes32 public constant DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
     bytes32 public constant ORDER_TYPEHASH = keccak256(
-        "Order(address maker,uint8 side,address baseAsset,address quoteAsset,uint128 baseAmount,uint128 limitPriceTicks,uint64 nonce,uint64 accountEpoch,uint64 expiry,uint256 salt,address recipient,uint16 maximumFeeBps,uint8 allowedVenues)"
+        "Order(address maker,uint8 side,address baseAsset,address quoteAsset,uint128 baseAmount,uint128 limitPriceTicks,uint8 timeInForce,uint64 nonce,uint64 accountEpoch,uint64 expiry,uint256 salt,address recipient,uint16 maximumFeeBps,uint8 allowedVenues)"
     );
     bytes4 internal constant ERC1271_MAGIC = 0x1626ba7e;
     uint16 public constant MAKER_FEE_BPS = 5;
     uint16 public constant TAKER_FEE_BPS = 15;
     uint16 public constant MAX_FEE_BPS = 30;
     uint16 public constant VENUE_CLOB = 1;
+    uint8 public constant TIF_GTC = 0;
+    uint8 public constant TIF_IOC = 1;
+    uint8 public constant TIF_FOK = 2;
     uint256 public constant QUOTE_COST_DIVISOR = 10_000;
+    uint256 internal constant FEE_BPS_DIVISOR = 10_000;
+    uint256 internal constant SECP256K1_HALF_ORDER = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
 
     struct Order {
         address maker;
@@ -30,6 +35,7 @@ contract Settlement {
         address quoteAsset;
         uint128 baseAmount;
         uint128 limitPriceTicks;
+        uint8 timeInForce;
         uint64 nonce;
         uint64 accountEpoch;
         uint64 expiry;
@@ -42,10 +48,11 @@ contract Settlement {
     address public immutable pzec;
     address public immutable usdc;
     address public immutable usdt0;
-    address public feeRecipient;
-    address public pauser;
-    address public governor;
+    address public immutable feeRecipient;
+    address public immutable pauser;
+    address public immutable governor;
     bool public paused;
+    bool private locked;
     bytes32 public immutable domainSeparator;
 
     mapping(address => uint64) public epoch;
@@ -66,6 +73,30 @@ contract Settlement {
     error Fill();
     error Fee();
     error Transfer();
+    error Locked();
+    error InvalidConfiguration();
+    error TimeInForce();
+    error SelfTrade();
+
+    event PauseSet(bool paused);
+    event NonceCanceled(address indexed maker, uint64 indexed nonce);
+    event EpochIncremented(address indexed maker, uint64 epoch);
+    event OrdersSettled(
+        bytes32 indexed makerHash,
+        bytes32 indexed takerHash,
+        address indexed quoteAsset,
+        uint128 baseAmount,
+        uint256 buyerDebited,
+        uint256 sellerCredited,
+        uint256 feeRecipientCredited
+    );
+
+    modifier lock() {
+        if (locked) revert Locked();
+        locked = true;
+        _;
+        locked = false;
+    }
 
     constructor(
         address pzec_,
@@ -75,6 +106,11 @@ contract Settlement {
         address pauser_,
         address governor_
     ) {
+        if (
+            pzec_ == address(0) || usdc_ == address(0) || usdt0_ == address(0) || feeRecipient_ == address(0)
+                || pauser_ == address(0) || governor_ == address(0) || pzec_ == usdc_ || pzec_ == usdt0_
+                || usdc_ == usdt0_ || pzec_.code.length == 0 || usdc_.code.length == 0 || usdt0_.code.length == 0
+        ) revert InvalidConfiguration();
         pzec = pzec_;
         usdc = usdc_;
         usdt0 = usdt0_;
@@ -95,23 +131,27 @@ contract Settlement {
     function pause() external {
         if (msg.sender != pauser) revert NotPauser();
         paused = true;
+        emit PauseSet(true);
     }
 
     function unpause() external {
         if (msg.sender != governor) revert NotGovernor();
         paused = false;
+        emit PauseSet(false);
     }
 
     function cancelNonce(uint64 nonce) external {
-        nonceBitmap[msg.sender][nonce >> 8] |= uint256(1) << uint8(nonce);
+        nonceBitmap[msg.sender][nonce >> 8] |= uint256(1) << (uint256(nonce) & 255);
+        emit NonceCanceled(msg.sender, nonce);
     }
 
     function incrementEpoch() external {
         epoch[msg.sender] += 1;
+        emit EpochIncremented(msg.sender, epoch[msg.sender]);
     }
 
     function nonceCanceled(address maker, uint64 nonce) public view returns (bool) {
-        return (nonceBitmap[maker][nonce >> 8] & (uint256(1) << uint8(nonce))) != 0;
+        return (nonceBitmap[maker][nonce >> 8] & (uint256(1) << (uint256(nonce) & 255))) != 0;
     }
 
     function hashOrder(Order calldata order) public pure returns (bytes32) {
@@ -124,6 +164,7 @@ contract Settlement {
                 order.quoteAsset,
                 order.baseAmount,
                 order.limitPriceTicks,
+                order.timeInForce,
                 order.nonce,
                 order.accountEpoch,
                 order.expiry,
@@ -154,20 +195,23 @@ contract Settlement {
         Order calldata takerOrder,
         bytes calldata takerSignature,
         uint128 baseFillAmount
-    ) external {
+    ) external lock {
         if (paused) revert Paused();
-        _assertLiveOrder(makerOrder, makerSignature);
-        _assertLiveOrder(takerOrder, takerSignature);
         if (makerOrder.side == takerOrder.side) revert Side();
+        if (makerOrder.maker == takerOrder.maker) revert SelfTrade();
         if (makerOrder.baseAsset != pzec || takerOrder.baseAsset != pzec) revert Pair();
         if (makerOrder.quoteAsset != takerOrder.quoteAsset) revert Pair();
         _assertQuote(makerOrder.quoteAsset);
+        _assertLiveOrder(makerOrder, makerSignature);
+        _assertLiveOrder(takerOrder, takerSignature);
         if (baseFillAmount == 0) revert Fill();
 
         bytes32 makerHash = hashOrder(makerOrder);
         bytes32 takerHash = hashOrder(takerOrder);
+        if (makerOrder.timeInForce != TIF_GTC) revert TimeInForce();
         if (filled[makerHash] + baseFillAmount > makerOrder.baseAmount) revert Fill();
         if (filled[takerHash] + baseFillAmount > takerOrder.baseAmount) revert Fill();
+        if (takerOrder.timeInForce == TIF_FOK && baseFillAmount != takerOrder.baseAmount) revert Fill();
 
         uint8 buySide = makerOrder.side == 0 ? 0 : 1;
         if (buySide == 0) {
@@ -184,8 +228,8 @@ contract Settlement {
         uint16 makerFeeBps = MAKER_FEE_BPS;
         uint16 takerFeeBps = TAKER_FEE_BPS;
         if (makerFeeBps > makerOrder.maximumFeeBps || takerFeeBps > takerOrder.maximumFeeBps) revert Fee();
-        uint256 makerFee = (sellerReceives * makerFeeBps) / 10_000;
-        uint256 takerFee = (buyerPays * takerFeeBps) / 10_000;
+        uint256 makerFee = (sellerReceives * makerFeeBps) / FEE_BPS_DIVISOR;
+        uint256 takerFee = (buyerPays * takerFeeBps) / FEE_BPS_DIVISOR;
 
         address buyer = makerOrder.side == 0 ? makerOrder.maker : takerOrder.maker;
         address seller = makerOrder.side == 1 ? makerOrder.maker : takerOrder.maker;
@@ -195,17 +239,29 @@ contract Settlement {
         uint256 sellerFee = makerOrder.side == 1 ? makerFee : takerFee;
 
         filled[makerHash] += baseFillAmount;
-        filled[takerHash] += baseFillAmount;
+        filled[takerHash] =
+            takerOrder.timeInForce == TIF_GTC ? filled[takerHash] + baseFillAmount : takerOrder.baseAmount;
 
         if (!_transfer(pzec, seller, buyerRecipient, baseFillAmount)) revert Transfer();
         if (!_transfer(makerOrder.quoteAsset, buyer, sellerRecipient, sellerReceives - sellerFee)) revert Transfer();
         if (buyerFee + sellerFee > 0) {
-            if (!_transfer(makerOrder.quoteAsset, buyer, feeRecipient, buyerFee + sellerFee + (buyerPays - sellerReceives))) {
+            if (!_transfer(
+                    makerOrder.quoteAsset, buyer, feeRecipient, buyerFee + sellerFee + (buyerPays - sellerReceives)
+                )) {
                 revert Transfer();
             }
         } else if (buyerPays > sellerReceives) {
             if (!_transfer(makerOrder.quoteAsset, buyer, feeRecipient, buyerPays - sellerReceives)) revert Transfer();
         }
+        emit OrdersSettled(
+            makerHash,
+            takerHash,
+            makerOrder.quoteAsset,
+            baseFillAmount,
+            buyerPays + buyerFee,
+            sellerReceives - sellerFee,
+            buyerFee + sellerFee + (buyerPays - sellerReceives)
+        );
     }
 
     function _assertQuote(address quote) internal view {
@@ -219,6 +275,7 @@ contract Settlement {
         if (order.maximumFeeBps > MAX_FEE_BPS) revert Fee();
         if (order.allowedVenues & VENUE_CLOB == 0) revert Venue();
         if (order.side > 1) revert Side();
+        if (order.timeInForce > TIF_FOK) revert TimeInForce();
         if (order.recipient == address(0) || order.maker == address(0)) revert Signature();
         bytes32 hashed = digest(order);
         if (!_validSignature(order.maker, hashed, signature)) revert Signature();
@@ -238,11 +295,15 @@ contract Settlement {
             v := byte(0, calldataload(add(signature.offset, 64)))
         }
         if (v < 27) v += 27;
+        if (v != 27 && v != 28) return false;
+        if (r == bytes32(0) || uint256(s) == 0 || uint256(s) > SECP256K1_HALF_ORDER) return false;
         return ecrecover(hashed, v, r, s) == maker;
     }
 
     function _transfer(address token, address from, address to, uint256 amount) internal returns (bool) {
         if (amount == 0) return true;
-        return IERC20Settlement(token).transferFrom(from, to, amount);
+        (bool success, bytes memory result) =
+            token.call(abi.encodeCall(IERC20Settlement.transferFrom, (from, to, amount)));
+        return success && (result.length == 0 || (result.length == 32 && abi.decode(result, (bool))));
     }
 }
