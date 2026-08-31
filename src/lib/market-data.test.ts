@@ -50,6 +50,11 @@ test("zecAtomsFromHundredths scales hundredths to 8-decimal atoms", () => {
   assert.equal(zecAtomsFromHundredths(1564n), 1564n * 1_000000n);
 });
 
+test("seed book sizes use zecAtomsFromHundredths", () => {
+  assert.equal(books["ZEC/USDC"].asks[0]?.sizeAtoms, zecAtomsFromHundredths(1564n));
+  assert.equal(books["ZEC/USDT"].bids[0]?.sizeAtoms, zecAtomsFromHundredths(1549n));
+});
+
 test("pool quote reserves stay within one quote atom of last * ZEC reserve", () => {
   for (const pool of pools) {
     const marketId = pool.id === "ZEC/USDT" ? "ZEC/USDT" : "ZEC/USDC";
