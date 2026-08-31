@@ -539,6 +539,7 @@
 
 .assetFlow li {
   display: grid;
+  min-width: 44px;
   min-height: 92px;
   grid-template-columns: 50px 1fr;
   align-items: center;
