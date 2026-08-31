@@ -1887,3 +1887,39 @@ test("trade skip links and incident skip stay 44px on desktop", async ({ page })
   expect((await skipIncident.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("status legal and security skips stay 44px and skip targets keep scroll-margin", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/status", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipLedger = page.getByRole("link", { name: "Skip to status ledger" });
+  await expect(skipLedger).toBeFocused();
+  expect((await skipLedger.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Enter");
+  const ledger = page.locator("#status-ledger");
+  await expect(ledger).toBeFocused();
+  expect(await ledger.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
+
+  await page.goto("/legal", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipLegal = page.getByRole("link", { name: "Skip to legal article" });
+  await expect(skipLegal).toBeFocused();
+  expect((await skipLegal.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Enter");
+  const legal = page.locator("#legal-article");
+  await expect(legal).toBeFocused();
+  expect(await legal.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
+
+  await page.goto("/security", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipSecurity = page.getByRole("link", { name: "Skip to security article" });
+  await expect(skipSecurity).toBeFocused();
+  expect((await skipSecurity.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Enter");
+  const security = page.locator("#security-article");
+  await expect(security).toBeFocused();
+  expect(await security.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
+});
+
