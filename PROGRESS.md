@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after skip-nav 44px trailing lock, error and country-block two-up, architecture leftover at 390px, and loading/404/bridge two-up at 768px.
+Last updated: 01-09-2026 after trailing two-up 320 overflow lock, global-error skip-nav two-up, legal leftover at 390px, and 768 liquidity/country-block/architecture/error two-up.
 
 ## Branch
 
@@ -314,16 +314,22 @@ Last updated: 01-09-2026 after skip-nav 44px trailing lock, error and country-bl
 - Architecture skip links stay at least 44px at 390px
 - Loading, 404, and bridge skip-nav stay two-up at 768px with the 2px ring inside the viewport
 - Playwright covers error and country-block two-up, architecture 390 leftover, and 768 loading/404/bridge two-up
+- Trailing skip-link `max-width: min(100%, calc(50% - 4px))` and `box-sizing: border-box` keep two-up plus 8px gap inside 320px
+- Global-error skip-nav has Skip to main content and Skip to retry copy, two-up, with a `#15140d` focus-visible ring
+- Global-error Retry stays 44px
+- Legal skip links stay at least 44px at 390px
+- Liquidity, country-block, architecture, and error skip-nav stay two-up at 768px with the 2px ring inside the viewport
+- Playwright covers 768 liquidity/country-block/architecture/error two-up, legal leftover at 390px, and 320 trailing overflow
 
 ## Next
 
-- Global-error skip-nav should keep 44px Retry and two-up skip links at 320px
-- Liquidity skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
-- Country-block skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
-- Architecture skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
-- Error-page skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
-- Legal skip-nav leftover should stay at least 44px at 390px
-- Skip-nav trailing two-up flex should not overflow the 320px viewport after the 8px column-gap
+- Security skip-nav leftover should stay at least 44px at 390px
+- Status skip-nav leftover should stay at least 44px at 390px
+- Liquidity leftover skip link should stay at least 44px at 768px
+- Bridge leftover skip link should stay at least 44px at 390px
+- Global-error skip-nav should stay two-up at 768px
+- Education dialog should not cover focused skip-nav at 320px
+- Skip-nav trailing `box-sizing: border-box` should keep the 2px ring inside the 320px overflow-y auto box
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
