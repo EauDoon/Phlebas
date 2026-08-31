@@ -382,3 +382,10 @@ test("source identifiers no longer use listed pZEC leftovers", async () => {
   assert.doesNotMatch(foundry, /reservePzec/);
   assert.doesNotMatch(foundry, /backPzec/);
 });
+
+test("journeys pin expired closed withdrawal states without live payout", async () => {
+  const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
+  assert.match(journeys, /Expired evidence|closed without a finalized burn/);
+  assert.match(journeys, /unresolved/);
+  assert.doesNotMatch(journeys, /\blive payout/i);
+});
