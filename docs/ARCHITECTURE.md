@@ -269,3 +269,40 @@ The ZEC half of the atomic swap is a transparent P2SH output that holds ZEC unti
 ### Hash function
 
 The hash function is `RIPEMD160(SHA256(x))`, which the Zcash script engine exposes as `OP_HASH160`. The preimage primitive in `src/lib/preimage.ts` produces 32 random bytes; the same preimage and the same hash are valid on both the EVM leg (via `SHA256`) and the ZEC leg (via `RIPEMD160(SHA256)`).
+
+### Observer and watchtower (PR 4)
+
+The observer and the watchtower close the read-only half of the
+two-chain atomic swap. The observer polls the ConditionalLock
+contract and a set of P2SH lock addresses, reduces the events to
+coordinator transitions, and persists the snapshot to disk. The
+watchtower reads the coordinator state and emits alerts on stop
+conditions. The observer never holds a key and never signs a
+transaction; the signing surface lives in the wallet adapter.
+
+#### Components
+
+- **EVM observer** (src/lib/evm-observer.ts) — classifies the
+  ConditionalLock event topics and emits per-fill event records.
+- **ZEC observer** (src/lib/zcash-observer.ts) — polls each P2SH
+  address for outpoints and classifies them as funded, claimed, or
+  refunded.
+- **Event reducers** (src/lib/evm-event-reducer.ts,
+  src/lib/zcash-event-reducer.ts) — turn the event records into
+  sorted sequences of mapped transitions.
+- **Transition mapper** (src/lib/transition-mapper.ts) — names a
+  transition per event kind and side.
+- **Coordinator** (src/lib/atomic-coordinator.ts) — applies
+  transitions, persists fills by id, and records rejected
+  transitions in the alert log.
+- **Snapshot and persistence**
+  (src/lib/coordinator-snapshot.ts,
+  src/lib/coordinator-persistence.ts) — JSON-on-disk snapshot with
+  atomic write and bootstrap-time marker.
+- **Watchtower** (src/lib/watchtower.ts) — emits
+  reorg-depth-exceeded, missing-terminal-event, and deadline-breach
+  alerts.
+- **Service** (services/atomic-swap-observer/) — wires the
+  observers, the coordinator, and the watchtower into one HTTP
+  process with /health, /state, /fills, /fills/:fillId,
+  /alerts, and /observe.
