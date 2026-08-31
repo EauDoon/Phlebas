@@ -64,6 +64,11 @@
   scroll-margin-top: 12px;
 }
 
+:global(#journeys),
+:global(#launch-gates) {
+  scroll-margin-top: 12px;
+}
+
 .simulationBanner {
   display: flex;
   min-height: 44px;
