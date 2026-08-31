@@ -20,6 +20,7 @@ export function simulationStatus(env: Record<string, string | undefined> = proce
     network: "arbitrum-sepolia-unconfigured",
     marketData: "illustrative",
     countryAccess: "deny-default",
+    incidents: "architecture-demonstration",
     sequenceRoot: null,
     intentCap: gatewayLoopback ? GATEWAY_DEFAULT_MAX_INTENTS : null,
   } as const;
