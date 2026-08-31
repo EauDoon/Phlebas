@@ -428,3 +428,11 @@ test("journeys pin deposit fail-closed Unavailable Rejected Stale without mintin
   assert.match(deposit, /Nothing is minted|nothing was minted/);
   assert.doesNotMatch(deposit, /\blive mint/i);
 });
+
+test("accounting pins refunded tZEC not listed pZEC", async () => {
+  const accounting = await readFile(join(root, "docs/ASSET_AND_ACCOUNTING.md"), "utf8");
+  assert.match(accounting, /Outstanding tZEC/);
+  assert.match(accounting, /refunded|tZEC restoration/);
+  assert.doesNotMatch(accounting, /Outstanding pZEC/);
+  assert.doesNotMatch(accounting, /### pZEC/);
+});
