@@ -147,6 +147,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landingCss, /left: 12px/);
   assert.match(terminalCss, /:global\(#order-ticket\)/);
   assert.match(terminalCss, /\.skipLink:focus \{/);
+  assert.match(terminalCss, /\.skipLink:focus-visible \{/);
+  assert.match(landingCss, /\.skipLink:focus-visible \{/);
   assert.match(terminalCss, /top: 12px/);
   assert.match(terminalCss, /left: 12px/);
   assert.match(terminalCss, /clip-path: inset\(50%\)/);
@@ -159,6 +161,10 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landingCss, /flex-wrap: wrap/);
   assert.match(landingCss, /flex: 1 1 calc\(50% - 2px\)/);
   assert.match(landingCss, /max-height: min\(40vh, 17.5rem\)/);
+  assert.match(landingCss, /white-space: normal;/);
+  assert.match(terminalCss, /white-space: normal;/);
+  assert.match(landingCss, /padding: 4px;/);
+  assert.match(terminalCss, /padding: 4px;/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /id="status-ledger"/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /role="list" aria-label="Simulation status ledger"/);
   assert.match(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /Nothing was sent/);
