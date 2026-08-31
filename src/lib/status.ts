@@ -11,5 +11,6 @@ export function simulationStatus() {
     wallets: "disabled",
     contracts: "not-deployed",
     network: "none",
+    marketData: "illustrative",
   } as const;
 }

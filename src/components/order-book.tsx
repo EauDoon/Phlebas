@@ -41,6 +41,13 @@ export function OrderBook({
           </tr>
         </thead>
         <tbody aria-label="Asks">
+          {askRows.length === 0 && bids.length === 0 && (
+            <tr>
+              <td colSpan={3}>
+                <p className={styles.emptyState}>No resting depth. The local book is empty.</p>
+              </td>
+            </tr>
+          )}
           {askRows.map((level) => (
             <BookRow
               key={`ask-${level.priceTicks.toString()}`}

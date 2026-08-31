@@ -23,6 +23,7 @@ export default function StatusPage() {
         <div><dt>Withdrawals</dt><dd>{status.withdrawals}</dd></div>
         <div><dt>Wallets</dt><dd>{status.wallets}</dd></div>
         <div><dt>Contracts</dt><dd>{status.contracts}</dd></div>
+        <div><dt>Market data</dt><dd>{status.marketData}</dd></div>
       </dl>
       <p>
         Machine-readable copy: <a href="/api/status">/api/status</a>

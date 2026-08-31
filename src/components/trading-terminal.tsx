@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
-import { markets, pools, recentTrades } from "@/lib/market-data";
+import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
+import { type FeedStatus } from "@/lib/market-state";
 import type { SessionLogEvent } from "@/lib/replay";
 import { cancelOrder, submitOrder, type TimeInForce } from "@/lib/matcher";
 import {
@@ -43,12 +44,16 @@ const views: { id: View; label: string }[] = [
   { id: "architecture", label: "Architecture" },
 ];
 
-function viewUrl(view: View, market: MarketId) {
-  if (view === "liquidity") {
-    return `/liquidity?${new URLSearchParams({ market }).toString()}`;
+function viewUrl(view: View, market: MarketId, feed: FeedStatus) {
+  const params = new URLSearchParams({ market });
+  if (feed !== "illustrative") {
+    params.set("feed", feed);
   }
-
-  return `/trade?${new URLSearchParams({ view, market }).toString()}`;
+  if (view === "liquidity") {
+    return `/liquidity?${params.toString()}`;
+  }
+  params.set("view", view);
+  return `/trade?${params.toString()}`;
 }
 
 function seedBooks() {
@@ -68,13 +73,16 @@ function seedAccounts(): Record<MarketId, PaperAccount> {
 export function TradingTerminal({
   initialView = "trade",
   initialMarket = "ZEC/USDC",
+  initialFeed = "illustrative",
 }: {
   initialView?: View;
   initialMarket?: MarketId;
+  initialFeed?: FeedStatus;
 }) {
   const router = useRouter();
   const [view, setView] = useState<View>(initialView);
   const [marketId, setMarketId] = useState<MarketId>(initialMarket);
+  const [feedStatus, setFeedStatus] = useState<FeedStatus>(initialFeed);
   const [range, setRange] = useState<ChartRange>("4H");
   const [books, setBooks] = useState(seedBooks);
   const [accounts, setAccounts] = useState(seedAccounts);
@@ -91,12 +99,17 @@ export function TradingTerminal({
 
   function selectView(nextView: View) {
     setView(nextView);
-    router.replace(viewUrl(nextView, marketId), { scroll: false });
+    router.replace(viewUrl(nextView, marketId, feedStatus), { scroll: false });
   }
 
   function selectMarket(nextMarket: MarketId) {
     setMarketId(nextMarket);
-    router.replace(viewUrl(view, nextMarket), { scroll: false });
+    router.replace(viewUrl(view, nextMarket, feedStatus), { scroll: false });
+  }
+
+  function selectFeed(nextFeed: FeedStatus) {
+    setFeedStatus(nextFeed);
+    router.replace(viewUrl(view, marketId, nextFeed), { scroll: false });
   }
 
   function submitUserOrder(order: {
@@ -220,13 +233,30 @@ export function TradingTerminal({
                 <span className={styles.coinMark}>Z</span>
                 <label>
                   <span>Market</span>
-                  <select value={marketId} onChange={(event) => selectMarket(event.target.value as MarketId)}>
+                  <select
+                    value={marketId}
+                    aria-label="Selected market"
+                    onChange={(event) => selectMarket(event.target.value as MarketId)}
+                  >
                     <option value="ZEC/USDC">ZEC / USDC</option>
                     <option value="ZEC/USDT">ZEC / USDT</option>
                   </select>
                 </label>
                 <span className={styles.settlementBadge}>settles {market.settlementPair}</span>
                 {marketId === "ZEC/USDT" && <span className={styles.gateBadge}>Later listing gate</span>}
+                <label>
+                  <span>Market data</span>
+                  <select
+                    value={feedStatus}
+                    aria-label="Market data state"
+                    onChange={(event) => selectFeed(event.target.value as FeedStatus)}
+                  >
+                    <option value="illustrative">Illustrative</option>
+                    <option value="empty">Empty</option>
+                    <option value="stale">Stale</option>
+                    <option value="unavailable">Unavailable</option>
+                  </select>
+                </label>
               </div>
               <dl className={styles.marketStats}>
                 <div className={styles.priceStat}>
@@ -235,12 +265,12 @@ export function TradingTerminal({
                 </div>
                 <div>
                   <dt>24h change</dt>
-                  <dd className={market.change >= 0 ? styles.buyText : styles.sellText}>
-                    {market.change > 0 ? "+" : ""}{market.change.toFixed(2)}%
+                  <dd className={market.changeBps >= 0 ? styles.buyText : styles.sellText}>
+                    {formatSignedChange(market.changeBps)}
                   </dd>
                 </div>
-                <div><dt>24h high</dt><dd>{market.high.toFixed(2)}</dd></div>
-                <div><dt>24h low</dt><dd>{market.low.toFixed(2)}</dd></div>
+                <div><dt>24h high</dt><dd>{formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2)}</dd></div>
+                <div><dt>24h low</dt><dd>{formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2)}</dd></div>
                 <div><dt>24h volume</dt><dd>{market.volume}</dd></div>
               </dl>
             </section>
@@ -277,6 +307,8 @@ export function TradingTerminal({
                 reservePzecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
                 reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
                 accountEpoch={accountEpoch}
+                feedStatus={feedStatus}
+                onRetryFeed={() => selectFeed("illustrative")}
                 onSubmit={submitUserOrder}
               />
 
@@ -302,12 +334,12 @@ export function TradingTerminal({
                       </tr>
                     ))}
                     {recentTrades[marketId].map((trade) => (
-                      <tr key={`fixture-${trade.time}-${trade.price}`}>
+                      <tr key={`fixture-${trade.time}-${trade.priceTicks.toString()}`}>
                         <th scope="row" className={trade.side === "buy" ? styles.buyText : styles.sellText}>
                           <span className={styles.srOnly}>{trade.side === "buy" ? "Buy" : "Sell"} </span>
-                          {trade.price.toFixed(2)}
+                          {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
                         </th>
-                        <td>{trade.size.toFixed(2)}</td>
+                        <td>{formatAtomicUnits(trade.sizeAtoms, PZEC_DECIMALS, 2)}</td>
                         <td>{trade.time}</td>
                       </tr>
                     ))}

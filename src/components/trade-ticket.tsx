@@ -2,8 +2,9 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
-import { digestCanonicalOrder } from "@/lib/encoding";
+import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import type { Market } from "@/lib/market-data";
+import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import type { Book, TimeInForce } from "@/lib/matcher";
 import { compareVenues, type RouteComparison } from "@/lib/router";
 import {
@@ -65,6 +66,25 @@ function parseSizeAtoms(value: string): { atoms: bigint; error: string | null } 
   }
 }
 
+function describeRoute(comparison: RouteComparison, quote: string): string {
+  if (comparison.better === "split") {
+    return `Split: CLOB ${formatAtomicUnits(comparison.split.clobFilledAtoms, PZEC_DECIMALS)} pZEC and AMM ${formatAtomicUnits(comparison.split.ammFilledAtoms, PZEC_DECIMALS)} pZEC for ${formatAtomicUnits(comparison.split.quoteAtoms, QUOTE_DECIMALS, 2)} ${quote}`;
+  }
+  if (comparison.better === "none") {
+    return "neither venue fills in full inside the signed bound";
+  }
+  if (comparison.better === "tie") {
+    return "CLOB and AMM match on this size";
+  }
+  return `${comparison.better.toUpperCase()} cheaper for a full fill`;
+}
+
+function allowedVenuesFor(comparison: RouteComparison): CanonicalOrder["allowedVenues"] {
+  if (comparison.better === "split") return "clob,amm";
+  if (comparison.better === "amm") return "amm";
+  return "clob";
+}
+
 export function TradeTicket({
   market,
   book,
@@ -75,6 +95,8 @@ export function TradeTicket({
   reservePzecAtoms,
   reserveQuoteAtoms,
   accountEpoch,
+  feedStatus,
+  onRetryFeed,
   onSubmit,
 }: {
   market: Market;
@@ -86,6 +108,8 @@ export function TradeTicket({
   reservePzecAtoms: bigint;
   reserveQuoteAtoms: bigint;
   accountEpoch: number;
+  feedStatus: FeedStatus;
+  onRetryFeed: () => void;
   onSubmit: (order: {
     side: Side;
     tif: TimeInForce;
@@ -184,6 +208,8 @@ export function TradeTicket({
   }, [lastPrice, orderType, parsedPrice, side, slippagePercent]);
   const worstPrice = worstPricePreview.value;
   const inputError = priceParse.error ?? sizeParse.error ?? worstPricePreview.error ?? limitTicks.error ?? sizeAtoms.error;
+  const bookEmpty = book.bids.length === 0 && book.asks.length === 0;
+  const gate = ticketGate(feedStatus, bookEmpty);
 
   function applyPercent(percent: 25 | 50 | 75 | 100) {
     const share = BigInt(percent);
@@ -246,30 +272,17 @@ export function TradeTicket({
   }
 
   async function reviewSimulatedOrder() {
+    if (!gate.canReview) {
+      setNotice(gate.message);
+      setReview(null);
+      return;
+    }
     const prepared = preparedOrder();
     if (typeof prepared === "string") {
       setNotice(prepared);
       return;
     }
 
-    const canonical = {
-      maker: "session" as const,
-      side,
-      baseAsset: "pZEC" as const,
-      quoteAsset: market.quote,
-      baseAmountAtoms: prepared.sizeAtoms.toString(),
-      limitPriceTicks: prepared.priceTicks.toString(),
-      nonce: String(nonceRef.current),
-      accountEpoch: String(accountEpoch),
-      expiry: "0" as const,
-      salt: prepared.tif,
-      recipient: "session" as const,
-      maximumFeeBps: "30" as const,
-      allowedVenues: "clob" as const,
-      chainId: "42161" as const,
-      verifyingContract: "not-deployed" as const,
-    };
-    nonceRef.current += 1;
     const comparison = compareVenues({
       book,
       side,
@@ -278,6 +291,24 @@ export function TradeTicket({
       reservePzecAtoms,
       reserveQuoteAtoms,
     });
+    const canonical: CanonicalOrder = {
+      maker: "session",
+      side,
+      baseAsset: "pZEC",
+      quoteAsset: market.quote,
+      baseAmountAtoms: prepared.sizeAtoms.toString(),
+      limitPriceTicks: prepared.priceTicks.toString(),
+      nonce: String(nonceRef.current),
+      accountEpoch: String(accountEpoch),
+      expiry: "0",
+      salt: prepared.tif,
+      recipient: "session",
+      maximumFeeBps: "30",
+      allowedVenues: allowedVenuesFor(comparison),
+      chainId: "42161",
+      verifyingContract: "not-deployed",
+    };
+    nonceRef.current += 1;
     setReview({
       ...prepared,
       digest: await digestCanonicalOrder(canonical),
@@ -307,6 +338,16 @@ export function TradeTicket({
 
       {market.id === "ZEC/USDT" && (
         <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
+      )}
+
+      {!gate.canReview && (
+        <div className={styles.ticketBlocked} role="status">
+          <strong>{gate.heading}</strong>
+          <p>{gate.message}{gate.asOf ? ` As of ${gate.asOf}.` : ""}</p>
+          <button type="button" className={styles.textButton} onClick={onRetryFeed}>
+            Retry illustrative feed
+          </button>
+        </div>
       )}
 
       <div className={styles.segmented} role="group" aria-label="Order side">
@@ -458,7 +499,17 @@ export function TradeTicket({
           <dl className={styles.ticketSummary}>
             <div>
               <dt>Leaving session</dt>
-              <dd>{side === "buy" ? `${formatAtomicUnits(review.comparison.clob.quoteAtoms, QUOTE_DECIMALS, 2)} ${market.quote}` : `${formatAtomicUnits(review.sizeAtoms, PZEC_DECIMALS)} pZEC`}</dd>
+              <dd>
+                {side === "buy"
+                  ? `${formatAtomicUnits(
+                    review.comparison.better === "split"
+                      ? review.comparison.split.clobQuoteAtoms
+                      : review.comparison.clob.quoteAtoms,
+                    QUOTE_DECIMALS,
+                    2,
+                  )} ${market.quote}`
+                  : `${formatAtomicUnits(review.sizeAtoms, PZEC_DECIMALS)} pZEC`}
+              </dd>
             </div>
             <div>
               <dt>Worst acceptable price</dt>
@@ -466,19 +517,16 @@ export function TradeTicket({
             </div>
             <div>
               <dt>CLOB vs AMM</dt>
-              <dd>
-                {review.comparison.better === "none"
-                  ? "neither fills in full"
-                  : review.comparison.better === "tie"
-                    ? "CLOB and AMM match on this size"
-                    : `${review.comparison.better.toUpperCase()} cheaper for a full fill`}
-              </dd>
+              <dd>{describeRoute(review.comparison, market.quote)}</dd>
             </div>
             <div>
               <dt>Simulation digest</dt>
               <dd>{review.digest.slice(0, 16)}…</dd>
             </div>
           </dl>
+          <p className={styles.inlineNotice}>
+            Confirm submits only the local CLOB. Split and AMM figures are comparison quotes, not an executed router fill.
+          </p>
           <button
             type="button"
             className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
@@ -495,6 +543,7 @@ export function TradeTicket({
           type="button"
           className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
           onClick={() => void reviewSimulatedOrder()}
+          disabled={!gate.canReview}
         >
           Review simulated {side}
         </button>
