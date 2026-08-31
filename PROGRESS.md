@@ -300,3 +300,38 @@ PR 2 added the deterministic state machine and the read-only `/swap` view. Both 
 - `src/components/swap-state-panel.tsx` — client island: generate, display, paste-and-verify. No signing, no broadcast
 - `src/app/swap/page.tsx` — server route at `/swap`, derives state from `fill`, `evm`, `zec`, `evmRefund`, `zecRefund`, `state`, `now`, `role` URL params. Noindex, simulation-frame layout, replay query
 - 361 node tests pass, secret-pattern scan clean over 250 files, production build clean
+
+## Done this batch (PR 24 + Zcash P2SH tx lab)
+
+PR 3 added the ZEC half of the atomic swap. The address encoder, the
+P2SH script builder, and the wallet adapter are all key-independent.
+The signing surface stays gated. The browser path for `ripemd160` is a
+follow-up because Web Crypto does not expose `ripemd160`.
+
+- `docs/adr/0005-zcash-p2sh-atomic-swap.md` — design, hash function
+  choice, P2SH script layout, wallet adapter seam, signing boundary
+- `src/lib/ripemd160.ts` and `.test.ts` — thin Node-native wrapper,
+  pinned against the canonical vectors that Node 24 reproduces
+- `src/lib/sha256d.ts` and `.test.ts` — double SHA-256 wrapper for
+  Base58Check
+- `src/lib/base58check.ts` and `.test.ts` — Base58Check encoder and
+  decoder with checksum validation
+- `src/lib/zcash-script.ts` and `.test.ts` — op-code table, push
+  encoders, concat helper
+- `src/lib/zcash-pubkey.ts` and `.test.ts` — compressed secp256k1
+  pubkey parser and encoder
+- `src/lib/zcash-atomic-swap.ts` and `.test.ts` — claim branch, refund
+  branch, full atomic-swap script, round-trip parser
+- `src/lib/zcash-address.ts` and `.test.ts` — merged
+  `inspectTransparentDestination` with the Base58Check address
+  encoder and decoder; testnet and mainnet version bytes
+- `src/lib/zcash-wallet-adapter.ts` and `.test.ts` — typed
+  `buildFundTransaction`, `buildClaimTransaction`,
+  `buildRefundTransaction`; `hashAtomicSwapParams` for the script
+  hash
+- `src/app/zcash/page.tsx` — server route at `/zcash`, noindex,
+  simulation-frame layout, derives the script, address, and unsigned
+  transactions from URL params, exposes the replay query
+- `docs/THREAT_MODEL.md` — section 19 for the ZEC leg
+- 425 node tests pass, secret-pattern scan clean, production build
+  clean
