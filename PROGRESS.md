@@ -51,7 +51,7 @@ The pZEC gateway, reserve, mint, burn, payout, passive AMM, and Sepolia contract
 * Bind every current surface to simulation and no-live-funds product truth
 * Preserve the no-key and no-chain boundary for this batch
 
-The pre-rebase branch passed an independent P0/P1 review, 163 unit tests, a 108-file secret scan, production build, 28 browser tests, and an independent Foundry EIP-712 digest comparison. The rebased exact head must rerun the expanded main checks before publication.
+The pre-rebase branch passed an independent P0/P1 review and an independent Foundry EIP-712 digest comparison. After rebasing onto merged `main`, integration tree `fcb34d5` passed lint, type checking, 259 unit and service tests, 22 Foundry tests, a 185-file secret-pattern scan, the production build, and all 46 Chromium browser tests. Publication still requires a clean final-head review plus fresh GitHub Verify and Vercel results for that exact head.
 
 ## Next batches
 
