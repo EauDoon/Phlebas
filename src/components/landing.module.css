@@ -359,7 +359,7 @@
 }
 
 .marketSection,
-.pzecSection,
+.pairsSection,
 .journeySection,
 .gatesSection {
   padding: clamp(72px, 9vw, 144px) clamp(20px, 5vw, 72px);
@@ -374,7 +374,7 @@
 }
 
 .sectionIntro h2,
-.pzecCopy h2,
+.pairsCopy h2,
 .gatesSection h2 {
   margin-top: 18px;
   font-size: clamp(38px, 5vw, 76px);
@@ -451,14 +451,14 @@
   margin-left: 15px;
 }
 
-.pzecSection {
+.pairsSection {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
   gap: clamp(52px, 10vw, 160px);
   background: var(--surface);
 }
 
-.pzecCopy > p {
+.pairsCopy > p {
   max-width: 720px;
   margin-top: 28px;
   color: var(--text-secondary);
@@ -466,7 +466,7 @@
   line-height: 1.7;
 }
 
-.pzecCopy > strong {
+.pairsCopy > strong {
   display: block;
   max-width: 720px;
   margin-top: 24px;
@@ -713,7 +713,7 @@
   }
 
   .marketSection,
-  .pzecSection,
+  .pairsSection,
   .journeySection,
   .gatesSection {
     grid-template-columns: 1fr;
@@ -770,7 +770,7 @@
   }
 
   .marketSection,
-  .pzecSection,
+  .pairsSection,
   .journeySection,
   .gatesSection,
   .systemLedger {
@@ -784,7 +784,7 @@
   }
 
   .sectionIntro h2,
-  .pzecCopy h2,
+  .pairsCopy h2,
   .gatesSection h2 {
     font-size: 39px;
   }

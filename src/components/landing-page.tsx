@@ -78,8 +78,8 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className={styles.pzecSection} id="pairs" aria-labelledby="pairs-title">
-          <div className={styles.pzecCopy}>
+        <section className={styles.pairsSection} id="pairs" aria-labelledby="pairs-title">
+          <div className={styles.pairsCopy}>
             <span className={styles.eyebrow}>Native assets</span>
             <h2 id="pairs-title">Native ZEC against native USDC and USDT.</h2>
             <p>
