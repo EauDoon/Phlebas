@@ -11,6 +11,12 @@ import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
 import { feedSurface, type FeedStatus } from "@/lib/market-state";
+import {
+  nextTerminalView,
+  TERMINAL_VIEW_LABELS,
+  TERMINAL_VIEWS,
+  type TerminalView,
+} from "@/lib/terminal-views";
 import type { SessionLogEvent } from "@/lib/replay";
 import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingOrder, type TimeInForce } from "@/lib/matcher";
 import {
@@ -43,16 +49,7 @@ import { TradeTicket } from "./trade-ticket";
 import { WalletBar } from "./wallet-bar";
 import styles from "./terminal.module.css";
 
-type View = "trade" | "liquidity" | "bridge" | "architecture";
-
-const views: { id: View; label: string }[] = [
-  { id: "trade", label: "Trade" },
-  { id: "liquidity", label: "Liquidity" },
-  { id: "bridge", label: "ZEC gateway" },
-  { id: "architecture", label: "Architecture" },
-];
-
-function viewUrl(view: View, market: MarketId, feed: FeedStatus) {
+function viewUrl(view: TerminalView, market: MarketId, feed: FeedStatus) {
   const params = new URLSearchParams({ market });
   if (feed !== "illustrative") {
     params.set("feed", feed);
@@ -85,14 +82,15 @@ export function TradingTerminal({
   initialAccess = "open",
   forceEducation = false,
 }: {
-  initialView?: View;
+  initialView?: TerminalView;
   initialMarket?: MarketId;
   initialFeed?: FeedStatus;
   initialAccess?: AccessDemo;
   forceEducation?: boolean;
 }) {
   const router = useRouter();
-  const [view, setView] = useState<View>(initialView);
+  const [view, setView] = useState<TerminalView>(initialView);
+  const [viewFocusId, setViewFocusId] = useState<TerminalView>(initialView);
   const [marketId, setMarketId] = useState<MarketId>(initialMarket);
   const [feedStatus, setFeedStatus] = useState<FeedStatus>(initialFeed);
   const [range, setRange] = useState<ChartRange>("4H");
@@ -107,15 +105,49 @@ export function TradingTerminal({
   const nextPriceNonce = useRef(1);
   const nextFillId = useRef(1);
   const rangeRefs = useRef<Partial<Record<ChartRange, HTMLButtonElement | null>>>({});
+  const viewRefs = useRef<Partial<Record<TerminalView, HTMLButtonElement | null>>>({});
   const market = markets[marketId];
   const book = books[marketId];
   const feed = feedSurface(feedStatus);
   const displayedBook = feed.showFixtures ? book : emptyBook(book.lastTicks);
   const account = accounts[marketId];
 
-  function selectView(nextView: View) {
+  function selectView(nextView: TerminalView) {
     setView(nextView);
+    setViewFocusId(nextView);
     router.replace(viewUrl(nextView, marketId, feedStatus), { scroll: false });
+  }
+
+  function moveViewFocus(next: TerminalView) {
+    setViewFocusId(next);
+    viewRefs.current[next]?.focus();
+  }
+
+  function onViewKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: TerminalView) {
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      moveViewFocus(nextTerminalView(id, 1));
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      moveViewFocus(nextTerminalView(id, -1));
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      moveViewFocus("trade");
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      moveViewFocus("architecture");
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      selectView(id);
+    }
   }
 
   function selectMarket(nextMarket: MarketId) {
@@ -293,16 +325,29 @@ export function TradingTerminal({
           <span className={styles.brandMark}>P</span>
           <span>PHLEBAS</span>
         </Link>
-        <nav className={styles.nav} aria-label="Primary navigation">
-          {views.map((item) => (
+        <nav
+          className={styles.nav}
+          role="tablist"
+          aria-label="Primary navigation"
+          aria-orientation="horizontal"
+        >
+          {TERMINAL_VIEWS.map((id) => (
             <button
               type="button"
-              key={item.id}
-              className={view === item.id ? styles.navActive : undefined}
-              aria-current={view === item.id ? "page" : undefined}
-              onClick={() => selectView(item.id)}
+              key={id}
+              role="tab"
+              id={`terminal-view-${id}`}
+              aria-controls="main-content"
+              aria-selected={view === id}
+              tabIndex={viewFocusId === id ? 0 : -1}
+              className={view === id ? styles.navActive : undefined}
+              ref={(node) => {
+                viewRefs.current[id] = node;
+              }}
+              onClick={() => selectView(id)}
+              onKeyDown={(event) => onViewKeyDown(event, id)}
             >
-              {item.label}
+              {TERMINAL_VIEW_LABELS[id]}
             </button>
           ))}
         </nav>

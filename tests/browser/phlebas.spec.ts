@@ -206,8 +206,11 @@ for (const width of viewports) {
       await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
 
       await page.goto("/trade", { waitUntil: "networkidle" });
-      const liquidityNavigation = page.getByRole("button", { name: "Liquidity" });
-      await tabTo(page, liquidityNavigation);
+      const tradeNavigation = page.getByRole("tab", { name: "Trade" });
+      await tabTo(page, tradeNavigation);
+      await expectVisibleFocus(tradeNavigation);
+      await page.keyboard.press("ArrowRight");
+      const liquidityNavigation = page.getByRole("tab", { name: "Liquidity" });
       await expectVisibleFocus(liquidityNavigation);
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDC$/);

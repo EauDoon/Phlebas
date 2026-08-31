@@ -76,6 +76,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(bridge, /copyUri/);
   assert.match(bridge, /Not payable/);
   assert.match(terminal, /feedSurface/);
+  assert.match(terminal, /nextTerminalView/);
+  assert.match(terminal, /role="tablist"/);
   assert.match(terminal, /Skip to order ticket/);
   assert.match(terminal, /Skip to price chart/);
   assert.match(terminal, /Skip to order book/);
