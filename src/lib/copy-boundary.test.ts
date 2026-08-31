@@ -266,7 +266,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?position: sticky;/);
   assert.match(terminalCss, /scroll-padding-top: 12px;/);
   assert.match(terminalCss, /scroll-padding-bottom: 12px;/);
-  assert.match(terminalCss, /scroll-margin-top: 8px;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?scroll-margin-top: 12px;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button \{[\s\S]*?flex-shrink: 0;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button:disabled \{[\s\S]*?min-height: 44px;/);
   assert.match(terminalCss, /padding-bottom: 8px;/);

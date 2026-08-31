@@ -1911,7 +1911,7 @@ a.skipLink:focus-visible {
   flex-shrink: 0;
   font-size: 20px;
   letter-spacing: -0.03em;
-  scroll-margin-top: 8px;
+  scroll-margin-top: 12px;
 }
 
 @media (max-width: 820px) {
