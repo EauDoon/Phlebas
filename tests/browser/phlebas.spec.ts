@@ -130,7 +130,7 @@ for (const width of viewports) {
           expect(bannerBeforeHeader).toBe(true);
           await expect(page.getByRole("heading", { name: "Nothing hidden behind the preview" })).toBeVisible();
           await expect(page.getByText(
-            "The simulation now labels settlement as ZEC-USDC and ZEC-USDT. It does not wrap ZEC as pZEC and it does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.",
+            "The simulation now labels settlement as ZEC-USDC and ZEC-USDT. Native labels are simulation names, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.",
             { exact: true },
           )).toBeVisible();
           await expect(page.getByText("USDT0 is abandoned. It is not a listed settlement asset.", { exact: true })).toBeVisible();
@@ -161,7 +161,7 @@ for (const width of viewports) {
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/#pairs$/);
       await expect(page.getByText(
-        "The simulation now labels settlement as ZEC-USDC and ZEC-USDT. It does not wrap ZEC as pZEC and it does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.",
+        "The simulation now labels settlement as ZEC-USDC and ZEC-USDT. Native labels are simulation names, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.",
         { exact: true },
       )).toBeVisible();
 

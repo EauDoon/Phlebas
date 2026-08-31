@@ -83,7 +83,7 @@ export function LandingPage() {
             <span className={styles.eyebrow}>Native assets</span>
             <h2 id="pairs-title">Native ZEC against native USDC and USDT.</h2>
             <p>
-              The simulation now labels settlement as ZEC-USDC and ZEC-USDT. It does not wrap ZEC as pZEC and it does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.
+              The simulation now labels settlement as ZEC-USDC and ZEC-USDT. Native labels are simulation names, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.
             </p>
             <strong>This is a no-value simulation. It is not a live exchange and not a shielded market.</strong>
           </div>

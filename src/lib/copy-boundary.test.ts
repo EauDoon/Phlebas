@@ -36,9 +36,11 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /does not list USDT0/);
   assert.match(landing, /native ZEC against native USDC/);
   assert.match(landing, /USDT0 is abandoned/);
+  assert.match(landing, /Native labels are simulation names, not live settlement/);
   assert.match(landing, /Understand native pairs/);
   assert.match(landing, /href="#pairs"/);
   assert.doesNotMatch(landing, /Understand pZEC/);
+  assert.doesNotMatch(landing, /wrap ZEC as pZEC/);
   assert.match(await readFile(join(root, "src/lib/session.ts"), "utf8"), /SESSION_ZEC_ATOMS/);
   assert.match(await readFile(join(root, "src/lib/session.ts"), "utf8"), /export function availableZec/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/session.ts"), "utf8"), /availablePzec/);
