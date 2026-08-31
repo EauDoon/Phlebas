@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after loopback allowlist, sequence root, production CSP assertion, Vercel-env secret scan, and current-reality docs.
+Last updated: 31-08-2026 after PRODUCT_SPEC UI flows: payout tour claims, settlement-pair history, epoch, LP pause, review confirmations, empty/loading feeds.
 
 ## Branch
 
@@ -57,12 +57,21 @@ Last updated: 31-08-2026 after loopback allowlist, sequence root, production CSP
 - Payout claim stub walks requested → screened → burn-submitted → payable / unresolved. Nothing is sent.
 - Gateway issued count persists under `services/gateway/.data/issued`, so the intent cap survives a process restart. Corrupt issued files and a master key without `issued` fail closed at the cap.
 - Matcher persist stores the sequence root. A tampered root is ignored and the matcher starts empty.
+- Withdrawal tour drives `payoutClaimForTourStep` without changing tour copy. Stub claim state is visible. Nothing is sent.
+- Fills, resting orders, and the tape name the settlement pair (`pZEC-USDC` / `pZEC-USDT0`).
+- Account epoch is visible on the ticket and blotter. Invalidate older session orders increments it.
+- LP trading pause disables mint and swap; burn stays available.
+- Wallet connect failures are visible. Gateway issue shows an issuing state.
+- Review repeats assets, fees, custody, and public-linkability (PRODUCT_SPEC §10).
+- Empty feed shows empty depth. Loading feed disables review.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
-- Wire payout claim states into the withdrawal tour without changing the tour copy
+- Redeploy the public Vercel UI after this PR merges (blocked on a Vercel deploy token in this session; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Status `/api/status` should surface `intentCap` and `sequenceRoot` only when a loopback operator is configured; public Vercel stays without those URLs
+- Keyboard: blotter Cancel and Invalidate older session orders from the tab order at 320px
+- Density: pack blotter settlement column on 320px without horizontal overflow
 
 ## Blockers
 

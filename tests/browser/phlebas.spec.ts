@@ -280,7 +280,7 @@ test("gateway preview is not a receivable deposit", async ({ page }) => {
   await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("zs1notreal");
   await expect(page.getByText("Shielded and unified addresses are out of scope.")).toBeVisible();
   await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
-  await expect(page.getByText("Nothing is sent.")).toBeVisible();
+  await expect(page.getByText("Payout stub would accept this destination shape. Nothing is sent.")).toBeVisible();
 });
 
 test("local matcher fills a buy against the fixture ask", async ({ page }) => {
@@ -363,4 +363,62 @@ test("review names the cheaper venue before confirm", async ({ page }) => {
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByText("CLOB cheaper for a full fill", { exact: true })).toBeVisible();
   await expect(page.getByText("Confirm submits only the local CLOB")).toBeVisible();
+  await expect(page.getByText("Leaves the session")).toBeVisible();
+  await expect(page.getByText("publicly linkable", { exact: false })).toBeVisible();
+  await expect(page.getByText("Proposed taker 15 bps", { exact: false })).toBeVisible();
+});
+
+test("GTC remainder can be cancelled and epoch invalidation is visible", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
+  await expect(page.getByRole("table", { name: /Resting session orders on the local ZEC\/USDC book, settled as pZEC-USDC/ })).toBeVisible();
+  await page.getByRole("button", { name: "Invalidate older session orders" }).click();
+  await expect(page.getByText("No open session orders", { exact: false })).toBeVisible();
+  await page.getByRole("tab", { name: "Inventory" }).click();
+  const blotter = page.getByRole("region", { name: "Open orders, fills, inventory" });
+  await expect(blotter.getByText("Account epoch")).toBeVisible();
+});
+
+test("USDT market names USDT0 settlement and empty feed shows no depth", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(page.getByText("settles pZEC-USDT0")).toBeVisible();
+  await page.getByRole("combobox", { name: "Market data state" }).selectOption("empty");
+  await expect(page.getByText("No resting depth. The local book is empty.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await page.getByRole("combobox", { name: "Market data state" }).selectOption("loading");
+  await expect(page.getByText("Loading market data", { exact: true })).toBeVisible();
+});
+
+test("LP burn stays available after a trading pause", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Simulate mint" }).click();
+  await expect(page.getByText(/Minted .* local LP shares/)).toBeVisible();
+  await page.getByRole("button", { name: "Pause trading preview" }).click();
+  await expect(page.getByRole("button", { name: "Simulate mint" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Simulate swap" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
+  await page.getByRole("button", { name: "Burn session shares" }).click();
+  await expect(page.getByText(/Burned session shares/)).toBeVisible();
+});
+
+test("withdrawal tour drives a stub claim without changing tour copy", async ({ page }) => {
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Withdrawal states" }).click();
+  await expect(page.getByText("Amount, transparent destination, network fee, service fee, and net output would be reviewed before any burn.")).toBeVisible();
+  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
+  await expect(page.getByText("Stub claim: requested. Nothing is sent.")).toBeVisible();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await expect(page.getByText("Screened", { exact: true })).toBeVisible();
+  await expect(page.getByText("Stub claim: screened. Nothing is sent.")).toBeVisible();
+});
+
+test("connect wallet without a provider shows a visible rejection", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
+  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only.")).toBeVisible();
 });
