@@ -180,6 +180,10 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /line-height: 1\.3;/);
   assert.match(terminalCss, /max-height: calc\(100vh - min\(40vh, 17\.5rem\) - 12px\)/);
   assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?position: sticky;/);
+  assert.match(terminalCss, /scroll-padding-top: 8px;/);
+  assert.match(terminalCss, /scroll-padding-bottom: 8px;/);
+  assert.match(terminalCss, /scroll-margin-top: 8px;/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav button \{[\s\S]*?flex-shrink: 0;/);
   assert.match(landingCss, /scrollbar-gutter: stable;/);
   assert.match(terminalCss, /scrollbar-gutter: stable;/);
   assert.match(landingCss, /right: auto;/);
