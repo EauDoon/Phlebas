@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the product-UI keyboard, feed-surface, and honest-copy slice.
+Last updated: 31-08-2026 after the product-UI view-tabs, LP errors, fixture labels, and unresolved-withdrawal slice.
 
 ## Branch
 
-`feat/simulation-hardening` off `origin/main` at `a2569b3` (PR #20). Origin `feat/simulation-hardening` has diverged; do not force-push it. Open or push the remaining product UI as a new PR.
+`feat/product-ui` off `origin/main` at `a2569b3`. Origin `feat/simulation-hardening` has diverged; do not force-push it. Push this product UI as a new PR.
 
 ## Done
 
@@ -112,16 +112,22 @@ Last updated: 31-08-2026 after the product-UI keyboard, feed-surface, and honest
 - App Router `loading.tsx` names a simulation and withholds prices. Open Graph and Twitter cards say no-value simulation.
 - Local fill copy says nothing was signed or submitted to a chain. Simulation error Retry uses the primary action style.
 - Playwright covers feed surfaces, placeholder QR, clipboard failure, G/I/F during review, skip-to-chart, chart-range arrows, field errors, USDT review listing-gate, LP pool arrows, and OG metadata.
+- Terminal view tabs move focus with arrows and select with Enter/Space, matching blotter tabs
+- LP amount field errors use `aria-errormessage` and keep review closed
+- 24h volume and LP TVL visible values are labeled Fixture
+- Ticket keyboard copy is a named 44px region
+- Withdrawal tour includes an unresolved demonstration; stub claim stays unresolved and nothing is sent
+- Chart SVG pixel coordinates are documented display floats; axis labels stay integer ticks
+- Playwright covers view-tab arrows, LP field errors, fixture-labeled volume, shortcut region, and unresolved withdrawal
 
 ## Next
 
-- Terminal view tabs (Trade, Liquidity, Gateway, Architecture) should move with arrows the way blotter tabs do
-- LP amount field errors should be linked to the field the way ticket errors are
-- 24h volume and LP TVL strings still look like live dollars; label them as fixtures in the visible value
-- Keyboard shortcut copy on the ticket is a trailing notice; promote it to a named region with a 44px target
-- Withdrawal tour still walks the happy path only; add an unresolved demonstration that does not invent a payout
-- Chart SVG still uses display floats for pixel coordinates; keep financial ticks integer and document the display exception
-- Playwright: view-tab arrows, LP field errors, fixture-labeled volume, shortcut region, unresolved withdrawal
+- Ticket side, type, and time-in-force groups should move with arrows the way blotter tabs do
+- Size percent shortcuts stay 27px on desktop; they should be 44px
+- Gateway deposit/withdrawal journey buttons should move with arrows
+- Landing terminal preview depth should name its figures as fixtures the same way as 24h volume
+- Status page should skip to the ledger the way the terminal skips to the ticket
+- Playwright: ticket group arrows, 44px size shortcuts, gateway journey arrows, preview fixture labels, status skip
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
