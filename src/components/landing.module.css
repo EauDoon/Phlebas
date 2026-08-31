@@ -1140,6 +1140,9 @@
   }
 
   .skipNav:focus-within {
+    position: relative;
+    top: auto;
+    left: auto;
     width: auto;
     height: auto;
     overflow: visible;
