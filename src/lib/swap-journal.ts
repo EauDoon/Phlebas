@@ -24,9 +24,9 @@ export type SwapEventPayload =
   | Readonly<{ kind: "authorize-terms"; partyId: Hex32; termsHash: Hex32; occurredAtSeconds: bigint }>
   | Readonly<{ kind: "prepare-funding"; leg: SwapLeg; artifactHash: Hex32; occurredAtSeconds: bigint }>
   | Readonly<{ kind: "observe-funding"; evidence: FundingEvidence }>
-  | Readonly<{ kind: "confirm-funding"; leg: SwapLeg; evidenceId: Hex32 }>
+  | Readonly<{ kind: "confirm-funding"; leg: SwapLeg; factId: Hex32; qualifiedAtSeconds: bigint }>
   | Readonly<{ kind: "observe-spend"; evidence: SpendEvidence }>
-  | Readonly<{ kind: "confirm-spend"; leg: SwapLeg; evidenceId: Hex32 }>
+  | Readonly<{ kind: "confirm-spend"; leg: SwapLeg; factId: Hex32; qualifiedAtSeconds: bigint }>
   | Readonly<{ kind: "flag-dispute"; reason: SwapDisputeReason; detail: string; evidenceId?: Hex32 }>
   | Readonly<{ kind: "retract-evidence"; evidenceId: Hex32; detail: string }>;
 
@@ -58,9 +58,9 @@ const EVENT_KEYS: Readonly<Record<SwapEventPayload["kind"], readonly string[]>> 
   "authorize-terms": ["kind", "partyId", "termsHash", "occurredAtSeconds"],
   "prepare-funding": ["kind", "leg", "artifactHash", "occurredAtSeconds"],
   "observe-funding": ["kind", "evidence"],
-  "confirm-funding": ["kind", "leg", "evidenceId"],
+  "confirm-funding": ["kind", "leg", "factId", "qualifiedAtSeconds"],
   "observe-spend": ["kind", "evidence"],
-  "confirm-spend": ["kind", "leg", "evidenceId"],
+  "confirm-spend": ["kind", "leg", "factId", "qualifiedAtSeconds"],
   "flag-dispute": ["kind", "reason", "detail", "evidenceId"],
   "retract-evidence": ["kind", "evidenceId", "detail"],
 });
@@ -115,14 +115,14 @@ export function swapEventSemanticSlot(payload: SwapEventPayload): string {
   if (payload.kind === "prepare-funding") return `${payload.kind}:${payload.leg}`;
   if (payload.kind === "observe-funding") {
     const evidence = payload.evidence;
-    return `${payload.kind}:${evidence.leg}:${evidence.transactionId}:${evidence.outputIndex}`;
+    return `${payload.kind}:${evidence.fact.leg}:${evidence.fact.factId}:${evidence.attestation.sourceId}`;
   }
   if (payload.kind === "confirm-funding" || payload.kind === "confirm-spend") {
-    return `${payload.kind}:${payload.leg}:${payload.evidenceId}`;
+    return `${payload.kind}:${payload.leg}:${payload.factId}`;
   }
   if (payload.kind === "observe-spend") {
     const evidence = payload.evidence;
-    return `${payload.kind}:${evidence.leg}:${evidence.action}:${evidence.transactionId}:${evidence.inputOrLogIndex}`;
+    return `${payload.kind}:${evidence.fact.leg}:${evidence.fact.action}:${evidence.fact.factId}:${evidence.attestation.sourceId}`;
   }
   if (payload.kind === "retract-evidence") return `${payload.kind}:${payload.evidenceId}`;
   if (payload.kind === "flag-dispute") {
@@ -170,9 +170,13 @@ export function applySwapEvent(state: SwapState, payload: SwapEventPayload): Swa
     return prepareSwapFunding(state, payload.leg, payload.artifactHash, payload.occurredAtSeconds);
   }
   if (payload.kind === "observe-funding") return observeSwapFunding(state, payload.evidence);
-  if (payload.kind === "confirm-funding") return confirmSwapFunding(state, payload.leg, payload.evidenceId);
+  if (payload.kind === "confirm-funding") {
+    return confirmSwapFunding(state, payload.leg, payload.factId, payload.qualifiedAtSeconds);
+  }
   if (payload.kind === "observe-spend") return observeSwapSpend(state, payload.evidence);
-  if (payload.kind === "confirm-spend") return confirmSwapSpend(state, payload.leg, payload.evidenceId);
+  if (payload.kind === "confirm-spend") {
+    return confirmSwapSpend(state, payload.leg, payload.factId, payload.qualifiedAtSeconds);
+  }
   if (payload.kind === "retract-evidence") return retractSwapEvidence(state, payload.evidenceId, payload.detail);
   if (payload.kind === "flag-dispute") {
     return flagSwapDispute(state, payload.reason, payload.detail, payload.evidenceId);

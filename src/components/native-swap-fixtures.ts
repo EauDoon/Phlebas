@@ -1,6 +1,12 @@
 import type { MarketId } from "@/lib/market-data";
 import { type SwapTermsV1, validateSwapTerms } from "@/lib/swap-domain";
-import { swapDeadlineStatus, type SwapTimingPolicy } from "@/lib/swap-policy";
+import {
+  hashSwapFinalityPolicy,
+  hashSwapObserverPolicy,
+  swapDeadlineStatus,
+  type SwapEvidencePolicies,
+  type SwapTimingPolicy,
+} from "@/lib/swap-policy";
 import { swapStateRoot } from "@/lib/swap-root";
 import {
   authorizeSwapTerms,
@@ -8,10 +14,12 @@ import {
   confirmSwapSpend,
   createSwapState,
   flagSwapDispute,
+  fundingFactId,
   observeSwapFunding,
   observeSwapSpend,
   prepareSwapFunding,
   retractSwapEvidence,
+  spendFactId,
   swapPhase,
   type FundingEvidence,
   type SpendEvidence,
@@ -59,6 +67,30 @@ export const nativeSwapScenarios: readonly Readonly<{
 const hex32 = (byte: string) => `0x${byte.repeat(32)}` as SwapTermsV1["fillId"];
 const hex20 = (byte: string) => `0x${byte.repeat(20)}` as `0x${string}`;
 
+const fixtureZecChain = "bip122:00040fe8ec8471911baa1db1266ea15d";
+const fixtureQuoteChain = "eip155:421614";
+
+const fixtureEvidencePolicies: SwapEvidencePolicies = {
+  observer: {
+    version: 1,
+    sourceIds: [hex32("37"), hex32("38")],
+    requiredSourceCount: 2n,
+    maxObservationDelaySeconds: 600n,
+  },
+  zecFinality: {
+    version: 1,
+    chain: fixtureZecChain,
+    minimumConfirmations: 10n,
+    minimumAgeSeconds: 60n,
+  },
+  evmFinality: {
+    version: 1,
+    chain: fixtureQuoteChain,
+    minimumConfirmations: 20n,
+    minimumAgeSeconds: 30n,
+  },
+};
+
 const fixtureTerms: SwapTermsV1 = {
   version: 1,
   fillId: hex32("11"),
@@ -67,9 +99,9 @@ const fixtureTerms: SwapTermsV1 = {
   stablecoinOrderHash: hex32("13"),
   zecSellerId: hex32("14"),
   stablecoinSellerId: hex32("15"),
-  zecChain: "bip122:00040fe8ec8471911baa1db1266ea15d",
-  zecAsset: "bip122:00040fe8ec8471911baa1db1266ea15d/slip44:133",
-  quoteChain: "eip155:421614",
+  zecChain: fixtureZecChain,
+  zecAsset: `${fixtureZecChain}/slip44:133`,
+  quoteChain: fixtureQuoteChain,
   quoteAsset: "eip155:421614/erc20:0x1111111111111111111111111111111111111111",
   zecAmountZatoshis: 100_000_000n,
   quoteAmountAtoms: 52_910_000n,
@@ -91,9 +123,9 @@ const fixtureTerms: SwapTermsV1 = {
   evmRefundTime: 1_700_001_000n,
   zecRefundTime: 1_700_001_600n,
   timeoutPolicyId: hex32("21"),
-  observerPolicyId: hex32("22"),
-  zecFinalityPolicyId: hex32("23"),
-  evmFinalityPolicyId: hex32("24"),
+  observerPolicyId: hashSwapObserverPolicy(fixtureEvidencePolicies.observer),
+  zecFinalityPolicyId: hashSwapFinalityPolicy(fixtureEvidencePolicies.zecFinality),
+  evmFinalityPolicyId: hashSwapFinalityPolicy(fixtureEvidencePolicies.evmFinality),
 };
 
 const fixtureTimingPolicy: SwapTimingPolicy = {
@@ -104,28 +136,53 @@ const fixtureTimingPolicy: SwapTimingPolicy = {
 
 const fixturePreimage = `0x${"42".repeat(32)}` as const;
 
-function fundingEvidence(leg: "zec" | "evm"): FundingEvidence {
-  return {
-    evidenceId: leg === "zec" ? hex32("31") : hex32("32"),
+function fundingEvidence(leg: "zec" | "evm", observerIndex: 0 | 1 = 0): FundingEvidence {
+  const identity = createSwapState(validateSwapTerms(fixtureTerms), fixtureTimingPolicy, fixtureEvidencePolicies);
+  const blockHeight = leg === "zec" ? 2_100_001n : 12_300_001n;
+  const executedAtSeconds = (leg === "zec" ? fixtureTerms.zecFundBy : fixtureTerms.evmFundBy) - 100n;
+  const unsigned = {
     leg,
+    swapId: identity.swapId,
+    termsHash: identity.termsHash,
     transactionId: leg === "zec" ? hex32("33") : hex32("34"),
     blockHash: leg === "zec" ? hex32("35") : hex32("36"),
-    blockHeight: leg === "zec" ? 2_100_001n : 12_300_001n,
+    blockHeight,
+    executedAtSeconds,
     outputIndex: 0n,
-    sourceId: hex32("37"),
-    observedAtSeconds: leg === "zec" ? fixtureTerms.zecFundBy - 1n : fixtureTerms.evmFundBy - 1n,
     chain: leg === "zec" ? fixtureTerms.zecChain : fixtureTerms.quoteChain,
     asset: leg === "zec" ? fixtureTerms.zecAsset : fixtureTerms.quoteAsset,
     amountAtoms: leg === "zec" ? fixtureTerms.zecAmountZatoshis : fixtureTerms.quoteAmountAtoms,
     lockIdentity: leg === "zec" ? fixtureTerms.zcashLockScriptHash : fixtureTerms.evmEscrowContract,
-    recipient: leg === "zec" ? fixtureTerms.zcashClaimPubKeyHash : fixtureTerms.evmClaimRecipient,
+    escrowRecordId: identity.swapId,
+    funder: leg === "zec" ? fixtureTerms.zecSellerId : fixtureTerms.evmFunder,
+    claimRecipient: leg === "zec" ? fixtureTerms.zcashClaimPubKeyHash : fixtureTerms.evmClaimRecipient,
+    refundRecipient: leg === "zec" ? fixtureTerms.zcashRefundPubKeyHash : fixtureTerms.evmRefundRecipient,
+    secretHash: fixtureTerms.secretHash,
+    refundTime: leg === "zec" ? fixtureTerms.zecRefundTime : fixtureTerms.evmRefundTime,
+    successful: true,
+  } as const;
+  const fact = { factId: fundingFactId(unsigned), ...unsigned };
+  const finality = leg === "zec" ? fixtureEvidencePolicies.zecFinality : fixtureEvidencePolicies.evmFinality;
+  return {
+    fact,
+    attestation: {
+      evidenceId: leg === "zec" ? (observerIndex === 0 ? hex32("31") : hex32("39")) : (observerIndex === 0 ? hex32("32") : hex32("3a")),
+      factId: fact.factId,
+      sourceId: fixtureEvidencePolicies.observer.sourceIds[observerIndex]!,
+      observerPolicyId: fixtureTerms.observerPolicyId,
+      finalityPolicyId: leg === "zec" ? fixtureTerms.zecFinalityPolicyId : fixtureTerms.evmFinalityPolicyId,
+      observedAtSeconds: executedAtSeconds + finality.minimumAgeSeconds,
+      tipBlockHash: leg === "zec" ? (observerIndex === 0 ? hex32("3b") : hex32("3c")) : (observerIndex === 0 ? hex32("3d") : hex32("3e")),
+      tipBlockHeight: blockHeight + finality.minimumConfirmations - 1n,
+    },
   };
 }
 
 function spendEvidence(
   leg: "zec" | "evm",
   action: "claim" | "refund",
-  observedAtSeconds: bigint,
+  executedAtSeconds: bigint,
+  observerIndex: 0 | 1 = 0,
 ): SpendEvidence {
   const evidenceIds = {
     "evm-claim": hex32("41"),
@@ -140,27 +197,51 @@ function spendEvidence(
     "zec-refund": hex32("54"),
   } as const;
   const key = `${leg}-${action}` as keyof typeof evidenceIds;
-  return {
-    evidenceId: evidenceIds[key],
+  const funding = fundingEvidence(leg).fact;
+  const blockHeight = leg === "zec" ? 2_100_010n : 12_300_010n;
+  const unsigned = {
+    fundingFactId: funding.factId,
+    fundingTransactionId: funding.transactionId,
+    fundingOutputIndex: funding.outputIndex,
     leg,
     action,
+    swapId: funding.swapId,
+    termsHash: funding.termsHash,
     transactionId: transactionIds[key],
     blockHash: leg === "zec" ? hex32("55") : hex32("56"),
-    blockHeight: leg === "zec" ? 2_100_010n : 12_300_010n,
+    blockHeight,
+    executedAtSeconds,
     inputOrLogIndex: 0n,
-    sourceId: hex32("37"),
-    observedAtSeconds,
     chain: leg === "zec" ? fixtureTerms.zecChain : fixtureTerms.quoteChain,
+    asset: leg === "zec" ? fixtureTerms.zecAsset : fixtureTerms.quoteAsset,
+    amountAtoms: leg === "zec" ? fixtureTerms.zecAmountZatoshis : fixtureTerms.quoteAmountAtoms,
+    lockIdentity: leg === "zec" ? fixtureTerms.zcashLockScriptHash : fixtureTerms.evmEscrowContract,
+    escrowRecordId: funding.escrowRecordId,
     recipient: leg === "zec"
       ? (action === "claim" ? fixtureTerms.zcashClaimPubKeyHash : fixtureTerms.zcashRefundPubKeyHash)
       : (action === "claim" ? fixtureTerms.evmClaimRecipient : fixtureTerms.evmRefundRecipient),
     successful: true,
     ...(action === "claim" ? { preimage: fixturePreimage } : {}),
+  } as const;
+  const fact = { factId: spendFactId(unsigned), ...unsigned };
+  const finality = leg === "zec" ? fixtureEvidencePolicies.zecFinality : fixtureEvidencePolicies.evmFinality;
+  return {
+    fact,
+    attestation: {
+      evidenceId: observerIndex === 0 ? evidenceIds[key] : hex32(key === "evm-claim" ? "45" : key === "zec-claim" ? "46" : key === "evm-refund" ? "47" : "48"),
+      factId: fact.factId,
+      sourceId: fixtureEvidencePolicies.observer.sourceIds[observerIndex]!,
+      observerPolicyId: fixtureTerms.observerPolicyId,
+      finalityPolicyId: leg === "zec" ? fixtureTerms.zecFinalityPolicyId : fixtureTerms.evmFinalityPolicyId,
+      observedAtSeconds: executedAtSeconds + finality.minimumAgeSeconds,
+      tipBlockHash: observerIndex === 0 ? hex32("57") : hex32("58"),
+      tipBlockHeight: blockHeight + finality.minimumConfirmations - 1n,
+    },
   };
 }
 
 function createdSwap(): SwapState {
-  return createSwapState(validateSwapTerms(fixtureTerms), fixtureTimingPolicy);
+  return createSwapState(validateSwapTerms(fixtureTerms), fixtureTimingPolicy, fixtureEvidencePolicies);
 }
 
 function authorizedSwap(): SwapState {
@@ -186,16 +267,20 @@ function fundedSwap(): SwapState {
     hex32("61"),
     fixtureTerms.zecFundBy - 1n,
   );
-  const zecSeen = observeSwapFunding(zecPrepared, fundingEvidence("zec"));
-  const zecFunded = confirmSwapFunding(zecSeen, "zec", fundingEvidence("zec").evidenceId);
+  const zecFirst = fundingEvidence("zec", 0);
+  const zecSecond = fundingEvidence("zec", 1);
+  const zecSeen = observeSwapFunding(observeSwapFunding(zecPrepared, zecFirst), zecSecond);
+  const zecFunded = confirmSwapFunding(zecSeen, "zec", zecFirst.fact.factId, zecFirst.attestation.observedAtSeconds);
   const evmPrepared = prepareSwapFunding(
     zecFunded,
     "evm",
     hex32("62"),
     fixtureTerms.evmFundBy - 1n,
   );
-  const evmSeen = observeSwapFunding(evmPrepared, fundingEvidence("evm"));
-  return confirmSwapFunding(evmSeen, "evm", fundingEvidence("evm").evidenceId);
+  const evmFirst = fundingEvidence("evm", 0);
+  const evmSecond = fundingEvidence("evm", 1);
+  const evmSeen = observeSwapFunding(observeSwapFunding(evmPrepared, evmFirst), evmSecond);
+  return confirmSwapFunding(evmSeen, "evm", evmFirst.fact.factId, evmFirst.attestation.observedAtSeconds);
 }
 
 function unsafeState(scenario: Exclude<NativeSwapScenario, "happy" | "refund">): SwapState {
@@ -211,7 +296,7 @@ function unsafeState(scenario: Exclude<NativeSwapScenario, "happy" | "refund">):
   }
   const claim = spendEvidence("evm", "claim", fixtureTerms.evmRefundTime - 1n);
   const revealed = observeSwapSpend(funded, claim);
-  return retractSwapEvidence(revealed, claim.evidenceId, "The fixture EVM claim left the canonical chain.");
+  return retractSwapEvidence(revealed, claim.attestation.evidenceId, "The fixture EVM claim left the canonical chain.");
 }
 
 export function createNativeSwapFixture(
@@ -316,19 +401,21 @@ export function advanceNativeSwapFixture(session: NativeSwapFixtureSession): Rea
     nextState = prepareSwapFunding(state, "zec", hex32("61"), state.terms.zecFundBy - 1n);
     announcement = "Fixture ZEC lock prepared. No transaction was built or signed.";
   } else if (phase === "awaiting-zec-funding" && state.zec.phase === "funding-prepared") {
-    nextState = observeSwapFunding(state, fundingEvidence("zec"));
-    announcement = "Fixture ZEC funding evidence recorded. Confirmation is still required.";
+    nextState = observeSwapFunding(observeSwapFunding(state, fundingEvidence("zec", 0)), fundingEvidence("zec", 1));
+    announcement = "Two fixture ZEC observer reports agree. Policy qualification is still required.";
   } else if (phase === "awaiting-zec-confirmation") {
-    nextState = confirmSwapFunding(state, "zec", fundingEvidence("zec").evidenceId);
+    const evidence = fundingEvidence("zec", 0);
+    nextState = confirmSwapFunding(state, "zec", evidence.fact.factId, evidence.attestation.observedAtSeconds);
     announcement = "Fixture ZEC evidence confirmed. Stablecoin lock preparation is now available.";
   } else if (phase === "awaiting-evm-funding" && state.evm.phase === "unfunded") {
     nextState = prepareSwapFunding(state, "evm", hex32("62"), state.terms.evmFundBy - 1n);
     announcement = "Fixture USDC lock prepared. No transaction was built or signed.";
   } else if (phase === "awaiting-evm-funding" && state.evm.phase === "funding-prepared") {
-    nextState = observeSwapFunding(state, fundingEvidence("evm"));
-    announcement = "Fixture USDC funding evidence recorded. Confirmation is still required.";
+    nextState = observeSwapFunding(observeSwapFunding(state, fundingEvidence("evm", 0)), fundingEvidence("evm", 1));
+    announcement = "Two fixture USDC observer reports agree. Policy qualification is still required.";
   } else if (phase === "awaiting-evm-confirmation") {
-    nextState = confirmSwapFunding(state, "evm", fundingEvidence("evm").evidenceId);
+    const evidence = fundingEvidence("evm", 0);
+    nextState = confirmSwapFunding(state, "evm", evidence.fact.factId, evidence.attestation.observedAtSeconds);
     announcement = scenario === "refund"
       ? "Both fixture locks are funded. The refund deadline has not passed."
       : "Both fixture locks are funded. The fixture USDC claim is now available.";
@@ -338,23 +425,47 @@ export function advanceNativeSwapFixture(session: NativeSwapFixtureSession): Rea
       nextTime = state.terms.evmRefundTime;
       announcement = "Fixture clock advanced to the USDC refund deadline. No chain time changed.";
     } else {
-      nextState = observeSwapSpend(state, spendEvidence("evm", "refund", nowSeconds));
-      announcement = "Fixture USDC refund evidence recorded. Confirmation is still required.";
+      nextState = observeSwapSpend(
+        observeSwapSpend(state, spendEvidence("evm", "refund", nowSeconds, 0)),
+        spendEvidence("evm", "refund", nowSeconds, 1),
+      );
+      announcement = "Two fixture USDC refund reports agree. Policy qualification is still required.";
     }
   } else if (phase === "awaiting-evm-claim") {
-    nextState = observeSwapSpend(state, spendEvidence("evm", "claim", state.terms.evmRefundTime - 1n));
+    const executedAt = state.terms.evmRefundTime - 1n;
+    nextState = observeSwapSpend(
+      observeSwapSpend(state, spendEvidence("evm", "claim", executedAt, 0)),
+      spendEvidence("evm", "claim", executedAt, 1),
+    );
     announcement = "Fixture USDC claim evidence recorded. The shared preimage is now visible in this fixture.";
   } else if (phase === "secret-observed") {
-    nextState = confirmSwapSpend(state, "evm", spendEvidence("evm", "claim", nowSeconds).evidenceId);
+    const evidence = state.evm.spend!;
+    const qualifiedAt = state.evm.spendAttestations!.reduce(
+      (latest, item) => item.observedAtSeconds > latest ? item.observedAtSeconds : latest,
+      0n,
+    );
+    nextState = confirmSwapSpend(state, "evm", evidence.factId, qualifiedAt);
     announcement = "Fixture USDC claim confirmed. The fixture ZEC claim is now available.";
   } else if (phase === "awaiting-zec-claim" && state.zec.phase === "funded-confirmed") {
-    nextState = observeSwapSpend(state, spendEvidence("zec", "claim", nowSeconds));
+    const executedAt = state.terms.zecRefundTime - 1n;
+    nextState = observeSwapSpend(
+      observeSwapSpend(state, spendEvidence("zec", "claim", executedAt, 0)),
+      spendEvidence("zec", "claim", executedAt, 1),
+    );
     announcement = "Fixture ZEC claim evidence recorded. Confirmation is still required.";
   } else if (phase === "awaiting-zec-claim" && state.zec.phase === "claim-seen") {
-    nextState = confirmSwapSpend(state, "zec", spendEvidence("zec", "claim", nowSeconds).evidenceId);
+    const qualifiedAt = state.zec.spendAttestations!.reduce(
+      (latest, item) => item.observedAtSeconds > latest ? item.observedAtSeconds : latest,
+      0n,
+    );
+    nextState = confirmSwapSpend(state, "zec", state.zec.spend!.factId, qualifiedAt);
     announcement = "Fixture settled. No asset moved.";
   } else if (phase === "refund-recovery" && state.evm.phase === "refund-seen") {
-    nextState = confirmSwapSpend(state, "evm", spendEvidence("evm", "refund", nowSeconds).evidenceId);
+    const qualifiedAt = state.evm.spendAttestations!.reduce(
+      (latest, item) => item.observedAtSeconds > latest ? item.observedAtSeconds : latest,
+      0n,
+    );
+    nextState = confirmSwapSpend(state, "evm", state.evm.spend!.factId, qualifiedAt);
     announcement = "Fixture USDC refund confirmed. ZEC remains locked until its later fixture deadline.";
   } else if (phase === "refund-recovery" && state.zec.phase === "funded-confirmed") {
     const deadlines = swapDeadlineStatus(state.terms, nowSeconds);
@@ -362,11 +473,18 @@ export function advanceNativeSwapFixture(session: NativeSwapFixtureSession): Rea
       nextTime = state.terms.zecRefundTime;
       announcement = "Fixture clock advanced to the ZEC refund deadline. No chain time changed.";
     } else {
-      nextState = observeSwapSpend(state, spendEvidence("zec", "refund", nowSeconds));
-      announcement = "Fixture ZEC refund evidence recorded. Confirmation is still required.";
+      nextState = observeSwapSpend(
+        observeSwapSpend(state, spendEvidence("zec", "refund", nowSeconds, 0)),
+        spendEvidence("zec", "refund", nowSeconds, 1),
+      );
+      announcement = "Two fixture ZEC refund reports agree. Policy qualification is still required.";
     }
   } else if (phase === "refund-recovery" && state.zec.phase === "refund-seen") {
-    nextState = confirmSwapSpend(state, "zec", spendEvidence("zec", "refund", nowSeconds).evidenceId);
+    const qualifiedAt = state.zec.spendAttestations!.reduce(
+      (latest, item) => item.observedAtSeconds > latest ? item.observedAtSeconds : latest,
+      0n,
+    );
+    nextState = confirmSwapSpend(state, "zec", state.zec.spend!.factId, qualifiedAt);
     announcement = "Fixture refunded. No asset moved.";
   }
 

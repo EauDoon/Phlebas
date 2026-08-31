@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { keccak256Text } from "./keccak.ts";
-import { fundingEvidence, sampleSwapTerms, sampleTimingPolicy } from "./swap-test-fixtures.ts";
+import { fundingEvidence, sampleEvidencePolicies, sampleSwapTerms, sampleTimingPolicy } from "./swap-test-fixtures.ts";
 import {
   appendSwapEvent,
   emptySwapJournal,
@@ -13,7 +13,7 @@ import {
 import { createSwapState } from "./swap-state.ts";
 
 function fixture() {
-  const state = createSwapState(sampleSwapTerms, sampleTimingPolicy);
+  const state = createSwapState(sampleSwapTerms, sampleTimingPolicy, sampleEvidencePolicies);
   return { state, journal: emptySwapJournal(state) };
 }
 
@@ -89,9 +89,10 @@ test("detects receipt payload, hash-chain, and sequence corruption", () => {
 });
 
 test("forbids JavaScript numbers inside hashed journal payloads", () => {
+  const evidence = fundingEvidence("zec");
   assert.throws(() => hashSwapEventPayload({
     kind: "observe-funding",
-    evidence: { ...fundingEvidence("zec"), blockHeight: 1 as unknown as bigint },
+    evidence: { ...evidence, fact: { ...evidence.fact, blockHeight: 1 as unknown as bigint } },
   }), /numbers are forbidden/);
 });
 

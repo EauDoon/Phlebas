@@ -10,6 +10,7 @@ import {
   fundedSwap,
   fundedZecSwap,
   fundingEvidence,
+  sampleEvidencePolicies,
   sampleSwapTerms,
   sampleTimingPolicy,
   spendEvidence,
@@ -24,11 +25,42 @@ import {
   confirmSwapSpend,
   flagSwapDispute,
   retractSwapEvidence,
+  spendFactId,
   swapPhase,
+  type SwapLeg,
+  type SpendEvidence,
+  type SwapState,
 } from "./swap-state.ts";
 
+function observeFundingQuorum(state: SwapState, leg: SwapLeg, terms = sampleSwapTerms) {
+  const first = fundingEvidence(leg, "1", terms, 0);
+  const second = fundingEvidence(leg, "1", terms, 1);
+  const observed = observeSwapFunding(observeSwapFunding(state, first), second);
+  return { first, observed, qualifiedAtSeconds: second.attestation.observedAtSeconds };
+}
+
+function observeSpendQuorum(
+  state: SwapState,
+  leg: SwapLeg,
+  action: "claim" | "refund",
+  executedAtSeconds: bigint,
+  terms = sampleSwapTerms,
+) {
+  const first = spendEvidence(leg, action, executedAtSeconds, terms, 0);
+  const second = spendEvidence(leg, action, executedAtSeconds, terms, 1);
+  const observed = observeSwapSpend(observeSwapSpend(state, first), second);
+  return { first, observed, qualifiedAtSeconds: second.attestation.observedAtSeconds };
+}
+
+function replaceSpendFact(evidence: SpendEvidence, changes: Partial<Omit<SpendEvidence["fact"], "factId">>): SpendEvidence {
+  const { factId: _factId, ...current } = evidence.fact;
+  void _factId;
+  const unsigned = { ...current, ...changes };
+  return { ...evidence, fact: { factId: spendFactId(unsigned), ...unsigned } };
+}
+
 test("requires both exact terms authorizations before ZEC funding", () => {
-  const created = createSwapState(sampleSwapTerms, sampleTimingPolicy);
+  const created = createSwapState(sampleSwapTerms, sampleTimingPolicy, sampleEvidencePolicies);
   assert.equal(swapPhase(created), "awaiting-authorizations");
   assert.throws(() => prepareSwapFunding(created, "zec", keccak256Text("artifact"), 1n), /Both parties/);
   assert.throws(
@@ -48,12 +80,19 @@ test("enforces ZEC-first funding and exact evidence", () => {
   assert.equal(swapPhase(authorized), "awaiting-zec-funding");
   assert.throws(() => prepareSwapFunding(authorized, "evm", keccak256Text("evm-artifact"), 1n), /confirmed ZEC/);
   const prepared = prepareSwapFunding(authorized, "zec", keccak256Text("zec-artifact"), sampleSwapTerms.zecFundBy - 1n);
-  assert.throws(() => observeSwapFunding(prepared, { ...fundingEvidence("zec"), amountAtoms: 1n }), /amountAtoms/);
+  const evidence = fundingEvidence("zec");
+  assert.throws(
+    () => observeSwapFunding(prepared, { ...evidence, fact: { ...evidence.fact, amountAtoms: 1n } }),
+    /canonical content/,
+  );
   assert.deepEqual(prepared.zec, { phase: "funding-prepared", fundingArtifactHash: keccak256Text("zec-artifact") });
-  const observed = observeSwapFunding(prepared, fundingEvidence("zec"));
+  const observed = observeSwapFunding(prepared, evidence);
   assert.equal(swapPhase(observed), "awaiting-zec-confirmation");
-  assert.throws(() => confirmSwapFunding(observed, "zec", keccak256Text("wrong")), /does not match/);
-  const confirmed = confirmSwapFunding(observed, "zec", fundingEvidence("zec").evidenceId);
+  assert.throws(() => confirmSwapFunding(observed, "zec", evidence.fact.factId, evidence.attestation.observedAtSeconds), /quorum/);
+  assert.throws(() => confirmSwapFunding(observed, "zec", keccak256Text("wrong"), evidence.attestation.observedAtSeconds), /does not match/);
+  const second = fundingEvidence("zec", "1", sampleSwapTerms, 1);
+  const quorum = observeSwapFunding(observed, second);
+  const confirmed = confirmSwapFunding(quorum, "zec", evidence.fact.factId, second.attestation.observedAtSeconds);
   assert.equal(swapPhase(confirmed), "awaiting-evm-funding");
 });
 
@@ -64,61 +103,79 @@ test("funds the EVM leg only inside its safe window", () => {
     /window has closed/,
   );
   const prepared = prepareSwapFunding(zecFunded, "evm", keccak256Text("evm-artifact"), sampleSwapTerms.evmFundBy - 1n);
-  const observed = observeSwapFunding(prepared, fundingEvidence("evm"));
+  const { first, observed, qualifiedAtSeconds } = observeFundingQuorum(prepared, "evm");
   assert.equal(swapPhase(observed), "awaiting-evm-confirmation");
-  const confirmed = confirmSwapFunding(observed, "evm", fundingEvidence("evm").evidenceId);
+  const confirmed = confirmSwapFunding(observed, "evm", first.fact.factId, qualifiedAtSeconds);
   assert.equal(swapPhase(confirmed), "awaiting-evm-claim");
 });
 
 test("reveals the secret only from a successful canonical EVM claim", () => {
   const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
-  const created = createSwapState(terms, sampleTimingPolicy);
+  const created = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies);
   const first = authorizeSwapTerms(created, terms.zecSellerId, created.termsHash, 1n);
   const authorized = authorizeSwapTerms(first, terms.stablecoinSellerId, created.termsHash, 2n);
   const zecPrepared = prepareSwapFunding(authorized, "zec", keccak256Text("zec-artifact"), terms.zecFundBy - 1n);
-  const zecSeen = observeSwapFunding(zecPrepared, { ...fundingEvidence("zec"), amountAtoms: terms.zecAmountZatoshis });
-  const zecConfirmed = confirmSwapFunding(zecSeen, "zec", fundingEvidence("zec").evidenceId);
+  const zecQuorum = observeFundingQuorum(zecPrepared, "zec", terms);
+  const zecConfirmed = confirmSwapFunding(zecQuorum.observed, "zec", zecQuorum.first.fact.factId, zecQuorum.qualifiedAtSeconds);
   const evmPrepared = prepareSwapFunding(zecConfirmed, "evm", keccak256Text("evm-artifact"), terms.evmFundBy - 1n);
-  const evmSeen = observeSwapFunding(evmPrepared, { ...fundingEvidence("evm"), amountAtoms: terms.quoteAmountAtoms });
-  const bothFunded = confirmSwapFunding(evmSeen, "evm", fundingEvidence("evm").evidenceId);
+  const evmQuorum = observeFundingQuorum(evmPrepared, "evm", terms);
+  const bothFunded = confirmSwapFunding(evmQuorum.observed, "evm", evmQuorum.first.fact.factId, evmQuorum.qualifiedAtSeconds);
 
-  assert.throws(() => observeSwapSpend(bothFunded, { ...spendEvidence("evm", "claim", terms.evmRefundTime - 1n), successful: false }), /Failed/);
-  assert.equal(bothFunded.secret, undefined);
-  assert.throws(() => observeSwapSpend(bothFunded, { ...spendEvidence("evm", "claim", terms.evmRefundTime - 1n), preimage: `0x${"11".repeat(32)}` }), /hashlock/);
-  const reveal = observeSwapSpend(bothFunded, spendEvidence("evm", "claim", terms.evmRefundTime - 1n));
-  assert.equal(reveal.secret, fixturePreimage);
+  const claim = spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms);
+  assert.throws(() => observeSwapSpend(bothFunded, replaceSpendFact(claim, { successful: false })), /Failed/);
+  assert.equal(bothFunded.observedSecret, undefined);
+  assert.throws(
+    () => observeSwapSpend(bothFunded, replaceSpendFact(claim, { preimage: `0x${"11".repeat(32)}` })),
+    /hashlock/,
+  );
+  const reveal = observeSwapSpend(bothFunded, claim);
+  assert.equal(reveal.observedSecret, fixturePreimage);
   assert.equal(swapPhase(reveal), "secret-observed");
-  const evmClaimed = confirmSwapSpend(reveal, "evm", spendEvidence("evm", "claim", 1n).evidenceId);
+  assert.throws(() => observeSwapSpend(reveal, spendEvidence("zec", "claim", terms.zecRefundTime - 1n, terms)), /policy-confirmed/);
+  const secondClaim = spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms, 1);
+  const claimQuorum = observeSwapSpend(reveal, secondClaim);
+  const evmClaimed = confirmSwapSpend(claimQuorum, "evm", claim.fact.factId, secondClaim.attestation.observedAtSeconds);
   assert.equal(swapPhase(evmClaimed), "awaiting-zec-claim");
-  const zecClaim = observeSwapSpend(evmClaimed, spendEvidence("zec", "claim", terms.zecRefundTime + 1n));
-  const settled = confirmSwapSpend(zecClaim, "zec", spendEvidence("zec", "claim", 1n).evidenceId);
+  const zecClaimQuorum = observeSpendQuorum(evmClaimed, "zec", "claim", terms.zecRefundTime - 1n, terms);
+  const settled = confirmSwapSpend(
+    zecClaimQuorum.observed,
+    "zec",
+    zecClaimQuorum.first.fact.factId,
+    zecClaimQuorum.qualifiedAtSeconds,
+  );
   assert.equal(swapPhase(settled), "settled");
 });
 
 test("keeps claim and refund mutually exclusive and rejects early refunds", () => {
-  const bothFunded = fundedSwap();
-  assert.throws(() => observeSwapSpend(bothFunded, spendEvidence("evm", "refund", sampleSwapTerms.evmRefundTime - 1n)), /not eligible/);
-  const evmRefund = observeSwapSpend(bothFunded, spendEvidence("evm", "refund", sampleSwapTerms.evmRefundTime));
-  assert.equal(swapPhase(evmRefund), "refund-recovery");
-  assert.throws(() => observeSwapSpend(evmRefund, spendEvidence("evm", "claim", sampleSwapTerms.evmRefundTime - 1n)), /not available/);
-  const evmRefunded = confirmSwapSpend(evmRefund, "evm", spendEvidence("evm", "refund", 1n).evidenceId);
-  const zecRefund = observeSwapSpend(evmRefunded, spendEvidence("zec", "refund", sampleSwapTerms.zecRefundTime));
-  const recovered = confirmSwapSpend(zecRefund, "zec", spendEvidence("zec", "refund", 1n).evidenceId);
+  const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
+  const bothFunded = fundedSwap(terms);
+  assert.throws(() => observeSwapSpend(bothFunded, spendEvidence("evm", "refund", terms.evmRefundTime - 1n, terms)), /not eligible/);
+  const evmRefund = observeSpendQuorum(bothFunded, "evm", "refund", terms.evmRefundTime, terms);
+  assert.equal(swapPhase(evmRefund.observed), "refund-recovery");
+  assert.throws(() => observeSwapSpend(evmRefund.observed, spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms)), /not available/);
+  const evmRefunded = confirmSwapSpend(
+    evmRefund.observed,
+    "evm",
+    evmRefund.first.fact.factId,
+    evmRefund.qualifiedAtSeconds,
+  );
+  const zecRefund = observeSpendQuorum(evmRefunded, "zec", "refund", terms.zecRefundTime, terms);
+  const recovered = confirmSwapSpend(zecRefund.observed, "zec", zecRefund.first.fact.factId, zecRefund.qualifiedAtSeconds);
   assert.equal(swapPhase(recovered), "refunded");
 });
 
 test("rejects EVM claims at the refund deadline", () => {
   const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
-  const created = createSwapState(terms, sampleTimingPolicy);
+  const created = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies);
   const first = authorizeSwapTerms(created, terms.zecSellerId, created.termsHash, 1n);
   const authorized = authorizeSwapTerms(first, terms.stablecoinSellerId, created.termsHash, 2n);
   const zecPrepared = prepareSwapFunding(authorized, "zec", keccak256Text("za"), 3n);
-  const zecSeen = observeSwapFunding(zecPrepared, fundingEvidence("zec"));
-  const zecFunded = confirmSwapFunding(zecSeen, "zec", fundingEvidence("zec").evidenceId);
+  const zecQuorum = observeFundingQuorum(zecPrepared, "zec", terms);
+  const zecFunded = confirmSwapFunding(zecQuorum.observed, "zec", zecQuorum.first.fact.factId, zecQuorum.qualifiedAtSeconds);
   const evmPrepared = prepareSwapFunding(zecFunded, "evm", keccak256Text("ea"), 4n);
-  const evmSeen = observeSwapFunding(evmPrepared, fundingEvidence("evm"));
-  const bothFunded = confirmSwapFunding(evmSeen, "evm", fundingEvidence("evm").evidenceId);
-  assert.throws(() => observeSwapSpend(bothFunded, spendEvidence("evm", "claim", terms.evmRefundTime)), /at or after/);
+  const evmQuorum = observeFundingQuorum(evmPrepared, "evm", terms);
+  const bothFunded = confirmSwapFunding(evmQuorum.observed, "evm", evmQuorum.first.fact.factId, evmQuorum.qualifiedAtSeconds);
+  assert.throws(() => observeSwapSpend(bothFunded, spendEvidence("evm", "claim", terms.evmRefundTime, terms)), /at or after/);
 });
 
 test("fails closed on stale or conflicting observer evidence", () => {
@@ -134,20 +191,20 @@ test("fails closed on stale or conflicting observer evidence", () => {
 
 test("preserves a revealed secret when its EVM claim reorganizes", () => {
   const terms = { ...sampleSwapTerms, secretHash: "0x425ed4e4a36b30ea21b90e21c712c649e8214c29b7eaf68089d1039c6e55384c" as const };
-  const created = createSwapState(terms, sampleTimingPolicy);
+  const created = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies);
   const first = authorizeSwapTerms(created, terms.zecSellerId, created.termsHash, 1n);
   const authorized = authorizeSwapTerms(first, terms.stablecoinSellerId, created.termsHash, 2n);
   const zecPrepared = prepareSwapFunding(authorized, "zec", keccak256Text("zr"), 3n);
-  const zecSeen = observeSwapFunding(zecPrepared, fundingEvidence("zec"));
-  const zecFunded = confirmSwapFunding(zecSeen, "zec", fundingEvidence("zec").evidenceId);
+  const zecQuorum = observeFundingQuorum(zecPrepared, "zec", terms);
+  const zecFunded = confirmSwapFunding(zecQuorum.observed, "zec", zecQuorum.first.fact.factId, zecQuorum.qualifiedAtSeconds);
   const evmPrepared = prepareSwapFunding(zecFunded, "evm", keccak256Text("er"), 4n);
-  const evmSeen = observeSwapFunding(evmPrepared, fundingEvidence("evm"));
-  const bothFunded = confirmSwapFunding(evmSeen, "evm", fundingEvidence("evm").evidenceId);
-  const claimEvidence = spendEvidence("evm", "claim", terms.evmRefundTime - 1n);
+  const evmQuorum = observeFundingQuorum(evmPrepared, "evm", terms);
+  const bothFunded = confirmSwapFunding(evmQuorum.observed, "evm", evmQuorum.first.fact.factId, evmQuorum.qualifiedAtSeconds);
+  const claimEvidence = spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms);
   const revealed = observeSwapSpend(bothFunded, claimEvidence);
-  const disputed = retractSwapEvidence(revealed, claimEvidence.evidenceId, "Canonical EVM claim left the best chain");
-  assert.equal(disputed.secret, fixturePreimage);
-  assert.equal(disputed.retractedEvidenceIds[claimEvidence.evidenceId], true);
+  const disputed = retractSwapEvidence(revealed, claimEvidence.attestation.evidenceId, "Canonical EVM claim left the best chain");
+  assert.equal(disputed.observedSecret, fixturePreimage);
+  assert.equal(disputed.retractedEvidenceIds[claimEvidence.attestation.evidenceId], true);
   assert.equal(swapPhase(disputed), "disputed");
   assert.throws(() => prepareSwapFunding(disputed, "evm", keccak256Text("blocked"), 5n), /disputed/);
 });

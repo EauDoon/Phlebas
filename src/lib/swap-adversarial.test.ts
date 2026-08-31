@@ -12,17 +12,50 @@ import {
   fundedSwap,
   fundingEvidence,
   hex20,
+  sampleEvidencePolicies,
   sampleSwapTerms,
   spendEvidence,
 } from "./swap-test-fixtures.ts";
-import { authorizeSwapTerms, createSwapState, observeSwapFunding, observeSwapSpend, prepareSwapFunding } from "./swap-state.ts";
+import {
+  authorizeSwapTerms,
+  createSwapState,
+  fundingFactId,
+  observeSwapFunding,
+  observeSwapSpend,
+  prepareSwapFunding,
+  spendFactId,
+  type FundingEvidence,
+  type SpendEvidence,
+} from "./swap-state.ts";
+
+function replaceFundingFact(
+  evidence: FundingEvidence,
+  changes: Partial<Omit<FundingEvidence["fact"], "factId">>,
+): FundingEvidence {
+  const { factId: _factId, ...current } = evidence.fact;
+  void _factId;
+  const unsigned = { ...current, ...changes };
+  const factId = fundingFactId(unsigned);
+  return { ...evidence, fact: { factId, ...unsigned }, attestation: { ...evidence.attestation, factId } };
+}
+
+function replaceSpendFact(
+  evidence: SpendEvidence,
+  changes: Partial<Omit<SpendEvidence["fact"], "factId">>,
+): SpendEvidence {
+  const { factId: _factId, ...current } = evidence.fact;
+  void _factId;
+  const unsigned = { ...current, ...changes };
+  const factId = spendFactId(unsigned);
+  return { ...evidence, fact: { factId, ...unsigned }, attestation: { ...evidence.attestation, factId } };
+}
 
 test("binds canonical terms into every state root and transition", () => {
   const initial = createSwapState(sampleSwapTerms, {
     minimumFundingWindowSeconds: 100n,
     minimumClaimWindowSeconds: 100n,
     minimumSafetyWindowSeconds: 500n,
-  });
+  }, sampleEvidencePolicies);
   const changedTerms = { ...initial.terms, zecRefundTime: initial.terms.zecRefundTime + 1n };
   const tampered = { ...initial, terms: changedTerms };
   assert.throws(() => swapStateRoot(tampered), /signed terms hash/);
@@ -92,10 +125,10 @@ test("rejects wrong assets, destinations, contracts, and amounts without mutatio
   );
   const root = swapStateRoot(zecPrepared);
   for (const changed of [
-    { ...fundingEvidence("zec"), asset: `${sampleSwapTerms.zecChain}/slip44:999` },
-    { ...fundingEvidence("zec"), recipient: hex20("9") },
-    { ...fundingEvidence("zec"), lockIdentity: hex20("9") },
-    { ...fundingEvidence("zec"), amountAtoms: sampleSwapTerms.zecAmountZatoshis - 1n },
+    replaceFundingFact(fundingEvidence("zec"), { asset: `${sampleSwapTerms.zecChain}/slip44:999` }),
+    replaceFundingFact(fundingEvidence("zec"), { claimRecipient: hex20("9") }),
+    replaceFundingFact(fundingEvidence("zec"), { lockIdentity: hex20("9") }),
+    replaceFundingFact(fundingEvidence("zec"), { amountAtoms: sampleSwapTerms.zecAmountZatoshis - 1n }),
   ]) {
     assert.throws(() => observeSwapFunding(zecPrepared, changed), /does not match/);
     assert.equal(swapStateRoot(zecPrepared), root);
@@ -114,8 +147,10 @@ test("rejects wrong preimages and keeps the funded state byte-identical", () => 
   const bothFunded = fundedSwap(terms);
   const root = swapStateRoot(bothFunded);
   assert.throws(() => observeSwapSpend(bothFunded, {
-    ...spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms),
-    preimage: `0x${"12".repeat(32)}`,
+    ...replaceSpendFact(
+      spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms),
+      { preimage: `0x${"12".repeat(32)}` },
+    ),
   }), /hashlock/);
   assert.equal(swapStateRoot(bothFunded), root);
 });
@@ -126,8 +161,9 @@ test("rejects conflicting replacement evidence in an occupied journal slot", () 
   const journal = emptySwapJournal(prepared);
   const firstEvidence = fundingEvidence("zec");
   const first = appendSwapEvent(journal, prepared, { kind: "observe-funding", evidence: firstEvidence });
+  const replacement = replaceFundingFact(firstEvidence, { blockHash: keccak256Text("replacement-block") });
   assert.throws(() => appendSwapEvent(first.journal, first.state, {
     kind: "observe-funding",
-    evidence: { ...firstEvidence, evidenceId: keccak256Text("replacement"), blockHash: keccak256Text("replacement-block") },
-  }), /semantic slot/);
+    evidence: { ...replacement, attestation: { ...replacement.attestation, evidenceId: keccak256Text("replacement") } },
+  }), /conflict/);
 });

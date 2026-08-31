@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { keccak256Text } from "./keccak.ts";
-import { sampleSwapTerms, sampleTimingPolicy } from "./swap-test-fixtures.ts";
+import { sampleEvidencePolicies, sampleSwapTerms, sampleTimingPolicy } from "./swap-test-fixtures.ts";
 import { appendSwapEvent, emptySwapJournal, type SwapJournal } from "./swap-journal.ts";
 import { createSwapSnapshot, replaySwapJournal, restoreSwapSnapshot, verifySwapSnapshot } from "./swap-replay.ts";
 import { swapStateRoot } from "./swap-root.ts";
 import { createSwapState } from "./swap-state.ts";
 
 function authorizedJournal() {
-  const initial = createSwapState(sampleSwapTerms, sampleTimingPolicy);
+  const initial = createSwapState(sampleSwapTerms, sampleTimingPolicy, sampleEvidencePolicies);
   const empty = emptySwapJournal(initial);
   const first = appendSwapEvent(empty, initial, {
     kind: "authorize-terms",

@@ -47,8 +47,8 @@ test("rejects zero destinations and hashes", () => {
 
 test("derives frozen SHA-256 terms and swap identifiers", () => {
   assert.match(encodeSwapTerms(sampleSwapTerms), /^PhlebasSwapTerms\nversion=1\nfillId=/);
-  assert.equal(hashSwapTerms(sampleSwapTerms), "0xbc6106da13bb38fab6d2f39bf3659a7f246935bc2e878dc8dd22cb0bf7527d11");
-  assert.equal(swapIdForTerms(sampleSwapTerms), "0x01deb9463a2f65ce3477022234964ab731296c4d856955056a7fcef8d6fcf969");
+  assert.equal(hashSwapTerms(sampleSwapTerms), "0x1ea3beec6d990a449978d32a823e281e0fdbff4532181f71e1288b7e77a0cf87");
+  assert.equal(swapIdForTerms(sampleSwapTerms), "0x4be912aebf1ceb6c9460452ac317786cf29fceebc879fe62faef88ef080caf9a");
 });
 
 test("binds every signed field and distinguishes equal-sized partial fills", () => {

@@ -1,6 +1,7 @@
 import type { Hex32 } from "./order-domain.ts";
 import { sha256Hex } from "./sha256.ts";
 import { encodeSwapTerms } from "./swap-domain.ts";
+import { hashSwapFinalityPolicy, hashSwapObserverPolicy } from "./swap-policy.ts";
 import { assertSwapStateIntegrity, type SwapState } from "./swap-state.ts";
 
 function canonicalValue(value: unknown): string {
@@ -25,11 +26,18 @@ export function encodeSwapState(state: SwapState): string {
     termsHash: state.termsHash,
     terms: encodeSwapTerms(state.terms),
     timingPolicy: state.timingPolicy,
+    evidencePolicies: {
+      observer: hashSwapObserverPolicy(state.evidencePolicies.observer),
+      zecFinality: hashSwapFinalityPolicy(state.evidencePolicies.zecFinality),
+      evmFinality: hashSwapFinalityPolicy(state.evidencePolicies.evmFinality),
+    },
     authorizations: state.authorizations,
     zec: state.zec,
     evm: state.evm,
-    secret: state.secret,
-    secretEvidenceId: state.secretEvidenceId,
+    observedSecret: state.observedSecret,
+    observedSecretFactId: state.observedSecretFactId,
+    confirmedSecret: state.confirmedSecret,
+    confirmedSecretFactId: state.confirmedSecretFactId,
     disputes: state.disputes,
     retractedEvidenceIds: state.retractedEvidenceIds,
   });
