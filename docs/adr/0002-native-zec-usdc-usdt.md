@@ -1,6 +1,6 @@
 # ADR 0002: Native ZEC, native USDC, native USDT
 
-Date: 31-08-2026
+Date: 01-09-2026
 Status: Accepted for simulation labels only
 Production status: Not approved
 Supersedes: ADR 0001 pair mapping (`pZEC/USDC` and `pZEC/USDT0`)
@@ -24,7 +24,7 @@ Those labels are native ZEC against native USDC or native USDT. The later-listin
 
 This ADR does not authorize live funds, a payable gateway, shielded ZEC, or live native-ZEC execution. Session encoding names `baseAsset` `ZEC`. Undeployed contract sources use `tZEC` as the 8-decimal receipt symbol and `tUSDT` as the quote faucet. The Solidity type is `Zec`. Product copy must not present those names as live settlement.
 
-Arbitrum One remains the candidate settlement chain from ADR 0001. Custody-backed `pZEC` remains the candidate ERC-20 claim for a future gateway. The interface must keep saying the matcher is not trustless and that this preview moves no live funds.
+Arbitrum One remains the candidate settlement chain from ADR 0001. The undeployed 8-decimal receipt symbol is `tZEC`. ADR 0001 historically named the custody-backed ERC-20 claim `pZEC`; that name is not the current listed form. The interface must keep saying the matcher is not trustless and that this preview moves no live funds.
 
 ## Why this design
 
