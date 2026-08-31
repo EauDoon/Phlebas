@@ -2,13 +2,26 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 
+const DESCRIPTION =
+  "No-value simulation of a pZEC market design. Not an exchange or an offer of financial services.";
+
 export const metadata: Metadata = {
   title: {
     default: "Phlebas",
     template: "%s | Phlebas",
   },
-  description:
-    "A simulation and protocol plan for ZEC/USDC and ZEC/USDT, settled as pZEC against USDC and USDT0.",
+  description: DESCRIPTION,
+  openGraph: {
+    title: "Phlebas",
+    description: DESCRIPTION,
+    siteName: "Phlebas",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Phlebas",
+    description: DESCRIPTION,
+  },
   robots: {
     index: false,
     follow: false,

@@ -146,6 +146,15 @@ test("vercel.json does not assign operator URLs", async () => {
   assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_URL\s*[:=]/);
 });
 
+test("Open Graph and Twitter cards stay labeled as a simulation", async () => {
+  const layout = await readFile(join(root, "src/app/layout.tsx"), "utf8");
+  assert.match(layout, /No-value simulation of a pZEC market design/);
+  assert.match(layout, /openGraph:/);
+  assert.match(layout, /twitter:/);
+  assert.doesNotMatch(layout, /is a live exchange/);
+  assert.doesNotMatch(layout, /payable|shielded|native-ZEC/);
+});
+
 test("route loading copy names a simulation and withholds prices", async () => {
   const loading = await readFile(join(root, "src/app/loading.tsx"), "utf8");
   assert.match(loading, /Loading the simulation/);
