@@ -306,3 +306,24 @@ transaction; the signing surface lives in the wallet adapter.
   observers, the coordinator, and the watchtower into one HTTP
   process with /health, /state, /fills, /fills/:fillId,
   /alerts, and /observe.
+
+### Public market data (PR 5)
+
+The public market data surface is four read-only HTTP endpoints
+on the matcher service. The surface is the public read-only view
+of the matcher operator's in-memory state. The surface is the
+companion to the paper-trading fixtures in src/lib/market-data.ts:
+the fixtures drive the no-value simulation; the new endpoints
+drive the live data once a real Sepolia deployment is recorded.
+
+#### Components
+
+- **Pure functions** (src/lib/market-data.ts) — 	ickerFromOperator,
+  	radesFromReceipts, depthFromBook, marketsFromOperator,
+  	opFills. The functions take the operator state and a clock
+  and return a typed snapshot. The functions never mutate the
+  operator.
+- **HTTP endpoints** (services/matcher/server.ts) — /ticker,
+  /trades?limit=N, /depth?levels=N, /markets. The
+  endpoints bound the limit and levels parameters to
+  prevent memory exhaustion.
