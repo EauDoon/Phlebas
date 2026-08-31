@@ -2,9 +2,8 @@
 
 This document is the operations dashboard for the Phlebas
 services. The dashboard tracks the per-service SLO targets, the
-watchtower's alert surface, and the alert routing table. The
-dashboard is the single source of truth for the on-call
-operator.
+watchtower's alert surface, the alert routing table, and the
+metrics and SLO endpoints exposed by every service.
 
 ## Per-service SLO summary
 
@@ -16,6 +15,14 @@ operator.
 | observer | availability | 99.5% | 30 days | [observer-slo.md](observer-slo.md) |
 | observer | fill freshness | 1 poll interval | rolling | [observer-slo.md](observer-slo.md) |
 | gateway | availability | 99.5% | 30 days | implicit; not yet tracked |
+
+## Per-service operations endpoints
+
+| Service | /health | /state | /metrics | /slo |
+| --- | --- | --- | --- | --- |
+| matcher | yes | no (see /markets) | yes | yes |
+| observer | yes | yes | yes | yes |
+| gateway | yes | no | not yet | not yet |
 
 ## Watchtower alert classes
 
@@ -52,6 +59,7 @@ The default table is the canonical record for the testnet.
 | --- | --- | --- |
 | [incident-response.md](../runbooks/incident-response.md) | all | any critical alert |
 | [pre-deploy.md](../runbooks/pre-deploy.md) | all | any new deploy |
+| [post-deploy.md](../runbooks/post-deploy.md) | all | any new deploy |
 | [observer-restart.md](../runbooks/observer-restart.md) | observer | observer restart |
 | [market-data-restart.md](../runbooks/market-data-restart.md) | matcher | matcher restart |
 
