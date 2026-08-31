@@ -19,6 +19,8 @@ import type { AtomicSwapObserverServiceConfig } from "./types.ts";
 import { detectAlerts, type WatchtowerAlert } from "../../src/lib/watchtower.ts";
 import type { CoordinatorState } from "../../src/lib/atomic-coordinator.ts";
 import { stateOf } from "../../src/lib/swap-state.ts";
+import { defineCounter, emptyMetricsState, incCounter, renderPrometheusText, type MetricsState } from "../../src/lib/metrics.ts";
+import { emptySloState, recordSample, sloVerdict, type SloSample, type SloState, type SloTarget } from "../../src/lib/slo-tracker.ts";
 
 const DEFAULT_PORT = 8790;
 
@@ -108,6 +110,15 @@ export type ServiceController = Readonly<{
     alerts: ReadonlyArray<WatchtowerAlert>;
   }>;
   health: () => ServiceHealth;
+  metrics: () => string;
+  slo: (nowSeconds: bigint) => {
+    service: string;
+    metric: string;
+    ratio: number;
+    threshold: number;
+    meets: boolean;
+    sampleCount: number;
+  };
 }>;
 
 export function buildController(
@@ -115,14 +126,34 @@ export function buildController(
   initial: ServiceState,
 ): ServiceController {
   let current: ServiceState = initial;
+  let metrics: MetricsState = defineCounter(emptyMetricsState(), "polls_total", "Total poll cycles");
+  let sloState: SloState = emptySloState();
+  const availabilityTarget: SloTarget = {
+    service: "observer",
+    metric: "availability",
+    windowSeconds: 86_400n,
+    threshold: 0.995,
+    comparison: "ge",
+  };
   return {
     snapshot: () => current,
     poll: async (nowSeconds: bigint) => {
       const outcome = await pollOnceInto(current.state, config, nowSeconds);
       current = { ...current, state: outcome.state };
+      metrics = incCounter(metrics, "polls_total");
+      const sample: SloSample = {
+        service: "observer",
+        metric: "availability",
+        observedAt: nowSeconds,
+        value: 1,
+        success: outcome.alerts.filter((a) => a.alert === "deadline-breach").length === 0,
+      };
+      sloState = recordSample(sloState, sample);
       return { state: outcome.state, alerts: outcome.alerts };
     },
     health: () => buildHealth(current.state, config.reorgDepth, config.pollIntervalSeconds, current.bootstrap),
+    metrics: () => renderPrometheusText(metrics),
+    slo: (nowSeconds: bigint) => sloVerdict(sloState, availabilityTarget, nowSeconds),
   };
 }
 
@@ -215,6 +246,17 @@ export function startService(options: StartServiceOptions): Server {
         const now = options.clock ? options.clock() : BigInt(Math.floor(Date.now() / 1000));
         const out = await controller.poll(now);
         send(response, 200, { ok: true, cursor: out.state.cursor.toString(), alertCount: out.alerts.length });
+        return;
+      }
+      if (method === "GET" && path === "/metrics") {
+        response.writeHead(200, { "content-type": "text/plain; version=0.0.4" });
+        response.end(controller.metrics());
+        return;
+      }
+      if (method === "GET" && path === "/slo") {
+        const now = options.clock ? options.clock() : BigInt(Math.floor(Date.now() / 1000));
+        const verdict = controller.slo(now);
+        send(response, 200, { ok: true, verdict });
         return;
       }
       send(response, 404, { ok: false, reason: "not-found" });
