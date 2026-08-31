@@ -28,6 +28,8 @@ export default function StatusPage() {
         <div><dt>Network</dt><dd>{status.network}</dd></div>
         <div><dt>Market data</dt><dd>{status.marketData}</dd></div>
         <div><dt>Country access</dt><dd>{status.countryAccess}</dd></div>
+        <div><dt>Intent cap</dt><dd>{status.intentCap === null ? "unset" : status.intentCap}</dd></div>
+        <div><dt>Sequence root</dt><dd>{status.sequenceRoot === null ? "none" : status.sequenceRoot}</dd></div>
       </dl>
       <p>
         Machine-readable copy: <a href="/api/status">/api/status</a>
