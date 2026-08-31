@@ -1618,6 +1618,11 @@ a.skipLink:focus-visible {
     position: sticky;
     bottom: 0;
     background: var(--surface);
+    padding-bottom: 4px;
+  }
+
+  .educationDialog .tourNav button {
+    flex-shrink: 0;
   }
 }
 
