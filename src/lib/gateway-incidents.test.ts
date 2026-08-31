@@ -56,3 +56,17 @@ test("incident copy does not promise credit, loss, or a live outage", () => {
   assert.doesNotMatch(joined, /\blive outage\b/i);
   assert.doesNotMatch(joined, /VPN/i);
 });
+
+test("incident mint copy does not name pZEC", () => {
+  const deposit = gatewayIncidentById("deposit-review");
+  const beforeMint = gatewayIncidentById("reorg-before-mint");
+  const beforeBurn = gatewayIncidentById("withdrawal-review-before-burn");
+  assert.ok(deposit);
+  assert.ok(beforeMint);
+  assert.ok(beforeBurn);
+  assert.match(deposit.body, /not been approved for minting/);
+  assert.match(beforeMint.body, /Nothing will be minted/);
+  assert.match(beforeBurn.body, /Nothing has been burned/);
+  const joined = GATEWAY_INCIDENTS.map((incident) => `${incident.title} ${incident.body}`).join(" ");
+  assert.doesNotMatch(joined, /pZEC/);
+});

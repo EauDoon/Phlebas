@@ -59,6 +59,14 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(await readFile(join(root, "src/lib/encoding.ts"), "utf8"), /USDT0/);
   assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /4x ZEC\/quote/);
   assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /1\/4x ZEC\/quote/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /reserveZecAtoms/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /reservePzecAtoms/);
+  assert.match(await readFile(join(root, "contracts/src/token/PZec.sol"), "utf8"), /"tZEC"/);
+  assert.doesNotMatch(await readFile(join(root, "contracts/src/token/PZec.sol"), "utf8"), /tpZEC/);
+  assert.match(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /ZEC gateway/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /ZEC to pZEC/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /pZEC/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /pZEC/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /It is not live settlement/);
   assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /It is not live settlement/);
   assert.doesNotMatch(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /pZEC is a custody receipt/);
