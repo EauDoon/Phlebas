@@ -521,6 +521,8 @@ test("LP burn stays available after a trading pause", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
   await page.getByRole("button", { name: "Burn session shares" }).click();
   await expect(page.getByText(/Burned session shares/)).toBeVisible();
+  await page.getByRole("button", { name: "Reset pool" }).click();
+  await expect(page.getByText("Local pool reserves restored. Settled as pZEC-USDC.")).toBeVisible();
 });
 
 test("withdrawal tour drives a stub claim without changing tour copy", async ({ page }) => {
@@ -729,12 +731,15 @@ test("country-blocked demonstration hides trading and liquidity controls", async
 
 test("chart range uses a tablist and unavailable tape names the feed", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "ZEC/USDC · pZEC-USDC" })).toBeVisible();
+  await expect(page.getByText("Illustrative market data · pZEC-USDC")).toBeVisible();
   await expect(page.getByRole("tablist", { name: "Chart range" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "4H · pZEC-USDC" })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "1D · pZEC-USDC" }).click();
   await expect(page.getByRole("tabpanel", { name: "1D · pZEC-USDC" })).toBeVisible();
   await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
   await expect(page.getByRole("tab", { name: "1D · pZEC-USDT0" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: "ZEC/USDT · pZEC-USDT0" })).toBeVisible();
   await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByLabel("Asks")).toContainText("Market data unavailable");
   await expect(page.getByLabel("Asks")).toContainText("Settled as pZEC-USDC");
