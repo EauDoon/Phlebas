@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the status-ledgers, landing-skips, and menu-links slice.
+Last updated: 31-08-2026 after the current-system, no-JS journeys, nav, footer, and pZEC-flow slice.
 
 ## Branch
 
@@ -188,15 +188,21 @@ Last updated: 31-08-2026 after the status-ledgers, landing-skips, and menu-links
 - Landing market cards and launch gates are named lists
 - Landing mobile menu links stay 44px
 - Playwright covers 44px status ledgers, named market cards and launch gates, landing skips in page order, and menu links
+- Landing current-system ledger is a named list
+- Landing no-JS journey cards are a named list
+- Landing desktop nav and footer links stay 44px on desktop
+- Simulation-frame and terminal footer rows stay 44px on desktop
+- Landing pZEC flow steps stay 44px on desktop
+- Playwright covers 44px landing nav, footer, pZEC flow, simulation-frame and terminal footer links, and named current-system and no-JS journey lists
 
 ## Next
 
-- Landing current-system ledger should be a named list
-- Landing no-JS journey cards should be a named list
-- Landing desktop nav and footer links should stay 44px on desktop
-- Simulation-frame and terminal footer rows should stay 44px on desktop
-- Landing pZEC flow steps should stay 44px on desktop
-- Playwright: 44px landing nav, footer, pZEC flow, and named current-system and no-JS journey lists
+- Status, legal, and security ledgers should be named lists
+- Landing header Enter simulation should stay 44px on desktop
+- Simulation-frame primary nav links should stay 44px on desktop
+- Landing journey tabs should stay 44px on desktop
+- Landing pZEC ZIP 320 source link should stay 44px on desktop
+- Playwright: 44px header CTA, journey tabs, pZEC source, simulation-frame nav, and named status ledgers
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
