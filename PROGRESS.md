@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after ticket G/I/F shortcuts, architecture incident demonstrations, and the deposit Eligibility-through-Complete tour.
+Last updated: 31-08-2026 after status incident copy, review-locked ticket shortcuts, and pool-specific empty-share LP copy.
 
 ## Branch
 
@@ -92,16 +92,18 @@ Last updated: 31-08-2026 after ticket G/I/F shortcuts, architecture incident dem
 - Architecture labeled incident demonstrations: blocked, review, reorg, planned and unplanned maintenance. Copy is a demonstration, not a live outage.
 - Deposit tour walks Eligibility through Complete. Address request never shows a receivable address, QR, or URI.
 - Education dialog Continue and the incident select stay at least 44px tall at 320px.
+- `/status` and `/api/status` name incidents as `architecture-demonstration`. The page links to Architecture and says the copy is not a live outage.
+- Ticket G/I/F stay locked during review-and-confirm. Escape still leaves review.
+- Empty session LP shares name the selected pool (`pZEC/USDC` or `pZEC/USDT0`) and are not an order-book empty notice.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Status page should name the architecture incident demonstrations
-- Ticket shortcuts should ignore review-and-confirm until Escape leaves it, not only native dialogs
-- LP panel empty/loading/stale/unavailable still shares the market-data feed; add pool-specific empty-share copy
-- Playwright: G/I/F from `/liquidity` education dialog, and incident select keyboard focus at 320px
+- Architecture incident select should be reachable from `/status` without losing the demonstration label
+- LP empty-share copy should clear after a successful mint, not only on pool switch
+- Playwright: `/api/status` incidents field and Architecture link from `/status`
 
 ## Blockers
 
