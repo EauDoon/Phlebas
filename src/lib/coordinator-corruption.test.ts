@@ -2,10 +2,22 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 
 import { checkSnapshotIntegrity } from "./coordinator-corruption.ts";
-import { emptySnapshot, snapshotFromJSON, snapshotToJSON } from "./coordinator-snapshot.ts";
+import { emptySnapshot, snapshotFromJSON, snapshotToJSON, type SnapshotFill } from "./coordinator-snapshot.ts";
 import { applyTransition, emptyCoordinator } from "./atomic-coordinator.ts";
+import type { Hex32 } from "./order-domain.ts";
 
-const FILL_A = "0x" + "aa".repeat(32);
+const FILL_A = ("0x" + "aa".repeat(32)) as Hex32;
+
+function fill(id: Hex32, evmRefundAfter: string, zecRefundAfter: string, evmState: string, zecState: string, evmObs: string, zecObs: string): SnapshotFill {
+  return {
+    fillId: id,
+    evmLeg: { state: evmState as SnapshotFill["evmLeg"]["state"], observedAt: evmObs },
+    zecLeg: { state: zecState as SnapshotFill["zecLeg"]["state"], observedAt: zecObs },
+    evmRefundAfter,
+    zecRefundAfter,
+    disputed: false,
+  };
+}
 
 test("checkSnapshotIntegrity accepts an empty snapshot", () => {
   const report = checkSnapshotIntegrity(emptySnapshot());
@@ -21,19 +33,7 @@ test("checkSnapshotIntegrity accepts a populated snapshot", () => {
 
 test("checkSnapshotIntegrity rejects a snapshot with non-strict refund deadlines", () => {
   const snap = emptySnapshot();
-  const bad = {
-    ...snap,
-    fills: [
-      {
-        fillId: FILL_A,
-        evmLeg: { state: "pending", observedAt: "0" },
-        zecLeg: { state: "pending", observedAt: "0" },
-        evmRefundAfter: "1000",
-        zecRefundAfter: "1000",
-        disputed: false,
-      },
-    ],
-  };
+  const bad = { ...snap, fills: [fill(FILL_A, "1000", "1000", "pending", "pending", "0", "0")] };
   const report = checkSnapshotIntegrity(bad);
   assert.equal(report.ok, false);
   assert.match(report.reason ?? "", /non-strict refund deadlines/);
@@ -44,22 +44,8 @@ test("checkSnapshotIntegrity rejects a snapshot with duplicate fill ids", () => 
   const bad = {
     ...snap,
     fills: [
-      {
-        fillId: FILL_A,
-        evmLeg: { state: "pending", observedAt: "0" },
-        zecLeg: { state: "pending", observedAt: "0" },
-        evmRefundAfter: "500",
-        zecRefundAfter: "1500",
-        disputed: false,
-      },
-      {
-        fillId: FILL_A,
-        evmLeg: { state: "pending", observedAt: "0" },
-        zecLeg: { state: "pending", observedAt: "0" },
-        evmRefundAfter: "500",
-        zecRefundAfter: "1500",
-        disputed: false,
-      },
+      fill(FILL_A, "500", "1500", "pending", "pending", "0", "0"),
+      fill(FILL_A, "500", "1500", "pending", "pending", "0", "0"),
     ],
   };
   const report = checkSnapshotIntegrity(bad);
@@ -69,19 +55,7 @@ test("checkSnapshotIntegrity rejects a snapshot with duplicate fill ids", () => 
 
 test("checkSnapshotIntegrity rejects a snapshot with a claimed leg without an observation", () => {
   const snap = emptySnapshot();
-  const bad = {
-    ...snap,
-    fills: [
-      {
-        fillId: FILL_A,
-        evmLeg: { state: "claimed", observedAt: "0" },
-        zecLeg: { state: "pending", observedAt: "0" },
-        evmRefundAfter: "500",
-        zecRefundAfter: "1500",
-        disputed: false,
-      },
-    ],
-  };
+  const bad = { ...snap, fills: [fill(FILL_A, "500", "1500", "claimed", "pending", "0", "0")] };
   const report = checkSnapshotIntegrity(bad);
   assert.equal(report.ok, false);
   assert.match(report.reason ?? "", /without an observed timestamp/);
@@ -89,13 +63,6 @@ test("checkSnapshotIntegrity rejects a snapshot with a claimed leg without an ob
 
 test("snapshotFromJSON throws on a snapshot with non-strict refund deadlines", () => {
   const snap = emptySnapshot();
-  const bad = { ...snap, fills: [...snap.fills, {
-    fillId: FILL_A,
-    evmLeg: { state: "pending", observedAt: "0" },
-    zecLeg: { state: "pending", observedAt: "0" },
-    evmRefundAfter: "1000",
-    zecRefundAfter: "1000",
-    disputed: false,
-  }] };
+  const bad = { ...snap, fills: [fill(FILL_A, "1000", "1000", "pending", "pending", "0", "0")] };
   assert.throws(() => snapshotFromJSON(bad), /strictly earlier/);
 });

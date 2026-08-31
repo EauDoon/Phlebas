@@ -14,10 +14,6 @@ export type CorruptionReport = Readonly<{
 }>;
 
 export function checkSnapshotIntegrity(snapshot: Snapshot): CorruptionReport {
-  if (snapshot.fills.length !== Object.keys(snapshot).length) {
-    // Object identity check is intentionally lenient; the real check
-    // is below.
-  }
   const fillIds = new Set<string>();
   for (const fill of snapshot.fills) {
     if (fillIds.has(fill.fillId)) {
