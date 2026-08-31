@@ -31,6 +31,14 @@ export function missingProviderCopy(settlementPair: Market["settlementPair"]): s
   return walletConnectFailureCopy("No injected EVM wallet. Arbitrum Sepolia only.", settlementPair);
 }
 
+export function walletStateWithSettlement(
+  state: WalletState,
+  settlementPair: Market["settlementPair"],
+): WalletState {
+  if (!state.error) return state;
+  return { ...state, error: walletConnectFailureCopy(state.error, settlementPair) };
+}
+
 export function getInjectedProvider(): Eip1193Provider | null {
   if (typeof window === "undefined") return null;
   const provider = (window as Window & { ethereum?: Eip1193Provider }).ethereum;
