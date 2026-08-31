@@ -3239,8 +3239,9 @@ test("education Enter simulation stays in 320px Continue ring is #f4c95d leftove
 
   await tabTo(page, continueButton);
   await expect(continueButton).toBeFocused();
-  const ringColor = await continueButton.evaluate((element) => getComputedStyle(element).outlineColor);
-  expect(ringColor).toBe("rgb(244, 201, 93)");
+  await expect.poll(async () => {
+    return continueButton.evaluate((element) => getComputedStyle(element).outlineColor);
+  }).toBe("rgb(244, 201, 93)");
 
   await continueButton.click();
   await continueButton.click();
