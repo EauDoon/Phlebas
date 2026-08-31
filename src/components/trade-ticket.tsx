@@ -572,7 +572,7 @@ export function TradeTicket({
       )}
 
       {!gate.canReview && (
-        <div className={styles.ticketBlocked} role="status">
+        <div className={styles.ticketBlocked} role="status" aria-label="Ticket blocked">
           <strong>{gate.heading}</strong>
           <p>{gate.message}{gate.asOf ? ` As of ${gate.asOf}.` : ""}</p>
           <button type="button" className={styles.textButton} onClick={onRetryFeed}>
