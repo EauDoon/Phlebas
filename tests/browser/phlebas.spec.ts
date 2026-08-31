@@ -485,7 +485,7 @@ test("USDT market names USDT0 settlement and empty feed shows no depth", async (
   await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
   await expect(page.getByText("settles pZEC-USDT0")).toBeVisible();
   await page.getByRole("combobox", { name: "Market data state" }).selectOption("empty");
-  await expect(page.getByText("No resting depth. The local book is empty.")).toBeVisible();
+  await expect(page.getByText("No resting depth. The local book is empty. Settled as pZEC-USDT0.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await page.getByRole("combobox", { name: "Market data state" }).selectOption("loading");
   await expect(page.getByText("Loading market data", { exact: true })).toBeVisible();
@@ -542,7 +542,7 @@ test("IOC cancels an unfilled remainder and FOK rejects a full miss", async ({ p
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("100");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
-  await expect(page.getByText("Rejected. Fill-or-kill could not fill in full", { exact: true })).toBeVisible();
+  await expect(page.getByText("Rejected. Fill-or-kill could not fill in full. Settled as pZEC-USDC.", { exact: true })).toBeVisible();
 });
 
 test("invalidate-epoch control is keyboard focusable", async ({ page }) => {
@@ -603,7 +603,7 @@ test("past unix expiry rejects before review and names the rejected panel", asyn
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
-  await expect(page.getByText("Order expiry has passed").first()).toBeVisible();
+  await expect(page.getByText("Rejected. Order expiry has passed. Settled as pZEC-USDC.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
 });
 
@@ -726,8 +726,9 @@ test("chart range uses a tablist and unavailable tape names the feed", async ({ 
   await expect(page.getByRole("tabpanel", { name: "1D" })).toBeVisible();
   await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByLabel("Asks")).toContainText("Market data unavailable");
+  await expect(page.getByLabel("Asks")).toContainText("Settled as pZEC-USDC");
   await expect(page.getByRole("heading", { name: "Recent trades" })).toBeVisible();
-  await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed.").first()).toBeVisible();
+  await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDC.").first()).toBeVisible();
 });
 
 test("ticket G I F shortcuts ignore review until Escape", async ({ page }) => {
