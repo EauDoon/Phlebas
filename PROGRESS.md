@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the ticket-blocked, gate, country-block, and education-copy slice.
+Last updated: 31-08-2026 after the honesty-bar, incident-copy, and review-custody slice.
 
 ## Branch
 
@@ -174,13 +174,17 @@ Last updated: 31-08-2026 after the ticket-blocked, gate, country-block, and educ
 - Country-block notice stays 44px; skip reaches it; trade skips stay hidden while blocked
 - Education dialog copy is a named 44px region
 - Playwright covers 44px ticket blocked, gate, country-block, education copy, and country-block skip
+- Architecture honesty bar stays 44px and is a named skip target
+- Selected incident demonstration copy stays 44px on desktop
+- Ticket and LP review custody notices are named 44px regions
+- Playwright covers 44px honesty bar, incident copy, review custody, and honesty-bar skip
 
 ## Next
 
-- Architecture honesty bar should stay 44px on desktop
-- Selected incident demonstration copy should stay 44px on desktop
-- Review-sheet custody notices should stay 44px on desktop
-- Playwright: 44px honesty bar, incident copy, and review custody notice
+- Bridge privacy callouts should stay 44px on desktop
+- Landing evidence rows should stay 44px on desktop
+- Architecture layer cards should stay 44px on desktop
+- Playwright: 44px privacy callouts, evidence rows, and layer cards
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
