@@ -3159,7 +3159,7 @@ test("education disabled Back sticky copy Continue ring leftover 390 768 and ski
   const copy = dialog.getByRole("region", { name: "Education copy" });
   const copyBox = await copy.boundingBox();
   const tourTop = await back.evaluate((element) => element.parentElement?.getBoundingClientRect().top ?? 0);
-  const copyBottomContent = (copyBox?.y ?? 0) + (copyBox?.height ?? 0) - 52;
+  const copyBottomContent = (copyBox?.y ?? 0) + (copyBox?.height ?? 0) - 8;
   expect(copyBottomContent).toBeLessThanOrEqual(tourTop + 1);
 
   const continueButton = dialog.getByRole("button", { name: "Continue" });
@@ -3225,5 +3225,57 @@ test("education disabled Back sticky copy Continue ring leftover 390 768 and ski
   await leftover("/trade?view=bridge", 768, 1024, 3);
   await leftover("/trade?access=blocked", 768, 1024, 2);
   await leftover("/", 390, 844, 7);
+});
+
+test("education Enter simulation stays in 320px Continue ring is #f4c95d leftover 320 768", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  const continueButton = dialog.getByRole("button", { name: "Continue" });
+  const continueBox = await continueButton.boundingBox();
+  expect(continueBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((continueBox?.y ?? 0) + (continueBox?.height ?? 0)).toBeLessThanOrEqual(900);
+
+  await tabTo(page, continueButton);
+  await expect(continueButton).toBeFocused();
+  const ringColor = await continueButton.evaluate((element) => getComputedStyle(element).outlineColor);
+  expect(ringColor).toBe("rgb(244, 201, 93)");
+
+  await continueButton.click();
+  await continueButton.click();
+  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  await expect(enter).toBeVisible();
+  const enterBox = await enter.boundingBox();
+  expect(enterBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(enterBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((enterBox?.y ?? 0) + (enterBox?.height ?? 0)).toBeLessThanOrEqual(900);
+  expect((enterBox?.x ?? 0) + (enterBox?.width ?? 0)).toBeLessThanOrEqual(320);
+
+  async function leftover(path: string, width: number, height: number, count: number) {
+    await page.setViewportSize({ width, height });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")];
+      const last = links[links.length - 1]?.getBoundingClientRect();
+      return {
+        count: links.length,
+        lastWidth: last?.width ?? 0,
+        lastHeight: last?.height ?? 0,
+      };
+    });
+    expect(layout.count).toBe(count);
+    expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+  }
+
+  await leftover("/status", 320, 900, 2);
+  await leftover("/security", 320, 900, 2);
+  await leftover("/trade?loading=1", 768, 1024, 2);
+  await leftover("/this-route-is-not-part-of-the-simulation", 768, 1024, 2);
 });
 
