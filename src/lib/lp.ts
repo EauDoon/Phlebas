@@ -43,6 +43,14 @@ export function lpBurnNoticeCopy(
   return `Burned session shares for ${pzecLabel} pZEC. Local preview only. Settled as ${settlementPair}.`;
 }
 
+export function lpSwapNoticeCopy(
+  outputLabel: string,
+  quote: Market["quote"],
+  settlementPair: Market["settlementPair"],
+): string {
+  return `Simulated pZEC→${quote} swap. Output ${outputLabel} ${quote}. Local preview only. Settled as ${settlementPair}.`;
+}
+
 export function seedPool(reservePzecAtoms: bigint, reserveQuoteAtoms: bigint): PoolShares {
   if (reservePzecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
     throw new Error("Pool reserves must be positive");
