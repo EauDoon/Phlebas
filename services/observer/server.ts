@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { fileURLToPath } from "node:url";
 
 import { attestMint, emptyMintLedger } from "../../src/lib/attestation.ts";
-import { agreeObservations, parseStubObservation, type ObservedOutpoint } from "../../src/lib/observer.ts";
+import { TESTNET_MIN_CONFIRMATIONS, agreeObservations, parseStubObservation, type ObservedOutpoint } from "../../src/lib/observer.ts";
 import { listenHost } from "../../src/lib/operator-url.ts";
 import { calculateReserveCoverage, type ReserveCoverageState, type WithdrawalClaim } from "../../src/lib/reserve.ts";
 
@@ -63,7 +63,7 @@ export function startObserver(options: { host?: string; port?: number } = {}) {
     void (async () => {
       const url = new URL(request.url ?? "/", `http://${host}:${listenPort}`);
       if (request.method === "GET" && url.pathname === "/health") {
-        send(response, 200, { ok: true, network: "testnet", zebra: "stub", mint: "stub" });
+        send(response, 200, { ok: true, network: "testnet", zebra: "stub", mint: "stub", confirmations: TESTNET_MIN_CONFIRMATIONS });
         return;
       }
       if (request.method === "POST" && url.pathname === "/attest") {
@@ -89,7 +89,7 @@ export function startObserver(options: { host?: string; port?: number } = {}) {
           shieldedBundle: row.shieldedBundle === true,
         }));
         const agreed = agreeObservations(observations);
-        send(response, 200, attestMint(agreed, spent));
+        send(response, 200, { ...attestMint(agreed, spent), confirmationsRequired: TESTNET_MIN_CONFIRMATIONS });
         return;
       }
       if (request.method === "POST" && url.pathname === "/coverage") {

@@ -19,10 +19,11 @@ test("observer HTTP stub attests a textest outpoint and refuses a second mint", 
   const { port } = address;
   try {
     const health = await fetch(`http://127.0.0.1:${port}/health`);
-    const healthBody = await health.json() as { network: string; zebra: string };
+    const healthBody = await health.json() as { network: string; zebra: string; confirmations: number };
     assert.equal(health.ok, true);
     assert.equal(healthBody.network, "testnet");
     assert.equal(healthBody.zebra, "stub");
+    assert.equal(healthBody.confirmations, 10);
     const missing = await fetch(`http://127.0.0.1:${port}/nope`);
     assert.equal(missing.status, 404);
 
@@ -40,9 +41,10 @@ test("observer HTTP stub attests a textest outpoint and refuses a second mint", 
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
     });
-    const firstBody = await first.json() as { status: string; amountZatoshis: string; outpointKey: string; tex: string };
+    const firstBody = await first.json() as { status: string; amountZatoshis: string; outpointKey: string; tex: string; confirmationsRequired: number };
     assert.equal(first.status, 200);
     assert.equal(firstBody.status, "eligible");
+    assert.equal(firstBody.confirmationsRequired, 10);
     assert.equal(firstBody.amountZatoshis, payload.amountZatoshis);
     assert.equal(firstBody.outpointKey, `${TXID}:1`);
     assert.equal(firstBody.tex, TEX);
