@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the skip-nav inset, terminal skip-link focus ring, and remaining landing skip-margin slice.
+Last updated: 31-08-2026 after the reduced-motion skip-nav, overflow-clip margin, and skip-nav stacking slice.
 
 ## Branch
 
@@ -244,13 +244,17 @@ Last updated: 31-08-2026 after the skip-nav inset, terminal skip-link focus ring
 - Skip-nav leaves 12px inset so the skip-link focus ring is not clipped
 - Landing pZEC, journeys, and launch-gates skip targets keep 12px scroll-margin
 - Playwright covers terminal skip-link focus ring, skip-nav inset, and remaining landing skip-margins
+- Reduced-motion keeps skip-nav in place without a slide
+- Landing overflow clip leaves 8px so the skip-link focus ring is not clipped
+- Skip-nav remains above the simulation banner
+- Playwright covers reduced-motion skip-nav, skip-link ring not clipped, and skip-nav stacking
 
 ## Next
 
-- Reduced-motion should keep skip-nav in place without a slide
-- Landing overflow clip should not clip the skip-link focus ring
-- Skip-nav should remain above the simulation banner
-- Playwright: reduced-motion skip-nav, skip-link ring not clipped, skip-nav stacking
+- Terminal simulation banner should stay below skip-nav
+- Skip-nav should not cover the header brand at 320px under reduced motion
+- Skip-link focus should stay inside the viewport at 320px
+- Playwright: terminal banner stacking, 320px reduced-motion skip-nav vs brand, and 320px skip-link ring
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
