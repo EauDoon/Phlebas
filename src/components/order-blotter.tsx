@@ -2,7 +2,13 @@
 
 import { useRef, useState, type KeyboardEvent } from "react";
 
-import { blotterEmptyFillsCopy, blotterEmptyLogCopy, blotterEmptyOrdersCopy } from "@/lib/blotter-copy";
+import {
+  blotterEmptyFillsCopy,
+  blotterEmptyLogCopy,
+  blotterEmptyOrdersCopy,
+  blotterLogCaptionCopy,
+  blotterLogEventCopy,
+} from "@/lib/blotter-copy";
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
 import type { RestingOrder } from "@/lib/matcher";
@@ -232,7 +238,7 @@ export function OrderBlotter({
           <p className={styles.emptyState}>{blotterEmptyLogCopy(market.settlementPair)}</p>
         ) : (
           <table className={styles.dataTable}>
-            <caption className={styles.srOnly}>Append-only session event log</caption>
+            <caption className={styles.srOnly}>{blotterLogCaptionCopy(market.settlementPair)}</caption>
             <thead>
               <tr>
                 <th scope="col">#</th>
@@ -246,11 +252,7 @@ export function OrderBlotter({
                   <th scope="row">{events.length - Math.min(events.length, 20) + index + 1}</th>
                   <td>{event.kind}</td>
                   <td>
-                    {event.kind === "submit"
-                      ? `${event.side} ${event.tif} ${event.id} expiry ${!event.expiryUnix || event.expiryUnix === 0n ? "none" : event.expiryUnix.toString()}`
-                      : event.kind === "cancel"
-                        ? event.orderId
-                        : "session reset"}
+                    {blotterLogEventCopy(event)}
                   </td>
                 </tr>
               ))}
