@@ -452,6 +452,7 @@ test("stale market data disables preview-to-sign and retries to illustrative", a
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeEnabled();
+  await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDC, settled as pZEC-USDC" })).toBeVisible();
   await expect(page).toHaveURL(/\/trade/);
 });
 
@@ -520,7 +521,7 @@ test("LP burn stays available after a trading pause", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
   await page.getByRole("button", { name: "Burn session shares" }).click();
-  await expect(page.getByText(/Burned session shares/)).toBeVisible();
+  await expect(page.getByText(/Burned session shares for .* pZEC\. Local preview only\. Settled as pZEC-USDC\./)).toBeVisible();
   await page.getByRole("button", { name: "Reset pool" }).click();
   await expect(page.getByText("Local pool reserves restored. Settled as pZEC-USDC.")).toBeVisible();
 });
@@ -601,6 +602,10 @@ test("architecture view keeps Vercel off the matcher", async ({ page }) => {
 
 test("connect wallet without a provider shows a visible rejection", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
+  await expect(page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" })).toHaveAttribute(
+    "title",
+    "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDC.",
+  );
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
   await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDC.")).toBeVisible();
 });
@@ -679,6 +684,9 @@ test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
   await expect(page.getByRole("region", { name: "Selected market summary" }).getByRole("status")).toContainText("Settled as pZEC-USDC");
   await expect(page.getByText("Integrity checks failed. Preview-to-sign is disabled. Retry is safe; nothing was submitted. Settled as pZEC-USDC.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Retry illustrative feed" }).click();
+  await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDC, settled as pZEC-USDC" })).toBeVisible();
   await page.goto("/liquidity?feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
