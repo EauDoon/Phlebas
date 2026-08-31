@@ -21,6 +21,14 @@ import type { CoordinatorState } from "../../src/lib/atomic-coordinator.ts";
 import { stateOf } from "../../src/lib/swap-state.ts";
 import { defineCounter, emptyMetricsState, incCounter, renderPrometheusText, type MetricsState } from "../../src/lib/metrics.ts";
 import { emptySloState, recordSample, sloVerdict, type SloSample, type SloState, type SloTarget } from "../../src/lib/slo-tracker.ts";
+import {
+  checkRateLimit,
+  emptyRateLimitMiddleware,
+  extractClientKey,
+  sendRateLimitExceeded,
+  sendRateLimitHeaders,
+  type RateLimitMiddleware,
+} from "../../src/lib/rate-limit-http.ts";
 
 const DEFAULT_PORT = 8790;
 
@@ -179,8 +187,18 @@ export function startService(options: StartServiceOptions): Server {
   const host = listenHost(options.host);
   const port = options.port ?? DEFAULT_PORT;
   const controller = buildController(options.config, options.initial);
+  let rateLimit: RateLimitMiddleware = emptyRateLimitMiddleware({ capacity: 60n, refillPerSecond: 1n });
   const server = createServer((request: IncomingMessage, response: ServerResponse) => {
     void (async () => {
+      const now = options.clock ? options.clock() : BigInt(Math.floor(Date.now() / 1000));
+      const clientKey = extractClientKey(request);
+      const rl = checkRateLimit(rateLimit, clientKey, now);
+      rateLimit = { state: rl.state, config: rateLimit.config };
+      if (!rl.allowed) {
+        sendRateLimitExceeded(response, rl.remaining, rl.retryAfterSeconds);
+        return;
+      }
+      sendRateLimitHeaders(response, rl.remaining, 0n);
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
       const path = url.pathname;
       const method = request.method ?? "GET";
