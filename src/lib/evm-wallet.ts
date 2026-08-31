@@ -50,6 +50,10 @@ export function walletConnectIdleTitle(settlementPair: Market["settlementPair"])
   return `Connect an injected EVM wallet on Arbitrum Sepolia. Settled as ${settlementPair}.`;
 }
 
+export function walletConnectBusyTitle(settlementPair: Market["settlementPair"]): string {
+  return `Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as ${settlementPair}.`;
+}
+
 export function getInjectedProvider(): Eip1193Provider | null {
   if (typeof window === "undefined") return null;
   const provider = (window as Window & { ethereum?: Eip1193Provider }).ethereum;
