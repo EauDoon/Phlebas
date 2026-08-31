@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after LP burn notice, idle wallet title, and chart fixtures return name the settlement pair.
+Last updated: 31-08-2026 after LP swap notice, connecting wallet title, and chart 1H/1D img labels after fixtures return name the settlement pair.
 
 ## Branch
 
@@ -120,15 +120,18 @@ Last updated: 31-08-2026 after LP burn notice, idle wallet title, and chart fixt
 - LP burn success notice uses `lpBurnNoticeCopy` from a real mint-then-burn and names the settlement pair. Local preview only.
 - Idle wallet connect title uses `walletConnectIdleTitle` and names the settlement pair.
 - After Retry illustrative from a withheld feed, the price chart img uses `priceChartLabelCopy` again.
+- LP swap success notice uses `lpSwapNoticeCopy` from a real mint-then-swap and names the settlement pair. Local preview only.
+- Connecting wallet title uses `walletConnectBusyTitle` and keeps the settlement pair while the injected provider is pending.
+- After Retry illustrative, chart 1H and 1D img labels use `priceChartLabelCopy` for the selected range.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- LP swap success notice should name the selected pool settlement pair
-- Wallet connecting state should keep the settlement pair on the idle title
-- Chart 1H/1D img labels should update with the selected range after fixtures return
+- LP swap success notice on the USDT0 pool should name pZEC-USDT0
+- Wallet connecting title should keep the settlement pair after switching market
+- Chart 1H/1D img labels should update with the selected range after fixtures return on ZEC/USDT
 
 ## Blockers
 
