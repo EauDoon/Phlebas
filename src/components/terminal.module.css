@@ -40,7 +40,9 @@
 #price-chart,
 #order-book,
 #session-blotter,
-#status-ledger {
+#status-ledger,
+#legal-article,
+#security-article {
   scroll-margin-top: 12px;
 }
 
