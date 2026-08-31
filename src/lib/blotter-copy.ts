@@ -7,3 +7,7 @@ export function blotterEmptyOrdersCopy(settlementPair: Market["settlementPair"])
 export function blotterEmptyFillsCopy(settlementPair: Market["settlementPair"]): string {
   return `No session fills yet. Settled as ${settlementPair}. Submitting a simulated order can trade against the fixture book.`;
 }
+
+export function blotterEmptyLogCopy(settlementPair: Market["settlementPair"]): string {
+  return `No session events yet. Settled as ${settlementPair}. Replaying this log reconstructs the book and balances.`;
+}
