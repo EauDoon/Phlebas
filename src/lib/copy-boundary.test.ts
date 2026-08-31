@@ -206,11 +206,11 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /word-break: break-word;/);
   assert.match(
     landingCss,
-    /\.skipLink \{\r?\n    flex: 1 1 calc\(50% - 4px\);\r?\n    min-width: 44px;\r?\n    min-height: 44px;/,
+    /\.skipLink \{\r?\n    box-sizing: border-box;\r?\n    flex: 1 1 calc\(50% - 4px\);\r?\n    max-width: min\(100%, calc\(50% - 4px\)\);/,
   );
   assert.match(
     terminalCss,
-    /\.skipLink \{\r?\n    flex: 1 1 calc\(50% - 4px\);\r?\n    min-width: 44px;\r?\n    min-height: 44px;/,
+    /\.skipLink \{\r?\n    box-sizing: border-box;\r?\n    flex: 1 1 calc\(50% - 4px\);\r?\n    max-width: min\(100%, calc\(50% - 4px\)\);/,
   );
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /id="status-ledger"/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /role="list" aria-label="Simulation status ledger"/);
@@ -315,7 +315,12 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(globalError, /minHeight: 44/);
   assert.match(globalError, /minWidth: 44/);
   assert.match(globalError, /Skip to retry copy/);
+  assert.match(globalError, /Skip to main content/);
   assert.match(globalError, /id="retry-copy"/);
+  assert.match(globalError, /id="main-content"/);
+  assert.match(globalError, /flex-wrap: wrap/);
+  assert.match(globalError, /flex: 1 1 calc\(50% - 4px\)/);
+  assert.match(globalError, /outline: 2px solid #15140d/);
   assert.doesNotMatch(globalError, /is a live exchange/);
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
 });
