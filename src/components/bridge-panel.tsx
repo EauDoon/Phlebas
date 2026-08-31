@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { inspectTransparentDestination } from "@/lib/zcash-address";
-import { screenPayout } from "@/lib/payout";
+import { payoutClaimForTourStep, screenPayout } from "@/lib/payout";
 import { isTestnetTex } from "@/lib/tex";
 
 import styles from "./terminal.module.css";
@@ -56,6 +56,7 @@ export function BridgePanel() {
   const payoutPreview = destination.trim().length === 0
     ? null
     : screenPayout(destination, 1n);
+  const tourClaim = payoutClaimForTourStep(tour.id, destination);
 
   async function issueTestnetTex() {
     try {
@@ -154,6 +155,9 @@ export function BridgePanel() {
               <span className={styles.eyebrow}>{String(tourIndex + 1).padStart(2, "0")} / {String(withdrawalTour.length).padStart(2, "0")}</span>
               <strong>{tour.title}</strong>
               <p>{tour.body}</p>
+              <p className={styles.inlineNotice}>
+                Stub claim: {tourClaim.state}. Nothing is sent.
+              </p>
             </div>
             <label className={styles.inputLabel}>
               <span>Transparent destination inspector</span>

@@ -28,6 +28,10 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminal, /not trustless/);
   assert.doesNotMatch(landing, /is audited/);
   assert.doesNotMatch(terminal, /is audited/);
+  const bridge = await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8");
+  assert.match(bridge, /Preview withdrawal states, not Withdraw ZEC/);
+  assert.match(bridge, /payoutClaimForTourStep/);
+  assert.match(bridge, /Nothing is sent/);
 });
 
 test("robots and security headers keep the public app noindex", async () => {
