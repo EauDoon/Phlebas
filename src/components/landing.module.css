@@ -996,7 +996,9 @@ a.skipLink:focus-visible {
     min-width: 44px;
     min-height: 44px;
     align-self: stretch;
+    box-sizing: border-box;
     height: auto;
+    padding: 8px;
     white-space: normal;
     overflow-wrap: anywhere;
   }
