@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the event-log, LP-stats, chart-empty, and pool-stats skip slice.
+Last updated: 31-08-2026 after the notice, wallet-rejection, and simulation-banner slice.
 
 ## Branch
 
@@ -166,13 +166,17 @@ Last updated: 31-08-2026 after the event-log, LP-stats, chart-empty, and pool-st
 - Order-book empty state stays 44px on desktop
 - Liquidity skips to pool stats
 - Playwright covers 44px event-log, LP stats, chart empty, and pool-stats skip
+- Ticket inline notices stay 44px on desktop
+- Wallet-provider rejection is a named 44px notice
+- Terminal and landing simulation banners stay 44px and are named Simulation disclosure
+- Playwright covers 44px ticket notice, wallet rejection, and simulation banners
 
 ## Next
 
-- Ticket inline notices should stay 44px on desktop
-- Wallet-provider rejection notice should stay 44px on desktop
-- Simulation banner should stay 44px on desktop
-- Playwright: 44px ticket notice, wallet rejection, and simulation banner
+- Ticket blocked and gate notices should stay 44px on desktop
+- Country-block notice should stay 44px on desktop
+- Education dialog copy region should stay 44px
+- Playwright: 44px ticket blocked, country-block, and education copy
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
