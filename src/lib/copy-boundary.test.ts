@@ -284,6 +284,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /min-width: 44px;\s*flex-shrink: 0;/);
   assert.match(terminalCss, /\.skipLink:last-child \{[\s\S]*?min-width: 44px;/);
   assert.match(landingCss, /\.skipLink:last-child \{[\s\S]*?min-width: 44px;/);
+  assert.match(terminalCss, /\.skipLink:last-child:nth-child\(odd\) \{[\s\S]*?flex-shrink: 0;/);
+  assert.match(landingCss, /\.skipLink:last-child:nth-child\(odd\) \{[\s\S]*?flex-shrink: 0;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button:focus,/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button:focus-visible \{/);
   assert.match(landingCss, /scrollbar-gutter: stable;/);
