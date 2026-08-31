@@ -395,6 +395,17 @@ test("USDT market names USDT0 settlement and empty feed shows no depth", async (
   await expect(page.getByText("Loading market data", { exact: true })).toBeVisible();
 });
 
+test("LP preview shows integer IL versus hold", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  const stats = page.getByRole("group", { name: "Pool stats and impermanent loss versus hold" });
+  await expect(stats.getByText("IL vs hold at 4x pZEC/quote")).toBeVisible();
+  await expect(stats.getByText("IL vs hold at 1/4x pZEC/quote")).toBeVisible();
+  await expect(page.getByText("Not a return or profit projection.")).toBeVisible();
+  await page.getByRole("button", { name: "Simulate mint" }).click();
+  await expect(page.getByText(/Minted .* local LP shares/)).toBeVisible();
+  await expect(stats.getByText("Session IL vs hold")).toBeVisible();
+});
+
 test("LP burn stays available after a trading pause", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Simulate mint" }).click();

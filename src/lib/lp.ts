@@ -67,3 +67,100 @@ export function burnShares(
     },
   };
 }
+
+export type ImpermanentLossPreview = {
+  hodlQuoteAtoms: bigint;
+  positionQuoteAtoms: bigint;
+  lossQuoteAtoms: bigint;
+};
+
+export const IL_PRICE_SCENARIOS = [
+  { label: "4x pZEC/quote", priceMultipleNumerator: 4n, priceMultipleDenominator: 1n },
+  { label: "1/4x pZEC/quote", priceMultipleNumerator: 1n, priceMultipleDenominator: 4n },
+] as const;
+
+function integerSqrt(value: bigint): bigint {
+  if (value < 0n) {
+    throw new Error("Square root of a negative value");
+  }
+  if (value < 2n) {
+    return value;
+  }
+  let guess = value;
+  let next = (guess + 1n) / 2n;
+  while (next < guess) {
+    guess = next;
+    next = (guess + value / guess) / 2n;
+  }
+  return guess;
+}
+
+function quoteValueAtoms(
+  pzecAtoms: bigint,
+  quoteAtoms: bigint,
+  reservePzecAtoms: bigint,
+  reserveQuoteAtoms: bigint,
+  rounding: "down" | "up",
+): bigint {
+  if (reservePzecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
+    throw new Error("Pool reserves must be positive");
+  }
+  if (pzecAtoms < 0n || quoteAtoms < 0n) {
+    throw new Error("Amounts must be non-negative");
+  }
+  const numerator = pzecAtoms * reserveQuoteAtoms;
+  const converted = rounding === "up" && numerator > 0n
+    ? ((numerator - 1n) / reservePzecAtoms) + 1n
+    : numerator / reservePzecAtoms;
+  return quoteAtoms + converted;
+}
+
+function lossVersusHold(hodlQuoteAtoms: bigint, positionQuoteAtoms: bigint): ImpermanentLossPreview {
+  return {
+    hodlQuoteAtoms,
+    positionQuoteAtoms,
+    lossQuoteAtoms: hodlQuoteAtoms > positionQuoteAtoms ? hodlQuoteAtoms - positionQuoteAtoms : 0n,
+  };
+}
+
+export function realizedImpermanentLoss(
+  entryPzecAtoms: bigint,
+  entryQuoteAtoms: bigint,
+  shares: bigint,
+  pool: PoolShares,
+): ImpermanentLossPreview {
+  if (shares <= 0n || entryPzecAtoms <= 0n || entryQuoteAtoms <= 0n) {
+    return { hodlQuoteAtoms: 0n, positionQuoteAtoms: 0n, lossQuoteAtoms: 0n };
+  }
+  const position = burnShares(pool, shares);
+  return lossVersusHold(
+    quoteValueAtoms(entryPzecAtoms, entryQuoteAtoms, pool.reservePzecAtoms, pool.reserveQuoteAtoms, "up"),
+    quoteValueAtoms(position.pzecAtoms, position.quoteAtoms, pool.reservePzecAtoms, pool.reserveQuoteAtoms, "down"),
+  );
+}
+
+export function hypotheticalImpermanentLoss(
+  entryPzecAtoms: bigint,
+  entryQuoteAtoms: bigint,
+  priceMultipleNumerator: bigint,
+  priceMultipleDenominator: bigint,
+): ImpermanentLossPreview {
+  if (entryPzecAtoms <= 0n || entryQuoteAtoms <= 0n) {
+    return { hodlQuoteAtoms: 0n, positionQuoteAtoms: 0n, lossQuoteAtoms: 0n };
+  }
+  if (priceMultipleNumerator <= 0n || priceMultipleDenominator <= 0n) {
+    throw new Error("Price multiple must be positive");
+  }
+  const sqrtNum = integerSqrt(priceMultipleNumerator);
+  const sqrtDen = integerSqrt(priceMultipleDenominator);
+  if (sqrtNum * sqrtNum !== priceMultipleNumerator || sqrtDen * sqrtDen !== priceMultipleDenominator) {
+    throw new Error("Price multiple must be a ratio of perfect squares");
+  }
+
+  const lpPzecAtoms = (entryPzecAtoms * sqrtDen) / sqrtNum;
+  const lpQuoteAtoms = (entryQuoteAtoms * sqrtNum) / sqrtDen;
+  const hodlQuoteAtoms = entryQuoteAtoms + (entryQuoteAtoms * priceMultipleNumerator) / priceMultipleDenominator;
+  const positionQuoteAtoms = lpQuoteAtoms
+    + (lpPzecAtoms * entryQuoteAtoms * priceMultipleNumerator) / (entryPzecAtoms * priceMultipleDenominator);
+  return lossVersusHold(hodlQuoteAtoms, positionQuoteAtoms);
+}
