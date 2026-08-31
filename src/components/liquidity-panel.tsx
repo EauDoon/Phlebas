@@ -8,6 +8,9 @@ import { custodyRedemptionCopy, publicLinkabilityCopy } from "@/lib/review-copy"
 import {
   burnShares,
   emptyShareCopy,
+  lpEmptyBookCopy,
+  lpFeedBlockCopy,
+  lpRiskCopy,
   isLpPauseNotice,
   lpPauseNoticeCopy,
   lpBurnNoticeCopy,
@@ -301,9 +304,7 @@ export function LiquidityPanel({
               {gate.message}
               {gate.asOf ? ` As of ${gate.asOf}.` : ""}
               {" "}
-              {feedBlocksLp
-                ? "Burn stays available. Mint and swap stay off while the market-data feed is not illustrative."
-                : "Pool math is still a local preview. The empty book does not drain the pool."}
+              {feedBlocksLp ? lpFeedBlockCopy() : lpEmptyBookCopy()}
             </p>
             {onRetryFeed && (
               <button type="button" className={styles.textButton} onClick={onRetryFeed}>
@@ -460,8 +461,7 @@ export function LiquidityPanel({
         <span className={styles.eyebrow}>LP risk</span>
         <h2 id="lp-risk-title">Simple does not mean low risk</h2>
         <p>
-          LPs would face ZEC reserve and redemption risk, stablecoin risk, smart-contract risk,
-          impermanent loss, and adverse selection from the order book.
+          {lpRiskCopy()}
         </p>
         <ul className={styles.cleanList}>
           <li>Fixed {AMM_FEE_BPS} bps swap fee, paid entirely to LPs</li>
