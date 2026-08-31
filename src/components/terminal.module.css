@@ -2471,6 +2471,12 @@ a.skipLink:focus-visible {
     min-width: 44px;
     min-height: 44px;
   }
+
+  .skipLink:last-child:nth-child(odd) {
+    flex-shrink: 0;
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 @media (max-width: 320px) {
