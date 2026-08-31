@@ -1,6 +1,7 @@
 "use client";
 
 import { SimulationFrame } from "@/components/simulation-frame";
+import styles from "@/components/terminal.module.css";
 
 export default function AppError({
   error,
@@ -14,7 +15,7 @@ export default function AppError({
       <p>Nothing was submitted to a chain, matcher, or custody system.</p>
       <p>{error.message || "An unexpected rendering error occurred."}</p>
       <p>
-        <button type="button" onClick={reset}>Retry</button>
+        <button type="button" className={styles.primaryAction} onClick={reset}>Retry</button>
       </p>
     </SimulationFrame>
   );
