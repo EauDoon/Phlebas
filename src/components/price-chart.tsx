@@ -1,5 +1,6 @@
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { chartSeries } from "@/lib/market-data";
+import { feedSurface, type FeedStatus } from "@/lib/market-state";
 import { PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -7,9 +8,19 @@ import styles from "./terminal.module.css";
 type PriceChartProps = {
   marketId: MarketId;
   range: ChartRange;
+  feedStatus: FeedStatus;
 };
 
-export function PriceChart({ marketId, range }: PriceChartProps) {
+export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
+  const surface = feedSurface(feedStatus);
+  if (!surface.showFixtures) {
+    return (
+      <p className={styles.emptyState} role="status">
+        <strong>{surface.heading}. </strong>
+        {surface.message}
+      </p>
+    );
+  }
   const values = chartSeries[marketId][range];
   const min = Math.min(...values) - 25;
   const max = Math.max(...values) + 25;

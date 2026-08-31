@@ -8,7 +8,7 @@ import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
-import { type FeedStatus } from "@/lib/market-state";
+import { feedSurface, type FeedStatus } from "@/lib/market-state";
 import type { SessionLogEvent } from "@/lib/replay";
 import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingOrder, type TimeInForce } from "@/lib/matcher";
 import {
@@ -78,10 +78,12 @@ export function TradingTerminal({
   initialView = "trade",
   initialMarket = "ZEC/USDC",
   initialFeed = "illustrative",
+  initialBridgeJourney = "deposit",
 }: {
   initialView?: View;
   initialMarket?: MarketId;
   initialFeed?: FeedStatus;
+  initialBridgeJourney?: "deposit" | "withdrawal";
 }) {
   const router = useRouter();
   const [view, setView] = useState<View>(initialView);
@@ -230,6 +232,7 @@ export function TradingTerminal({
   }
 
   const sessionTape = fills.filter((fill) => fill.marketId === marketId).slice(0, 6);
+  const statsSurface = feedSurface(feedStatus);
 
   return (
     <div className={styles.shell}>
@@ -295,21 +298,26 @@ export function TradingTerminal({
                   </select>
                 </label>
               </div>
-              <dl className={styles.marketStats}>
+              <dl className={styles.marketStats} aria-label="Market statistics">
                 <div className={styles.priceStat}>
                   <dt>Session last</dt>
-                  <dd>{formatAtomicUnits(book.lastTicks, PRICE_DECIMALS, 2)}</dd>
+                  <dd>{statsSurface.showFixtures ? formatAtomicUnits(book.lastTicks, PRICE_DECIMALS, 2) : "—"}</dd>
                 </div>
                 <div>
                   <dt>24h change</dt>
-                  <dd className={market.changeBps >= 0 ? styles.buyText : styles.sellText}>
-                    {formatSignedChange(market.changeBps)}
+                  <dd className={statsSurface.showFixtures && market.changeBps >= 0 ? styles.buyText : styles.sellText}>
+                    {statsSurface.showFixtures ? formatSignedChange(market.changeBps) : "—"}
                   </dd>
                 </div>
-                <div><dt>24h high</dt><dd>{formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2)}</dd></div>
-                <div><dt>24h low</dt><dd>{formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2)}</dd></div>
-                <div><dt>24h volume</dt><dd>{market.volume}</dd></div>
+                <div><dt>24h high</dt><dd>{statsSurface.showFixtures ? formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
+                <div><dt>24h low</dt><dd>{statsSurface.showFixtures ? formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
+                <div><dt>24h volume</dt><dd>{statsSurface.showFixtures ? market.volume : "—"}</dd></div>
               </dl>
+              {!statsSurface.showFixtures || feedStatus === "stale" ? (
+                <p className={styles.inlineNotice} role="status">
+                  {statsSurface.heading}. {statsSurface.message}
+                </p>
+              ) : null}
             </section>
 
             <div className={styles.tradeGrid}>
@@ -322,7 +330,7 @@ export function TradingTerminal({
                     ))}
                   </div>
                 </div>
-                <PriceChart marketId={marketId} range={range} />
+                <PriceChart marketId={marketId} range={range} feedStatus={feedStatus} />
               </section>
 
               <OrderBook
@@ -401,8 +409,15 @@ export function TradingTerminal({
           </>
         )}
 
-        {view === "liquidity" && <LiquidityPanel marketId={marketId} onMarketChange={selectMarket} />}
-        {view === "bridge" && <BridgePanel />}
+        {view === "liquidity" && (
+          <LiquidityPanel
+            marketId={marketId}
+            onMarketChange={selectMarket}
+            feedStatus={feedStatus}
+            onRetryFeed={() => selectFeed("illustrative")}
+          />
+        )}
+        {view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
         {view === "architecture" && <ArchitecturePanel />}
       </main>
 
