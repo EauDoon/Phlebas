@@ -565,7 +565,7 @@ export function TradingTerminal({
                 onSubmit={submitUserOrder}
               />
 
-              <section className={`${styles.panel} ${styles.tradesPanel}`} aria-labelledby="recent-trades-title">
+              <section id="recent-trades" tabIndex={-1} className={`${styles.panel} ${styles.tradesPanel}`} aria-labelledby="recent-trades-title">
                 <div className={styles.panelHeader}>
                   <h2 id="recent-trades-title">Recent trades</h2>
                   <span className={styles.miniLabel}>
