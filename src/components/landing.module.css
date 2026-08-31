@@ -215,8 +215,12 @@
 }
 
 .menuDialogHeader button {
+  display: inline-flex;
   min-width: 44px;
   min-height: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
   border: 0;
   color: var(--text-muted);
   background: transparent;
