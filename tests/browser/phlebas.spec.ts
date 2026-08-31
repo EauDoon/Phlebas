@@ -4277,3 +4277,118 @@ test("education last-step Back heading ring leftover 320 768", async ({ page }) 
   await leftover("/trade?error=1", 768, 1024, 2);
   await leftover("/trade?access=blocked", 320, 900, 2);
 });
+test("education Enter simulation stays 44px wide on the last step at 320", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  await expect(enter).toBeVisible();
+  const enterBox = await enter.boundingBox();
+  expect(enterBox?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(enterBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(enterBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((enterBox?.y ?? 0) + (enterBox?.height ?? 0)).toBeLessThanOrEqual(900);
+  expect((enterBox?.x ?? 0) + (enterBox?.width ?? 0)).toBeLessThanOrEqual(320);
+  const shrink = await enter.evaluate((element) => getComputedStyle(element).flexShrink);
+  expect(shrink).toBe("0");
+});
+
+test("education heading stays a 44px tap target after flex-shrink 0", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  const heading = dialog.getByRole("heading", { level: 2 });
+  await expect(heading).toBeVisible();
+  const headingBox = await heading.boundingBox();
+  expect(headingBox?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(headingBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const headingStyle = await heading.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      minHeight: style.minHeight,
+      minWidth: style.minWidth,
+      flexShrink: style.flexShrink,
+    };
+  });
+  expect(Number.parseFloat(headingStyle.minHeight)).toBeGreaterThanOrEqual(44);
+  expect(Number.parseFloat(headingStyle.minWidth)).toBeGreaterThanOrEqual(44);
+  expect(headingStyle.flexShrink).toBe("0");
+});
+
+test("education Continue stays in 320px after padding-top 24px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  const paddingTop = await dialog.evaluate((element) => getComputedStyle(element).paddingTop);
+  expect(Number.parseFloat(paddingTop)).toBeGreaterThanOrEqual(24);
+  const continueButton = dialog.getByRole("button", { name: "Continue" });
+  await expect(continueButton).toBeVisible();
+  const continueBox = await continueButton.boundingBox();
+  expect(continueBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(continueBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((continueBox?.y ?? 0) + (continueBox?.height ?? 0)).toBeLessThanOrEqual(900);
+  expect((continueBox?.x ?? 0) + (continueBox?.width ?? 0)).toBeLessThanOrEqual(320);
+});
+
+test("liquidity and bridge leftover skip links stay 44px at 320", async ({ page }) => {
+  async function leftover(path: string, count: number) {
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")];
+      const last = links[links.length - 1]?.getBoundingClientRect();
+      return {
+        count: links.length,
+        lastWidth: last?.width ?? 0,
+        lastHeight: last?.height ?? 0,
+        lastRight: last?.right ?? 0,
+      };
+    });
+    expect(layout.count).toBe(count);
+    expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+    expect(layout.lastRight).toBeLessThanOrEqual(320);
+  }
+
+  await leftover("/liquidity", 3);
+  await leftover("/trade?view=bridge", 3);
+});
+
+test("loading and 404 leftover skip links stay 44px at 320", async ({ page }) => {
+  async function leftover(path: string, count: number) {
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")];
+      const last = links[links.length - 1]?.getBoundingClientRect();
+      return {
+        count: links.length,
+        lastWidth: last?.width ?? 0,
+        lastHeight: last?.height ?? 0,
+        lastRight: last?.right ?? 0,
+      };
+    });
+    expect(layout.count).toBe(count);
+    expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+    expect(layout.lastRight).toBeLessThanOrEqual(320);
+  }
+
+  await leftover("/trade?loading=1", 2);
+  await leftover("/this-route-is-not-part-of-the-simulation", 2);
+});
