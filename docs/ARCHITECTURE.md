@@ -327,3 +327,23 @@ drive the live data once a real Sepolia deployment is recorded.
   /trades?limit=N, /depth?levels=N, /markets. The
   endpoints bound the limit and levels parameters to
   prevent memory exhaustion.
+
+### Operations hardening (PR 6)
+
+The operations hardening surface is a set of pure-function
+libraries that the services consume and an HTTP layer that the
+operator calls. The surface is the single source of truth for
+the operator's on-call rotation.
+
+#### Components
+
+- **Metrics counter** (src/lib/metrics.ts) — in-memory counter
+  with Prometheus text rendering. Pure function over a state
+  record.
+- **SLO tracker** (src/lib/slo-tracker.ts) — rolling-window
+  compliance verdict for a service against a target SLO.
+- **Health aggregator** (src/lib/health-aggregator.ts) —
+  composes the health of every service into a single response.
+- **Alert router** (src/lib/alert-router.ts) — maps watchtower
+  alerts to channels (pagerduty, slack, email, log) based on
+  severity and service.
