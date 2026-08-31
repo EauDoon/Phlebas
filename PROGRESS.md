@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after ticket-sign missing-provider follows an open review across a market switch.
+Last updated: 31-08-2026 after chart withheld copy retargets settlement if the market switches while the feed stays unavailable.
 
 ## Branch
 
@@ -140,6 +140,7 @@ Last updated: 31-08-2026 after ticket-sign missing-provider follows an open revi
 - Missing-provider error uses `retargetSettlementCopy` so a failed connect keeps the current settlement pair after a market switch without clicking Connect again.
 - Ticket sign missing-provider copy names `pZEC-USDT0` if the market switches while review is still open. `TradeTicket` stays mounted across a market switch (`key={feedStatus}`); `isMissingProviderCopy` retargets the live notice. Nothing is sent.
 - Rejected-connect failure copy (`walletConnectFailureCopy`, not missing-provider) retargets settlement after a market switch without clicking Connect again.
+- Chart withheld copy retargets if the market switches while the feed stays unavailable. `PriceChart` already calls `feedWithheldCopy` with the current market's settlement pair. No Retry.
 
 ## Next
 
@@ -148,7 +149,6 @@ Last updated: 31-08-2026 after ticket-sign missing-provider follows an open revi
 - Public Vercel UI still serves the last merged production build until a deploy token is available
 - Ticket reject copy should retarget settlement if the market switches while the rejected panel is open
 - Wallet connecting title should keep settlement if the market switches during a hanging provider after a prior reject
-- Chart withheld copy should retarget if the market switches while the feed stays unavailable
 
 ## Blockers
 

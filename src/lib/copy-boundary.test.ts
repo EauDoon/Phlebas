@@ -104,6 +104,10 @@ test("landing and terminal banners stay simulation-only", async () => {
     /busy \? walletConnectTitle\(settlementPair, true\)/,
   );
   assert.match(await readFile(join(root, "src/components/price-chart.tsx"), "utf8"), /priceChartLabelCopy/);
+  assert.match(
+    await readFile(join(root, "src/components/price-chart.tsx"), "utf8"),
+    /feedWithheldCopy\(feedStatus, markets\[marketId\]\.settlementPair\)/,
+  );
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /market\.settlementPair/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /missingProviderCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /retargetSettlementCopy/);

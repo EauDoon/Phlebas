@@ -1088,6 +1088,20 @@ test("unavailable ZEC/USDT withholds chart copy naming pZEC-USDT0 before retry",
   await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
 });
 
+test("chart withheld copy names pZEC-USDT0 if market switches while unavailable", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("combobox", { name: "Market data state" }).selectOption("unavailable");
+  await expect(
+    page.getByText("Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDC.").first(),
+  ).toBeVisible();
+  await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(
+    page.getByText("Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDT0.").first(),
+  ).toBeVisible();
+  await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
+});
+
 test("chart 1H and 1D img labels return on ZEC/USDT after fixtures", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");

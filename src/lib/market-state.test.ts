@@ -104,6 +104,24 @@ test("unavailable withheld copy names pZEC-USDT0 from real market state", () => 
   );
 });
 
+test("unavailable withheld copy retargets settlement after a market switch", () => {
+  const usdc = feedWithheldCopy("unavailable", markets["ZEC/USDC"].settlementPair);
+  assert.equal(
+    usdc,
+    "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDC.",
+  );
+  assert.equal(markets["ZEC/USDC"].settlementPair, "pZEC-USDC");
+  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  const usdt = feedWithheldCopy("unavailable", markets["ZEC/USDT"].settlementPair);
+  assert.equal(
+    usdt,
+    "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDT0.",
+  );
+  assert.notEqual(usdc, usdt);
+  assert.doesNotMatch(usdt, /native ZEC/);
+  assert.doesNotMatch(usdt, /live feed/);
+});
+
 test("depth and tape empty copy names the settlement pair", () => {
   assert.equal(
     depthEmptyCopy("pZEC-USDC"),
