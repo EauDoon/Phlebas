@@ -820,3 +820,62 @@ operator:
   per-user feed is the responsibility of the auth surface.
 * Aggregated candles (1m, 5m, 1h). The chart surface is a
   separate concern.
+
+## 22. Operations hardening surface
+
+The operations hardening surface is a set of pure-function
+libraries that the services consume and an HTTP layer that the
+operator calls. The surface is the single source of truth for
+the operator's on-call rotation.
+
+### 22.1 Trust boundary
+
+The operations surface trusts the services to report their
+health, their SLO samples, and their alert records honestly.
+The operations surface does not trust the network: every
+endpoint validates its input and bounds its response size.
+
+### 22.2 Threat matrix
+
+| Adversary | Goal | Required control |
+| --- | --- | --- |
+| Operator | Mis-route a critical alert to the wrong channel | The alert router is deterministic; the routing table is in code review |
+| Attacker | Inject a malformed metric label | The metrics counter rejects empty label keys; the Prometheus renderer escapes label values |
+| Replay attacker | Replay a SLO sample from a previous window | The SLO tracker caps the per-key buffer and drops old samples |
+| Pager | Page the on-call without a real incident | The alert router maps critical to pagerduty and warning to slack; the operator's runbook requires a SLO verdict before paging |
+
+### 22.3 Invariants and stop conditions
+
+1. The metrics counter is a pure function over a state record;
+   the same sequence of operations always produces the same
+   state.
+2. The SLO tracker caps the per-key buffer at maxSamples and
+   drops the oldest samples when the cap is hit.
+3. The health aggregator reports ok: false when any service is
+   unhealthy; the aggregator never silently drops a failing
+   service.
+4. The alert router returns 
+ull for an unknown service or
+   severity; the operator is responsible for the default
+   routing.
+5. The operations surface never reaches out to the chain clients
+   and never signs a transaction.
+
+### 22.4 Test coverage
+
+| Invariant | Test |
+| --- | --- |
+| 1 | metrics.test.ts::incCounter increments the named counter with no labels |
+| 2 | slo-tracker.test.ts::recordSample caps the per-key buffer at maxSamples |
+| 3 | health-aggregator.test.ts::aggregateHealth reports not-ok when any service is unhealthy |
+| 4 | lert-router.test.ts::routeAlert returns null when no route is registered |
+| 5 | metrics.test.ts::renderPrometheusText emits HELP, TYPE, and the value lines (the function is pure) |
+
+### 22.5 Out of scope
+
+* A Prometheus remote-write adapter.
+* A SLO sample persistence layer.
+* A cross-service tracing layer.
+* A PagerDuty / Slack adapter. The alert router returns the
+  routing decision; the operator is responsible for the actual
+  delivery.
