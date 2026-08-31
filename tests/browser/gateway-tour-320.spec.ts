@@ -75,3 +75,28 @@ test("320px gateway tour shows expired evidence", async ({ page }) => {
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
   await expect(page.getByText("Nothing is sent", { exact: false }).first()).toBeVisible();
 });
+
+test("320px gateway tour shows unresolved recovery", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Withdrawal states" }).click();
+
+  const next = page.getByRole("button", { name: "Next state" });
+  const observed = withdrawalTourById("unresolved-observed");
+  const restored = withdrawalTourById("input-restored");
+  expect(observed).toBeTruthy();
+  expect(restored).toBeTruthy();
+  if (!observed || !restored) return;
+
+  for (const step of [observed, restored]) {
+    for (let i = 0; i < WITHDRAWAL_TOUR.length; i += 1) {
+      if (await page.getByText(step.title, { exact: true }).isVisible()) break;
+      await expect(next).toBeEnabled();
+      await next.click();
+    }
+    await expect(page.getByText(step.title, { exact: true })).toBeVisible();
+    await expect(page.getByText(step.body)).toBeVisible();
+    await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
+    await expect(page.getByText("Nothing is sent", { exact: false }).first()).toBeVisible();
+  }
+});
