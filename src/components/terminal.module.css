@@ -900,6 +900,10 @@
   min-height: 44px;
 }
 
+#order-book .emptyState {
+  min-height: 44px;
+}
+
 .simpleMain {
   max-width: 720px;
   padding: 28px 20px 48px;
