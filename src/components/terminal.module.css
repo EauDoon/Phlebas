@@ -737,6 +737,8 @@
 
 .primaryAction {
   width: calc(100% - 28px);
+  min-width: 44px;
+  min-height: 44px;
   margin: 0 14px;
   background: var(--buy);
   border-color: rgba(85, 214, 161, 0.56);
@@ -908,7 +910,11 @@
 }
 
 .reviewBlock .textButton {
-  display: block;
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
   margin: 8px 0 0;
 }
 
