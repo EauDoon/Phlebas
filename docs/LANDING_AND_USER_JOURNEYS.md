@@ -122,7 +122,7 @@ Do not render a placeholder GitHub URL. Omit `Source repository` until a real pu
 +-----------------------------------------------------------------------+
 | WHAT EXISTS TODAY | four evidence rows, not promotional cards         |
 +-----------------------------------------------------------------------+
-| pZEC custody boundary | native ZEC > planned custody > planned pZEC    |
+| Native pairs | native ZEC > planned custody > undeployed tZEC    |
 +-----------------------------------------------------------------------+
 | TERMINAL PREVIEW | labeled static or interactive simulation slice     |
 +-----------------------------------------------------------------------+
@@ -160,7 +160,7 @@ Use a 12-column content grid with a maximum content width of 1,440 pixels. The h
 +----------------------------------+
 | What exists today               |
 +----------------------------------+
-| pZEC custody boundary           |
+| Native pairs                    |
 +----------------------------------+
 | Terminal preview                |
 +----------------------------------+
@@ -235,24 +235,24 @@ Use four horizontal evidence rows:
 
 1. `Order book preview`: Price-time ordering, illustrative depth, and preview-only order validation.
 2. `LP math preview`: Constant-product calculations for two fixed pool fixtures, with no deposits and no return projection.
-3. `Gateway design`: A transparent native ZEC to pZEC state model, with no address generation, custody, mint, or redemption.
+3. `Gateway design`: A transparent native ZEC to tZEC state model, with no address generation, custody, mint, or redemption.
 4. `Published boundary`: Architecture, custody assumptions, launch gates, and failure handling are readable before any product action.
 
-### pZEC boundary
+### Native pairs boundary
 
-Section ID: `pzec`
+Section ID: `pairs`
 
 Eyebrow:
 
-> The custody boundary
+> Native assets
 
 Heading:
 
-> pZEC would be a custody-backed receipt, not native ZEC.
+> Native ZEC against native USDC and USDT.
 
 Body:
 
-> The candidate gateway would accept eligible transparent native ZEC and issue the same integer amount of 8-decimal pZEC on Arbitrum. A custody operator would control the native reserve and honor approved redemptions. Smart-contract self-custody after minting would not remove that reserve dependency.
+> The simulation now labels settlement as ZEC-USDC and ZEC-USDT. Native labels are simulation names, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview. The undeployed 8-decimal receipt symbol is `tZEC`. ADR 0001 historically named that custody-backed claim `pZEC`; that name is not the current listed form.
 
 Flow labels:
 
@@ -261,14 +261,14 @@ Transparent native ZEC
         >
 Planned custody and screening
         >
-Planned pZEC mint on Arbitrum
+Planned tZEC mint on Arbitrum
         >
 Order book or fixed LP pool
 ```
 
 Boundary disclosure:
 
-> No shielded deposit or withdrawal is planned for v1. Transparent Zcash and pZEC activity may be publicly linkable.
+> No shielded deposit or withdrawal is planned for v1. Transparent Zcash and tZEC activity may be publicly linkable.
 
 Source link:
 
@@ -308,10 +308,10 @@ Tabs and descriptions:
 
 | Tab | Description | Action |
 | --- | --- | --- |
-| Trader | Preview pZEC spot order entry and settlement disclosures. | `Preview trading` |
+| Trader | Preview ZEC spot order entry and settlement disclosures. | `Preview trading` |
 | LP | Inspect fixed-pair pool math and LP risks without depositing assets. | `Preview liquidity` |
-| Deposit | See how eligible transparent native ZEC could become pZEC. | `Preview deposit states` |
-| Withdrawal | See how a pZEC burn could create a transparent native ZEC payout claim. | `Preview withdrawal states` |
+| Deposit | See how eligible transparent native ZEC could enter a deposit tour. | `Preview deposit states` |
+| Withdrawal | See how a burn could create a transparent native ZEC payout claim. | `Preview withdrawal states` |
 
 Tabs use manual activation for keyboard users. Arrow keys move focus, and Enter or Space selects. Without JavaScript, render all four descriptions in order with direct links.
 
@@ -444,7 +444,7 @@ For LP and gateway views, show the action model before the risk explanation, the
 6. The visitor enters preview values. These values remain local to the component and are never sent to analytics, logs, URLs, or storage.
 7. Inline validation rejects empty, nonnumeric, zero, negative, or unsafe numeric values.
 8. `Preview buy order` or `Preview sell order` opens a review sheet.
-9. The review sheet repeats side, order type, pZEC amount, quote asset, illustrative price or worst price, illustrative notional, fee model, settlement pair, and pZEC custody dependency.
+9. The review sheet repeats side, order type, ZEC amount, quote asset, illustrative price or worst price, illustrative notional, fee model, settlement pair, and ZEC custody dependency.
 10. `Complete preview` closes with the result: `Order preview complete. Nothing was signed or submitted.`
 11. Actions are `Edit preview` and `Return to market`.
 
@@ -462,7 +462,7 @@ The future production path may replace `Complete preview` with local wallet sign
 2. The view defaults to the `ZEC / USDC` pool. The `ZEC / USDT` pool is a listed native pair, not a later listing gate.
 3. The visitor enters a preview ZEC amount. The paired fixture amount is calculated locally.
 4. The panel shows pool ratio, fixed simulation fee, estimated share, and price impact. It does not show APY, APR, projected earnings, historical returns, rewards, or a dollar-profit estimate.
-5. Before the action, the interface repeats pZEC custody risk, stablecoin risk, smart-contract risk, impermanent loss, toxic flow, and withdrawal limits.
+5. Before the action, the interface repeats ZEC custody risk, stablecoin risk, smart-contract risk, impermanent loss, toxic flow, and withdrawal limits.
 6. `Preview LP position` opens a review sheet with both fixture amounts and the same risks.
 7. `Complete preview` closes with: `LP preview complete. No assets were approved or deposited.`
 
@@ -479,8 +479,8 @@ A future release may let a wallet approve and add assets directly to an approved
 The entry action is `Preview deposit states`, not `Deposit ZEC`.
 
 1. The visitor opens Gateway and selects Deposit.
-2. The page states: `A production gateway would accept eligible transparent native ZEC and issue pZEC. No address is generated in this simulation.`
-3. The page repeats that pZEC would be custody-backed, transparent activity may be publicly linkable, and shielded deposits are not supported.
+2. The page states: `A production gateway would accept eligible transparent native ZEC and issue tZEC. No address is generated in this simulation.`
+3. The page repeats that tZEC would be custody-backed, transparent activity may be publicly linkable, and shielded deposits are not supported.
 4. The visitor selects `Walk through states`.
 5. A deterministic state tour displays Eligibility, Address request, Observed, Screening, Confirming, Mint queued, and Complete.
 6. The Address request state shows a neutral placeholder panel with `No address generated in simulation`. It must not display an address-like fixture, QR code, copy control, URI, or scannable data.
@@ -498,7 +498,7 @@ Eligibility
   > Screening
   > Confirming
   > Mint queued
-  > pZEC delivered
+  > tZEC delivered
 ```
 
 Future state requirements:
@@ -506,13 +506,13 @@ Future state requirements:
 | State | Required UI | Allowed action |
 | --- | --- | --- |
 | Eligibility | Country and service result from the separate compliance service | Continue or exit |
-| Address request | pZEC destination, custody disclosure, and transparent-only warning | Request deposit intent |
+| Address request | tZEC destination, custody disclosure, and transparent-only warning | Request deposit intent |
 | Address ready | One-time TEX address, QR code, expiry, minimum, limits, and exact network | Copy or show QR |
 | Deposit observed | Native amount, transaction reference, block, and provisional label | View explorer if approved |
 | Screening | `Checks in progress` with no promise or countdown | Wait or contact support after threshold |
 | Confirming | Current count, required threshold, and reorganization warning | Wait |
-| Mint queued | Confirmed amount, pZEC destination, and processing status | Wait |
-| pZEC delivered | pZEC amount, mint transaction, reserve record link, and custody reminder | Trade, provide liquidity, or leave |
+| Mint queued | Confirmed amount, tZEC destination, and processing status | Wait |
+| tZEC delivered | tZEC amount, mint transaction, reserve record link, and custody reminder | Trade, provide liquidity, or leave |
 
 The production address service, screening, deposit observer, reserve ledger, and mint controller are separate regulated services. They do not run in Vercel. The Vercel UI may display a short-lived response after the user is approved, but it must not derive addresses, import spend keys, decide eligibility, screen funds, authorize minting, or persist the custody record.
 
@@ -523,7 +523,7 @@ The production address service, screening, deposit observer, reserve ledger, and
 The entry action is `Preview withdrawal states`, not `Withdraw ZEC`.
 
 1. The visitor opens Gateway and selects Withdrawal.
-2. The page states: `A production withdrawal would burn pZEC and create a claim for transparent native ZEC. No pZEC can be burned here.`
+2. The page states: `A production withdrawal would burn tZEC and create a claim for transparent native ZEC. No tZEC can be burned here.`
 3. The interface shows a fixed, clearly labeled example summary. It does not accept or display a real Zcash address.
 4. The visitor selects `Walk through states`.
 5. A deterministic state tour displays title-case labels for the PRODUCT_SPEC 9.3 happy path: Requested, Screened, Burn submitted, Burn finalized, Payable, Transaction prepared, Signed, Broadcast, Mined, Confirmed.
@@ -533,7 +533,7 @@ Do not render an address input, paste target, QR scanner, wallet connector, or t
 
 ### Production-intent state machine
 
-Canonical names are [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) section 9.3. The tour uses title-case labels of those names. Signing the pZEC burn is the last action of `screened`, not a separate machine state.
+Canonical names are [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) section 9.3. The tour uses title-case labels of those names. Signing the tZEC burn is the last action of `screened`, not a separate machine state.
 
 ```text
 requested -> screened -> burn submitted -> burn finalized -> payable
@@ -545,8 +545,8 @@ Future state requirements:
 
 | State | Required UI | Allowed action |
 | --- | --- | --- |
-| requested | pZEC amount, transparent native ZEC destination, network fee, service fee, net output, limits, and custody terms | Review request |
-| screened | Eligibility result, exact pZEC burn, destination, fees, and irreversible consequences | Wait, edit before burn, sign locally, or exit |
+| requested | tZEC amount, transparent native ZEC destination, network fee, service fee, net output, limits, and custody terms | Review request |
+| screened | Eligibility result, exact tZEC burn, destination, fees, and irreversible consequences | Wait, edit before burn, sign locally, or exit |
 | burn submitted | Unfinalized burn on Arbitrum | Wait |
 | burn finalized | Finality status and payout claim reference | Wait |
 | payable | Native payout claim exists; no signed Zcash transaction yet | Wait |
@@ -554,10 +554,10 @@ Future state requirements:
 | signed | Custody signer status without signer details | Wait |
 | broadcast | Native transaction reference and transparent network warning | View explorer if approved |
 | mined | Included in a Zcash block; close threshold not yet met | Wait |
-| confirmed | Gross pZEC, fees, net native ZEC, confirmations, and completion time | Close |
+| confirmed | Gross tZEC, fees, net native ZEC, confirmations, and completion time | Close |
 | unresolved | Committed transaction is invalid, stale, conflicted, or reorganized | Wait for observation or restoration |
 
-Every finalized pZEC burn must end in one transparent native ZEC payout or an approved refund outcome under the custody ledger. The Vercel UI may collect and transmit a future destination to the regulated backend after launch approval. It must not store the destination, hold pZEC, create the payout, sign the Zcash transaction, or control the withdrawal queue.
+Every finalized tZEC burn must end in one transparent native ZEC payout or an approved refund outcome under the custody ledger. The Vercel UI may collect and transmit a future destination to the regulated backend after launch approval. It must not store the destination, hold tZEC, create the payout, sign the Zcash transaction, or control the withdrawal queue.
 
 ## Blocked, review, reorganization, and maintenance states
 
@@ -617,7 +617,7 @@ Allowed information is the public transaction reference, amount, observed time, 
 
 Before burn:
 
-> Withdrawal review is open. No pZEC has been burned.
+> Withdrawal review is open. No tZEC has been burned.
 
 After a finalized burn:
 
@@ -633,7 +633,7 @@ Title:
 
 Body:
 
-> The deposit is provisional again because its prior block is no longer in the accepted chain. No pZEC will be minted until the deposit is included and reaches the required confirmation threshold.
+> The deposit is provisional again because its prior block is no longer in the accepted chain. No tZEC will be minted until the deposit is included and reaches the required confirmation threshold.
 
 Show the last accepted block height and confirmation status only in a production-approved interface. Do not estimate a completion time.
 
@@ -712,11 +712,11 @@ Allowed events:
 | Event | Allowed properties |
 | --- | --- |
 | `surface_view` | `surface`: `landing` or `preview`; `viewport_band`: `small`, `medium`, or `large`; `release_id` |
-| `landing_action` | `action_id`: `enter_simulation`, `understand_pzec`, `open_status`, `open_terminal`, or `read_launch_gates`; `release_id` |
+| `landing_action` | `action_id`: `enter_simulation`, `understand_pairs`, `open_status`, `open_terminal`, or `read_launch_gates`; `release_id` |
 | `education_step` | `step`: `1`, `2`, or `3`; `action`: `view`, `continue`, `back`, or `close`; `release_id` |
 | `preview_view` | `view`: `trade`, `liquidity`, `gateway`, or `architecture`; `release_id` |
 | `simulation_action` | `action_id`: `order_preview`, `lp_preview`, `deposit_state_tour`, or `withdrawal_state_tour`; `result`: `opened`, `validation_error`, or `completed`; `release_id` |
-| `disclosure_open` | `disclosure_id`: `simulation`, `pzec`, `lp_risk`, `gateway_risk`, or `mainnet_gate`; `release_id` |
+| `disclosure_open` | `disclosure_id`: `simulation`, `pairs`, `lp_risk`, `gateway_risk`, or `mainnet_gate`; `release_id` |
 | `state_demo_view` | `state_class`: `blocked`, `review`, `reorg`, `maintenance`, `stale`, or `unavailable`; `release_id` |
 
 Forbidden event fields and capture sources:
@@ -766,7 +766,7 @@ PR 1 creates the landing page and preserves the current simulation behind `/trad
 7. Given a keyboard-only visitor, then skip link, header, menu, calls to action, tabs, disclosures, and footer links are reachable in logical order with visible focus.
 8. Given a 320-pixel viewport, then there is no page-level horizontal scrolling and every disclosure and primary action remains available.
 9. Given reduced motion is enabled, then all landing content is visible without animation and no information is lost.
-10. Given JavaScript is unavailable, then core copy, pZEC disclosure, status ledger, journey descriptions, and direct navigation remain readable.
+10. Given JavaScript is unavailable, then core copy, tZEC disclosure, status ledger, journey descriptions, and direct navigation remain readable.
 11. Given source inspection, then no wallet library, chain client, live API, analytics service, remote font, new package, custody secret, or identity integration was added for the landing page.
 
 ## PR 2 acceptance assertions
