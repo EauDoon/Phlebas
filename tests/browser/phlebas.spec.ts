@@ -373,6 +373,20 @@ test("leaving Architecture for Trade drops demo=incidents and return restores it
   await expect(page.getByText("Labeled demonstration, not a live outage.")).toBeVisible();
 });
 
+test("leaving Architecture for Liquidity drops demo=incidents and return restores it", async ({ page }) => {
+  await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
+  await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Primary navigation" });
+  await nav.getByRole("button", { name: "Liquidity" }).click();
+  await expect(page).toHaveURL(/\/liquidity/);
+  await expect(page).not.toHaveURL(/demo=incidents/);
+  await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
+  await nav.getByRole("button", { name: "Architecture" }).click();
+  await expect(page).toHaveURL(/view=architecture/);
+  await expect(page).toHaveURL(/demo=incidents/);
+  await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
+});
+
 test("status Architecture link keeps the demonstration label", async ({ page }) => {
   await page.goto("/status", { waitUntil: "networkidle" });
   await page.getByRole("link", { name: "Architecture incident demonstrations" }).click();
