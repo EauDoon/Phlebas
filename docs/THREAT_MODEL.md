@@ -659,3 +659,87 @@ Stop conditions that must halt the leg and surface to the user:
 * A live wallet integration. The signing surface ships only with the
   wallet adapter in a later PR.
 
+
+## 20. Atomic-swap observer and watchtower surface
+
+The observer service watches the ConditionalLock contract and a set
+of P2SH lock addresses, reduces the events to coordinator
+transitions, persists the snapshot to disk, and surfaces the
+watchtower's alerts over HTTP. The service is the second half of
+the read-only surface that PR 1 (EVM lock) and PR 3 (ZEC leg) leave
+open. The signing surface lives in the wallet adapter; the
+observer never holds a key and never signs a transaction.
+
+### 20.1 Trust boundary
+
+The observer trusts the underlying chain clients (Arbitrum RPC and
+Zebrad / Zcashd) to deliver the correct logs and outpoints. The
+observer does not trust the on-disk snapshot: the bootstrap path
+detects a missing-snapshot-after-init incident and refuses to start
+fresh. The watchtower does not trust the matcher; it derives every
+alert from the coordinator's persisted state and a clock input.
+
+### 20.2 Threat matrix
+
+| Adversary | Goal | Required control |
+| --- | --- | --- |
+| EVM RPC operator | Drop a Deposited event to keep the buyer locked | The poller resyncs from the configured fromBlock; the watchtower surfaces a missing-terminal-event after the deadline |
+| ZEC chain operator | Drop a funded outpoint to keep the seller locked | The poller polls every address; the watchtower surfaces a missing-terminal-event |
+| Snapshot attacker | Replace the on-disk snapshot to revert the coordinator | The bootstrap writes a marker file on first success and refuses to start fresh if the snapshot is missing; the marker is best-effort and the operator is the last line of defense |
+| Reorg adversary | Reverse a claim or refund after the deadline | The watchtower surfaces a reorg-depth-exceeded alert and freezes the fill until confirmation depth clears |
+| Clock skew | Apply a transition with a wrong timestamp | The poller takes the timestamp from the event record and the snapshot stores it; the watchtower's deadline-breach alert triggers if a leg is still funded past the deadline |
+| Untrusted input | Pass a malformed log or outpoint | The reducers reject non-hex32 fill ids; the persistence layer rejects unparseable snapshots; the bootstrap surfaces parse errors as the error state |
+
+### 20.3 Invariants and stop conditions
+
+The observer surface must satisfy the following invariants. A
+violation moves the fill to a disputed state and triggers a watcher
+alert.
+
+1. The coordinator state round-trips through the JSON snapshot
+   without loss: every fill's leg state, deadlines, and disputed
+   flag survive a write/read cycle.
+2. The cursor monotonically advances on every successful transition
+   and stays still on every rejected transition.
+3. The watchtower's deadline-breach alert never fires for a fill
+   that is already settled.
+4. The bootstrap distinguishes a fresh start (no marker, no
+   snapshot) from a missing-after-init (marker present, snapshot
+   absent) and refuses to start fresh in the second case.
+5. The poller applies EVM and ZEC transitions in non-decreasing
+   observed-at order.
+6. The poller never holds a key, never signs a transaction, and
+   never mutates chain state.
+
+Stop conditions that must halt the leg and surface to the operator:
+
+* the snapshot file is missing after the initialization marker is
+  present;
+* the snapshot file does not parse;
+* the cursor regresses between two consecutive polls;
+* the watchtower emits a missing-terminal-event;
+* the watchtower emits a reorg-depth-exceeded alert;
+* the watchtower emits a deadline-breach alert past the configured
+  buffer.
+
+### 20.4 Test coverage
+
+| Invariant | Test |
+| --- | --- |
+| 1 | coordinator-snapshot.test.ts::snapshotFromJSON round-trips a multi-fill coordinator |
+| 2 | tomic-coordinator.test.ts::applyTransition increments the cursor on each transition |
+| 3 | watchtower.test.ts::detectAlerts does not flag a fill that is already settled |
+| 4 | server.test.ts::bootstrapService returns missing when the marker is set but the snapshot is gone |
+| 5 | evm-event-reducer.test.ts::reduceEVMEvents sorts by observed timestamp then fill id |
+| 6 | poller.test.ts::pollOnceInto applies EVM transitions and persists the snapshot (no key surface) |
+
+### 20.5 Out of scope for the observer
+
+* Live wallet signing. The signing surface ships only with the
+  wallet adapter in a later PR.
+* Transaction submission. The poller never submits an EVM or ZEC
+  transaction.
+* Shielded ZEC. The observer only watches transparent P2SH
+  addresses.
+* Custodial or wrapped representations of ZEC. The observer is
+  read-only on the chains.
