@@ -96,7 +96,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className={styles.pzecSection} id="pzec" aria-labelledby="pzec-title">
+        <section className={styles.pzecSection} id="pzec" tabIndex={-1} aria-labelledby="pzec-title">
           <div className={styles.pzecCopy}>
             <span className={styles.eyebrow}>{LANDING_PZEC.eyebrow}</span>
             <h2 id="pzec-title">{LANDING_PZEC.heading}</h2>

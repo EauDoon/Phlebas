@@ -46,11 +46,13 @@ test("pZEC copy is a custody-backed receipt, not native ZEC", () => {
   assert.doesNotMatch(LANDING_PZEC.heading, /is native ZEC/);
 });
 
-test("landing skip links reach journeys, evidence, and the terminal preview", () => {
+test("landing skip links follow on-page order through pZEC", () => {
   assert.deepEqual(LANDING_SKIP_LINKS.map((link) => link.href), [
     "#main-content",
-    "#journeys",
+    "#markets",
     "#exists-today",
+    "#pzec",
     "#terminal-preview",
+    "#journeys",
   ]);
 });
