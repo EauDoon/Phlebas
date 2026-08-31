@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after first-session education, country-block demo, deposit tour, legal/security pages, LP review, incident copy, and session expiry.
+Last updated: 31-08-2026 after landing journey tabs, evidence rows, terminal preview, mainnet gates, blotter expiry, and browser checks.
 
 ## Branch
 
@@ -66,7 +66,7 @@ Last updated: 31-08-2026 after first-session education, country-block demo, depo
 - Empty feed shows empty depth. Loading feed disables review.
 - `/api/status` never copies a remote operator URL. `intentCap` is 64 only when the gateway URL is loopback HTTP. `sequenceRoot` stays null without a fetched loopback matcher.
 - Blotter tables scroll inside the panel so the settlement column cannot blow the 320px page.
-- LP panel previews integer IL versus holding the same deposited assets at 4x and 1/4x pZEC/quote, plus session IL after mint. Not a return projection.
+- LP panel previews integer IL versus hold at 4x and 1/4x pZEC/quote, plus session IL after mint. Not a return projection.
 - Gateway health publishes `issued` and `cap` from the shared `GATEWAY_DEFAULT_MAX_INTENTS` (64).
 - Ticket and LP copy bind to version-1 fee constants (5 / 15 / 30 bps, max 30).
 - Public `/status` shows intent cap `unset` when no loopback gateway URL is configured.
@@ -74,24 +74,32 @@ Last updated: 31-08-2026 after first-session education, country-block demo, depo
 - Session ticket expiry is unix time or 0 for none. It binds the SHA-256 canonical encoding and the keccak typed order.
 - Playwright covers market-IOC worst price, expiry on review, IL versus hold, and `/status` intent-cap `unset`.
 - Ticket shows the next session nonce beside epoch. Invalid expiry keeps review closed.
-- First-session education dialog on `/trade` and `/liquidity` (`phlebas.previewEducationVersion = 2026-08-30-1`). Education, not consent. Force with `?education=1`.
-- Country-blocked state demonstration via allowlisted `?access=blocked`. Never infers location.
+- First-session education dialog on `/trade` and `/liquidity` (`phlebas.previewEducationVersion = 2026-08-30-1`). Education, not consent. Force with `?education=1`. Escape dismisses it. 320px keeps the dialog and Continue at 44px.
+- Country-blocked state demonstration via allowlisted `?access=blocked` on `/trade` and `/liquidity`. Never infers location.
 - Deposit state tour: Eligibility through Complete. Address request never shows a receivable address.
 - `/legal` and `/security` simulation pages. Landing and terminal footers: Architecture, Legal, Security, Status. No GitHub URL.
 - LP mint and swap use review-and-confirm. Burn stays available during a trading pause.
-- Architecture labeled incident demonstrations: blocked, review, reorg, planned and unplanned maintenance.
+- Architecture labeled incident demonstrations: blocked, review, reorg, planned and unplanned maintenance. Incident select is a 44px target.
 - Ticket keyboard: G/I/F time in force, Escape back from review. Shortcuts ignore an open dialog.
+- Landing journey chooser: four manual tabs (Trader, LP, Deposit, Withdrawal). Arrow keys move focus; Enter/Space selects. Without JavaScript, all four descriptions remain. Header Liquidity selects LP after hydration.
+- Landing evidence rows: order book, LP math, gateway design, published boundary.
+- Landing terminal preview (`#terminal-preview`): labeled Simulation, illustrative ZEC/USDC depth and a non-submitting ticket slice. Header Markets points here. No wallet, fill, or payable address.
+- Mainnet gates: six evidence rows, all `Not cleared`. Action is Read the launch gates.
+- pZEC section cites ZIP 320 and states no shielded deposit or withdrawal for v1.
+- `/status` links to legal, security, architecture, and launch gates.
+- Session blotter log line includes expiry when a ticket is confirmed.
+- Checks this tree: lint, typecheck, 198 unit tests, Foundry, secret scan, production build, Playwright 56/56.
 
 ## Next
 
-- Landing journey chooser as four manually activated tabs (Trader, LP, Deposit, Withdrawal)
-- Playwright: education Escape dismiss, ticket G/I/F, and country-block from `/liquidity`
-- Status page cross-links to `/legal` and `/security`
-- Touch-target pass on education dialog and incident select at 320px
+- Align landing hero heading and current-system ledger with LANDING_AND_USER_JOURNEYS copy (wallet row still says Optional Sepolia)
+- Align pZEC heading to the spec custody-backed receipt line
+- Playwright: Menu → Markets at 320px; incident select overflow at 320px
+- Blotter tablist keyboard (arrow focus, Enter/Space select)
+- Landing skip-link then sequential journey/evidence/preview landmarks
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Session blotter log line includes expiry when a ticket is confirmed
 
 ## Blockers
 
