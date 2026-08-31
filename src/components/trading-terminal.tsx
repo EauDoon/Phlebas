@@ -344,7 +344,7 @@ export function TradingTerminal({
               </dl>
               {!statsSurface.showFixtures || feedStatus === "stale" ? (
                 <p className={styles.inlineNotice} role="status">
-                  {statsSurface.heading}. {statsSurface.message}
+                  {feedWithheldCopy(feedStatus, market.settlementPair)}
                 </p>
               ) : null}
             </section>
