@@ -141,11 +141,11 @@ contract PhlebasTest is TestBase {
         assertGt(shares, 0);
         uint256 out = router.swapExactIn(address(zec), address(usdc), 1e8, 1, address(this), block.timestamp + 60);
         assertGt(out, 0);
-        (uint256 reservePzec, uint256 reserveQuote) = pair.getReserves();
-        assertGt(reservePzec * reserveQuote, 10e8 * 5_291e6);
+        (uint256 reserveZec, uint256 reserveQuote) = pair.getReserves();
+        assertGt(reserveZec * reserveQuote, 10e8 * 5_291e6);
         pair.approve(address(router), shares / 2);
-        (uint256 backPzec,) = router.removeLiquidity(address(usdc), shares / 2, 1, 1, address(this), block.timestamp + 60);
-        assertGt(backPzec, 0);
+        (uint256 backZec,) = router.removeLiquidity(address(usdc), shares / 2, 1, 1, address(this), block.timestamp + 60);
+        assertGt(backZec, 0);
         assertEq(zec.balanceOf(address(router)), 0);
         assertEq(usdc.balanceOf(address(router)), 0);
     }
