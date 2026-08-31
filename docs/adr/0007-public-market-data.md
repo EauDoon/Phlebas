@@ -1,5 +1,11 @@
 # ADR 0007: Public market data over the matcher operator
 
+> **Note:** This ADR is the canonical record. The implementation
+> notes in [0007-impl-notes.md](0007-impl-notes.md) record the
+> deviations and follow-ups. The SLO in
+> [operations/market-data-slo.md](../operations/market-data-slo.md)
+> is the public contract.
+
 Date: 01-09-2026
 Status: Accepted for key-independent development
 Production status: Not approved
@@ -26,7 +32,7 @@ the operator state without leaking the per-order detail.
 
 ## Decision
 
-The new public surface is four HTTP endpoints on the matcher
+The new public surface is six HTTP endpoints on the matcher
 service, each backed by a pure function over the operator state:
 
 1. `GET /ticker` returns a 24-hour ticker: best bid, best ask,
@@ -39,19 +45,30 @@ service, each backed by a pure function over the operator state:
    for bids and asks. The default is 20; the maximum is 200.
 4. `GET /markets` returns the configured base asset, the list of
    supported quote assets, and the current lastTicks.
+5. `GET /snapshot?depth=N&trades=M` returns a combined snapshot
+   of the ticker, depth, and trades for a single round-trip
+   refresh. The default depth is 20 (max 200) and the default
+   trades is 50 (max 1000).
+6. `GET /version` returns the service name and version.
 
 The new endpoints are read-only. They never accept input other
-than the `limit` and `levels` query parameters, both of which are
-validated as non-negative integers within a fixed bound. The
-endpoints never reach out to the chain clients; they derive every
-field from the in-memory operator state. The endpoints never sign
-a transaction.
+than the `limit`, `levels`, `depth`, and `trades` query
+parameters, all of which are validated as non-negative integers
+within a fixed bound. The endpoints never reach out to the chain
+clients; they derive every field from the in-memory operator
+state. The endpoints never sign a transaction.
 
 The pure functions live in `src/lib/market-data.ts` alongside the
 existing paper-trading fixtures. The fixtures are a no-value
 simulation; the new pure functions operate on the live operator
 state. The two surfaces never share data; the fixtures stay
-frozen until a real Sepolia deployment is recorded.
+frozen until a real Sepolia deployment is recorded. The formatters
+in `src/lib/market-data-format.ts` convert the tick-and-atom
+representation into human-readable strings. The combined snapshot
+in `src/lib/market-data-snapshot.ts` joins the three per-endpoint
+snapshots into a single response. The rate limiter in
+`src/lib/rate-limit.ts` is the building block for the per-IP rate
+limit that the HTTP layer applies.
 
 The matcher service is a long-lived process. The endpoints read
 the operator state at request time. The endpoint latency is
