@@ -52,3 +52,14 @@ test("Trade and Liquidity drop demo=incidents and Architecture restores it", () 
     "/trade?market=ZEC%2FUSDT&demo=incidents&view=architecture",
   );
 });
+
+test("ZEC gateway omits demo=incidents and Architecture restores it", () => {
+  assert.equal(
+    terminalUrl({ view: "bridge", market: "ZEC/USDT", demo: "incidents" }),
+    "/trade?market=ZEC%2FUSDT&view=bridge",
+  );
+  assert.equal(
+    terminalUrl({ view: "architecture", market: "ZEC/USDT", demo: "incidents" }),
+    "/trade?market=ZEC%2FUSDT&demo=incidents&view=architecture",
+  );
+});
