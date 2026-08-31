@@ -21,10 +21,17 @@ export async function POST(request: Request) {
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
+  if (request.headers.get("content-type")?.split(";", 1)[0] !== "application/json") {
+    return Response.json({ ok: false, reason: "content-type-must-be-application-json" }, { status: 415 });
+  }
+  const body = await request.text();
+  if (new TextEncoder().encode(body).length > 64 * 1024) {
+    return Response.json({ ok: false, reason: "request-body-too-large" }, { status: 413 });
+  }
   const response = await fetch(new URL("/orders", MATCHER_URL), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: await request.text(),
+    body,
   });
   return new Response(await response.text(), {
     status: response.status,

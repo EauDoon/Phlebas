@@ -12,25 +12,35 @@ import {Settlement} from "../src/Settlement.sol";
 /// @dev Foundry writes `broadcast/` on --broadcast. Do not flip infra/testnet/arbitrum-sepolia.json
 ///      `deployed` to true from this script. Use `node scripts/record-sepolia-deploy.mjs` after a real tx.
 contract DeployTestnet is ScriptBase {
+    error InvalidRoles();
+
     function run() external returns (address settlement, address pzec, address factory, address router) {
         address deployer = vm.envAddress("PHLEBAS_DEPLOYER");
+        address minter = vm.envAddress("PHLEBAS_MINTER");
+        address pauser = vm.envAddress("PHLEBAS_PAUSER");
+        address governor = vm.envAddress("PHLEBAS_GOVERNOR");
+        address feeRecipient = vm.envAddress("PHLEBAS_FEE_RECIPIENT");
+        _assertDistinctRoles([deployer, minter, pauser, governor, feeRecipient]);
         vm.startBroadcast(deployer);
-        PZec pzecToken = new PZec(deployer, deployer, deployer);
+        PZec pzecToken = new PZec(minter, pauser, governor);
         QuoteToken usdc = new QuoteToken("Phlebas Testnet USDC", "tUSDC");
         QuoteToken usdt0 = new QuoteToken("Phlebas Testnet USDT0", "tUSDT0");
         Factory factoryContract = new Factory(address(pzecToken), address(usdc), address(usdt0));
         factoryContract.createPair(address(usdc));
         factoryContract.createPair(address(usdt0));
-        Router routerContract = new Router(factoryContract, deployer, deployer);
-        Settlement settlementContract = new Settlement(
-            address(pzecToken),
-            address(usdc),
-            address(usdt0),
-            deployer,
-            deployer,
-            deployer
-        );
+        Router routerContract = new Router(factoryContract, pauser, governor);
+        Settlement settlementContract =
+            new Settlement(address(pzecToken), address(usdc), address(usdt0), feeRecipient, pauser, governor);
         vm.stopBroadcast();
         return (address(settlementContract), address(pzecToken), address(factoryContract), address(routerContract));
+    }
+
+    function _assertDistinctRoles(address[5] memory roles) private pure {
+        for (uint256 i; i < roles.length; i++) {
+            if (roles[i] == address(0)) revert InvalidRoles();
+            for (uint256 j = i + 1; j < roles.length; j++) {
+                if (roles[i] == roles[j]) revert InvalidRoles();
+            }
+        }
     }
 }

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { once } from "node:events";
+import { mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { hexToBytes } from "../../src/lib/keccak.ts";
 import { encodeTex } from "../../src/lib/tex.ts";
@@ -12,7 +15,9 @@ const TEX = encodeTex(hexToBytes("00112233445566778899aabbccddeeff00112233"));
 const TXID = "33".repeat(32);
 
 test("observer HTTP stub attests a textest outpoint and refuses a second mint", async () => {
-  const server = startObserver({ host: "127.0.0.1", port: 0 });
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-observer-"));
+  const persistPath = join(directory, "state.json");
+  const server = startObserver({ host: "127.0.0.1", port: 0, persistPath });
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
   try {
@@ -30,7 +35,18 @@ test("observer HTTP stub attests a textest outpoint and refuses a second mint", 
       blockHeight: 50,
       blockHash: "44".repeat(32),
       tipHeight: 59,
+      transparentInputsOnly: true,
+      transparentOutputsOnly: true,
+      shieldedBundle: false,
     };
+    const incomplete = await fetch(`http://127.0.0.1:${port}/attest`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...payload, shieldedBundle: undefined }),
+    });
+    assert.equal(incomplete.status, 400);
+    assert.match(await incomplete.text(), /shieldedBundle-must-be-a-boolean/);
+
     const first = await fetch(`http://127.0.0.1:${port}/attest`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -54,5 +70,34 @@ test("observer HTTP stub attests a textest outpoint and refuses a second mint", 
   } finally {
     server.close();
     await once(server, "close");
+  }
+
+  const restarted = startObserver({ host: "127.0.0.1", port: 0, persistPath });
+  await once(restarted, "listening");
+  const restartedPort = (restarted.address() as AddressInfo).port;
+  try {
+    const response = await fetch(`http://127.0.0.1:${restartedPort}/attest`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        txid: TXID,
+        vout: 1,
+        amountZatoshis: "100000000",
+        tex: TEX,
+        blockHeight: 50,
+        blockHash: "44".repeat(32),
+        tipHeight: 59,
+        transparentInputsOnly: true,
+        transparentOutputsOnly: true,
+        shieldedBundle: false,
+      }),
+    });
+    const body = await response.json() as { status: string; reason: string };
+    assert.equal(body.status, "rejected");
+    assert.match(body.reason, /already authorized/);
+  } finally {
+    restarted.close();
+    await once(restarted, "close");
+    await rm(directory, { recursive: true, force: true });
   }
 });

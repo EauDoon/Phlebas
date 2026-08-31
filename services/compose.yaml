@@ -40,7 +40,10 @@ services:
       PHLEBAS_PORT: "8789"
     ports:
       - "127.0.0.1:8789:8789"
+    volumes:
+      - observer-data:/app/services/observer/.data
 
 volumes:
   gateway-data:
   matcher-data:
+  observer-data:

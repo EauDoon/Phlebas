@@ -35,4 +35,4 @@ set PHLEBAS_GATEWAY_URL=http://127.0.0.1:8787
 set PHLEBAS_MATCHER_URL=http://127.0.0.1:8788
 ```
 
-The observer stub does not open a Zebra RPC and does not mint. It accepts textest outpoints, requires 10 confirmations, and authorizes one mint candidate per outpoint.
+The observer stub does not open a Zebra RPC and does not mint. It accepts textest outpoints, requires explicit fully-transparent observations and 10 confirmations, and durably authorizes at most one mint candidate per outpoint. The Compose volume preserves that replay ledger across restarts.

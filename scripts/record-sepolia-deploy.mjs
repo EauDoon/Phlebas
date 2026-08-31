@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
 import { emptyManifest, recordBroadcast } from "../src/lib/sepolia-manifest.ts";
@@ -8,6 +10,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(root, "infra/testnet/arbitrum-sepolia.json");
 const broadcastPath = join(root, "contracts/broadcast/DeployTestnet.s.sol/421614/run-latest.json");
 const markDeployed = process.argv.includes("--mark-deployed");
+const execFileAsync = promisify(execFile);
 
 async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
@@ -23,7 +26,8 @@ try {
   process.exit(1);
 }
 
-const next = recordBroadcast(current, broadcast, { markDeployed });
+const { stdout: commit } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root });
+const next = recordBroadcast(current, broadcast, { markDeployed, commit: commit.trim() });
 await writeFile(manifestPath, `${JSON.stringify(next, null, 2)}\n`);
 console.log(`Wrote ${manifestPath}`);
 console.log(`deployed: ${next.deployed}`);

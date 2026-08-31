@@ -1,4 +1,4 @@
-import { eip712DigestHex, sepoliaDomain, venuesBitmask, type TypedOrder } from "./eip712.ts";
+import { eip712DigestHex, sepoliaDomain, timeInForceCode, venuesBitmask, type TypedOrder } from "./eip712.ts";
 import type { TimeInForce } from "./matcher.ts";
 import { quoteTokenAddress, TESTNET } from "./testnet.ts";
 
@@ -27,6 +27,7 @@ export function typedOrderFromTicket(input: {
     quoteAsset: quoteTokenAddress(input.quote),
     baseAmount: input.sizeAtoms,
     limitPriceTicks: input.priceTicks,
+    timeInForce: timeInForceCode(input.tif),
     nonce: input.nonce,
     accountEpoch: input.accountEpoch,
     expiry: input.expiry ?? 0n,

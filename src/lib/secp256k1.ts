@@ -79,6 +79,7 @@ export function recoverAddress(digestHex: string, signatureHex: string): string 
   const r = bytesToInt(signature.slice(0, 32));
   const s = bytesToInt(signature.slice(32, 64));
   if (r === 0n || r >= N || s === 0n || s >= N) throw new RangeError("Invalid signature r/s");
+  if (s > N / 2n) throw new RangeError("Signature s must be canonical low-s");
 
   let y = sqrt(mod(r * r * r + 7n, P));
   if ((y & 1n) !== BigInt(v - 27)) y = mod(P - y, P);

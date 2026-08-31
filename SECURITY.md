@@ -1,6 +1,6 @@
 # Security Policy
 
-> Status as of 30-08-2026: Phlebas is a simulation-only interface. It is not a deployed exchange, bridge, wallet, order matcher, automated market maker, or custody service. It must not be used with real funds.
+> Status as of 31-08-2026: Phlebas is a no-value simulation with undeployed Sepolia contract sources and optional local testnet services. It is not a deployed exchange, bridge, automated market maker, or custody service. It must not be used with real funds.
 
 ## Supported versions
 
@@ -8,15 +8,14 @@ Phlebas has no production release and no production security support commitment.
 
 | Version | Status |
 | --- | --- |
-| `0.1.x` | Local simulation only |
+| `0.1.x` | Local simulation and no-value testnet development only |
 | Any public preview | Demonstration only, no real assets |
 
-The current repository uses static market data and a local constant-product quote helper. It does not currently contain or operate:
+The current repository uses static market data and includes an optional Sepolia wallet connector, local matcher and testnet TEX issuer, plus undeployed testnet contracts. It does not contain or operate:
 
-- Wallet connections or transaction signing.
-- Smart contracts or contract deployments.
-- A Zcash gateway, reserve, mint, or redemption service.
-- An order intake service, matcher, sequencer, or settlement engine.
+- Any deployed contract or live-funds transaction path.
+- A production Zcash gateway, reserve, mint, or redemption service.
+- A hosted authoritative matcher, sequencer, or settlement submitter.
 - Live Arbitrum, Zcash, USDC, or USDT0 integrations.
 - Custody, attester, governance, deployer, or treasury keys.
 
@@ -56,7 +55,7 @@ The proposed architecture is documented in [docs/THREAT_MODEL.md](docs/THREAT_MO
 - Reserve assets and liabilities must reconcile in zatoshis before minting can proceed.
 - Vercel may host a public interface, but it must never hold custody, attester, governance, or deployer keys.
 
-These are design requirements, not implemented or audited properties.
+The repository exercises parts of these requirements in local code and tests. They are not deployed or audited properties.
 
 ## Release security gates
 

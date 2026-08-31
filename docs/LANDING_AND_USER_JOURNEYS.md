@@ -1,8 +1,8 @@
 # Phlebas Landing and User Journeys
 
-Status: the landing page, terminal shell, local matcher, LP preview, ZIP 321 deposit-shape preview, withdrawal state tour, destination inspector, and architecture explanation are implemented locally as no-value fixtures. Receivable TEX addresses, live wallets, and keccak signatures remain unimplemented.
+Status: the landing page, terminal shell, local matcher, LP preview, withdrawal state tour, destination inspector, optional Sepolia wallet signing, keccak EIP-712, and local testnet TEX issuance are implemented for no-value use. Contracts and services remain undeployed and no live-funds path exists.
 
-Phlebas currently has no wallet connection, contracts, live market data, deposits, withdrawals, orders, stablecoins, pZEC token, custody service, identity system, or matching service. Every value and state in the interface is illustrative. This specification does not authorize mainnet, custody, publication, or financial services.
+Phlebas currently has no live market data, deployed contract, real deposit, withdrawal, order, stablecoin, pZEC, custody, identity, or authoritative matching service. Every value and state in the public interface is illustrative; optional wallet signing and local services use only undeployed or testnet identities. This specification does not authorize mainnet, custody, publication, or financial services.
 
 The user-facing market aliases are `ZEC / USDC` and `ZEC / USDT`, matching the requested markets. Every market ticket, review, and history surface must also state the exact proposed settlement pair, `pZEC / USDC` or `pZEC / USDT0`. Pool labels use the settlement assets. Native `ZEC` refers only to Zcash that would enter or leave the transparent gateway.
 

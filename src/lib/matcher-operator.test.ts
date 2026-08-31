@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { sepoliaDomain, type TypedOrder } from "./eip712.ts";
-import { createMatcherOperator, intakeSignedOrder } from "./matcher-operator.ts";
+import { createMatcherOperator, intakeSignedOrder, type IntakeOrder, type MatcherOperator } from "./matcher-operator.ts";
 
 const MAKER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+const TAKER = "0x0000000000000000000000000000000000000004";
 const ZERO = "0x0000000000000000000000000000000000000000";
 
 function order(overrides: Partial<TypedOrder> = {}): TypedOrder {
@@ -15,6 +16,7 @@ function order(overrides: Partial<TypedOrder> = {}): TypedOrder {
     quoteAsset: "0x0000000000000000000000000000000000000002",
     baseAmount: 100_000_000n,
     limitPriceTicks: 5291n,
+    timeInForce: 0,
     nonce: 1n,
     accountEpoch: 0n,
     expiry: 0n,
@@ -26,12 +28,16 @@ function order(overrides: Partial<TypedOrder> = {}): TypedOrder {
   };
 }
 
+function intake(operator: MatcherOperator, value: IntakeOrder) {
+  return intakeSignedOrder(operator, value, { verify: false });
+}
+
 test("operator sequences before matching and is deterministic", () => {
   const operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);
-  const first = intakeSignedOrder(operator, { ...order(), tif: "GTC", signature: "0x" });
+  const first = intake(operator, { ...order(), tif: "GTC", signature: "0x" });
   assert.equal(first.sequence, 1);
-  assert.equal(first.digest, "eed61ef0af305769d9791ea9cb3a6cf587afa1e8acc3c81108e692e4900c8c1a");
-  const second = intakeSignedOrder(operator, {
+  assert.equal(first.digest, "23cf06d636047955c46b031bd1e5e788d74321da1c19d01ee562b2e194cdc4e9");
+  const second = intake(operator, {
     ...order({ nonce: 2n, side: 1, limitPriceTicks: 5300n }),
     tif: "GTC",
     signature: "0x",
@@ -45,8 +51,8 @@ test("operator sequences before matching and is deterministic", () => {
 test("snapshot restore preserves book, sequence, and recovers stored signatures", async () => {
   const { snapshotOperator, restoreOperator } = await import("./matcher-operator.ts");
   const operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);
-  intakeSignedOrder(operator, { ...order(), tif: "GTC", signature: "0x" });
-  const restored = restoreOperator(snapshotOperator(operator));
+  intake(operator, { ...order(), tif: "GTC", signature: "0x" });
+  const restored = restoreOperator(snapshotOperator(operator), { verify: false });
   assert.equal(restored.sequence, 1);
   assert.equal(restored.book.bids.length, operator.book.bids.length);
   assert.equal(restored.book.lastTicks, operator.book.lastTicks);
@@ -56,8 +62,105 @@ test("snapshot restore preserves book, sequence, and recovers stored signatures"
 test("frozen EIP-712 signature recovers the order maker", async () => {
   const { recoverAddress } = await import("./secp256k1.ts");
   const recovered = recoverAddress(
-    "eed61ef0af305769d9791ea9cb3a6cf587afa1e8acc3c81108e692e4900c8c1a",
-    "0x0fd73c37f4362021fdd1693bdca85f8592eb338a7d62338504ba2cbaee2bb90f26bdec5b2efeb086308bce8a9db936bb754bfafeda2305485b91a3b1c371ee8b1b",
+    "23cf06d636047955c46b031bd1e5e788d74321da1c19d01ee562b2e194cdc4e9",
+    "0x25dda9696a4eed8b907e5b9fcb79f39169284f1c544f992627af993faa4a61e63c69c69b68a6306e970377cdcb9af0bb1dac6cd4f223f2fbba034c06682651091b",
   );
   assert.equal(recovered, MAKER.toLowerCase());
+});
+
+test("operator requires a valid signature unless a unit test explicitly disables it", () => {
+  const operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);
+  assert.throws(() => intakeSignedOrder(operator, { ...order(), tif: "GTC", signature: "0x" }), /signature/i);
+  const receipt = intakeSignedOrder(operator, {
+    ...order(),
+    tif: "GTC",
+    signature: "0x25dda9696a4eed8b907e5b9fcb79f39169284f1c544f992627af993faa4a61e63c69c69b68a6306e970377cdcb9af0bb1dac6cd4f223f2fbba034c06682651091b",
+  });
+  assert.equal(receipt.sequence, 1);
+});
+
+test("rejects duplicates, expired orders, AMM-only orders, and unapproved pairs", () => {
+  const operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n, {
+    baseAsset: "0x0000000000000000000000000000000000000001",
+    quoteAssets: ["0x0000000000000000000000000000000000000002"],
+    now: () => 100n,
+  });
+  const accepted = { ...order(), tif: "GTC" as const, signature: "0x" };
+  intake(operator, accepted);
+  assert.throws(() => intake(operator, accepted), /duplicate-order/);
+  assert.throws(() => intake(operator, { ...accepted, nonce: 2n, expiry: 99n }), /expired-order/);
+  assert.throws(() => intake(operator, { ...accepted, nonce: 3n, allowedVenues: 2 }), /clob-venue/);
+  assert.throws(() => intake(operator, {
+    ...accepted,
+    nonce: 4n,
+    quoteAsset: "0x0000000000000000000000000000000000000003",
+  }), /quote-asset/);
+});
+
+test("rejects invalid time-in-force and fee caps that cannot settle", () => {
+  let operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);
+  assert.throws(
+    () => intake(operator, { ...order(), tif: "DAY" as "GTC", signature: "0x" }),
+    /time-in-force/,
+  );
+  assert.throws(
+    () => intake(operator, { ...order({ maximumFeeBps: 4 }), tif: "GTC", signature: "0x" }),
+    /maker-fee/,
+  );
+
+  operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);
+  intake(operator, { ...order({ side: 1 }), tif: "GTC", signature: "0x" });
+  assert.throws(
+    () => intake(operator, {
+      ...order({ maker: TAKER, recipient: TAKER, nonce: 2n, maximumFeeBps: 14, timeInForce: 1 }),
+      tif: "IOC",
+      signature: "0x",
+    }),
+    /taker-fee/,
+  );
+});
+
+test("prevents a wallet from crossing its own resting order", () => {
+  const operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);
+  intake(operator, { ...order({ side: 1 }), tif: "GTC", signature: "0x" });
+  assert.throws(
+    () => intake(operator, {
+      ...order({ nonce: 2n, timeInForce: 1 }),
+      tif: "IOC",
+      signature: "0x",
+    }),
+    /self-trade/,
+  );
+  assert.equal(operator.book.asks.length, 1);
+});
+
+test("binds the signed time-in-force to matcher behavior", () => {
+  const operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);
+  assert.throws(
+    () => intake(operator, { ...order(), tif: "IOC", signature: "0x" }),
+    /signed-time-in-force/,
+  );
+});
+
+test("rejects multi-maker IOC until atomic batch settlement exists", () => {
+  const operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);
+  intake(operator, { ...order({ side: 1, baseAmount: 50_000_000n }), tif: "GTC", signature: "0x" });
+  intake(operator, {
+    ...order({ maker: TAKER, recipient: TAKER, side: 1, nonce: 2n, baseAmount: 50_000_000n }),
+    tif: "GTC",
+    signature: "0x",
+  });
+  assert.throws(
+    () => intake(operator, {
+      ...order({
+        maker: "0x0000000000000000000000000000000000000005",
+        recipient: "0x0000000000000000000000000000000000000005",
+        nonce: 3n,
+        timeInForce: 1,
+      }),
+      tif: "IOC",
+      signature: "0x",
+    }),
+    /multi-fill/,
+  );
 });

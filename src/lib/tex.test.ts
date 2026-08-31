@@ -48,3 +48,18 @@ test("deposit ledger never reassigns a receiver or intent id", () => {
     amountZatoshis: 1n,
   }), /already assigned/);
 });
+
+test("invalid amounts do not consume a deposit intent or receiver", () => {
+  const ledger = emptyDepositLedger();
+  assert.throws(() => issueDepositIntent(ledger, {
+    id: "intent-1",
+    payload: hexToBytes(HASH),
+    amountZatoshis: 0n,
+  }), /1 zatoshi/);
+  const intent = issueDepositIntent(ledger, {
+    id: "intent-1",
+    payload: hexToBytes(HASH),
+    amountZatoshis: 1n,
+  });
+  assert.equal(intent.id, "intent-1");
+});

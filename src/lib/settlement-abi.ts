@@ -1,7 +1,7 @@
 import { bytesToHex, hexToBytes, keccak256 } from "./keccak.ts";
-import { concat, wordAddress, wordUint, type TypedOrder } from "./eip712.ts";
+import { concat, hashOrder, wordAddress, wordUint, wordUintN, type TypedOrder } from "./eip712.ts";
 
-export const SETTLE_TYPE = "settle((address,uint8,address,address,uint128,uint128,uint64,uint64,uint64,uint256,address,uint16,uint8),bytes,(address,uint8,address,address,uint128,uint128,uint64,uint64,uint64,uint256,address,uint16,uint8),bytes,uint128)";
+export const SETTLE_TYPE = "settle((address,uint8,address,address,uint128,uint128,uint8,uint64,uint64,uint64,uint256,address,uint16,uint8),bytes,(address,uint8,address,address,uint128,uint128,uint8,uint64,uint64,uint64,uint256,address,uint16,uint8),bytes,uint128)";
 
 export const SETTLE_SELECTOR = bytesToHex(keccak256(new TextEncoder().encode(SETTLE_TYPE)).slice(0, 4));
 
@@ -13,6 +13,7 @@ function encodeOrder(order: TypedOrder): Uint8Array {
     wordAddress(order.quoteAsset),
     wordUint(order.baseAmount),
     wordUint(order.limitPriceTicks),
+    wordUint(BigInt(order.timeInForce)),
     wordUint(order.nonce),
     wordUint(order.accountEpoch),
     wordUint(order.expiry),
@@ -36,8 +37,12 @@ export function encodeSettleCalldata(
   takerSignature: string,
   fillAtoms: bigint,
 ): string {
+  hashOrder(maker);
+  hashOrder(taker);
   const makerSig = hexToBytes(makerSignature);
   const takerSig = hexToBytes(takerSignature);
+  if (makerSig.length !== 65 || takerSig.length !== 65) throw new RangeError("Settlement signatures must be 65 bytes");
+  if (fillAtoms <= 0n) throw new RangeError("Settlement fill must be positive");
   const makerEnc = encodeOrder(maker);
   const takerEnc = encodeOrder(taker);
   const makerSigEnc = encodeBytes(makerSig);
@@ -50,7 +55,7 @@ export function encodeSettleCalldata(
     wordUint(makerSigOffset),
     takerEnc,
     wordUint(takerSigOffset),
-    wordUint(fillAtoms),
+    wordUintN(fillAtoms, 128, "fillAtoms"),
   ]);
   return `0x${SETTLE_SELECTOR}${bytesToHex(concat([head, makerSigEnc, takerSigEnc]))}`;
 }

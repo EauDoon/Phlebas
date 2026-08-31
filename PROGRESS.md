@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after observer HTTP tests, Compose/LICENSE structural checks, and Apache-2.0.
+Last updated: 31-08-2026 after the mainnet-readiness hardening batch was rebased onto the latest contributor head.
 
 ## Branch
 
-`feat/simulation-hardening` off `main` at `873e1cd` (PR #18). One multi-feature PR.
+`codex/mainnet-readiness` stacked on `feat/simulation-hardening` at `7335e17` (PR #19). Keep this as one hardening PR and merge PR #19 first.
 
 ## Done
 
@@ -32,15 +32,27 @@ Last updated: 31-08-2026 after observer HTTP tests, Compose/LICENSE structural c
 - Wallet sign-and-submit is behind `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1`. Default is sign-only. Zero settlement address cannot send a tx.
 - Matcher persists book, receipts, recover, and sequence under `services/matcher/.data` on 127.0.0.1.
 - Isolated local Compose under `services/` for gateway, matcher, and observer. Host ports bind `127.0.0.1`. Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.
-- Zebra observer and mint-attestation stubs: textest only, 10 confirmations, one outpoint one mint. No Zebra RPC. HTTP `/attest` is covered by a live loopback test.
+- Zebra observer and mint-attestation stubs: textest only, 10 confirmations, durable one-outpoint/one-mint replay protection, strict observation input, and conservative multi-observer confirmation agreement. No Zebra RPC. HTTP `/attest` is covered by a live loopback/restart test.
 - License: Apache License 2.0 (`LICENSE`). Not MIT. Product language unchanged.
+- EIP-712 and settlement calldata bind time-in-force and enforce Solidity integer widths; wallets recheck Sepolia immediately before signing.
+- Settlement rejects high-s signatures, reentrancy, self-trades, invalid roles/assets, unsupported TIF behavior, and unsafe token-return conventions. Exact buyer, seller, and fee accounting is tested.
+- AMM first mint uses geometric-mean shares with locked minimum liquidity; later mints use both reserves, LP exits remain open during a trading pause, and donation-aware burn/sync paths are tested.
+- Matcher rejects replay, expiry, unapproved assets/venues, self-trades, unsupported multi-fill IOC/FOK, and fee caps that cannot settle. Signatures are mandatory outside explicit unit-test bypasses.
+- Matcher and gateway state writes are atomic and fsynced. Corrupt matcher state and missing gateway state fail closed; gateway snapshots must derive from the stored master key.
+- Sepolia deployment requires distinct roles. The manifest is wired into runtime configuration and cannot be marked deployed without one complete, commit-bound Sepolia broadcast.
+- CI pins the Foundry action and toolchain. Contract invariants include 10,000-case AMM-product and settlement-rounding fuzz runs in the release check.
 
 ## Next
 
-- Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
+- Merge PR #19, then rebase and merge the stacked mainnet-readiness PR after its exact head is green.
+- Record and independently verify a real Arbitrum Sepolia deployment using approved role addresses.
+- Build the authoritative append-only matcher/settlement service and custody attestation path on isolated infrastructure, not Vercel or the local JSON stores.
+- Complete closed-testnet reorg, replay, signer-loss, reserve-deficit, recovery, load, and disaster-recovery drills.
+- Complete independent contract/infrastructure audits, Apache-2.0 distribution review, legal/entity/country approvals, and named operational ownership.
 
 ## Blockers
 
-- None for this slice
+- Mainnet remains a no-go: there is no production custody, reserve attester, mint controller, redemption service, identity/compliance tier, surveillance system, or independently audited deployment.
+- The local JSON persistence added for testnet is intentionally single-process and is not the production authoritative ledger.
 - Language bar still holds: never imply live, audited, trustless, private, shielded, or native-ZEC
 - Vercel still must not hold spend keys, issue mainnet TEX, or run the authoritative matcher

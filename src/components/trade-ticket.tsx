@@ -388,7 +388,7 @@ export function TradeTicket({
         return;
       }
       if (plan.action === "sequence" && sepoliaSubmitEnabled()) {
-        await fetch("/api/matcher", {
+        const response = await fetch("/api/matcher", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -396,7 +396,8 @@ export function TradeTicket({
             signature,
             tif: review.tif,
           }),
-        }).catch(() => undefined);
+        });
+        if (!response.ok) throw new Error(`Matcher rejected the signed order (${response.status}).`);
       }
       setNotice(`${plan.reason} Signature ${signature.slice(0, 10)}…`);
     } catch (error) {

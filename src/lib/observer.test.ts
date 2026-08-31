@@ -18,6 +18,9 @@ test("stub observer accepts textest and counts confirmations from the tip", () =
     blockHeight: 10,
     blockHash: BLOCK,
     tipHeight: 19,
+    transparentInputsOnly: true,
+    transparentOutputsOnly: true,
+    shieldedBundle: false,
   });
   assert.equal(observed.network, "testnet");
   assert.equal(observed.confirmations, 10);
@@ -33,6 +36,9 @@ test("stub observer rejects non-testnet destinations and empty observer sets", (
     blockHeight: 1,
     blockHash: BLOCK,
     tipHeight: 20,
+    transparentInputsOnly: true,
+    transparentOutputsOnly: true,
+    shieldedBundle: false,
   }), /textest/);
   assert.throws(() => agreeObservations([]), /empty/);
 });
@@ -46,8 +52,12 @@ test("disagreement stops minting", () => {
     blockHeight: 1,
     blockHash: BLOCK,
     tipHeight: 20,
+    transparentInputsOnly: true,
+    transparentOutputsOnly: true,
+    shieldedBundle: false,
   });
   const second = { ...first, amountZatoshis: 2n };
   assert.throws(() => agreeObservations([first, second]), /disagreement/);
-  assert.equal(agreeObservations([first, { ...first }]).txid, first.txid);
+  assert.throws(() => agreeObservations([first, { ...first, shieldedBundle: true }]), /disagreement/);
+  assert.equal(agreeObservations([first, { ...first, confirmations: 9 }]).confirmations, 9);
 });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ARBITRUM_SEPOLIA_HEX, connectTestnetWallet, type Eip1193Provider } from "./evm-wallet.ts";
+import { ARBITRUM_SEPOLIA_HEX, connectTestnetWallet, signTypedData, type Eip1193Provider } from "./evm-wallet.ts";
 
 test("connects only after switching to Arbitrum Sepolia", async () => {
   const calls: string[] = [];
@@ -34,4 +34,15 @@ test("blocks a wallet that remains on the wrong chain", async () => {
   const state = await connectTestnetWallet(provider);
   assert.match(state.error ?? "", /Arbitrum Sepolia/);
   assert.equal(state.chainId, "0x1");
+});
+
+test("rechecks the active chain immediately before signing", async () => {
+  const provider: Eip1193Provider = {
+    async request({ method }) {
+      if (method === "eth_chainId") return "0x1";
+      if (method === "eth_signTypedData_v4") throw new Error("must not sign");
+      throw new Error(method);
+    },
+  };
+  await assert.rejects(() => signTypedData(provider, "0xabc", {}), /Arbitrum Sepolia/);
 });

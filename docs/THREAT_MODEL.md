@@ -1,6 +1,6 @@
 # Phlebas Threat Model
 
-> Status as of 30-08-2026: design document for a simulation-only project. None of the proposed bridge, custody, matching, settlement, routing, automated market maker, administration, monitoring, or incident controls are deployed or audited.
+> Status as of 31-08-2026: design document for a no-value simulation with undeployed Sepolia contract sources and optional local testnet services. No bridge, custody, contract, matching, routing, monitoring, or incident control is deployed or audited.
 
 ## 1. Purpose and decision
 
@@ -15,7 +15,7 @@ The design is acceptable only for simulation, testnet, and a later strictly capp
 
 ## 2. Current repository reality
 
-The current repository contains a Next.js interface, static simulated markets and trades, and a local numerical constant-product quote helper. It has no wallet integration, live market feed, smart contracts, bridge, reserve, matcher, settlement service, custody service, or deployed infrastructure.
+The current repository contains a Next.js interface, static simulated markets and trades, an optional Sepolia wallet connector, undeployed testnet contracts, and local testnet-only TEX and matcher services. It has no live market feed, production bridge, reserve, custody service, hosted authoritative matcher, deployed contract, or deployed sensitive infrastructure.
 
 Values shown for prices, depth, volume, total value locked, pool reserves, fees, and trades are simulation data. They are not evidence of a live market or asset backing.
 

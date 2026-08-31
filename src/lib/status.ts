@@ -1,3 +1,6 @@
+import { sepoliaSubmitEnabled } from "./sepolia-submit.ts";
+import { TESTNET } from "./testnet.ts";
+
 export function simulationStatus() {
   return {
     name: "phlebas",
@@ -10,9 +13,9 @@ export function simulationStatus() {
     deposits: "testnet-gateway-optional",
     withdrawals: "tour-only",
     wallets: "eip-1193-sepolia",
-    sepoliaSubmit: "flag-off",
-    contracts: "source-undeployed",
-    network: "arbitrum-sepolia-unconfigured",
+    sepoliaSubmit: sepoliaSubmitEnabled() ? "testnet-enabled" : "flag-off",
+    contracts: TESTNET.deployed ? "sepolia-deployed" : "source-undeployed",
+    network: TESTNET.deployed ? "arbitrum-sepolia" : "arbitrum-sepolia-unconfigured",
     marketData: "illustrative",
   } as const;
 }
