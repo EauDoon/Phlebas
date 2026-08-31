@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after LP lifted pause notice stays derived after a pool switch.
+Last updated: 31-08-2026 after ticket-sign missing-provider follows an open review across a market switch.
 
 ## Branch
 
@@ -134,18 +134,21 @@ Last updated: 31-08-2026 after LP lifted pause notice stays derived after a pool
 - LP pause notice on the USDT0 pool uses `lpPauseNoticeCopy` from `pools[1]` and names `pZEC-USDT0`. Burn stays available.
 - LP burn success on USDT0 uses `lpBurnNoticeCopy` from a real mint-then-burn and names `pZEC-USDT0`. Local preview only.
 - LP reset-pool notice on USDT0 uses `lpResetNoticeCopy` from a real mint then restore and names `pZEC-USDT0`.
-- LP pause notice names the newly selected pool if trading stays paused after a pool switch. Derived from `lpPauseNoticeCopy` when `isLpPauseNotice` and `tradingPaused`; mint/burn/swap notices stay on the pool they ran on.
+- LP pause notice names the newly selected pool if trading stays paused after a pool switch. Derived from `lpPauseNoticeCopy` when `isLpPauseNotice`; mint/burn/swap notices stay on the pool they ran on.
 - LP lifted pause notice names the newly selected pool if resume is not clicked after a pool switch while already lifted. Derived from `lpPauseNoticeCopy` whenever `isLpPauseNotice`; mint/burn/swap notices stay on the pool they ran on.
 - Ticket sign missing-provider copy uses `missingProviderCopy` with the selected market settlement pair. Wallet can stay connected after the provider is gone. Nothing is sent.
 - Missing-provider error uses `retargetSettlementCopy` so a failed connect keeps the current settlement pair after a market switch without clicking Connect again.
+- Ticket sign missing-provider copy names `pZEC-USDT0` if the market switches while review is still open. `TradeTicket` stays mounted across a market switch (`key={feedStatus}`); `isMissingProviderCopy` retargets the live notice. Nothing is sent.
+- Rejected-connect failure copy (`walletConnectFailureCopy`, not missing-provider) retargets settlement after a market switch without clicking Connect again.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Ticket sign missing-provider copy should name pZEC-USDT0 if the market switches while review is still open
-- Wallet connect-failure copy (non-missing-provider) should retarget settlement after a market switch
+- Ticket reject copy should retarget settlement if the market switches while the rejected panel is open
+- Wallet connecting title should keep settlement if the market switches during a hanging provider after a prior reject
+- Chart withheld copy should retarget if the market switches while the feed stays unavailable
 
 ## Blockers
 
