@@ -34,7 +34,7 @@ function pad(input: Uint8Array): Uint8Array {
 
 export function sha256(input: Uint8Array): Uint8Array {
   const message = pad(input);
-  const hash = [...INITIAL_HASH];
+  const hash: number[] = [...INITIAL_HASH];
   const words = new Uint32Array(64);
 
   for (let offset = 0; offset < message.length; offset += 64) {
