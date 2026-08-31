@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after Solidity zec fields, ZEC_DECIMALS, zecAtomsFromHundredths, and TESTNET.zec.
+Last updated: 31-08-2026 after tLP, credits-ZEC test title, and matcher sizeAtoms docs.
 
 ## Branch
 
@@ -23,7 +23,7 @@ Last updated: 31-08-2026 after Solidity zec fields, ZEC_DECIMALS, zecAtomsFromHu
 - Playwright fixture binds `127.0.0.1` on an OS-assigned free port
 - Transparent destination inspector: shielded, TEX, and payment-request inputs are rejected; nothing is sent
 - Keccak-256 plus EIP-712 `Order` typed-data hashing for Arbitrum Sepolia (`PhlebasSettlement` v1). Session tickets still use SHA-256.
-- No-value Arbitrum Sepolia contracts: tpZEC, quote faucets, settlement, factory, pair, router. Typehashes match the TypeScript vectors. Undeployed.
+- No-value Arbitrum Sepolia contracts: tZEC, quote faucets, settlement, factory, pair, router. Typehashes match the TypeScript vectors. Undeployed.
 - Receivable testnet TEX via a local gateway (`textest` only, single-use ledger). Public app issues nothing without `PHLEBAS_GATEWAY_URL`.
 - Injected EVM wallet connector limited to Arbitrum Sepolia. Signing does not submit a settlement transaction.
 - Local matcher operator sequences, recovers EIP-712 signatures, and matches. Not bundled into Vercel.
@@ -163,16 +163,17 @@ Last updated: 31-08-2026 after Solidity zec fields, ZEC_DECIMALS, zecAtomsFromHu
 - LP, AMM, and router use `reserveZecAtoms`.
 - Gateway heading is `ZEC gateway`. Incident mint copy does not name pZEC.
 - Units helper is `ZEC_DECIMALS`. Market-data helper is `zecAtomsFromHundredths`. TESTNET key is `zec`.
+- Pair LP token symbol is `tLP`. Session buy-fill test title credits ZEC.
+- Matcher `sizeAtoms` stay generic and mean 8-decimal ZEC atoms.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Matcher still sizes books in generic `sizeAtoms`
-- Architecture panel and remaining docs may still mention pZEC on older surfaces
-- Session test title still says credits pZEC
-- Pair LP token is still `tpLP`
+- ARCHITECTURE and ASSET_AND_ACCOUNTING still describe custody-backed pZEC as the candidate ERC-20 form
+- Landing honest negation still says it does not wrap ZEC as pZEC
+- ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
 
 ## Blockers
 
