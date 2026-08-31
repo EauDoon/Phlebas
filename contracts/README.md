@@ -4,10 +4,10 @@ No-value Arbitrum Sepolia sources. They are not deployed from this tree, not aud
 
 | Contract | Role |
 | --- | --- |
-| `PZec` | 8-decimal `tpZEC`. Minter mints. Holder burns. Pauser can halt minting; only governor unpauses. |
+| `PZec` | 8-decimal `tZEC`. Minter mints. Holder burns. Pauser can halt minting; only governor unpauses. Not native ZEC. |
 | `QuoteToken` | 6-decimal `tUSDC` / `tUSDT` faucets. Not Circle USDC or Tether USDT. |
 | `Settlement` | EIP-712 CLOB fills, nonce bitmap, account epoch, buyer-up / seller-down quote rounding. |
-| `Factory` | Creates only `pZEC/tUSDC` and `pZEC/tUSDT`. |
+| `Factory` | Creates only `tZEC/tUSDC` and `tZEC/tUSDT`. |
 | `Pair` | Fixed 30 bps constant product. No callbacks. |
 | `Router` | Stateless add/remove/swap. Reverts if it retains tokens. |
 

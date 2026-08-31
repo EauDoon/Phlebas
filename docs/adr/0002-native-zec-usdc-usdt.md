@@ -22,7 +22,7 @@ The canonical market and settlement names are:
 
 Those labels are native ZEC against native USDC or native USDT. The later-listing-gate copy is removed. USDT0 is not a listed settlement asset.
 
-This ADR does not authorize live funds, a payable gateway, shielded ZEC, or live native-ZEC execution. Session encoding names `baseAsset` `ZEC`. Undeployed contract sources still use `pZEC` / `tpZEC` as the ERC-20 form and `tUSDT` as the quote faucet. Product copy must not present those names as live settlement.
+This ADR does not authorize live funds, a payable gateway, shielded ZEC, or live native-ZEC execution. Session encoding names `baseAsset` `ZEC`. Undeployed contract sources use `tZEC` as the 8-decimal receipt symbol and `tUSDT` as the quote faucet. The Solidity type remains `PZec`. Product copy must not present those names as live settlement.
 
 Arbitrum One remains the candidate settlement chain from ADR 0001. Custody-backed `pZEC` remains the candidate ERC-20 claim for a future gateway. The interface must keep saying the matcher is not trustless and that this preview moves no live funds.
 

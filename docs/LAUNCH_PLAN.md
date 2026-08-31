@@ -77,9 +77,9 @@ Goal: test full flows with invited testers and assets that have no value.
 Controls:
 
 - Use Zcash testnet and one EVM testnet.
-- Name native Zcash faucet value `Testnet ZEC` and the EVM receipt `tpZEC`. Name quote faucets `tUSDC` and `tUSDT`. Every balance, burn, and test vector must preserve the native `Testnet ZEC` versus EVM `tpZEC` distinction. USDT0 is abandoned.
-- Use faucets to fund valueless native `Testnet ZEC`, `tUSDC`, and `tUSDT`. Mint and burn `tpZEC` only through the test gateway state machine being exercised.
-- Permit `tpZEC` to map technically to valueless native `Testnet ZEC` for controlled deposit and payout tests. No test asset creates a legal or economic claim on mainnet ZEC, a future token, a reward, or monetary value.
+- Name native Zcash faucet value `Testnet ZEC` and the EVM receipt `tZEC`. Name quote faucets `tUSDC` and `tUSDT`. Every balance, burn, and test vector must preserve the native `Testnet ZEC` versus EVM `tZEC` distinction. USDT0 is abandoned.
+- Use faucets to fund valueless native `Testnet ZEC`, `tUSDC`, and `tUSDT`. Mint and burn `tZEC` only through the test gateway state machine being exercised.
+- Permit `tZEC` to map technically to valueless native `Testnet ZEC` for controlled deposit and payout tests. No test asset creates a legal or economic claim on mainnet ZEC, a future token, a reward, or monetary value.
 - Keep fees at zero.
 - Allowlist testers and cap balances, orders, mints, withdrawals, and pool deposits.
 - Use a fresh single-use test TEX address for each deposit intent and inspect every input and output in the final transaction before minting.

@@ -609,7 +609,7 @@ Title:
 
 Body:
 
-> The observed transaction has not been approved for pZEC minting. Do not send another deposit to the same intent.
+> The observed transaction has not been approved for minting. Do not send another deposit to the same intent.
 
 Allowed information is the public transaction reference, amount, observed time, and status after production approval. Do not state that funds are lost or promise credit.
 

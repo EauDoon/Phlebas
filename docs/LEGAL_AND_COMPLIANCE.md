@@ -2,7 +2,7 @@
 
 Status: local no-value simulation only as of 30-08-2026. Testnet remains a future gated stage.
 
-Phlebas must not accept real ZEC, mint redeemable pZEC, list real USDC or USDT, charge trading fees, or offer real-value liquidity pools under the current project status. USDT0 is abandoned. Valueless `tpZEC` may exercise technical mint, burn, and native Testnet payout paths. No test asset creates a legal or economic claim on mainnet ZEC, a future token, a reward, an airdrop, or monetary value.
+Phlebas must not accept real ZEC, mint redeemable pZEC, list real USDC or USDT, charge trading fees, or offer real-value liquidity pools under the current project status. USDT0 is abandoned. Valueless `tZEC` may exercise technical mint, burn, and native Testnet payout paths. No test asset creates a legal or economic claim on mainnet ZEC, a future token, a reward, an airdrop, or monetary value.
 
 This document is risk planning, not legal advice. A qualified lawyer must confirm the rules for the operating entity, custody model, assets, and every country served before mainnet.
 
