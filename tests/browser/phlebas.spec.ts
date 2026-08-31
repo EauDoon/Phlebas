@@ -2072,3 +2072,73 @@ test("focused skip-nav does not cover banner copy and restores 44px skip links a
   expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((bannerBox?.y ?? 0) + 1);
 });
 
+test("focused skip-nav wraps at 320px, leaves the terminal brand clear, and hides after skip", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+
+  await page.keyboard.press("Tab");
+  const landingSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(landingSkip);
+  expect((await landingSkip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  const landingNav = page.getByRole("navigation", { name: "Skip links" });
+  const landingLayout = await landingNav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return {
+      direction: style.flexDirection,
+      wrap: style.flexWrap,
+      height: rect.height,
+    };
+  });
+  expect(landingLayout.direction).toBe("row");
+  expect(landingLayout.wrap).toBe("wrap");
+  expect(landingLayout.height).toBeLessThan(280);
+
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main#main-content")).toBeFocused();
+  const landingHidden = await landingNav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return {
+      clip: style.clipPath,
+      width: rect.width,
+      height: rect.height,
+      focusWithin: element.matches(":focus-within"),
+    };
+  });
+  expect(landingHidden.focusWithin).toBe(false);
+  expect(landingHidden.clip).toMatch(/inset\(50%\)/);
+  expect(landingHidden.width).toBeLessThanOrEqual(1);
+  expect(landingHidden.height).toBeLessThanOrEqual(1);
+
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const tradeSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(tradeSkip);
+
+  const tradeNav = page.getByRole("navigation", { name: "Skip links" });
+  const tradeNavBox = await tradeNav.boundingBox();
+  const brandBox = await page.getByRole("link", { name: "Phlebas home" }).boundingBox();
+  expect(tradeNavBox?.height ?? 900).toBeLessThan(280);
+  expect((tradeNavBox?.y ?? 0) + (tradeNavBox?.height ?? 0)).toBeLessThanOrEqual((brandBox?.y ?? 0) + 1);
+
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main#main-content")).toBeFocused();
+  const tradeHidden = await tradeNav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return {
+      clip: style.clipPath,
+      width: rect.width,
+      height: rect.height,
+      focusWithin: element.matches(":focus-within"),
+    };
+  });
+  expect(tradeHidden.focusWithin).toBe(false);
+  expect(tradeHidden.clip).toMatch(/inset\(50%\)/);
+  expect(tradeHidden.width).toBeLessThanOrEqual(1);
+  expect(tradeHidden.height).toBeLessThanOrEqual(1);
+});
+
