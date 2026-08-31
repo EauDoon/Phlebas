@@ -280,6 +280,9 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?min-width: 44px;/);
   assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?display: flex;/);
   assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?align-items: center;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?overflow: visible;/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?padding: 8px;/);
   assert.match(terminalCss, /\.simpleMain a \{[\s\S]*?flex-shrink: 0;/);
   assert.match(terminalCss, /\.educationDialog \{[\s\S]*?padding-bottom: 8px;/);
   assert.match(terminalCss, /min-width: 44px;\s*flex-shrink: 0;/);
@@ -517,6 +520,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(globalError, /flex-wrap: wrap/);
   assert.match(globalError, /flex: 1 1 calc\(50% - 4px\)/);
   assert.match(globalError, /outline: 2px solid #15140d/);
+  assert.match(globalError, /a:last-child/);
+  assert.match(globalError, /flex-shrink: 0/);
   assert.doesNotMatch(globalError, /is a live exchange/);
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
   const education = await readFile(join(root, "src/lib/preview-education.ts"), "utf8");
