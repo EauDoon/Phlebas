@@ -538,6 +538,15 @@ test("first-session education can be completed by keyboard", async ({ page }) =>
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
 });
 
+test("first-session education dismisses on Escape", async ({ page }) => {
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+});
+
 test("country-blocked demonstration hides trading controls", async ({ page }) => {
   await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Phlebas is not available in this location." })).toBeVisible();
