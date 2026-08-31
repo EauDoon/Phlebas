@@ -417,6 +417,23 @@ test("withdrawal tour drives a stub claim without changing tour copy", async ({ 
   await expect(page.getByText("Stub claim: screened. Nothing is sent.")).toBeVisible();
 });
 
+test("IOC cancels an unfilled remainder and FOK rejects a full miss", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "IOC" }).click();
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await expect(page.getByText(/Unfilled size was cancelled/)).toBeVisible();
+
+  await page.getByRole("button", { name: "FOK" }).click();
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("52.91");
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("100");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await expect(page.getByText("Fill-or-kill could not fill in full")).toBeVisible();
+});
+
 test("connect wallet without a provider shows a visible rejection", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
