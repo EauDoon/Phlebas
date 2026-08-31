@@ -23,6 +23,7 @@ export type SwapTermsV1 = Readonly<{
   executionPriceTicks: bigint;
   protocolFeeQuoteAtoms: bigint;
   maximumFeeBps: bigint;
+  zcashLockScriptHash: `0x${string}`;
   zcashClaimPubKeyHash: `0x${string}`;
   zcashRefundPubKeyHash: `0x${string}`;
   evmFunder: HexAddress;
@@ -111,6 +112,7 @@ export function validateSwapTerms(terms: SwapTermsV1): SwapTermsV1 {
     executionPriceTicks: canonicalUint64(terms.executionPriceTicks, "Execution price"),
     protocolFeeQuoteAtoms: canonicalUint64(terms.protocolFeeQuoteAtoms, "Protocol fee", true),
     maximumFeeBps: canonicalUint64(terms.maximumFeeBps, "Maximum fee bps", true),
+    zcashLockScriptHash: canonicalPubKeyHash(terms.zcashLockScriptHash, "Zcash lock script hash"),
     zcashClaimPubKeyHash: canonicalPubKeyHash(terms.zcashClaimPubKeyHash, "Zcash claim pubkey hash"),
     zcashRefundPubKeyHash: canonicalPubKeyHash(terms.zcashRefundPubKeyHash, "Zcash refund pubkey hash"),
     evmFunder: canonicalAddress(terms.evmFunder, "EVM funder"),
@@ -150,7 +152,7 @@ const CANONICAL_FIELDS: readonly (keyof SwapTermsV1)[] = [
   "version", "fillId", "fillIndex", "zecOrderHash", "stablecoinOrderHash",
   "zecSellerId", "stablecoinSellerId", "zecChain", "zecAsset", "quoteChain", "quoteAsset",
   "zecAmountZatoshis", "quoteAmountAtoms", "executionPriceTicks", "protocolFeeQuoteAtoms", "maximumFeeBps",
-  "zcashClaimPubKeyHash", "zcashRefundPubKeyHash", "evmFunder", "evmClaimRecipient", "evmRefundRecipient",
+  "zcashLockScriptHash", "zcashClaimPubKeyHash", "zcashRefundPubKeyHash", "evmFunder", "evmClaimRecipient", "evmRefundRecipient",
   "evmEscrowContract", "secretHash", "authorizationDeadline", "zecFundBy", "evmFundBy",
   "evmClaimSafetyCutoff", "evmRefundTime", "zecRefundTime", "timeoutPolicyId", "observerPolicyId",
   "zecFinalityPolicyId", "evmFinalityPolicyId",
