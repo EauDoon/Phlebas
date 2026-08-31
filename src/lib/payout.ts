@@ -58,6 +58,7 @@ export type PayoutClaimState =
   | "screened"
   | "rejected"
   | "burn-submitted"
+  | "burn-finalized"
   | "payable"
   | "unresolved";
 
@@ -109,11 +110,31 @@ export function submitPayoutBurn(claim: PayoutClaim, spent: PayoutLedger): Payou
   return { ...claim, state: "burn-submitted" };
 }
 
-export function markPayoutPayable(claim: PayoutClaim): PayoutClaim {
+export function finalizePayoutBurn(claim: PayoutClaim): PayoutClaim {
   if (claim.state !== "burn-submitted") {
-    return { ...claim, state: "rejected", reason: "Only a submitted burn can become payable." };
+    return { ...claim, state: "rejected", reason: "Only a submitted burn can finalize." };
+  }
+  return { ...claim, state: "burn-finalized" };
+}
+
+export function markPayoutPayable(claim: PayoutClaim): PayoutClaim {
+  if (claim.state !== "burn-finalized") {
+    return { ...claim, state: "rejected", reason: "Only a finalized burn can become payable." };
   }
   return { ...claim, state: "payable" };
+}
+
+export function payoutClaimForTourStep(stepId: string, destination: string): PayoutClaim {
+  const spent = emptyPayoutLedger();
+  let claim = requestPayout({ burnId: "tour-preview", destination, amountZatoshis: 1n });
+  if (stepId === "requested") return claim;
+  claim = screenPayoutClaim(claim);
+  if (stepId === "screened" || claim.state === "rejected") return claim;
+  claim = submitPayoutBurn(claim, spent);
+  if (stepId === "burn submitted" || claim.state === "rejected") return claim;
+  claim = finalizePayoutBurn(claim);
+  if (stepId === "burn finalized" || claim.state === "rejected") return claim;
+  return markPayoutPayable(claim);
 }
 
 export function markPayoutUnresolved(claim: PayoutClaim): PayoutClaim {

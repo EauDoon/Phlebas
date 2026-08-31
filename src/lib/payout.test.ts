@@ -4,8 +4,10 @@ import test from "node:test";
 import {
   attestPayout,
   emptyPayoutLedger,
+  finalizePayoutBurn,
   markPayoutPayable,
   markPayoutUnresolved,
+  payoutClaimForTourStep,
   requestPayout,
   screenPayout,
   screenPayoutClaim,
@@ -62,10 +64,24 @@ test("payout claim walks requested, screened, burn-submitted, payable and never 
   const submitted = submitPayoutBurn(screened, spent);
   assert.equal(submitted.state, "burn-submitted");
   assert.equal(spent.size, 1);
-  const payable = markPayoutPayable(submitted);
+  assert.equal(markPayoutPayable(submitted).state, "rejected");
+  const finalized = finalizePayoutBurn(submitted);
+  assert.equal(finalized.state, "burn-finalized");
+  const payable = markPayoutPayable(finalized);
   assert.equal(payable.state, "payable");
   assert.equal(markPayoutUnresolved(payable).state, "unresolved");
   assert.equal(submitPayoutBurn(screened, spent).state, "rejected");
+});
+
+test("tour step walker reaches payable only after a screened transparent destination", () => {
+  assert.equal(payoutClaimForTourStep("requested", DEST).state, "requested");
+  assert.equal(payoutClaimForTourStep("screened", DEST).state, "screened");
+  assert.equal(payoutClaimForTourStep("burn submitted", DEST).state, "burn-submitted");
+  assert.equal(payoutClaimForTourStep("burn finalized", DEST).state, "burn-finalized");
+  assert.equal(payoutClaimForTourStep("payable", DEST).state, "payable");
+  assert.equal(payoutClaimForTourStep("confirmed", DEST).state, "payable");
+  assert.equal(payoutClaimForTourStep("screened", "zs1notreal").state, "rejected");
+  assert.equal(payoutClaimForTourStep("payable", "").state, "rejected");
 });
 
 test("shielded request is rejected at screen and does not spend a burn", () => {
