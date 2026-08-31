@@ -2,7 +2,7 @@ export const DEPOSIT_TOUR = [
   {
     id: "eligibility",
     title: "Eligibility",
-    body: "A production gateway would accept eligible transparent native ZEC and issue pZEC. This preview never requests location, identity, or account information.",
+    body: "A production gateway would accept eligible transparent native ZEC. This preview never requests location, identity, or account information and does not mint.",
   },
   {
     id: "address-request",
@@ -27,12 +27,12 @@ export const DEPOSIT_TOUR = [
   {
     id: "mint-queued",
     title: "Mint queued",
-    body: "One outpoint would authorize at most one 8-decimal receipt. No pZEC is minted in this simulation.",
+    body: "One outpoint would authorize at most one 8-decimal receipt. Nothing is minted in this simulation.",
   },
   {
     id: "complete",
     title: "Complete",
-    body: "State demonstration complete. No native ZEC was received and no pZEC was minted.",
+    body: "State demonstration complete. No native ZEC was received and nothing was minted.",
   },
 ] as const;
 
