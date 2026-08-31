@@ -9,6 +9,8 @@ import {
   emptyBookGateCopy,
   feedSurface,
   feedWithheldCopy,
+  chartPanelEyebrowCopy,
+  chartPanelHeadingCopy,
   chartRangeTabLabel,
   isFeedStatus,
   loadingGateCopy,
@@ -119,6 +121,10 @@ test("depth and tape empty copy names the settlement pair", () => {
   assert.equal(chartRangeTabLabel("4H", markets["ZEC/USDC"].settlementPair), "4H · pZEC-USDC");
   assert.equal(chartRangeTabLabel("1D", markets["ZEC/USDT"].settlementPair), "1D · pZEC-USDT0");
   assert.doesNotMatch(chartRangeTabLabel("1H", "pZEC-USDC"), /native ZEC/);
+  assert.equal(chartPanelHeadingCopy("ZEC/USDC"), "ZEC/USDC · pZEC-USDC");
+  assert.equal(chartPanelHeadingCopy("ZEC/USDT"), "ZEC/USDT · pZEC-USDT0");
+  assert.equal(chartPanelEyebrowCopy(markets["ZEC/USDC"].settlementPair), "Illustrative market data · pZEC-USDC");
+  assert.doesNotMatch(chartPanelHeadingCopy("ZEC/USDC"), /native ZEC/);
 });
 
 test("allowlists only documented feed states", () => {
