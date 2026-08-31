@@ -1763,3 +1763,38 @@ test("terminal skip education Continue and error Retry stay 44px on desktop", as
   expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("404 skip loading skip education Back and Enter simulation stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skipMissing = page.getByRole("link", { name: "Skip to missing-route copy" });
+  await page.keyboard.press("Tab");
+  await expect(skipMissing).toBeFocused();
+  expect((await skipMissing.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Enter");
+  const missing = page.getByLabel("Missing-route copy");
+  await expect(missing).toBeVisible();
+  expect((await missing.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade?loading=1", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipLoading = page.getByRole("link", { name: "Skip to withheld-price notice" });
+  await expect(skipLoading).toBeFocused();
+  expect((await skipLoading.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Enter");
+  const notice = page.getByLabel("Withheld-price notice");
+  await expect(notice).toBeVisible();
+  expect((await notice.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Continue" }).click();
+  const back = page.getByRole("button", { name: "Back" });
+  await expect(back).toBeEnabled();
+  expect((await back.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.getByRole("button", { name: "Continue" }).click();
+  const enter = page.getByRole("dialog").getByRole("button", { name: "Enter simulation" });
+  await expect(enter).toBeVisible();
+  expect((await enter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
