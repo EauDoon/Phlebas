@@ -18,6 +18,7 @@ import { terminalUrl } from "@/lib/terminal-url";
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
 import {
+  chartRangeTabLabel,
   feedSurface,
   feedWithheldCopy,
   sessionLastStatLabel,
@@ -293,7 +294,7 @@ export function TradingTerminal({
             </button>
           ))}
         </nav>
-        <WalletBar wallet={wallet} onChange={setWallet} />
+        <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
       </header>
 
       {initialAccess === "open" && <PreviewEducation force={forceEducation} />}
@@ -382,6 +383,7 @@ export function TradingTerminal({
                         key={item}
                         id={`chart-tab-${item}`}
                         role="tab"
+                        aria-label={chartRangeTabLabel(item, market.settlementPair)}
                         aria-selected={range === item}
                         aria-controls="chart-panel"
                         tabIndex={range === item ? 0 : -1}

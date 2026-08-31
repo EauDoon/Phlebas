@@ -7,6 +7,7 @@ import { AMM_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import {
   burnShares,
   emptyShareCopy,
+  lpPauseNoticeCopy,
   hypotheticalImpermanentLoss,
   IL_PRICE_SCENARIOS,
   lpOperationAllowed,
@@ -151,7 +152,7 @@ export function LiquidityPanel({
       return;
     }
     if (!lpOperationAllowed("mint", tradingPaused)) {
-      setNotice("Trading is paused. LP withdrawal remains available.");
+      setNotice(lpPauseNoticeCopy(markets[marketId].settlementPair, true));
       return;
     }
     if (!amountPreview.valid || amountPreview.zecAtoms <= 0n || amountPreview.quoteAtoms <= 0n) {
@@ -214,7 +215,7 @@ export function LiquidityPanel({
       return;
     }
     if (!lpOperationAllowed("swap", tradingPaused)) {
-      setNotice("Trading is paused. LP withdrawal remains available.");
+      setNotice(lpPauseNoticeCopy(markets[marketId].settlementPair, true));
       return;
     }
     if (!amountPreview.valid || amountPreview.zecAtoms <= 0n) {
@@ -428,9 +429,7 @@ export function LiquidityPanel({
             aria-pressed={tradingPaused}
             onClick={() => {
               setTradingPaused((current) => !current);
-              setNotice(tradingPaused
-                ? "Trading pause lifted. Mint and swap are available again."
-                : "Trading paused. LP withdrawal remains available.");
+              setNotice(lpPauseNoticeCopy(markets[marketId].settlementPair, !tradingPaused));
             }}
           >
             {tradingPaused ? "Resume trading preview" : "Pause trading preview"}
