@@ -8,12 +8,15 @@ import {
   withdrawalTourStep,
 } from "./withdrawal-tour.ts";
 
-test("withdrawal tour list includes rejected and unresolved ids", () => {
+test("withdrawal tour list includes rejected, expired, and unresolved ids", () => {
   const ids = withdrawalTourIds();
   assert.equal(ids.includes("rejected"), true);
+  assert.equal(ids.includes("expired"), true);
   assert.equal(ids.includes("unresolved"), true);
   assert.ok(ids.indexOf("rejected") > ids.indexOf("screened"));
   assert.ok(ids.indexOf("rejected") < ids.indexOf("burn submitted"));
+  assert.ok(ids.indexOf("expired") > ids.indexOf("burn submitted"));
+  assert.ok(ids.indexOf("expired") < ids.indexOf("burn finalized"));
   assert.ok(ids.indexOf("unresolved") > ids.indexOf("mined"));
   assert.ok(ids.indexOf("unresolved") < ids.indexOf("confirmed"));
 });
@@ -34,6 +37,19 @@ test("rejected and unresolved tour copy stays a simulation that sends nothing", 
   assert.doesNotMatch(joined, /tex1/i);
   assert.doesNotMatch(joined, /\blive payout/i);
   assert.doesNotMatch(joined, /pZEC/);
+});
+
+test("expired evidence tour copy closes without a finalized burn and sends nothing", () => {
+  const expired = withdrawalTourById("expired");
+  assert.ok(expired);
+  assert.equal(expired.title, "Expired evidence");
+  assert.match(expired.body, /expired or was reorganized/);
+  assert.match(expired.body, /Closed without a finalized burn/);
+  assert.match(expired.body, /Nothing is sent/);
+  assert.match(expired.body, /not live settlement/);
+  assert.doesNotMatch(expired.body, /tex1/i);
+  assert.doesNotMatch(expired.body, /\blive payout/i);
+  assert.doesNotMatch(expired.body, /pZEC/);
 });
 
 test("withdrawal tour step helper stays in range", () => {

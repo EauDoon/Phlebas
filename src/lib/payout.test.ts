@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   attestPayout,
+  closePayoutWithoutFinalizedBurn,
   emptyPayoutLedger,
   finalizePayoutBurn,
   markPayoutPayable,
@@ -79,6 +80,7 @@ test("tour step walker reaches payable only after a screened transparent destina
   assert.equal(payoutClaimForTourStep("requested", DEST).state, "requested");
   assert.equal(payoutClaimForTourStep("screened", DEST).state, "screened");
   assert.equal(payoutClaimForTourStep("burn submitted", DEST).state, "burn-submitted");
+  assert.equal(payoutClaimForTourStep("expired", DEST).state, "closed");
   assert.equal(payoutClaimForTourStep("burn finalized", DEST).state, "burn-finalized");
   assert.equal(payoutClaimForTourStep("payable", DEST).state, "payable");
   assert.equal(payoutClaimForTourStep("confirmed", DEST).state, "payable");
@@ -107,12 +109,34 @@ test("tour walker maps rejected and unresolved through the payout helpers", () =
   assert.equal(rejectPayoutBeforeBurn(payable).state, "rejected");
 });
 
+test("tour walker maps expired evidence through close without a finalized burn", () => {
+  const spent = emptyPayoutLedger();
+  const submitted = submitPayoutBurn(screenPayoutClaim(requestPayout({
+    burnId: "tour-preview",
+    destination: DEST,
+    amountZatoshis: 1n,
+  })), spent);
+  const closed = closePayoutWithoutFinalizedBurn(submitted);
+  assert.equal(closed.state, "closed");
+  assert.match(closed.reason ?? "", /Closed without a finalized burn/);
+  assert.equal(payoutClaimForTourStep("expired", DEST).state, closed.state);
+  assert.equal(payoutClaimForTourStep("expired", DEST).reason, closed.reason);
+  assert.equal(closePayoutWithoutFinalizedBurn(closed).state, "closed");
+  assert.equal(closePayoutWithoutFinalizedBurn(payoutClaimForTourStep("payable", DEST)).state, "rejected");
+  assert.equal(finalizePayoutBurn(closed).state, "rejected");
+});
+
 test("every withdrawal tour id walks through payoutClaimForTourStep without sending", () => {
   for (const id of withdrawalTourIds()) {
     const claim = payoutClaimForTourStep(id, DEST);
     if (id === "rejected") {
       assert.equal(claim.state, "rejected");
       assert.match(claim.reason ?? "", /before burn/);
+      continue;
+    }
+    if (id === "expired") {
+      assert.equal(claim.state, "closed");
+      assert.match(claim.reason ?? "", /Closed without a finalized burn/);
       continue;
     }
     if (id === "unresolved") {
