@@ -246,12 +246,14 @@
   gap: 12px;
 }
 
-.marketSelectorWrap label {
+.marketSelectorWrap label,
+.marketSelectorWrap > div {
   display: grid;
   gap: 2px;
 }
 
 .marketSelectorWrap label > span,
+.marketSelectorWrap > div > span,
 .marketStats dt,
 .eyebrow,
 .miniLabel,
@@ -275,6 +277,30 @@
   background: transparent;
   font-size: 16px;
   font-weight: 690;
+}
+
+.selectorTabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.selectorTabs button {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.selectorTabs .selectorActive {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
 }
 
 .settlementBadge {
@@ -1481,6 +1507,7 @@
   .nav button,
   .connectButton,
   .marketSelectorWrap select,
+  .selectorTabs button,
   .rangeTabs button,
   .orderTypes button,
   .segmented button,

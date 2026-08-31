@@ -10,7 +10,15 @@ import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
-import { feedSurface, type FeedStatus } from "@/lib/market-state";
+import { MARKET_ID_LABELS, MARKET_IDS, nextMarketId } from "@/lib/market-ids";
+import {
+  FEED_STATUS_LABELS,
+  FEED_STATUSES,
+  feedSurface,
+  nextFeedStatus,
+  type FeedStatus,
+} from "@/lib/market-state";
+import { interpretRovingKey } from "@/lib/roving-keys";
 import {
   nextTerminalView,
   TERMINAL_VIEW_LABELS,
@@ -92,7 +100,9 @@ export function TradingTerminal({
   const [view, setView] = useState<TerminalView>(initialView);
   const [viewFocusId, setViewFocusId] = useState<TerminalView>(initialView);
   const [marketId, setMarketId] = useState<MarketId>(initialMarket);
+  const [marketFocusId, setMarketFocusId] = useState<MarketId>(initialMarket);
   const [feedStatus, setFeedStatus] = useState<FeedStatus>(initialFeed);
+  const [feedFocusId, setFeedFocusId] = useState<FeedStatus>(initialFeed);
   const [range, setRange] = useState<ChartRange>("4H");
   const [books, setBooks] = useState(seedBooks);
   const [accounts, setAccounts] = useState(seedAccounts);
@@ -106,6 +116,8 @@ export function TradingTerminal({
   const nextFillId = useRef(1);
   const rangeRefs = useRef<Partial<Record<ChartRange, HTMLButtonElement | null>>>({});
   const viewRefs = useRef<Partial<Record<TerminalView, HTMLButtonElement | null>>>({});
+  const marketRefs = useRef<Partial<Record<MarketId, HTMLButtonElement | null>>>({});
+  const feedRefs = useRef<Partial<Record<FeedStatus, HTMLButtonElement | null>>>({});
   const market = markets[marketId];
   const book = books[marketId];
   const feed = feedSurface(feedStatus);
@@ -152,12 +164,74 @@ export function TradingTerminal({
 
   function selectMarket(nextMarket: MarketId) {
     setMarketId(nextMarket);
+    setMarketFocusId(nextMarket);
     router.replace(viewUrl(view, nextMarket, feedStatus), { scroll: false });
   }
 
   function selectFeed(nextFeed: FeedStatus) {
     setFeedStatus(nextFeed);
+    setFeedFocusId(nextFeed);
     router.replace(viewUrl(view, marketId, nextFeed), { scroll: false });
+  }
+
+  function moveMarketFocus(next: MarketId) {
+    setMarketFocusId(next);
+    marketRefs.current[next]?.focus();
+  }
+
+  function moveFeedFocus(next: FeedStatus) {
+    setFeedFocusId(next);
+    feedRefs.current[next]?.focus();
+  }
+
+  function onMarketKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: MarketId) {
+    const action = interpretRovingKey(event.key);
+    if (!action) {
+      return;
+    }
+    event.preventDefault();
+    if (action === "next") {
+      moveMarketFocus(nextMarketId(id, 1));
+      return;
+    }
+    if (action === "prev") {
+      moveMarketFocus(nextMarketId(id, -1));
+      return;
+    }
+    if (action === "home") {
+      moveMarketFocus(MARKET_IDS[0]);
+      return;
+    }
+    if (action === "end") {
+      moveMarketFocus(MARKET_IDS[MARKET_IDS.length - 1]);
+      return;
+    }
+    selectMarket(id);
+  }
+
+  function onFeedKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: FeedStatus) {
+    const action = interpretRovingKey(event.key);
+    if (!action) {
+      return;
+    }
+    event.preventDefault();
+    if (action === "next") {
+      moveFeedFocus(nextFeedStatus(id, 1));
+      return;
+    }
+    if (action === "prev") {
+      moveFeedFocus(nextFeedStatus(id, -1));
+      return;
+    }
+    if (action === "home") {
+      moveFeedFocus(FEED_STATUSES[0]);
+      return;
+    }
+    if (action === "end") {
+      moveFeedFocus(FEED_STATUSES[FEED_STATUSES.length - 1]);
+      return;
+    }
+    selectFeed(id);
   }
 
   function sweepExpired(sourceBook = book, sourceAccount = account) {
@@ -364,33 +438,52 @@ export function TradingTerminal({
             <section className={styles.marketBar} aria-label="Selected market summary">
               <div className={styles.marketSelectorWrap}>
                 <span className={styles.coinMark}>Z</span>
-                <label>
+                <div>
                   <span>Market</span>
-                  <select
-                    value={marketId}
-                    aria-label="Selected market"
-                    onChange={(event) => selectMarket(event.target.value as MarketId)}
-                  >
-                    <option value="ZEC/USDC">ZEC / USDC</option>
-                    <option value="ZEC/USDT">ZEC / USDT</option>
-                  </select>
-                </label>
+                  <div className={styles.selectorTabs} role="radiogroup" aria-label="Selected market">
+                    {MARKET_IDS.map((id) => (
+                      <button
+                        type="button"
+                        key={id}
+                        role="radio"
+                        aria-checked={marketId === id}
+                        tabIndex={marketFocusId === id ? 0 : -1}
+                        className={marketId === id ? styles.selectorActive : undefined}
+                        ref={(node) => {
+                          marketRefs.current[id] = node;
+                        }}
+                        onClick={() => selectMarket(id)}
+                        onKeyDown={(event) => onMarketKeyDown(event, id)}
+                      >
+                        {MARKET_ID_LABELS[id]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <span className={styles.settlementBadge}>settles {market.settlementPair}</span>
                 {marketId === "ZEC/USDT" && <span className={styles.gateBadge}>Later listing gate</span>}
-                <label>
+                <div>
                   <span>Market data</span>
-                  <select
-                    value={feedStatus}
-                    aria-label="Market data state"
-                    onChange={(event) => selectFeed(event.target.value as FeedStatus)}
-                  >
-                    <option value="illustrative">Illustrative</option>
-                    <option value="loading">Loading</option>
-                    <option value="empty">Empty</option>
-                    <option value="stale">Stale</option>
-                    <option value="unavailable">Unavailable</option>
-                  </select>
-                </label>
+                  <div className={styles.selectorTabs} role="radiogroup" aria-label="Market data state">
+                    {FEED_STATUSES.map((id) => (
+                      <button
+                        type="button"
+                        key={id}
+                        role="radio"
+                        aria-checked={feedStatus === id}
+                        tabIndex={feedFocusId === id ? 0 : -1}
+                        className={feedStatus === id ? styles.selectorActive : undefined}
+                        ref={(node) => {
+                          feedRefs.current[id] = node;
+                        }}
+                        onClick={() => selectFeed(id)}
+                        onKeyDown={(event) => onFeedKeyDown(event, id)}
+                      >
+                        {FEED_STATUS_LABELS[id]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
               <dl className={styles.marketStats}>
                 <div className={styles.priceStat}>

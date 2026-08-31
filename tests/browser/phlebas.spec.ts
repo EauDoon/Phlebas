@@ -173,7 +173,7 @@ for (const width of viewports) {
       await expectVisibleFocus(enterSimulation);
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/trade\?view=trade$/);
-      await expect(page.getByRole("combobox", { name: "Selected market" })).toHaveValue("ZEC/USDC");
+      await expect(page.getByRole("radio", { name: "ZEC / USDC" })).toHaveAttribute("aria-checked", "true");
       await expect(page.getByText("settles pZEC-USDC", { exact: true })).toBeVisible();
 
       await page.goto("/", { waitUntil: "networkidle" });
@@ -389,7 +389,7 @@ test("stale market data disables preview-to-sign and retries to illustrative", a
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
-  await page.getByRole("combobox", { name: "Market data state" }).selectOption("stale");
+  await page.getByRole("radio", { name: "Stale" }).click();
   await expect(page.getByText("Market data stale", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
@@ -436,12 +436,12 @@ test("GTC remainder can be cancelled and epoch invalidation is visible", async (
 
 test("USDT market names USDT0 settlement and empty feed shows no depth", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(page.getByText("settles pZEC-USDT0")).toBeVisible();
-  await page.getByRole("combobox", { name: "Market data state" }).selectOption("empty");
+  await page.getByRole("radio", { name: "Empty" }).click();
   await expect(page.getByText("No resting depth. The local book is empty.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
-  await page.getByRole("combobox", { name: "Market data state" }).selectOption("loading");
+  await page.getByRole("radio", { name: "Loading" }).click();
   await expect(page.getByText("Loading market data", { exact: true }).first()).toBeVisible();
 });
 
@@ -802,11 +802,11 @@ test("chart and 24h stats name stale and unavailable feeds", async ({ page }) =>
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByText("Illustrative market data", { exact: true })).toBeVisible();
   await expect(page.getByText("24h figures are repository fixtures. Not a live, delayed, or production feed.")).toBeVisible();
-  await page.getByRole("combobox", { name: "Market data state" }).selectOption("stale");
+  await page.getByRole("radio", { name: "Stale" }).click();
   await expect(page.getByText("Market data stale", { exact: true })).toHaveCount(2);
   await expect(page.getByText("24h figures stay fixture labels while market data is stale as of 2026-08-30T16:32:08Z.")).toBeVisible();
   await expect(page.getByRole("img", { name: /Delayed illustrative/ })).toBeVisible();
-  await page.getByRole("combobox", { name: "Market data state" }).selectOption("unavailable");
+  await page.getByRole("radio", { name: "Unavailable" }).click();
   await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("24h figures stay withheld.")).toBeVisible();
   await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
@@ -957,7 +957,7 @@ test("invalid size shows a field error and keeps review closed", async ({ page }
 
 test("USDT review repeats the later listing gate", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();

@@ -15,8 +15,15 @@ import {
   type PoolShares,
 } from "@/lib/lp";
 import { pools, type MarketId } from "@/lib/market-data";
+import {
+  FEED_STATUS_LABELS,
+  FEED_STATUSES,
+  nextFeedStatus,
+  ticketGate,
+  type FeedStatus,
+} from "@/lib/market-state";
 import { nextPoolId, POOL_IDS, type PoolId } from "@/lib/pool-ids";
-import { ticketGate, type FeedStatus } from "@/lib/market-state";
+import { interpretRovingKey } from "@/lib/roving-keys";
 import { parseAtomicUnits, formatAtomicUnits, PZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -65,6 +72,8 @@ export function LiquidityPanel({
   const amountHelpId = useId();
   const amountErrorId = useId();
   const poolRefs = useRef<Partial<Record<PoolId, HTMLButtonElement | null>>>({});
+  const feedRefs = useRef<Partial<Record<FeedStatus, HTMLButtonElement | null>>>({});
+  const [feedFocusId, setFeedFocusId] = useState<FeedStatus>(feedStatus);
   const selectedPool = marketId === "ZEC/USDT" ? pools[1] : pools[0];
   const [amount, setAmount] = useState("10");
   const [poolState, setPoolState] = useState(initialPools);
@@ -151,6 +160,42 @@ export function LiquidityPanel({
 
   function selectPool(id: PoolId) {
     onMarketChange(id === "pZEC/USDT0" ? "ZEC/USDT" : "ZEC/USDC");
+  }
+
+  function selectFeed(id: FeedStatus) {
+    setReview(null);
+    setFeedFocusId(id);
+    onFeedChange(id);
+  }
+
+  function moveFeedFocus(next: FeedStatus) {
+    setFeedFocusId(next);
+    feedRefs.current[next]?.focus();
+  }
+
+  function onFeedKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: FeedStatus) {
+    const action = interpretRovingKey(event.key);
+    if (!action) {
+      return;
+    }
+    event.preventDefault();
+    if (action === "next") {
+      moveFeedFocus(nextFeedStatus(id, 1));
+      return;
+    }
+    if (action === "prev") {
+      moveFeedFocus(nextFeedStatus(id, -1));
+      return;
+    }
+    if (action === "home") {
+      moveFeedFocus(FEED_STATUSES[0]);
+      return;
+    }
+    if (action === "end") {
+      moveFeedFocus(FEED_STATUSES[FEED_STATUSES.length - 1]);
+      return;
+    }
+    selectFeed(id);
   }
 
   function onPoolKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: PoolId) {
@@ -324,25 +369,28 @@ export function LiquidityPanel({
           ))}
         </div>
 
-        <label className={styles.inputLabel}>
+        <div className={styles.inputLabel}>
           <span>Market data</span>
-          <div className={styles.inputShell}>
-            <select
-              value={feedStatus}
-              aria-label="Market data state"
-              onChange={(event) => {
-                setReview(null);
-                onFeedChange(event.target.value as FeedStatus);
-              }}
-            >
-              <option value="illustrative">Illustrative</option>
-              <option value="loading">Loading</option>
-              <option value="empty">Empty</option>
-              <option value="stale">Stale</option>
-              <option value="unavailable">Unavailable</option>
-            </select>
+          <div className={styles.selectorTabs} role="radiogroup" aria-label="Market data state">
+            {FEED_STATUSES.map((id) => (
+              <button
+                type="button"
+                key={id}
+                role="radio"
+                aria-checked={feedStatus === id}
+                tabIndex={feedFocusId === id ? 0 : -1}
+                className={feedStatus === id ? styles.selectorActive : undefined}
+                ref={(node) => {
+                  feedRefs.current[id] = node;
+                }}
+                onClick={() => selectFeed(id)}
+                onKeyDown={(event) => onFeedKeyDown(event, id)}
+              >
+                {FEED_STATUS_LABELS[id]}
+              </button>
+            ))}
           </div>
-        </label>
+        </div>
 
         {selectedPool.id === "pZEC/USDT0" && (
           <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
@@ -354,7 +402,7 @@ export function LiquidityPanel({
             {" "}
             {gate.message}
             {" "}
-            <button type="button" className={styles.textButton} onClick={() => { setReview(null); onRetryFeed(); }}>
+            <button type="button" className={styles.textButton} onClick={() => { setReview(null); setFeedFocusId("illustrative"); onRetryFeed(); }}>
               Retry illustrative feed
             </button>
           </p>

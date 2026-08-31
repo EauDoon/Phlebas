@@ -82,7 +82,11 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(bridge, /Not payable/);
   assert.match(terminal, /feedSurface/);
   assert.match(terminal, /nextTerminalView/);
+  assert.match(terminal, /nextMarketId/);
+  assert.match(terminal, /nextFeedStatus/);
+  assert.match(terminal, /interpretRovingKey/);
   assert.match(terminal, /role="tablist"/);
+  assert.match(terminal, /role="radiogroup"/);
   assert.match(terminal, /Skip to order ticket/);
   assert.match(terminal, /Skip to price chart/);
   assert.match(terminal, /Skip to order book/);
@@ -107,6 +111,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /Confirm simulated \{review\.kind\}/);
   assert.match(liquidity, /publicly linkable/);
   assert.match(liquidity, /Review simulated mint/);
+  assert.match(liquidity, /nextFeedStatus/);
+  assert.match(liquidity, /interpretRovingKey/);
   assert.match(
     await readFile(join(root, "src/lib/preview-education.ts"), "utf8"),
     /not native ZEC, shielded ZEC, or a trustless bridge asset/,
