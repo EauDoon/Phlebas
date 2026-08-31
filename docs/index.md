@@ -39,3 +39,13 @@ the corresponding file in the docs tree.
 - [WALLET_COMPATIBILITY.md](WALLET_COMPATIBILITY.md) — wallet compatibility
 - [BROWSER_ACCEPTANCE.md](BROWSER_ACCEPTANCE.md) — browser acceptance
 - [ASSET_AND_ACCOUNTING.md](ASSET_AND_ACCOUNTING.md) — asset and accounting
+- [ADR 0008](adr/0008-operations-hardening.md) — operations hardening
+- [ADR 0009](adr/0009-final-integration-audit.md) — final integration and audit prep
+
+## Audit and release
+
+- [audit/](audit/) — audit checklist, release readiness evidence, final integration report
+  - [audit/audit-checklist.md](audit/audit-checklist.md)
+  - [audit/release-readiness-evidence.md](audit/release-readiness-evidence.md)
+  - [audit/final-integration-report.md](audit/final-integration-report.md)
+- [release-notes/](release-notes/) — release notes template
