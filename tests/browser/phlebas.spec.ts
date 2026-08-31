@@ -1047,3 +1047,75 @@ test("withdrawal tour demonstrates unresolved without inventing a payout", async
   await expect(page.getByText("Stub claim: unresolved. Nothing is sent.")).toBeVisible();
 });
 
+test("ticket side type and time in force arrows move focus and Enter selects", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const buy = page.getByRole("button", { name: "Buy", exact: true });
+  const sell = page.getByRole("button", { name: "Sell", exact: true });
+  await buy.focus();
+  await expect(buy).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("ArrowRight");
+  await expect(sell).toBeFocused();
+  await expect(buy).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Enter");
+  await expect(sell).toHaveAttribute("aria-pressed", "true");
+
+  const limit = page.getByRole("button", { name: "Limit" });
+  await limit.focus();
+  await page.keyboard.press("End");
+  await expect(page.getByRole("button", { name: "Market" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "Market" })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Enter");
+  await expect(limit).toHaveAttribute("aria-pressed", "true");
+
+  const gtc = page.getByRole("button", { name: "GTC" });
+  await gtc.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("button", { name: "IOC" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "IOC" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("size percent shortcuts are 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const percent = page.getByRole("button", { name: "25%" });
+  await expect(percent).toBeVisible();
+  const box = await percent.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("gateway journey arrows move focus and Enter selects withdrawal", async ({ page }) => {
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  const deposit = page.getByRole("button", { name: "Deposit preview" });
+  const withdrawal = page.getByRole("button", { name: "Withdrawal states" });
+  await deposit.focus();
+  await expect(deposit).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("ArrowRight");
+  await expect(withdrawal).toBeFocused();
+  await expect(deposit).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Enter");
+  await expect(withdrawal).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Preview withdrawal states, not Withdraw ZEC.")).toBeVisible();
+});
+
+test("landing terminal preview names depth figures as fixtures", async ({ page }) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page.getByText("Fixture 52.84 USDC", { exact: true })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Fixture price USDC" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Fixture size pZEC" })).toBeVisible();
+  await expect(page.getByText("Not a live book.")).toBeVisible();
+});
+
+test("status skip link reaches the ledger", async ({ page }) => {
+  await page.goto("/status", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipLedger = page.getByRole("link", { name: "Skip to status ledger" });
+  await expect(skipLedger).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#status-ledger")).toBeFocused();
+});
+
