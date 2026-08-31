@@ -32,7 +32,7 @@ export function typedOrderFromTicket(input: {
   return {
     maker: input.maker,
     side: input.side === "buy" ? 0 : 1,
-    baseAsset: TESTNET.pzec,
+    baseAsset: TESTNET.zec,
     quoteAsset: quoteTokenAddress(input.quote),
     baseAmount: input.sizeAtoms,
     limitPriceTicks: input.priceTicks,
