@@ -207,7 +207,18 @@ export function verifySwapJournal(journal: SwapJournal): boolean {
       if (receipt.payloadHash !== hashSwapEventPayload(receipt.payload)) return false;
       if (receipt.semanticSlot !== swapEventSemanticSlot(receipt.payload)) return false;
       if (payloads.has(receipt.payloadHash) || slots.has(receipt.semanticSlot)) return false;
-      const { eventHash: _eventHash, ...unsigned } = receipt;
+      const unsigned: Omit<SwapEventReceipt, "eventHash"> = {
+        version: receipt.version,
+        sequence: receipt.sequence,
+        swapId: receipt.swapId,
+        termsHash: receipt.termsHash,
+        previousEventHash: receipt.previousEventHash,
+        priorStateRoot: receipt.priorStateRoot,
+        nextStateRoot: receipt.nextStateRoot,
+        payload: receipt.payload,
+        payloadHash: receipt.payloadHash,
+        semanticSlot: receipt.semanticSlot,
+      };
       if (receipt.eventHash !== hashSwapEvent(unsigned)) return false;
       payloads.add(receipt.payloadHash);
       slots.add(receipt.semanticSlot);
