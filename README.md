@@ -26,7 +26,7 @@ This is a hybrid DEX design. The AMM and trade settlement can be onchain, but th
 - Integer constant-product quotes and local add/swap previews for `pZEC/USDC` and `pZEC/USDT0`
 - ZIP 321 testnet TEX issuance through a local gateway, plus the PRODUCT_SPEC withdrawal state tour
 - `/status` and `/api/status`, branded 404/error surfaces, and production `noindex`
-- Executable withdrawal-coverage checks after a finalized burn; mint, pause, and settlement remain design-only
+- Executable withdrawal-coverage checks after a finalized burn; production mint, custody, and payout remain design-only
 - Threat model, operational controls, compliance gates, and staged launch plan
 - Explicit Vercel boundary for a public, non-custodial interface
 

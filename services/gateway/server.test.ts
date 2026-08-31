@@ -10,6 +10,14 @@ import { isTestnetTex } from "../../src/lib/tex.ts";
 
 import { startGateway } from "./server.ts";
 
+function requestIntent(port: number) {
+  return fetch(`http://127.0.0.1:${port}/intents`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+}
+
 test("gateway HTTP issues unique textest intents on loopback", async () => {
   const dir = await mkdtemp(join(tmpdir(), "phlebas-gateway-"));
   const server = startGateway({ host: "127.0.0.1", port: 0, dataDir: dir });
@@ -25,14 +33,16 @@ test("gateway HTTP issues unique textest intents on loopback", async () => {
     assert.equal(healthBody.issued, 0);
     assert.equal(healthBody.cap, 64);
 
-    const first = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
+    const missingContentType = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
+    assert.equal(missingContentType.status, 415);
+    const first = await requestIntent(port);
     const firstBody = await first.json() as { tex: string; request: string };
     assert.equal(first.status, 201);
     assert.equal(isTestnetTex(firstBody.tex), true);
     assert.match(firstBody.request, new RegExp(`zcash:${firstBody.tex}`));
     assert.doesNotMatch(firstBody.tex, /^tex1/);
 
-    const second = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
+    const second = await requestIntent(port);
     const secondBody = await second.json() as { tex: string };
     assert.notEqual(secondBody.tex, firstBody.tex);
 
@@ -51,9 +61,9 @@ test("gateway HTTP refuses further intents after the local cap", async () => {
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
   try {
-    const first = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
+    const first = await requestIntent(port);
     assert.equal(first.status, 201);
-    const second = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
+    const second = await requestIntent(port);
     const body = await second.json() as { reason: string };
     assert.equal(second.status, 429);
     assert.equal(body.reason, "intent-cap");
@@ -70,7 +80,7 @@ test("gateway issued count survives process restart and still respects the cap",
   await once(firstServer, "listening");
   const { port: firstPort } = firstServer.address() as AddressInfo;
   try {
-    const issued = await fetch(`http://127.0.0.1:${firstPort}/intents`, { method: "POST" });
+    const issued = await requestIntent(firstPort);
     assert.equal(issued.status, 201);
   } finally {
     firstServer.close();
@@ -81,7 +91,7 @@ test("gateway issued count survives process restart and still respects the cap",
   await once(secondServer, "listening");
   const { port } = secondServer.address() as AddressInfo;
   try {
-    const blocked = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
+    const blocked = await requestIntent(port);
     const body = await blocked.json() as { reason: string };
     assert.equal(blocked.status, 429);
     assert.equal(body.reason, "intent-cap");
@@ -92,18 +102,18 @@ test("gateway issued count survives process restart and still respects the cap",
   }
 });
 
-test("corrupt issued file fails closed instead of opening an unbounded ledger", async () => {
+test("corrupt gateway state fails closed", async () => {
   const dir = await mkdtemp(join(tmpdir(), "phlebas-gateway-corrupt-"));
   await writeFile(join(dir, "master.key"), `${"11".repeat(32)}\n`);
-  await writeFile(join(dir, "issued"), "not-a-count");
+  await writeFile(join(dir, "state.json"), "not-json");
   const server = startGateway({ host: "127.0.0.1", port: 0, maxIntents: 64, dataDir: dir });
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
   try {
-    const blocked = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
+    const blocked = await requestIntent(port);
     const body = await blocked.json() as { reason: string };
-    assert.equal(blocked.status, 429);
-    assert.equal(body.reason, "intent-cap");
+    assert.equal(blocked.status, 500);
+    assert.match(body.reason, /JSON/);
   } finally {
     server.close();
     await once(server, "close");
@@ -111,17 +121,17 @@ test("corrupt issued file fails closed instead of opening an unbounded ledger", 
   }
 });
 
-test("master key without issued count fails closed so addresses are not reissued", async () => {
+test("master key without gateway state fails closed so addresses are not reissued", async () => {
   const dir = await mkdtemp(join(tmpdir(), "phlebas-gateway-orphan-"));
   await writeFile(join(dir, "master.key"), `${"11".repeat(32)}\n`);
   const server = startGateway({ host: "127.0.0.1", port: 0, maxIntents: 64, dataDir: dir });
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
   try {
-    const blocked = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
+    const blocked = await requestIntent(port);
     const body = await blocked.json() as { reason: string };
-    assert.equal(blocked.status, 429);
-    assert.equal(body.reason, "intent-cap");
+    assert.equal(blocked.status, 500);
+    assert.match(body.reason, /state is missing/);
   } finally {
     server.close();
     await once(server, "close");

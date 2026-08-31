@@ -22,9 +22,9 @@ test("ticket typed orders match the Solidity struct hash", () => {
   assert.equal(order.baseAsset, "0x0000000000000000000000000000000000000001");
   assert.equal(
     bytesToHex(hashOrder(order)),
-    "7dec6a8eea90d206d60f03afeb1576724c542c1f118535c875003e6719c6c334",
+    "78d7cf7804add8ba16e86edaba899f9ea37df1d536de8dd19091f5f09c035120",
   );
-  assert.equal(settlementDigest(order), "eed61ef0af305769d9791ea9cb3a6cf587afa1e8acc3c81108e692e4900c8c1a");
+  assert.equal(settlementDigest(order), "23cf06d636047955c46b031bd1e5e788d74321da1c19d01ee562b2e194cdc4e9");
 });
 
 test("expiry unix is 0 for none and changes the typed-order digest", () => {

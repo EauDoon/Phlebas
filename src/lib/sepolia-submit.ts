@@ -1,13 +1,15 @@
 import { encodeSettleCalldata } from "./settlement-abi.ts";
-import type { TypedOrder } from "./eip712.ts";
+import { assertAddress, type TypedOrder } from "./eip712.ts";
 import { isOnchainAddress } from "./sepolia-manifest.ts";
 import { ARBITRUM_SEPOLIA_HEX, type Eip1193Provider } from "./evm-wallet.ts";
 import { TESTNET } from "./testnet.ts";
 
 export const SEPOLIA_SUBMIT_FLAG = "NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT";
 
-export function sepoliaSubmitEnabled(env: Record<string, string | undefined> = process.env): boolean {
-  return env[SEPOLIA_SUBMIT_FLAG] === "1";
+export function sepoliaSubmitEnabled(env?: Record<string, string | undefined>): boolean {
+  return env
+    ? env[SEPOLIA_SUBMIT_FLAG] === "1"
+    : process.env.NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT === "1";
 }
 
 export function configuredSettlementAddress(): string | null {
@@ -35,7 +37,7 @@ export function planTestnetSubmit(input: {
   if (!input.counterpart) {
     return { action: "sequence", reason: "No crossing signed order. Sequence locally; nothing is sent to settlement." };
   }
-  if (!settlement) {
+  if (!isOnchainAddress(settlement)) {
     return { action: "sequence", reason: "Settlement address is undeployed. Sequence only." };
   }
   return {
@@ -61,9 +63,12 @@ export async function sendSettlement(
   if (chainId.toLowerCase() !== ARBITRUM_SEPOLIA_HEX) {
     throw new Error("Submit is Arbitrum Sepolia only.");
   }
+  const sender = assertAddress(from, "from");
+  const settlement = assertAddress(plan.to, "settlement");
+  if (!/^0x[0-9a-f]+$/i.test(plan.calldata)) throw new TypeError("Settlement calldata must be 0x-prefixed hex");
   const hash = await provider.request({
     method: "eth_sendTransaction",
-    params: [{ from, to: plan.to, data: plan.calldata }],
+    params: [{ from: sender, to: settlement, data: plan.calldata }],
   });
   if (typeof hash !== "string" || !hash.startsWith("0x")) {
     throw new Error("Provider did not return a transaction hash");

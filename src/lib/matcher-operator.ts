@@ -1,4 +1,11 @@
-import { eip712DigestHex, type Eip712Domain, type TypedOrder } from "./eip712.ts";
+import {
+  VENUE_CLOB,
+  assertAddress,
+  eip712DigestHex,
+  timeInForceCode,
+  type Eip712Domain,
+  type TypedOrder,
+} from "./eip712.ts";
 import { keccak256Hex } from "./keccak.ts";
 import { emptyBook, expireRestingOrders, submitOrder, type Book, type Fill, type RestingOrder, type TimeInForce } from "./matcher.ts";
 import { recoverAddress } from "./secp256k1.ts";
@@ -40,6 +47,8 @@ type SerializedReceipt = Omit<SequenceReceipt, "fills"> & { fills: SerializedFil
 export type OperatorSnapshot = {
   domain: Omit<Eip712Domain, "chainId"> & { chainId: string };
   sequence: number;
+  baseAsset: string | null;
+  quoteAssets: string[];
   sequenceRoot: string;
   book: {
     bids: SerializedOrder[];
@@ -55,14 +64,26 @@ export type MatcherOperator = {
   sequence: number;
   receipts: SequenceReceipt[];
   domain: Eip712Domain;
+  seenDigests: Set<string>;
+  baseAsset: string | null;
+  quoteAssets: Set<string>;
+  now: () => bigint;
 };
 
-export function createMatcherOperator(domain: Eip712Domain, lastTicks: bigint): MatcherOperator {
+export function createMatcherOperator(
+  domain: Eip712Domain,
+  lastTicks: bigint,
+  options: { baseAsset?: string; quoteAssets?: readonly string[]; now?: () => bigint } = {},
+): MatcherOperator {
   return {
     book: emptyBook(lastTicks),
     sequence: 0,
     receipts: [],
     domain,
+    seenDigests: new Set(),
+    baseAsset: options.baseAsset ? assertAddress(options.baseAsset, "baseAsset") : null,
+    quoteAssets: new Set(options.quoteAssets?.map((address) => assertAddress(address, "quoteAsset")) ?? []),
+    now: options.now ?? (() => BigInt(Math.floor(Date.now() / 1_000))),
   };
 }
 
@@ -79,14 +100,21 @@ export function verifyMakerSignature(digest: string, signature: string, maker: s
 
 export function intakeSignedOrder(operator: MatcherOperator, order: IntakeOrder, options: { verify?: boolean } = {}): SequenceReceipt {
   const digest = eip712DigestHex(operator.domain, order);
-  if (options.verify !== false && order.signature.length >= 130) {
-    verifyMakerSignature(digest, order.signature, order.maker);
+  if (operator.seenDigests.has(digest)) throw new Error("duplicate-order");
+  if (order.tif !== "GTC" && order.tif !== "IOC" && order.tif !== "FOK") throw new Error("invalid-time-in-force");
+  if (order.timeInForce !== timeInForceCode(order.tif)) throw new Error("signed-time-in-force-mismatch");
+  if (order.expiry !== 0n && order.expiry < operator.now()) throw new Error("expired-order");
+  if ((order.allowedVenues & VENUE_CLOB) === 0) throw new Error("clob-venue-not-allowed");
+  if (operator.baseAsset && order.baseAsset.toLowerCase() !== operator.baseAsset) throw new Error("base-asset-not-allowed");
+  if (operator.quoteAssets.size > 0 && !operator.quoteAssets.has(order.quoteAsset.toLowerCase())) {
+    throw new Error("quote-asset-not-allowed");
   }
-  operator.sequence += 1;
-  const id = `seq-${operator.sequence}`;
-  const nowUnix = BigInt(Math.floor(Date.now() / 1000));
-  operator.book = expireRestingOrders(operator.book, nowUnix).book;
-  const result = submitOrder(operator.book, {
+  if (options.verify !== false) verifyMakerSignature(digest, order.signature, order.maker);
+  const nextSequence = operator.sequence + 1;
+  const id = `seq-${nextSequence}`;
+  const nowUnix = operator.now();
+  const unexpiredBook = expireRestingOrders(operator.book, nowUnix).book;
+  const result = submitOrder(unexpiredBook, {
     id,
     side: order.side === 0 ? "buy" : "sell",
     tif: order.tif,
@@ -95,9 +123,18 @@ export function intakeSignedOrder(operator: MatcherOperator, order: IntakeOrder,
     expiryUnix: order.expiry,
     nowUnix,
   });
+  if (order.tif !== "GTC" && result.fills.length > 1) throw new Error("multi-fill-tif-unsupported");
+  const selfTrade = result.fills.some((fill) => {
+    const makerSequence = Number(fill.makerId.slice(4));
+    return operator.receipts[makerSequence - 1]?.maker === order.maker.toLowerCase();
+  });
+  if (selfTrade) throw new Error("self-trade-prevented");
+  if (result.fills.length > 0 && order.maximumFeeBps < 15) throw new Error("taker-fee-cap-too-low");
+  if (result.status === "open" && order.maximumFeeBps < 5) throw new Error("maker-fee-cap-too-low");
+  operator.sequence = nextSequence;
   operator.book = result.book;
   const receipt: SequenceReceipt = {
-    sequence: operator.sequence,
+    sequence: nextSequence,
     digest,
     maker: order.maker.toLowerCase(),
     signature: order.signature,
@@ -106,6 +143,7 @@ export function intakeSignedOrder(operator: MatcherOperator, order: IntakeOrder,
     fills: result.fills,
     reason: result.reason,
   };
+  operator.seenDigests.add(digest);
   operator.receipts.push(receipt);
   return receipt;
 }
@@ -139,6 +177,8 @@ export function snapshotOperator(operator: MatcherOperator): OperatorSnapshot {
       chainId: operator.domain.chainId.toString(),
     },
     sequence: operator.sequence,
+  baseAsset: operator.baseAsset,
+  quoteAssets: [...operator.quoteAssets],
     sequenceRoot: sequenceRoot(operator),
     book: {
       bids: operator.book.bids.map(serializeResting),
@@ -158,36 +198,52 @@ export function snapshotOperator(operator: MatcherOperator): OperatorSnapshot {
   };
 }
 
-export function restoreOperator(snapshot: OperatorSnapshot): MatcherOperator {
-  const operator: MatcherOperator = {
-    domain: {
-      ...snapshot.domain,
-      chainId: BigInt(snapshot.domain.chainId),
-    },
-    sequence: snapshot.sequence,
-    receipts: snapshot.receipts.map((receipt) => ({
+export function restoreOperator(snapshot: OperatorSnapshot, options: { verify?: boolean; now?: () => bigint } = {}): MatcherOperator {
+  if (!Number.isSafeInteger(snapshot.sequence) || snapshot.sequence < 0 || snapshot.receipts.length !== snapshot.sequence) {
+    throw new Error("Invalid matcher sequence");
+  }
+  const baseAsset = snapshot.baseAsset === null ? null : assertAddress(snapshot.baseAsset, "baseAsset");
+  const quoteAssets = snapshot.quoteAssets.map((address) => assertAddress(address, "quoteAsset"));
+  const receipts = snapshot.receipts.map((receipt, index) => {
+    if (receipt.sequence !== index + 1 || !/^[0-9a-f]{64}$/.test(receipt.digest)) {
+      throw new Error("Invalid matcher receipt sequence or digest");
+    }
+    return {
       ...receipt,
       fills: receipt.fills.map((fill) => ({
         ...fill,
         priceTicks: BigInt(fill.priceTicks),
         sizeAtoms: BigInt(fill.sizeAtoms),
       })),
-    })),
+    };
+  });
+  const seenDigests = new Set(receipts.map((receipt) => receipt.digest));
+  if (seenDigests.size !== receipts.length) throw new Error("Duplicate matcher receipt digest");
+  const operator: MatcherOperator = {
+    domain: {
+      ...snapshot.domain,
+      chainId: BigInt(snapshot.domain.chainId),
+    },
+    sequence: snapshot.sequence,
+    receipts,
     book: {
       bids: snapshot.book.bids.map(restoreResting),
       asks: snapshot.book.asks.map(restoreResting),
       seq: snapshot.book.seq,
       lastTicks: BigInt(snapshot.book.lastTicks),
     },
+    seenDigests,
+    baseAsset,
+    quoteAssets: new Set(quoteAssets),
+    now: options.now ?? (() => BigInt(Math.floor(Date.now() / 1_000))),
   };
-  for (const receipt of operator.receipts) {
-    if (receipt.signature.length >= 130) {
+  if (options.verify !== false) {
+    for (const receipt of operator.receipts) {
       verifyMakerSignature(receipt.digest, receipt.signature, receipt.maker);
     }
   }
-  const restoredRoot = sequenceRoot(operator);
-  if (snapshot.sequenceRoot && snapshot.sequenceRoot !== restoredRoot) {
-    throw new Error("Persisted sequence root does not match restored receipts.");
+  if (snapshot.sequenceRoot !== sequenceRoot(operator)) {
+    throw new Error("Persisted sequence root does not match restored receipts");
   }
   return operator;
 }

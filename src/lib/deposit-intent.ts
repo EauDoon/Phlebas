@@ -1,5 +1,5 @@
 import { encodeTex, isTestnetTex, texPayloadHex } from "./tex.ts";
-import { buildZip321Uri } from "./zip321.ts";
+import { buildZip321Uri, formatZip321Amount } from "./zip321.ts";
 
 export type DepositIntent = {
   id: string;
@@ -29,6 +29,7 @@ export function issueDepositIntent(
     createdAt?: string;
   },
 ): DepositIntent {
+  formatZip321Amount(options.amountZatoshis);
   if (ledger.byId.has(options.id)) {
     throw new Error("Deposit intent id is already assigned");
   }

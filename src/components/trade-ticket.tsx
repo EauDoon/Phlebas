@@ -356,7 +356,7 @@ export function TradeTicket({
     setSessionNonce(sessionNonce + 1);
     let eip712 = undefined as string | undefined;
     let typed = undefined as TypedOrder | undefined;
-    if (walletAddress) {
+    if (walletAddress && TESTNET.deployed) {
       typed = typedOrderFromTicket({
         maker: walletAddress,
         side,
@@ -391,6 +391,10 @@ export function TradeTicket({
       setNotice("No injected EVM wallet.");
       return;
     }
+    if (!TESTNET.deployed) {
+      setNotice("Settlement contract is undeployed. Testnet signing is disabled.");
+      return;
+    }
     try {
       const domain = sepoliaDomain(TESTNET.settlement);
       const signature = await signTypedData(
@@ -410,7 +414,7 @@ export function TradeTicket({
         return;
       }
       if (plan.action === "sequence" && sepoliaSubmitEnabled()) {
-        await fetch("/api/matcher", {
+        const response = await fetch("/api/matcher", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -418,7 +422,8 @@ export function TradeTicket({
             signature,
             tif: review.tif,
           }),
-        }).catch(() => undefined);
+        });
+        if (!response.ok) throw new Error(`Matcher rejected the signed order (${response.status}).`);
       }
       setNotice(`${plan.reason} Signature ${signature.slice(0, 10)}…`);
     } catch (error) {

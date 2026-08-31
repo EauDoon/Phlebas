@@ -18,6 +18,9 @@ function observation(overrides: Partial<Parameters<typeof parseStubObservation>[
     blockHeight: 100,
     blockHash: "22".repeat(32),
     tipHeight: 109,
+    transparentInputsOnly: true,
+    transparentOutputsOnly: true,
+    shieldedBundle: false,
     ...overrides,
   });
 }

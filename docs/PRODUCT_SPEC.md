@@ -69,6 +69,7 @@ base asset
 quote asset
 base amount
 limit price
+time in force
 nonce
 account epoch
 expiry

@@ -1,6 +1,6 @@
 # Phlebas Launch Plan
 
-Status: local no-value simulation only as of 30-08-2026. Testnet remains a future gated stage.
+Status: local no-value simulation with undeployed Sepolia sources and optional local testnet services as of 31-08-2026. Entering closed testnet remains a separately approved gated stage.
 
 Phlebas may be developed and published as a no-value simulation, then advanced to a separately approved no-value testnet stage. It must not accept real ZEC, mint redeemable pZEC, list real USDC or USDT0, charge trading fees, or accept real liquidity until the mainnet gate passes.
 
@@ -16,6 +16,17 @@ This plan is risk planning, not legal advice. [LEGAL_AND_COMPLIANCE.md](./LEGAL_
 - Add LP pools only after custody and order-book controls have operated successfully under real conditions.
 - Add USDT0 only through its separate later gate.
 - Exclude shielded ZEC, leverage, margin, lending, derivatives, staking, governance tokens, and reward programs from v1.
+
+## 30-day critical path
+
+The date does not waive a gate. If every mainnet item below lacks dated evidence and an accountable approval by day 28, day 30 is a no-value public-testnet launch, not mainnet.
+
+- Days 1-5: freeze the order schema and contract interfaces, merge the hardening work, engage independent reviewers, assign every legal and operational owner, and deploy the exact reviewed commit to closed Sepolia.
+- Days 6-12: connect the isolated testnet gateway, Zcash observers, matcher, settlement submitter, reconciliation, monitoring, and append-only audit records. Exercise complete deposit, mint, trade, burn, and payout flows with valueless assets.
+- Days 13-18: run invariant, fuzz, load, denial-of-service, reorganization, replay, reserve-deficit, signer-loss, stablecoin, pause, and disaster-recovery tests. Freeze the release candidate after fixes.
+- Days 19-24: remediate and independently retest every Critical or High finding; finish entity, license or partner, country, custody, asset-listing, privacy, and customer-document approvals.
+- Days 25-27: reproduce bytecode and configuration from the release commit, verify role separation and monitoring, rehearse rollback and emergency stops, and obtain signed security, legal, compliance, operations, and product evidence.
+- Days 28-30: hold the formal go/no-go review. Launch only the restricted USDC canary if every gate passes; otherwise publish testnet status and the unresolved blockers without accepting value.
 
 ## Product boundary
 
@@ -52,7 +63,7 @@ This tier includes:
 
 ## Stage 0: repository and local simulation
 
-Current status: pre-exit baseline. The interface and numerical helpers exist locally, but deterministic matcher, cancellation, partial-fill, LP-share, and complete fee properties remain required before Stage 0 can pass.
+Current status: exit candidate. Deterministic matching, cancellation, partial fills, LP shares, conservative rounding, fee accounting, signed orders, persistence recovery, and core contract invariants are covered locally; independent review and named ownership remain required.
 
 Goal: prove the product model without deployed value.
 

@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after matcher unix expiry, LP mint/swap review, rejected ticket panel, blotter tabpanels, and `/legal` `/security`.
+Last updated: 31-08-2026 after the mainnet-readiness hardening batch was integrated with the latest contributor head.
 
 ## Branch
 
-`feat/simulation-hardening` off `main` at `873e1cd` (PR #18). One multi-feature PR.
+`codex/mainnet-readiness` integrates the current `feat/simulation-hardening` head from PR #19.
 
 ## Done
 
@@ -27,73 +27,43 @@ Last updated: 31-08-2026 after matcher unix expiry, LP mint/swap review, rejecte
 - Receivable testnet TEX via a local gateway (`textest` only, single-use ledger). Public app issues nothing without `PHLEBAS_GATEWAY_URL`.
 - Injected EVM wallet connector limited to Arbitrum Sepolia. Signing does not submit a settlement transaction.
 - Local matcher operator sequences, recovers EIP-712 signatures, and matches. Not bundled into Vercel.
-- Foundry Sepolia deploy script plus `scripts/record-sepolia-deploy.mjs`. Manifest stays `deployed: false` until `--mark-deployed` sees a real tx.
+- Foundry Sepolia deploy script plus `scripts/record-sepolia-deploy.mjs`. Manifest stays `deployed: false` until `--mark-deployed` verifies a successful receipt and bytecode at every recorded address over Sepolia RPC.
 - Session tickets bind keccak EIP-712 to settlement when a wallet is connected. SHA-256 remains the session-only simulation encoding.
-- Wallet sign-and-submit is behind `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1`. Default is sign-only. Zero settlement address cannot send a tx.
+- Wallet signing stays disabled until the verified manifest is deployed. Sign-and-submit also requires `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1`.
 - Matcher persists book, receipts, recover, and sequence under `services/matcher/.data` on 127.0.0.1.
 - Isolated local Compose under `services/` for gateway, matcher, and observer. Host ports bind `127.0.0.1`. Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.
-- Zebra observer and mint-attestation stubs: textest only, 10 confirmations, one outpoint one mint. No Zebra RPC. HTTP `/attest` is covered by a live loopback test.
-- License: Apache License 2.0 (`LICENSE`, `docs/LICENSE_CHOICE.md`). Not MIT. Product language unchanged.
-- Operator runbook for local Compose: `docs/OPERATOR_RUNBOOK.md`. Gateway, matcher, and observer health and incident steps. Loopback HTTP tests cover issue, sequence health, attest, quarantine, and disagreement.
-- Public `/api/deposit-intent` and `/api/matcher` only proxy `http://127.0.0.1` (or localhost / `[::1]`) with no path. Anything else, including unset, is 503.
-- Payout stub: one burn, one transparent-shape destination, never TEX or shielded. Withdrawal inspector previews the stub and still sends nothing.
-- Observer reorg drops off-chain and under-confirmed observations.
-- Country access default deny, empty enable list, shown on the landing ledger and `/status`.
-- Matcher loopback POST rejects a signature that does not recover to the maker.
-- Direct operator processes refuse `0.0.0.0` unless `PHLEBAS_ALLOW_NON_LOOPBACK=1` (Compose only).
-- SECURITY.md matches the current simulation-plus-local-stubs boundary.
-- Public `/api/deposit-intent` and `/api/matcher` refuse operator URLs with a path, user, TLS, query, or hash.
-- Matcher health publishes a keccak sequence root over sequence plus receipt digests.
-- Production CSP `connect-src` is `'self'` only; `ws:`/`http:` are development-only. Asserted in `copy-boundary.test.ts`.
-- Secret scan fails `PHLEBAS_GATEWAY_URL` / `PHLEBAS_MATCHER_URL` in committed `.env`, `vercel.json`, or `.vercel/` files.
-- THREAT_MODEL, ARCHITECTURE, and landing-journey current-reality match the simulation-plus-local-stubs boundary.
-- Matcher persist ignores corrupt `state.json` and starts empty. Covered by a unit test.
-- Payout pre-burn screen: requested destinations are screened or rejected before a burn id is spent. Withdrawal inspector uses the screen; nothing is sent.
-- Observer `POST /coverage` reproduces `calculateReserveCoverage` from public inputs. Not a live reserve monitor.
-- Matcher health publishes `startedAt` and `lastSequenceAt` for third-party downtime polling.
-- Matcher `GET /sequence?after=N` is the receipt cursor. Observer `/attest` fails closed when a supplied reserve snapshot is uncovered.
-- Gateway loopback issue cap defaults to 64 intents (`PHLEBAS_GATEWAY_MAX_INTENTS`). Further issues are 429.
-- Persist restore keeps the same sequence root. Operator runbook notes Windows ignores POSIX `0o600` on the gateway master key.
-- Payout claim stub walks requested → screened → burn-submitted → payable / unresolved. Nothing is sent.
-- Gateway issued count persists under `services/gateway/.data/issued`, so the intent cap survives a process restart. Corrupt issued files and a master key without `issued` fail closed at the cap.
-- Matcher persist stores the sequence root. A tampered root is ignored and the matcher starts empty.
-- Withdrawal tour drives `payoutClaimForTourStep` without changing tour copy. Stub claim state is visible. Nothing is sent.
-- Fills, resting orders, and the tape name the settlement pair (`pZEC-USDC` / `pZEC-USDT0`).
-- Account epoch is visible on the ticket and blotter. Invalidate older session orders increments it.
-- LP trading pause disables mint and swap; burn stays available.
-- Wallet connect failures are visible. Gateway issue shows an issuing state.
-- Review repeats assets, fees, custody, and public-linkability (PRODUCT_SPEC §10).
-- Empty feed shows empty depth. Loading feed disables review.
-- `/api/status` never copies a remote operator URL. `intentCap` is 64 only when the gateway URL is loopback HTTP. `sequenceRoot` stays null without a fetched loopback matcher.
-- Blotter tables scroll inside the panel so the settlement column cannot blow the 320px page.
-- LP panel previews integer IL versus holding the same deposited assets at 4x and 1/4x pZEC/quote, plus session IL after mint. Not a return projection.
-- Gateway health publishes `issued` and `cap` from the shared `GATEWAY_DEFAULT_MAX_INTENTS` (64).
-- Ticket and LP copy bind to version-1 fee constants (5 / 15 / 30 bps, max 30).
-- Public `/status` shows intent cap `unset` when no loopback gateway URL is configured.
-- Matcher health reports `persistReadable`. Observer health reports the 10-confirmation floor.
-- Session ticket expiry is unix time or 0 for none. It binds the SHA-256 canonical encoding and the keccak typed order.
-- Playwright covers market-IOC worst price, expiry on review, IL versus hold, and `/status` intent-cap `unset`.
-- Ticket shows the next session nonce beside epoch. Invalid expiry keeps review closed.
-- Session blotter log line includes expiry when a ticket is confirmed. Nonce-bitmap helper matches Settlement.sol (`word = nonce >> 8`, `bit = 1 << uint8(nonce)`).
-- In-browser matcher rejects a taker whose unix expiry has passed and drops resting orders after that unix time. Replay still omits `nowUnix` so a logged submit reconstructs.
-- Ticket shows a rejected panel (role=alert) for expiry, matcher reject, inventory, and self-trade. Retry is safe.
-- LP mint and swap use review-and-confirm repeating PRODUCT_SPEC §10 (assets, worst price, fees, custody, public-linkability). Burn stays immediate.
-- Blotter tabs expose one tabpanel each, with arrow/Home/End keys.
-- `/legal` and `/security` simulation pages. Landing, terminal, status, and frame nav cross-link them.
+- Zebra observer and mint-attestation stubs: textest only, 10 confirmations, durable one-outpoint/one-mint replay protection, strict observation input, and conservative multi-observer confirmation agreement. No Zebra RPC. HTTP `/attest` is covered by a live loopback/restart test.
+- License: Apache License 2.0 (`LICENSE`). Not MIT. Product language unchanged.
+- Operator runbook for local Compose: `docs/OPERATOR_RUNBOOK.md`. Gateway, matcher, and observer health and incident steps.
+- Public operator APIs accept only loopback HTTP services and remain unavailable on Vercel.
+- Payout claim stub walks requested, screened, burn-submitted, payable, and unresolved states. Nothing is sent.
+- Country access remains deny by default. Empty and loading market feeds fail closed.
+- Fills, resting orders, and tape entries name the simulated settlement pair. Account epochs and invalidation are visible.
+- LP burns remain available during a trading pause. Wallet, gateway, and review failures stay visible.
+- Matcher health exposes a receipt cursor, sequence root, start time, and last-sequence time for local monitoring.
+- EIP-712 and settlement calldata bind time-in-force and enforce Solidity integer widths; wallets recheck Sepolia immediately before signing.
+- Settlement rejects high-s signatures, reentrancy, self-trades, invalid roles/assets, unsupported TIF behavior, and unsafe token-return conventions. Exact buyer, seller, and fee accounting is tested.
+- AMM first mint uses geometric-mean shares with locked minimum liquidity; later mints use both reserves, LP exits remain open during a trading pause, and donation-aware burn/sync paths are tested.
+- Matcher rejects replay, expiry, unapproved assets/venues, self-trades, unsupported multi-fill IOC/FOK, and fee caps that cannot settle. Signatures are mandatory outside explicit unit-test bypasses.
+- Matcher, gateway, and observer mutations are serialized and use file fsync plus atomic rename. Corrupt or unexpectedly missing replay state fails closed. Windows lacks a portable directory-fsync barrier, which is documented without weakening file fsync or rename.
+- Sepolia deployment requires distinct roles. The manifest is wired into runtime configuration and cannot be marked deployed without a complete, commit-bound successful Sepolia receipt and verified bytecode at every address.
+- CI pins the Foundry action and toolchain. Contract invariants include 10,000-case AMM-product and settlement-rounding fuzz runs in the release check.
+- Session blotter log lines include expiry when a ticket is confirmed. The nonce-bitmap helper matches `Settlement.sol`.
+- In-browser and operator matchers reject expired takers and sweep expired resting orders before matching.
+- Ticket rejections use a visible alert panel. LP mint and swap use review-and-confirm. Blotter tabs expose keyboard-operable tabpanels.
+- `/legal` and `/security` simulation pages are cross-linked from the landing, terminal, status, and frame navigation.
 
 ## Next
 
-- Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
-- Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
-- Public Vercel UI still serves the last merged production build until a deploy token is available
-- Landing journey chooser as four manually activated tabs (Trader, LP, Deposit, Withdrawal)
-- ZIP 321 deposit QR is still copy-only; render a non-payable placeholder QR and keep the clipboard failure honest
-- Chart and 24h stats should name empty, stale, and unavailable feeds the way the ticket gate does
-- LP panel loading/empty/stale/unavailable states (PRODUCT_SPEC §10)
-- Playwright: unavailable-feed gate, blotter arrow keys, and clipboard failure on the destination inspector
+- Publish, verify, and merge the exact hardening head only after fresh Verify and Vercel success.
+- Record and independently verify a real Arbitrum Sepolia deployment using approved role addresses.
+- Build the authoritative append-only matcher/settlement service and custody attestation path on isolated infrastructure, not Vercel or the local JSON stores.
+- Complete closed-testnet reorg, replay, signer-loss, reserve-deficit, recovery, load, and disaster-recovery drills.
+- Complete independent contract/infrastructure audits, Apache-2.0 distribution review, legal/entity/country approvals, and named operational ownership.
 
 ## Blockers
 
-- None for this slice
+- Mainnet remains a no-go: there is no production custody, reserve attester, mint controller, redemption service, identity/compliance tier, surveillance system, or independently audited deployment.
+- The local JSON persistence added for testnet is intentionally single-process and is not the production authoritative ledger.
 - Language bar still holds: never imply live, audited, trustless, private, shielded, or native-ZEC
 - Vercel still must not hold spend keys, issue mainnet TEX, or run the authoritative matcher

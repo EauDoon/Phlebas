@@ -66,6 +66,10 @@ export async function signTypedData(
   address: string,
   typedData: unknown,
 ): Promise<string> {
+  const chainId = await provider.request({ method: "eth_chainId" });
+  if (typeof chainId !== "string" || chainId.toLowerCase() !== ARBITRUM_SEPOLIA_HEX) {
+    throw new Error("Switch to Arbitrum Sepolia before signing.");
+  }
   const signature = await provider.request({
     method: "eth_signTypedData_v4",
     params: [address, JSON.stringify(typedData)],

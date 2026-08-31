@@ -1,6 +1,6 @@
 # Phlebas Threat Model
 
-> Status as of 31-08-2026: design document. The public app is a no-value simulation. Local loopback stubs exist for a textest gateway, matcher, and observer. None of the proposed production bridge, custody, matching, settlement, routing, automated market maker, administration, monitoring, or incident controls are deployed or audited.
+> Status as of 31-08-2026: design document for a no-value simulation with undeployed Sepolia contract sources and optional local textest services. No production bridge, custody, contract, matching, routing, monitoring, or incident control is deployed or audited.
 
 ## 1. Purpose and decision
 
@@ -19,7 +19,7 @@ The public Vercel app is a no-value simulation. Local optional stubs exist and a
 
 - In-browser session matcher, plus a loopback matcher operator that is never hosted on Vercel.
 - Undeployed Arbitrum Sepolia contract sources. The manifest stays `deployed: false` until a real Sepolia transaction is recorded.
-- Optional EIP-1193 wallet connection on Arbitrum Sepolia only. Default is sign-only.
+- Optional EIP-1193 wallet connection on Arbitrum Sepolia only. Signing stays disabled while the verified deployment manifest is undeployed.
 - Local `textest` gateway and observer stubs on `127.0.0.1`. No Zebra RPC, no mainnet TEX.
 
 Values shown for prices, depth, volume, total value locked, pool reserves, fees, and trades are simulation data. They are not evidence of a live market or asset backing. Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.

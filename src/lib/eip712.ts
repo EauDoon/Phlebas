@@ -9,6 +9,9 @@ export const SIDE_BUY = 0;
 export const SIDE_SELL = 1;
 export const VENUE_CLOB = 1;
 export const VENUE_AMM = 2;
+export const TIF_GTC = 0;
+export const TIF_IOC = 1;
+export const TIF_FOK = 2;
 
 export type Eip712Domain = {
   name: string;
@@ -24,6 +27,7 @@ export type TypedOrder = {
   quoteAsset: string;
   baseAmount: bigint;
   limitPriceTicks: bigint;
+  timeInForce: 0 | 1 | 2;
   nonce: bigint;
   accountEpoch: bigint;
   expiry: bigint;
@@ -34,7 +38,7 @@ export type TypedOrder = {
 };
 
 export const EIP712_DOMAIN_TYPE = "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)";
-export const ORDER_TYPE = "Order(address maker,uint8 side,address baseAsset,address quoteAsset,uint128 baseAmount,uint128 limitPriceTicks,uint64 nonce,uint64 accountEpoch,uint64 expiry,uint256 salt,address recipient,uint16 maximumFeeBps,uint8 allowedVenues)";
+export const ORDER_TYPE = "Order(address maker,uint8 side,address baseAsset,address quoteAsset,uint128 baseAmount,uint128 limitPriceTicks,uint8 timeInForce,uint64 nonce,uint64 accountEpoch,uint64 expiry,uint256 salt,address recipient,uint16 maximumFeeBps,uint8 allowedVenues)";
 
 export const EIP712_DOMAIN_TYPEHASH = keccak256Hex(EIP712_DOMAIN_TYPE);
 export const ORDER_TYPEHASH = keccak256Hex(ORDER_TYPE);
@@ -65,6 +69,13 @@ export function wordUint(value: bigint): Uint8Array {
   return hexToBytes(hex);
 }
 
+export function wordUintN(value: bigint, bits: number, label: string): Uint8Array {
+  if (value < 0n || value >= 1n << BigInt(bits)) {
+    throw new RangeError(`${label} must fit uint${bits}`);
+  }
+  return wordUint(value);
+}
+
 export function wordAddress(value: string): Uint8Array {
   return pad32(hexToBytes(assertAddress(value, "address")));
 }
@@ -93,27 +104,34 @@ export function hashOrder(order: TypedOrder): Uint8Array {
   if (order.side !== 0 && order.side !== 1) {
     throw new RangeError("side must be 0 (buy) or 1 (sell)");
   }
-  if (order.maximumFeeBps < 0 || order.maximumFeeBps > 30) {
+  if (order.timeInForce !== TIF_GTC && order.timeInForce !== TIF_IOC && order.timeInForce !== TIF_FOK) {
+    throw new RangeError("timeInForce must be GTC, IOC, or FOK");
+  }
+  if (!Number.isInteger(order.maximumFeeBps) || order.maximumFeeBps < 0 || order.maximumFeeBps > 30) {
     throw new RangeError("maximumFeeBps cannot exceed 30");
   }
-  if (order.allowedVenues < 1 || order.allowedVenues > 3) {
+  if (!Number.isInteger(order.allowedVenues) || order.allowedVenues < 1 || order.allowedVenues > 3) {
     throw new RangeError("allowedVenues must be a CLOB/AMM bitmask");
+  }
+  if (order.baseAmount <= 0n || order.limitPriceTicks <= 0n) {
+    throw new RangeError("baseAmount and limitPriceTicks must be positive");
   }
   return keccak256(concat([
     hexToBytes(ORDER_TYPEHASH),
     wordAddress(order.maker),
-    wordUint(BigInt(order.side)),
+    wordUintN(BigInt(order.side), 8, "side"),
     wordAddress(order.baseAsset),
     wordAddress(order.quoteAsset),
-    wordUint(order.baseAmount),
-    wordUint(order.limitPriceTicks),
-    wordUint(order.nonce),
-    wordUint(order.accountEpoch),
-    wordUint(order.expiry),
+    wordUintN(order.baseAmount, 128, "baseAmount"),
+    wordUintN(order.limitPriceTicks, 128, "limitPriceTicks"),
+    wordUintN(BigInt(order.timeInForce), 8, "timeInForce"),
+    wordUintN(order.nonce, 64, "nonce"),
+    wordUintN(order.accountEpoch, 64, "accountEpoch"),
+    wordUintN(order.expiry, 64, "expiry"),
     wordUint(order.salt),
     wordAddress(order.recipient),
-    wordUint(BigInt(order.maximumFeeBps)),
-    wordUint(BigInt(order.allowedVenues)),
+    wordUintN(BigInt(order.maximumFeeBps), 16, "maximumFeeBps"),
+    wordUintN(BigInt(order.allowedVenues), 8, "allowedVenues"),
   ]));
 }
 
@@ -139,6 +157,8 @@ export function sepoliaDomain(verifyingContract: string): Eip712Domain {
 }
 
 export function typedData(domain: Eip712Domain, order: TypedOrder) {
+  hashDomain(domain);
+  hashOrder(order);
   return {
     types: {
       EIP712Domain: [
@@ -154,6 +174,7 @@ export function typedData(domain: Eip712Domain, order: TypedOrder) {
         { name: "quoteAsset", type: "address" },
         { name: "baseAmount", type: "uint128" },
         { name: "limitPriceTicks", type: "uint128" },
+        { name: "timeInForce", type: "uint8" },
         { name: "nonce", type: "uint64" },
         { name: "accountEpoch", type: "uint64" },
         { name: "expiry", type: "uint64" },
@@ -167,7 +188,7 @@ export function typedData(domain: Eip712Domain, order: TypedOrder) {
     domain: {
       name: domain.name,
       version: domain.version,
-      chainId: Number(domain.chainId),
+      chainId: domain.chainId.toString(),
       verifyingContract: assertAddress(domain.verifyingContract, "verifyingContract"),
     },
     message: {
@@ -177,6 +198,7 @@ export function typedData(domain: Eip712Domain, order: TypedOrder) {
       quoteAsset: assertAddress(order.quoteAsset, "quoteAsset"),
       baseAmount: order.baseAmount.toString(),
       limitPriceTicks: order.limitPriceTicks.toString(),
+      timeInForce: order.timeInForce,
       nonce: order.nonce.toString(),
       accountEpoch: order.accountEpoch.toString(),
       expiry: order.expiry.toString(),
@@ -192,4 +214,11 @@ export function venuesBitmask(venues: "clob" | "amm" | "clob,amm"): number {
   if (venues === "clob") return VENUE_CLOB;
   if (venues === "amm") return VENUE_AMM;
   return VENUE_CLOB | VENUE_AMM;
+}
+
+export function timeInForceCode(value: "GTC" | "IOC" | "FOK"): 0 | 1 | 2 {
+  if (value === "GTC") return TIF_GTC;
+  if (value === "IOC") return TIF_IOC;
+  if (value === "FOK") return TIF_FOK;
+  throw new RangeError("timeInForce must be GTC, IOC, or FOK");
 }
