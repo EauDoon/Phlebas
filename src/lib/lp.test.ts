@@ -67,6 +67,28 @@ test("LP pause notice names the selected pool settlement pair", () => {
   assert.doesNotMatch(lpPauseNoticeCopy("pZEC-USDC", true), /native ZEC/);
 });
 
+test("LP pause notice names pZEC-USDT0 from a real USDT0 pool", () => {
+  const pool = seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms);
+  assert.ok(pool.totalShares > 0n);
+  assert.equal(pools[1].quote, "USDT0");
+  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  assert.equal(lpOperationAllowed("mint", true), false);
+  assert.equal(lpOperationAllowed("swap", true), false);
+  assert.equal(lpOperationAllowed("burn", true), true);
+  assert.equal(
+    lpPauseNoticeCopy(markets["ZEC/USDT"].settlementPair, true),
+    "Trading paused. LP withdrawal remains available. Settled as pZEC-USDT0.",
+  );
+  assert.equal(
+    lpPauseNoticeCopy(markets["ZEC/USDT"].settlementPair, false),
+    "Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDT0.",
+  );
+  assert.doesNotMatch(
+    lpPauseNoticeCopy(markets["ZEC/USDT"].settlementPair, true),
+    /native ZEC/,
+  );
+});
+
 test("LP reset notice names the selected pool settlement pair", () => {
   const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
   const minted = mintShares(pool, 10_00000000n);
