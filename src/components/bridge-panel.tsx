@@ -30,15 +30,15 @@ const depositSteps = [
   },
   {
     number: "04",
-    title: "Mint pZEC after the risk-tier threshold",
+    title: "Mint after the risk-tier threshold",
     body: "One outpoint would authorize at most one 8-decimal receipt. This preview is not live settlement.",
   },
 ] as const;
 
 const withdrawalTour = [
   { id: "requested", title: "Requested", body: "Amount, transparent destination, network fee, service fee, and net output would be reviewed before any burn." },
-  { id: "screened", title: "Screened", body: "Eligibility and destination checks run here. Signing the pZEC burn is the last action of this state." },
-  { id: "burn submitted", title: "Burn submitted", body: "An unfinalized pZEC burn is on Arbitrum. The simulation does not submit a transaction." },
+  { id: "screened", title: "Screened", body: "Eligibility and destination checks run here. Signing the burn is the last action of this state." },
+  { id: "burn submitted", title: "Burn submitted", body: "An unfinalized burn is on Arbitrum. The simulation does not submit a transaction." },
   { id: "burn finalized", title: "Burn finalized", body: "After Arbitrum finality the burn is consumed once and a native payout claim exists." },
   { id: "payable", title: "Payable", body: "The ledger owes transparent ZEC. No Zcash transaction has been signed." },
   { id: "transaction_prepared", title: "Transaction prepared", body: "One claim maps to one native transaction. No completion time is promised." },
@@ -82,7 +82,7 @@ export function BridgePanel({
         return;
       }
       setIntent({ tex: body.tex, request: body.request });
-      setGatewayNotice("Testnet TEX issued for this session intent. Not mainnet, not pZEC credit.");
+      setGatewayNotice("Testnet TEX issued for this session intent. Not mainnet, not minted credit.");
     } catch {
       setIntent(null);
       setGatewayNotice("Local gateway unavailable. No receivable address is displayed.");
@@ -97,14 +97,14 @@ export function BridgePanel({
         <div className={styles.panelHeader}>
           <div>
             <span className={styles.eyebrow}>Transparent Zcash gateway</span>
-            <h2 id="bridge-title">ZEC to pZEC</h2>
+            <h2 id="bridge-title">ZEC gateway</h2>
           </div>
           <span className={styles.warningPill}>Not operational</span>
         </div>
         <p className={styles.featureLead}>
-          Native ZEC cannot live inside an EVM liquidity pool. Phlebas therefore specifies a
-          fully reserved pZEC receipt for trading and LP settlement. That gateway introduces
-          custody, operator, and regulatory risk.
+          Native ZEC cannot live inside an EVM liquidity pool. This preview labels ZEC-USDC and
+          ZEC-USDT. It is not live settlement. A future gateway would still introduce custody,
+          operator, and regulatory risk.
         </p>
 
         <div className={styles.poolTabs} role="group" aria-label="Gateway journey">
@@ -138,7 +138,7 @@ export function BridgePanel({
               <PlaceholderQr payload={request} />
               <small>
                 {intent
-                  ? `Receivable testnet TEX ${intent.tex}. Independent observation still required. No pZEC is minted here.`
+                  ? `Receivable testnet TEX ${intent.tex}. Independent observation still required. Nothing is minted here.`
                   : "Placeholder until the local gateway issues a textest address. Mainnet TEX is never shown."}
               </small>
               <button type="button" onClick={() => void issueTestnetTex()} disabled={issuing} aria-busy={issuing}>
@@ -248,11 +248,11 @@ export function BridgePanel({
         </p>
         <div className={styles.callout}>
           <strong>Public linkability</strong>
-          <span>Deposits, pZEC movements, orders, fills, LP positions, and withdrawals may be linkable.</span>
+          <span>Deposits, session movements, orders, fills, LP positions, and withdrawals may be linkable.</span>
         </div>
         <div className={styles.callout}>
           <strong>Reserve rule</strong>
-          <span>Confirmed controlled reserve plus separately reported, claim-matched principal in transit must cover every pZEC and pending customer claim. In-transit principal is not reusable reserve.</span>
+          <span>Confirmed controlled reserve plus separately reported, claim-matched principal in transit must cover every session liability and pending customer claim. In-transit principal is not reusable reserve.</span>
         </div>
         <div className={styles.callout}>
           <strong>No wallet connector</strong>
