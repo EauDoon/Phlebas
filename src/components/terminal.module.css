@@ -37,26 +37,26 @@
   outline-offset: 2px;
 }
 
-#main-content,
-#order-ticket,
-#price-chart,
-#order-book,
-#session-blotter,
-#status-ledger,
-#legal-article,
-#security-article,
-#missing-route,
-#incident-demonstration,
-#liquidity-pools,
-#destination-inspector,
-#retry-copy,
-#recent-trades,
-#withheld-price,
-#pool-stats,
-#country-block,
-#honesty-bar,
-#privacy-callouts,
-#architecture-layers {
+:global(#main-content),
+:global(#order-ticket),
+:global(#price-chart),
+:global(#order-book),
+:global(#session-blotter),
+:global(#status-ledger),
+:global(#legal-article),
+:global(#security-article),
+:global(#missing-route),
+:global(#incident-demonstration),
+:global(#liquidity-pools),
+:global(#destination-inspector),
+:global(#retry-copy),
+:global(#recent-trades),
+:global(#withheld-price),
+:global(#pool-stats),
+:global(#country-block),
+:global(#honesty-bar),
+:global(#privacy-callouts),
+:global(#architecture-layers) {
   scroll-margin-top: 12px;
 }
 
