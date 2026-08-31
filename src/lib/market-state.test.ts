@@ -9,6 +9,7 @@ import {
   emptyBookGateCopy,
   feedSurface,
   feedWithheldCopy,
+  chartRangeTabLabel,
   isFeedStatus,
   loadingGateCopy,
   orderBookCaptionCopy,
@@ -115,6 +116,9 @@ test("depth and tape empty copy names the settlement pair", () => {
   assert.equal(tapeMiniLabel(false, true, "pZEC-USDC"), "Fixture tape");
   assert.equal(tapeMiniLabel(false, false, "pZEC-USDT0"), "Withheld · pZEC-USDT0");
   assert.equal(tapeMiniLabel(true, false, "pZEC-USDC"), "Session + fixture");
+  assert.equal(chartRangeTabLabel("4H", markets["ZEC/USDC"].settlementPair), "4H · pZEC-USDC");
+  assert.equal(chartRangeTabLabel("1D", markets["ZEC/USDT"].settlementPair), "1D · pZEC-USDT0");
+  assert.doesNotMatch(chartRangeTabLabel("1H", "pZEC-USDC"), /native ZEC/);
 });
 
 test("allowlists only documented feed states", () => {
