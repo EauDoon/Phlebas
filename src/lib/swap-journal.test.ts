@@ -94,3 +94,32 @@ test("forbids JavaScript numbers inside hashed journal payloads", () => {
     evidence: { ...fundingEvidence("zec"), blockHeight: 1 as unknown as bigint },
   }), /numbers are forbidden/);
 });
+
+test("rejects unknown payload kinds and histories that cannot replay", () => {
+  const initial = fixture();
+  const appended = appendSwapEvent(initial.journal, initial.state, {
+    kind: "authorize-terms",
+    partyId: sampleSwapTerms.zecSellerId,
+    termsHash: initial.state.termsHash,
+    occurredAtSeconds: 1n,
+  });
+  const unknownHistory = {
+    ...appended.journal,
+    receipts: [{ ...appended.receipt, payload: { kind: "future-unknown" } as unknown as SwapEventPayload }],
+  };
+  assert.equal(verifySwapJournal(unknownHistory), false);
+  assert.throws(
+    () => appendSwapEvent(unknownHistory, appended.state, {
+      kind: "flag-dispute",
+      reason: "observer-stale",
+      detail: "History must replay before append",
+    }),
+    /invalid swap journal/,
+  );
+
+  const unreplayable = {
+    ...appended.journal,
+    initialState: { ...initial.state, termsHash: keccak256Text("wrong") },
+  };
+  assert.equal(verifySwapJournal(unreplayable), false);
+});

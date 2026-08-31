@@ -47,11 +47,40 @@ export type SwapEventReceipt = Readonly<{
 export type SwapJournal = Readonly<{
   swapId: Hex32;
   termsHash: Hex32;
+  initialState: SwapState;
   initialStateRoot: Hex32;
   receipts: readonly SwapEventReceipt[];
   head: Hex32;
   nextSequence: bigint;
 }>;
+
+const EVENT_KEYS: Readonly<Record<SwapEventPayload["kind"], readonly string[]>> = Object.freeze({
+  "authorize-terms": ["kind", "partyId", "termsHash", "occurredAtSeconds"],
+  "prepare-funding": ["kind", "leg", "artifactHash", "occurredAtSeconds"],
+  "observe-funding": ["kind", "evidence"],
+  "confirm-funding": ["kind", "leg", "evidenceId"],
+  "observe-spend": ["kind", "evidence"],
+  "confirm-spend": ["kind", "leg", "evidenceId"],
+  "flag-dispute": ["kind", "reason", "detail", "evidenceId"],
+  "retract-evidence": ["kind", "evidenceId", "detail"],
+});
+
+function assertSwapEventPayload(payload: unknown): asserts payload is SwapEventPayload {
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    throw new TypeError("Swap event payload must be an object");
+  }
+  const record = payload as Record<string, unknown>;
+  if (typeof record.kind !== "string" || !Object.prototype.hasOwnProperty.call(EVENT_KEYS, record.kind)) {
+    throw new TypeError("Unknown swap event kind");
+  }
+  const allowed = EVENT_KEYS[record.kind as SwapEventPayload["kind"]];
+  const actual = Object.keys(record);
+  if (actual.some((key) => !allowed.includes(key))) throw new TypeError("Swap event payload contains unknown fields");
+  const required = record.kind === "flag-dispute" ? allowed.filter((key) => key !== "evidenceId") : allowed;
+  if (required.some((key) => !Object.prototype.hasOwnProperty.call(record, key))) {
+    throw new TypeError("Swap event payload is missing required fields");
+  }
+}
 
 function canonicalHex32(value: string, label: string): Hex32 {
   const normalized = normalizeHex32(value, label);
@@ -76,10 +105,12 @@ function canonicalValue(value: unknown): string {
 }
 
 export function hashSwapEventPayload(payload: SwapEventPayload): Hex32 {
+  assertSwapEventPayload(payload);
   return sha256Hex(`PhlebasSwapEventPayload\nversion=${SWAP_EVENT_VERSION}\npayload=${canonicalValue(payload)}`);
 }
 
 export function swapEventSemanticSlot(payload: SwapEventPayload): string {
+  assertSwapEventPayload(payload);
   if (payload.kind === "authorize-terms") return `${payload.kind}:${payload.partyId}`;
   if (payload.kind === "prepare-funding") return `${payload.kind}:${payload.leg}`;
   if (payload.kind === "observe-funding") {
@@ -94,7 +125,10 @@ export function swapEventSemanticSlot(payload: SwapEventPayload): string {
     return `${payload.kind}:${evidence.leg}:${evidence.action}:${evidence.transactionId}:${evidence.inputOrLogIndex}`;
   }
   if (payload.kind === "retract-evidence") return `${payload.kind}:${payload.evidenceId}`;
-  return `${payload.kind}:${payload.reason}:${payload.evidenceId ?? "none"}:${payload.detail}`;
+  if (payload.kind === "flag-dispute") {
+    return `${payload.kind}:${payload.reason}:${payload.evidenceId ?? "none"}:${payload.detail}`;
+  }
+  throw new TypeError("Unknown swap event kind");
 }
 
 export function hashSwapEvent(receipt: Omit<SwapEventReceipt, "eventHash">): Hex32 {
@@ -119,6 +153,7 @@ export function emptySwapJournal(state: SwapState): SwapJournal {
   return Object.freeze({
     swapId: state.swapId,
     termsHash: state.termsHash,
+    initialState: state,
     initialStateRoot: swapStateRoot(state),
     receipts: Object.freeze([]),
     head: SWAP_EVENT_GENESIS,
@@ -127,6 +162,7 @@ export function emptySwapJournal(state: SwapState): SwapJournal {
 }
 
 export function applySwapEvent(state: SwapState, payload: SwapEventPayload): SwapState {
+  assertSwapEventPayload(payload);
   if (payload.kind === "authorize-terms") {
     return authorizeSwapTerms(state, payload.partyId, payload.termsHash, payload.occurredAtSeconds);
   }
@@ -196,11 +232,15 @@ export function verifySwapJournal(journal: SwapJournal): boolean {
     const swapId = canonicalHex32(journal.swapId, "Journal swap ID");
     const termsHash = canonicalHex32(journal.termsHash, "Journal terms hash");
     let stateRoot = canonicalHex32(journal.initialStateRoot, "Journal initial state root");
+    if (journal.initialState.swapId !== swapId || journal.initialState.termsHash !== termsHash) return false;
+    if (swapStateRoot(journal.initialState) !== stateRoot) return false;
+    let state = journal.initialState;
     let previous = SWAP_EVENT_GENESIS;
     let sequence = 1n;
     const payloads = new Set<string>();
     const slots = new Set<string>();
     for (const receipt of journal.receipts) {
+      assertSwapEventPayload(receipt.payload);
       if (receipt.version !== SWAP_EVENT_VERSION || receipt.sequence !== sequence) return false;
       if (receipt.swapId !== swapId || receipt.termsHash !== termsHash || receipt.previousEventHash !== previous) return false;
       if (receipt.priorStateRoot !== stateRoot) return false;
@@ -220,13 +260,15 @@ export function verifySwapJournal(journal: SwapJournal): boolean {
         semanticSlot: receipt.semanticSlot,
       };
       if (receipt.eventHash !== hashSwapEvent(unsigned)) return false;
+      state = applySwapEvent(state, receipt.payload);
+      if (swapStateRoot(state) !== receipt.nextStateRoot) return false;
       payloads.add(receipt.payloadHash);
       slots.add(receipt.semanticSlot);
       previous = receipt.eventHash;
       stateRoot = canonicalHex32(receipt.nextStateRoot, "Receipt next state root");
       sequence += 1n;
     }
-    return journal.head === previous && journal.nextSequence === sequence;
+    return journal.head === previous && journal.nextSequence === sequence && swapStateRoot(state) === stateRoot;
   } catch {
     return false;
   }
