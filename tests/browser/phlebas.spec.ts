@@ -4496,3 +4496,144 @@ test("education Continue stays in a 320x568 viewport", async ({ page }) => {
   expect((enterBox?.y ?? 0) + (enterBox?.height ?? 0)).toBeLessThanOrEqual(568);
   expect((enterBox?.x ?? 0) + (enterBox?.width ?? 0)).toBeLessThanOrEqual(320);
 });
+test("education Enter Back heading 44px Continue ring at 390 and heading ring at 568", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  const back = dialog.getByRole("button", { name: "Back" });
+  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  await expect(back).toBeEnabled();
+  await expect(enter).toBeVisible();
+  const backBox = await back.boundingBox();
+  const enterBox = await enter.boundingBox();
+  expect(backBox?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(backBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(enterBox?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(enterBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect((enterBox?.x ?? 0) + (enterBox?.width ?? 0)).toBeLessThanOrEqual(390);
+  expect((enterBox?.y ?? 0) + (enterBox?.height ?? 0)).toBeLessThanOrEqual(844);
+
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const continueButton = page.getByRole("dialog").getByRole("button", { name: "Continue" });
+  await tabTo(page, continueButton);
+  await expect(continueButton).toBeFocused();
+  const continueRing = await continueButton.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.closest("dialog");
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      color: style.outlineColor,
+      width: style.outlineWidth,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      left: rect.left - extent,
+      right: rect.right + extent,
+      parentTop: parentRect?.top ?? 0,
+      parentBottom: parentRect?.bottom ?? 0,
+      parentLeft: parentRect?.left ?? 0,
+      parentRight: parentRect?.right ?? 0,
+    };
+  });
+  expect(continueRing.color).toBe("rgb(244, 201, 93)");
+  expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
+  expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
+  expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
+  expect(continueRing.left).toBeGreaterThanOrEqual(continueRing.parentLeft - 0.5);
+  expect(continueRing.right).toBeLessThanOrEqual(continueRing.parentRight + 0.5);
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const heading768 = page.getByRole("dialog").getByRole("heading", { level: 2 });
+  await expect(heading768).toBeVisible();
+  const heading768Box = await heading768.boundingBox();
+  expect(heading768Box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(heading768Box?.width ?? 0).toBeGreaterThanOrEqual(44);
+  const heading768Style = await heading768.evaluate((element) => getComputedStyle(element).boxSizing);
+  expect(heading768Style).toBe("border-box");
+
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const heading568 = page.getByRole("dialog").getByRole("heading", { level: 2 });
+  await expect(heading568).toBeFocused();
+  const headingRing = await heading568.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.closest("dialog");
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      width: style.outlineWidth,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      parentTop: parentRect?.top ?? 0,
+      parentBottom: parentRect?.bottom ?? 0,
+    };
+  });
+  expect(Number.parseFloat(headingRing.width)).toBeGreaterThanOrEqual(2);
+  expect(headingRing.top).toBeGreaterThanOrEqual(headingRing.parentTop - 0.5);
+  expect(headingRing.bottom).toBeLessThanOrEqual(headingRing.parentBottom + 0.5);
+});
+
+test("country-block legal security status 404 and landing leftover stay 44px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
+  const architecture = page.getByRole("link", { name: "Read the architecture" });
+  const blockedHome = page.getByRole("link", { name: "Return home" });
+  await expect(architecture).toBeVisible();
+  await expect(blockedHome).toBeVisible();
+  expect((await architecture.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect((await architecture.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect((await blockedHome.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect((await blockedHome.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(44);
+
+  async function expectMainLink(path: string, name: string) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    const link = page.getByRole("main").getByRole("link", { name });
+    await expect(link).toBeVisible();
+    const box = await link.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(320);
+  }
+
+  await expectMainLink("/legal", "Architecture");
+  await expectMainLink("/security", "Return home");
+  await expectMainLink("/status", "Legal and compliance");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "networkidle" });
+  const home390 = page.getByRole("link", { name: "Return home" });
+  await expect(home390).toBeVisible();
+  const home390Box = await home390.boundingBox();
+  expect(home390Box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(home390Box?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect((home390Box?.x ?? 0) + (home390Box?.width ?? 0)).toBeLessThanOrEqual(390);
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expectVisibleFocus(page.getByRole("link", { name: "Skip to main content" }));
+  const leftover = await page.getByRole("navigation", { name: "Skip links" }).evaluate((element) => {
+    const links = [...element.querySelectorAll("a")];
+    const last = links[links.length - 1];
+    const lastBox = last?.getBoundingClientRect();
+    return {
+      count: links.length,
+      lastWidth: lastBox?.width ?? 0,
+      lastHeight: lastBox?.height ?? 0,
+      lastRight: lastBox?.right ?? 0,
+      lastShrink: last ? getComputedStyle(last).flexShrink : "",
+    };
+  });
+  expect(leftover.count).toBe(7);
+  expect(leftover.lastWidth).toBeGreaterThanOrEqual(44);
+  expect(leftover.lastHeight).toBeGreaterThanOrEqual(44);
+  expect(leftover.lastRight).toBeLessThanOrEqual(768);
+  expect(leftover.lastShrink).toBe("0");
+});
