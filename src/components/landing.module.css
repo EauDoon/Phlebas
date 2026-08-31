@@ -54,6 +54,11 @@
   scroll-margin-top: 12px;
 }
 
+:global(#markets),
+:global(#exists-today) {
+  scroll-margin-top: 12px;
+}
+
 .simulationBanner {
   display: flex;
   min-height: 44px;
