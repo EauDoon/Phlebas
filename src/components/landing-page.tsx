@@ -103,6 +103,9 @@ export function LandingPage() {
             <p>{LANDING_PZEC.body}</p>
             <strong>{LANDING_PZEC.negation}</strong>
             <p>
+              Native settlement target: each fill would use one transparent Zcash conditional lock and one exact-token EVM conditional lock. The pZEC pool and gateway screens remain a superseded pZEC pool fixture, not the native-settlement target.
+            </p>
+            <p>
               {LANDING_PZEC.disclosure}
               {" "}
               <a href={LANDING_PZEC.sourceHref}>{LANDING_PZEC.sourceLabel}</a>.

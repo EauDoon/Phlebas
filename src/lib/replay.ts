@@ -77,13 +77,7 @@ export function replayLog(events: readonly SessionLogEvent[]): {
     }
 
     const book = state.books[event.marketId];
-    const result = submitOrder(book, {
-      id: event.id,
-      side: event.side,
-      tif: event.tif,
-      priceTicks: event.priceTicks,
-      sizeAtoms: event.sizeAtoms,
-    });
+    const result = submitOrder(book, event);
     if (wouldSelfTrade(result.fills)) {
       continue;
     }

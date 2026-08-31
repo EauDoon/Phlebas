@@ -63,6 +63,10 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(skipCopy, /Skip to launch gates/);
   assert.match(await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"), /No shielded deposit or withdrawal is planned for v1/);
   assert.match(await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"), /zips\.z\.cash\/zip-0320/);
+  assert.match(landing, /superseded pZEC pool fixture/);
+  assert.match(landing, /not the native-settlement target/);
+  assert.match(landing, /Native settlement target/);
+  assert.doesNotMatch(landing, /pZEC (?:is|equals|represents) native ZEC/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(terminal), /trustless bridge/i);
   assert.match(terminal, /Fixture \$\{market\.volume\}/);
@@ -248,7 +252,7 @@ test("vercel.json does not assign operator URLs", async () => {
 
 test("Open Graph and Twitter cards stay labeled as a simulation", async () => {
   const layout = await readFile(join(root, "src/app/layout.tsx"), "utf8");
-  assert.match(layout, /No-value simulation of a pZEC market design/);
+  assert.match(layout, /No-value simulation and non-custodial protocol plan/);
   assert.match(layout, /openGraph:/);
   assert.match(layout, /twitter:/);
   assert.doesNotMatch(layout, /is a live exchange/);

@@ -1,8 +1,10 @@
 # ADR 0001: Arbitrum One and pZEC
 
 Date: 30-08-2026
-Status: Accepted for simulation and gated design only
+Status: Superseded by [ADR 0002](0002-native-zec-atomic-settlement.md) for the target product
 Production status: Not approved
+
+This ADR remains the record of the custody-backed simulation design. New product work must follow ADR 0002.
 
 ## Context
 

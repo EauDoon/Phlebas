@@ -2,6 +2,8 @@
 
 Status: the landing page, terminal shell, first-session education, country-blocked demonstration, local matcher, LP preview with review-and-confirm, ZIP 321 deposit-shape preview, deposit and withdrawal state tours, destination inspector, labeled incident demonstrations, `/legal`, `/security`, and architecture explanation are implemented locally as no-value fixtures. Optional local loopback stubs exist for a textest gateway, matcher operator, and observer. They are never hosted on Vercel. Wallet signing stays disabled while the verified testnet deployment manifest is undeployed. The public app remains a no-value simulation.
 
+The pZEC, gateway, deposit, withdrawal, and passive LP surfaces are legacy simulation interfaces. The native-ZEC target and its replacement journey are governed by the architecture, product specification, and delivery plan.
+
 Phlebas currently has no live market data, deployed contract, real deposit, withdrawal, order, stablecoin, pZEC, custody, identity, or authoritative matching service. Every value and state in the public interface is illustrative. Wallet signing stays disabled while the verified testnet deployment manifest is undeployed. This specification does not authorize mainnet, custody, publication, or financial services.
 
 The user-facing market aliases are `ZEC / USDC` and `ZEC / USDT`, matching the requested markets. Every market ticket, review, and history surface must also state the exact proposed settlement pair, `pZEC / USDC` or `pZEC / USDT0`. Pool labels use the settlement assets. Native `ZEC` refers only to Zcash that would enter or leave the transparent gateway.

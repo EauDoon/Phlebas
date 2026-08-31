@@ -1,6 +1,10 @@
 # Proposed operations model
 
-Status: reference plan for a later licensed operator. The only runnable operator path in this repository is isolated loopback Compose. See [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md). Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.
+Status: custody service inventory superseded for the target product
+
+The gateway, reserve ledger, mint controller, burn queue, and threshold payout signer below belong to ADR 0001. [ADR 0002](adr/0002-native-zec-atomic-settlement.md) replaces them with read-only chain observers, a non-signing swap coordinator, a persistent journal, and a timeout watchtower. No live operations are approved.
+
+The only runnable operator path in this repository is the isolated legacy loopback Compose stack. See [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md). Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.
 
 ## 1. Trust-zone separation
 

@@ -825,7 +825,7 @@ export function TradeTicket({
             <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
           )}
           <p className={styles.gateNotice} aria-label="Review custody notice">
-            pZEC is a custody receipt, not native ZEC. This fill is public in the simulation. The matcher is not trustless.
+            Legacy simulation only. pZEC is a custody receipt, not native ZEC or the target asset. This local fill is public and the matcher is not trustless.
           </p>
           <dl className={styles.ticketSummary}>
             <div>

@@ -58,8 +58,8 @@ export function ArchitecturePanel() {
         aria-label="Architecture honesty bar"
         tabIndex={-1}
       >
-        <strong>Proposed product label</strong>
-        <span>Designed as a hybrid DEX with an offchain matcher, onchain settlement, constrained AMM contracts, and a custody-backed ZEC gateway. The matcher is not trustless. Mainnet access policy remains unresolved.</span>
+        <strong>Target product boundary</strong>
+        <span>Designed as a non-custodial exchange with an offchain matcher and wallet-signed native-ZEC atomic settlement. The matcher is not trustless. It can censor or delay orders. Mainnet access policy remains unresolved.</span>
       </div>
       <IncidentDemo />
     </section>

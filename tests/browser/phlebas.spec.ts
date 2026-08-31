@@ -13,7 +13,7 @@ const routes = [
   {
     path: "/trade",
     disclosure: "Protocol preview",
-    marker: "settles pZEC-USDC",
+    marker: "legacy simulation: pZEC-USDC",
   },
   {
     path: "/liquidity",
@@ -174,7 +174,7 @@ for (const width of viewports) {
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/trade\?view=trade$/);
       await expect(page.getByRole("radio", { name: "ZEC / USDC" })).toHaveAttribute("aria-checked", "true");
-      await expect(page.getByText("settles pZEC-USDC", { exact: true })).toBeVisible();
+      await expect(page.getByText("legacy simulation: pZEC-USDC", { exact: true })).toBeVisible();
 
       await page.goto("/", { waitUntil: "networkidle" });
       const understandPzec = page.getByRole("link", { name: "Understand pZEC" });
@@ -323,7 +323,7 @@ test("local matcher fills a buy against the fixture ask", async ({ page }) => {
   await page.getByRole("button", { name: "Ask 52.91" }).click();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByText("pZEC is a custody receipt, not native ZEC.")).toBeVisible();
+  await expect(page.getByText(/Legacy simulation only\. pZEC is a custody receipt, not native ZEC/)).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText(/Filled against the local ZEC\/USDC book/)).toBeVisible();
   await expect(page.getByText("Nothing was signed or submitted to a chain.")).toBeVisible();
@@ -437,7 +437,7 @@ test("GTC remainder can be cancelled and epoch invalidation is visible", async (
 test("USDT market names USDT0 settlement and empty feed shows no depth", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
-  await expect(page.getByText("settles pZEC-USDT0")).toBeVisible();
+  await expect(page.getByText("legacy simulation: pZEC-USDT0")).toBeVisible();
   await page.getByRole("radio", { name: "Empty" }).click();
   await expect(page.getByText("No resting depth. The local book is empty.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
@@ -556,7 +556,7 @@ test("session event log includes expiry after confirm", async ({ page }) => {
 test("architecture view keeps Vercel off the matcher", async ({ page }) => {
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
   await expect(page.getByText("Loopback gateway and matcher never hosted on Vercel")).toBeVisible();
-  await expect(page.getByText("The matcher is not trustless.")).toBeVisible();
+  await expect(page.getByText(/The matcher is not trustless/)).toBeVisible();
 });
 
 test("connect wallet without a provider shows a visible rejection", async ({ page }) => {
@@ -983,11 +983,11 @@ test("document metadata names a no-value simulation", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
   await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
     "content",
-    "No-value simulation of a pZEC market design. Not an exchange or an offer of financial services.",
+    "No-value simulation and non-custodial protocol plan for native transparent ZEC against USDC and USDT. Legacy pZEC surfaces are simulation only. Not an exchange or an offer of financial services.",
   );
   await expect(page.locator('meta[name="twitter:description"]')).toHaveAttribute(
     "content",
-    "No-value simulation of a pZEC market design. Not an exchange or an offer of financial services.",
+    "No-value simulation and non-custodial protocol plan for native transparent ZEC against USDC and USDT. Legacy pZEC surfaces are simulation only. Not an exchange or an offer of financial services.",
   );
 });
 
@@ -1135,7 +1135,7 @@ test("market arrows move focus and Enter selects USDT", async ({ page }) => {
   await expect(usdc).toHaveAttribute("aria-checked", "true");
   await page.keyboard.press("Enter");
   await expect(usdt).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByText("settles pZEC-USDT0")).toBeVisible();
+  await expect(page.getByText("legacy simulation: pZEC-USDT0")).toBeVisible();
 });
 
 test("feed-state arrows move focus and Enter selects loading", async ({ page }) => {
@@ -1858,4 +1858,3 @@ test("architecture liquidity and bridge skip links stay 44px on desktop", async 
   await expect(skipPrivacy).toBeFocused();
   expect((await skipPrivacy.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
-

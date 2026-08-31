@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the architecture, liquidity, and bridge skip-link slice.
+Last updated: 31-08-2026 after merging current main into the product UI branch for PR #22.
 
 ## Branch
 
-`feat/product-ui` off `origin/main` at `a2569b3`. PR #22: https://github.com/EauDoon/Phlebas/pull/22. Origin `feat/simulation-hardening` has diverged; do not force-push it.
+`feat/product-ui` now includes current `main` at `84a3224645e5ef8e3d95b49eb98345fa8fd3eb16` for PR #22. Origin `feat/simulation-hardening` remains separate; do not force-push it.
 
 ## Done
 
