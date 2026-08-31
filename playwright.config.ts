@@ -1,7 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = 3108;
-
 export default defineConfig({
   testDir: "./tests/browser",
   fullyParallel: false,
@@ -11,7 +9,6 @@ export default defineConfig({
   reporter: "list",
   outputDir: "test-results",
   use: {
-    baseURL: `http://127.0.0.1:${port}`,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
