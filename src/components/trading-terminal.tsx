@@ -391,6 +391,9 @@ export function TradingTerminal({
         {view === "architecture" ? (
           <a className={styles.skipLink} href="#incident-demonstration">Skip to incident demonstration</a>
         ) : null}
+        {view === "liquidity" ? (
+          <a className={styles.skipLink} href="#liquidity-pools">Skip to pool tabs</a>
+        ) : null}
       </nav>
       <div className={styles.simulationBanner} role="status">
         <strong>Protocol preview</strong>
