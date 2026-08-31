@@ -61,6 +61,9 @@ test("rejects invalid fixed-width values and integer overflow before hashing", (
   const confused = { ...order, baseAmountAtoms: "10" as unknown as bigint };
   assert.throws(() => hashOrderStruct(confused), /must be a bigint/);
   assert.throws(() => typedOrderData(domain, confused), /must be a bigint/);
+  assert.throws(() => typedOrderData(domain, { ...order, makerAccountId: "0x12" }), /32 bytes/);
+  const uppercaseMaker = `0x${order.makerAccountId.slice(2).toUpperCase()}` as TypedOrderIntent["makerAccountId"];
+  assert.equal(typedOrderData(domain, { ...order, makerAccountId: uppercaseMaker }).message.makerAccountId, order.makerAccountId);
   assert.throws(() => createOrderDomain("42161" as unknown as bigint, domain.verifyingContract), /must be a bigint/);
 });
 

@@ -11,6 +11,7 @@ import {
   orderReferenceSnapshot,
   replayOrderReference,
   type OrderReferenceEvent,
+  type OrderReferenceState,
 } from "./order-reference.ts";
 import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier } from "./order-domain.ts";
 
@@ -101,7 +102,7 @@ test("copies the accepted order and rejects unknown replay event kinds", () => {
   );
 });
 
-test("snapshot binds accepted order bodies and nonce claims", () => {
+test("snapshot rejects changed accepted order bodies and binds lifecycle state", () => {
   const result = acceptOrderIntent(initial(), order(1n), 1_000n);
   const accepted = result.accepted;
   const changed = {
@@ -111,8 +112,59 @@ test("snapshot binds accepted order bodies and nonce claims", () => {
       [accepted.orderHash]: { ...accepted, order: { ...accepted.order, recipientAccountId: accountIdentifier("session:attacker") } },
     },
   };
-  assert.notEqual(orderReferenceSnapshot(changed), orderReferenceSnapshot(result.state));
-  assert.match(orderReferenceSnapshot(result.state), /claims=.*bindings=/);
+  assert.throws(() => orderReferenceSnapshot(changed), /order hash does not bind its order body/);
+  assert.match(orderReferenceSnapshot(result.state), /claims=.*accepted-hashes=.*bindings=/);
+});
+
+test("snapshot fails closed when lifecycle markers change behavior", () => {
+  const result = acceptOrderIntent(initial(), order(1n), 1_000n);
+  const missingAcceptedMarker: OrderReferenceState = {
+    ...result.state,
+    lifecycle: { ...result.state.lifecycle, acceptedOrderHashes: {} },
+  };
+  assert.throws(
+    () => orderReferenceSnapshot(missingAcceptedMarker),
+    /Accepted order markers do not match accepted order records/,
+  );
+
+  const cancelled = replayOrderReference(initial(), [
+    { kind: "accept", order: order(1n), acceptedAtSeconds: 1_000n },
+    { kind: "cancel-nonce", accountId: maker, accountEpoch: 0n, nonce: 1n },
+  ]);
+  const cancellationKey = Object.keys(cancelled.lifecycle.cancelledNonceKeys)[0];
+  assert.ok(cancellationKey);
+  const falseCancellation = {
+    ...cancelled,
+    lifecycle: {
+      ...cancelled.lifecycle,
+      cancelledNonceKeys: { ...cancelled.lifecycle.cancelledNonceKeys, [cancellationKey]: false },
+    },
+  } as unknown as OrderReferenceState;
+  assert.throws(() => orderReferenceSnapshot(falseCancellation), /Cancelled nonce marker must be true/);
+});
+
+test("snapshot validates receipt, mapping, lifecycle, and configuration state", () => {
+  const result = acceptOrderIntent(initial(), order(1n), 1_000n);
+  const wrongRecordKey: OrderReferenceState = {
+    ...result.state,
+    acceptedOrders: { [keccak256Text("wrong-record-key")]: result.accepted },
+  };
+  assert.throws(() => orderReferenceSnapshot(wrongRecordKey), /record key does not match/);
+
+  const corruptReceipts: OrderReferenceState = {
+    ...result.state,
+    receiptChain: { ...result.state.receiptChain, receipts: [] },
+  };
+  assert.throws(() => orderReferenceSnapshot(corruptReceipts), /receipt chain is invalid/);
+
+  const numericLifetime = { ...result.state, maximumLifetimeSeconds: 86_400 } as unknown as OrderReferenceState;
+  assert.throws(() => orderReferenceSnapshot(numericLifetime), /Maximum order lifetime must be a bigint/);
+
+  const numericEpoch = {
+    ...result.state,
+    lifecycle: { ...result.state.lifecycle, accountEpochs: { [maker]: 1 } },
+  } as unknown as OrderReferenceState;
+  assert.throws(() => orderReferenceSnapshot(numericEpoch), /Account epoch must be a bigint/);
 });
 
 test("empty snapshots bind the configured signing domain and pair", () => {
@@ -131,4 +183,12 @@ test("empty snapshots bind the configured signing domain and pair", () => {
   });
   assert.notEqual(orderReferenceSnapshot(baseline), orderReferenceSnapshot(otherDomain));
   assert.notEqual(orderReferenceSnapshot(baseline), orderReferenceSnapshot(otherPair));
+  assert.throws(
+    () => createOrderReference({ ...baseline, maximumLifetimeSeconds: 1 as unknown as bigint }),
+    /must be a bigint/,
+  );
+  assert.throws(
+    () => createOrderReference({ ...baseline, maximumLifetimeSeconds: 1n << 64n }),
+    /positive uint64/,
+  );
 });

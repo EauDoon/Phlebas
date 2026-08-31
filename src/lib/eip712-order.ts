@@ -158,6 +158,18 @@ export function hashTypedOrder(domain: OrderDomain, order: TypedOrderIntent): He
 export function typedOrderData(domain: OrderDomain, order: TypedOrderIntent) {
   hashOrderDomain(domain);
   assertOrderEncoding(order);
+  const normalizedOrder: TypedOrderIntent = {
+    ...order,
+    makerAccountId: normalizeHex32(order.makerAccountId, "Maker account ID"),
+    authorizedSignerId: normalizeHex32(order.authorizedSignerId, "Authorized signer ID"),
+    baseChainId: normalizeHex32(order.baseChainId, "Base chain ID"),
+    baseAssetId: normalizeHex32(order.baseAssetId, "Base asset ID"),
+    quoteChainId: normalizeHex32(order.quoteChainId, "Quote chain ID"),
+    quoteAssetId: normalizeHex32(order.quoteAssetId, "Quote asset ID"),
+    salt: normalizeHex32(order.salt, "Salt"),
+    recipientAccountId: normalizeHex32(order.recipientAccountId, "Recipient account ID"),
+    settlementAdapterId: normalizeHex32(order.settlementAdapterId, "Settlement adapter ID"),
+  };
   return {
     domain: {
       name: domain.name,
@@ -179,13 +191,13 @@ export function typedOrderData(domain: OrderDomain, order: TypedOrderIntent) {
       }),
     },
     message: {
-      ...order,
-      baseAmountAtoms: order.baseAmountAtoms.toString(),
-      limitPriceTicks: order.limitPriceTicks.toString(),
-      nonce: order.nonce.toString(),
-      accountEpoch: order.accountEpoch.toString(),
-      expiry: order.expiry.toString(),
-      maximumFeeBps: order.maximumFeeBps.toString(),
+      ...normalizedOrder,
+      baseAmountAtoms: normalizedOrder.baseAmountAtoms.toString(),
+      limitPriceTicks: normalizedOrder.limitPriceTicks.toString(),
+      nonce: normalizedOrder.nonce.toString(),
+      accountEpoch: normalizedOrder.accountEpoch.toString(),
+      expiry: normalizedOrder.expiry.toString(),
+      maximumFeeBps: normalizedOrder.maximumFeeBps.toString(),
     },
   };
 }
