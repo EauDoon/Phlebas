@@ -321,6 +321,9 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   await expect(page.getByText("live funds", { exact: false })).toBeVisible();
   await expect(page.getByText("deny-default", { exact: true })).toBeVisible();
   await expect(page.getByText("unset", { exact: true })).toBeVisible();
+  await expect(page.getByText("architecture-demonstration", { exact: true })).toBeVisible();
+  await expect(page.getByText("Incident copy on Architecture is a labeled demonstration, not a live outage.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Architecture incident demonstrations" })).toBeVisible();
 
   const missing = await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "load" });
   expect(missing?.status(), "404 status").toBe(404);
@@ -630,6 +633,27 @@ test("chart range uses a tablist and unavailable tape names the feed", async ({ 
   await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed.").first()).toBeVisible();
 });
 
+test("ticket G I F shortcuts ignore review until Escape", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.keyboard.press("i");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await page.getByRole("heading", { name: "Order entry" }).click();
+  await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("LP empty-share copy names the selected pool", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await expect(page.getByText("No session LP shares in pZEC/USDC.")).toBeVisible();
+  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
+  await expect(page.getByText("No session LP shares in pZEC/USDT0.")).toBeVisible();
+  await page.getByRole("button", { name: "Burn session shares" }).click();
+  await expect(page.getByText("No session LP shares in pZEC/USDT0. Burn stays idle until a local mint.").first()).toBeVisible();
+});
+
 test("ticket G I F shortcuts set time in force and ignore an open dialog", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "Order entry" }).click();
@@ -688,6 +712,8 @@ test("education dialog and incident select keep 44px targets at 320px", async ({
   await page.keyboard.press("Escape");
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
   const incident = page.getByRole("combobox", { name: "Gateway incident demonstration" });
+  await incident.focus();
+  await expect(incident).toBeFocused();
   const incidentBox = await incident.boundingBox();
   expect(incidentBox?.height ?? 0).toBeGreaterThanOrEqual(44);
   const overflow = await page.evaluate(() => ({

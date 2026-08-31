@@ -22,6 +22,7 @@ test("status payload cannot be read as live funds or custody", async () => {
   assert.equal(status.custody, "none");
   assert.equal(status.contracts, "source-undeployed");
   assert.equal(status.marketData, "illustrative");
+  assert.equal(status.incidents, "architecture-demonstration");
 });
 
 test("landing and terminal banners stay simulation-only", async () => {
@@ -76,6 +77,10 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /No address generated in simulation/);
   assert.match(await readFile(join(root, "src/components/incident-demo.tsx"), "utf8"), /State demonstration/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /\blive outage\b/i);
+  assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /Architecture incident demonstrations/);
+  assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /not a live outage/);
+  assert.match(await readFile(join(root, "src/lib/ticket-shortcuts.ts"), "utf8"), /reviewOpen/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /emptyShareCopy/);
 });
 
 test("vercel.json does not assign operator URLs", async () => {
