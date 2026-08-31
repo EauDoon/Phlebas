@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after skip-link focus-visible, 320px wrap height, overflow, unclipped ring, and hide clip-box. Merged repaired PR #22 remote.
+Last updated: 01-09-2026 after skip-nav line-height, height-cap padding, overflow-y auto ring, scrollbar gutter, 390px two-up, `#15140d` focus-visible, and header clearance.
 
 ## Branch
 
@@ -266,16 +266,25 @@ Last updated: 01-09-2026 after skip-link focus-visible, 320px wrap height, overf
 - Skip-nav focused padding is 4px so the 2px ring plus offset stays inside overflow-y auto
 - Hidden reduced-motion skip-nav zeros padding and gap and sets `transition: none` so hide restores a 1px clip box
 - Playwright covers focus-visible wrap height, 320px overflow, unclipped ring, and hide after skip
+- Skip-link wrapped labels use `line-height: 1.3` at 320px
+- Skip-nav height cap uses 6px padding so the 2px ring plus offset is not clipped vertically
+- A later `max-width: 820px` rule keeps `overflow-y: auto` after reduced-motion `overflow: visible`
+- Skip-nav `scrollbar-gutter: stable` keeps two-up skip links at least 44px
+- Focused skip-nav at 390px is `width: 100%` two-up with the 2px ring inside the viewport
+- `a.skipLink:focus-visible` keeps outline `#15140d` against global `a:focus-visible`
+- Overflow-y auto without reduced-motion still contains the skip-link ring
+- Focused skip-nav stays in flow (`position: relative; inset auto`) so it does not cover the landing header after wrap
+- Playwright covers wrapped line-height, vertical ring, gutter, 390px two-up, focus-visible color, motion overflow-y auto, and header clearance
 
 ## Next
 
-- Skip-link wrapped labels should keep a readable line-height at 320px
-- Skip-nav height cap should not clip the focused skip-link ring vertically
-- Skip-nav scrollbar gutter should not shrink two-up skip links below 44px
-- Focused skip-nav at 390px should keep two-up links and the 2px ring inside the viewport
-- Skip-link `:focus-visible` outline should stay `#15140d` when globals `a:focus-visible` also matches
-- Overflow-y auto without reduced-motion should still contain the skip-link ring
-- Skip-nav should not cover the landing header after wrapped two-up rows at 320px
+- Skip-nav two-up at 768px should keep 44px links and the 2px ring inside the viewport
+- Skip-link labels should use overflow-wrap so two-up width stays at least 44px
+- Focused skip-nav should not cover the landing Menu button after wrap at 320px
+- Skip-nav gap plus two-up flex basis should stay inside the nav after scrollbar-gutter
+- Terminal skip-nav at 390px should keep two-up links and the 2px ring inside the viewport
+- A wrapped two-up pair should share the same row height
+- Skip-nav column-gap should leave 44px two-up links after the stable scrollbar gutter
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
