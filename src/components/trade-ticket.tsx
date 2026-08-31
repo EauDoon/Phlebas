@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
@@ -136,6 +136,7 @@ export function TradeTicket({
   const [rejected, setRejected] = useState<string | null>(null);
   const [appliedPriceNonce, setAppliedPriceNonce] = useState(0);
   const [sessionNonce, setSessionNonce] = useState(1);
+  const reviewOpenRef = useRef(false);
   const [review, setReview] = useState<{
     side: Side;
     priceTicks: bigint;
@@ -157,10 +158,15 @@ export function TradeTicket({
   }
 
   useEffect(() => {
+    reviewOpenRef.current = review !== null;
+  }, [review]);
+
+  useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const action = interpretTicketKey(event.key, {
         target: event.target,
         dialogOpen: Boolean(document.querySelector("dialog[open]")),
+        reviewOpen: reviewOpenRef.current,
       });
       if (action === "escape") {
         setReview(null);
@@ -745,7 +751,7 @@ export function TradeTicket({
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
         {inputError ?? notionalError ?? notice}
       </p>
-      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type, G/I/F time in force. Escape leaves review. Shortcuts ignore an open dialog. Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
+      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type, G/I/F time in force. Escape leaves review. Shortcuts ignore an open dialog and review-and-confirm. Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
     </section>
   );
 }
