@@ -9,6 +9,7 @@ import {
   walletConnectFailureCopy,
   walletConnectBusyTitle,
   walletConnectIdleTitle,
+  walletConnectTitle,
   walletDisconnectLabel,
   walletStateWithSettlement,
   type Eip1193Provider,
@@ -92,6 +93,25 @@ test("connecting title keeps the settlement pair", () => {
     walletConnectBusyTitle(markets["ZEC/USDC"].settlementPair),
     "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDC.",
   );
-  assert.match(walletConnectBusyTitle(markets["ZEC/USDT"].settlementPair), /pZEC-USDT0/);
+  assert.equal(
+    walletConnectBusyTitle(markets["ZEC/USDT"].settlementPair),
+    "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDT0.",
+  );
   assert.doesNotMatch(walletConnectBusyTitle("pZEC-USDC"), /native ZEC/);
+});
+
+test("connecting title keeps settlement after the market pair changes", () => {
+  assert.equal(
+    walletConnectTitle(markets["ZEC/USDC"].settlementPair, true),
+    "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDC.",
+  );
+  assert.equal(
+    walletConnectTitle(markets["ZEC/USDT"].settlementPair, true),
+    "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDT0.",
+  );
+  assert.equal(
+    walletConnectTitle(markets["ZEC/USDT"].settlementPair, false),
+    walletConnectIdleTitle(markets["ZEC/USDT"].settlementPair),
+  );
+  assert.doesNotMatch(walletConnectTitle("pZEC-USDT0", true), /native ZEC/);
 });
