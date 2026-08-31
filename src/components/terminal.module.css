@@ -1653,7 +1653,7 @@ a.skipLink:focus-visible {
 
 .educationDialog .tourNav button:focus,
 .educationDialog .tourNav button:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid #f4c95d;
   outline-offset: 2px;
 }
 
