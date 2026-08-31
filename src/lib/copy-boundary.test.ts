@@ -72,6 +72,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(bridge, /Preview withdrawal states, not Withdraw ZEC/);
   assert.match(bridge, /Preview deposit states, not Deposit ZEC/);
   assert.match(bridge, /WITHDRAWAL_TOUR/);
+  assert.match(bridge, /nextGatewayJourney/);
+  assert.match(bridge, /interpretRovingKey/);
   assert.match(bridge, /payoutClaimForTourStep/);
   assert.match(await readFile(join(root, "src/lib/withdrawal-tour.ts"), "utf8"), /does not invent a payout/);
   assert.match(bridge, /Nothing is sent/);

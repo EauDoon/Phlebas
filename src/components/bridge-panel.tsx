@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 
 import { DEPOSIT_TOUR, depositTourStep } from "@/lib/deposit-tour";
 import { inspectTransparentDestination } from "@/lib/zcash-address";
+import {
+  GATEWAY_JOURNEY_LABELS,
+  GATEWAY_JOURNEYS,
+  nextGatewayJourney,
+  type GatewayJourney,
+} from "@/lib/gateway-journeys";
 import { payoutClaimForTourStep, screenPayout } from "@/lib/payout";
+import { interpretRovingKey } from "@/lib/roving-keys";
 import { isTestnetTex } from "@/lib/tex";
 import { WITHDRAWAL_TOUR, withdrawalTourStep } from "@/lib/withdrawal-tour";
 import { copyUri } from "@/lib/copy-uri";
@@ -38,7 +45,9 @@ function PlaceholderZipQr() {
 }
 
 export function BridgePanel() {
-  const [journey, setJourney] = useState<"deposit" | "withdrawal">("deposit");
+  const [journey, setJourney] = useState<GatewayJourney>("deposit");
+  const [journeyFocus, setJourneyFocus] = useState<GatewayJourney>("deposit");
+  const journeyRefs = useRef<Partial<Record<GatewayJourney, HTMLButtonElement | null>>>({});
   const [depositIndex, setDepositIndex] = useState(0);
   const [tourIndex, setTourIndex] = useState(0);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
@@ -53,6 +62,41 @@ export function BridgePanel() {
     ? null
     : screenPayout(destination, 1n);
   const tourClaim = payoutClaimForTourStep(tour.id, destination);
+
+  function moveJourneyFocus(next: GatewayJourney) {
+    setJourneyFocus(next);
+    journeyRefs.current[next]?.focus();
+  }
+
+  function selectJourney(id: GatewayJourney) {
+    setJourney(id);
+    setJourneyFocus(id);
+  }
+
+  function onJourneyKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: GatewayJourney) {
+    const action = interpretRovingKey(event.key);
+    if (!action) {
+      return;
+    }
+    event.preventDefault();
+    if (action === "next") {
+      moveJourneyFocus(nextGatewayJourney(id, 1));
+      return;
+    }
+    if (action === "prev") {
+      moveJourneyFocus(nextGatewayJourney(id, -1));
+      return;
+    }
+    if (action === "home") {
+      moveJourneyFocus("deposit");
+      return;
+    }
+    if (action === "end") {
+      moveJourneyFocus("withdrawal");
+      return;
+    }
+    selectJourney(id);
+  }
 
   async function copyRequest() {
     const value = intent?.request ?? syntheticDepositRequest();
@@ -101,22 +145,22 @@ export function BridgePanel() {
         </p>
 
         <div className={styles.poolTabs} role="group" aria-label="Gateway journey">
-          <button
-            type="button"
-            className={journey === "deposit" ? styles.poolActive : undefined}
-            aria-pressed={journey === "deposit"}
-            onClick={() => setJourney("deposit")}
-          >
-            Deposit preview
-          </button>
-          <button
-            type="button"
-            className={journey === "withdrawal" ? styles.poolActive : undefined}
-            aria-pressed={journey === "withdrawal"}
-            onClick={() => setJourney("withdrawal")}
-          >
-            Withdrawal states
-          </button>
+          {GATEWAY_JOURNEYS.map((id) => (
+            <button
+              type="button"
+              key={id}
+              className={journey === id ? styles.poolActive : undefined}
+              aria-pressed={journey === id}
+              tabIndex={journeyFocus === id ? 0 : -1}
+              ref={(node) => {
+                journeyRefs.current[id] = node;
+              }}
+              onClick={() => selectJourney(id)}
+              onKeyDown={(event) => onJourneyKeyDown(event, id)}
+            >
+              {GATEWAY_JOURNEY_LABELS[id]}
+            </button>
+          ))}
         </div>
 
         {journey === "deposit" ? (
