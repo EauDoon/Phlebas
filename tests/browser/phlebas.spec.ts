@@ -638,6 +638,20 @@ test("connect wallet without a provider shows a visible rejection", async ({ pag
   await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDC.")).toBeVisible();
 });
 
+test("connect wallet without a provider names pZEC-USDT0 after switching market", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  await expect(connect).toHaveAttribute(
+    "title",
+    "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDT0.",
+  );
+  await connect.click();
+  await expect(
+    page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDT0.", { exact: true }),
+  ).toBeVisible();
+});
+
 test("connecting wallet title keeps the settlement pair", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, "ethereum", {
