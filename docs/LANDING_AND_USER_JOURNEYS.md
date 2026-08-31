@@ -1,22 +1,20 @@
 # Phlebas Landing and User Journeys
 
-Status: legacy custody-interface specification, retained for the current no-value simulation
+Status: the landing page, terminal shell, first-session education, country-blocked demonstration, local matcher, LP preview with review-and-confirm, ZIP 321 deposit-shape preview, deposit and withdrawal state tours, destination inspector, labeled incident demonstrations, `/legal`, `/security`, and architecture explanation are implemented locally as no-value fixtures. Optional local loopback stubs exist for a textest gateway, matcher operator, and observer. They are never hosted on Vercel. Wallet signing stays disabled while the verified testnet deployment manifest is undeployed. The public app remains a no-value simulation.
 
-The pZEC, gateway, deposit, withdrawal, and passive LP requirements below document the legacy ADR 0001 interface. They are not requirements for the target product. [ADR 0002](adr/0002-native-zec-atomic-settlement.md), [Product specification](PRODUCT_SPEC.md), [Architecture](ARCHITECTURE.md), and [Delivery plan](DELIVERY_PLAN.md) govern the native-ZEC target and its replacement user journey.
-
-The landing page, terminal shell, local matcher, LP preview, withdrawal state tour, destination inspector, optional Sepolia wallet flow, keccak EIP-712 path, and local textest services are implemented for no-value use. The loopback services are never hosted on Vercel. Contracts remain undeployed, wallet signing remains gated by that manifest, and no live-funds path exists.
+The pZEC, gateway, deposit, withdrawal, and passive LP surfaces are legacy simulation interfaces. The native-ZEC target and its replacement journey are governed by the architecture, product specification, and delivery plan.
 
 Phlebas currently has no live market data, deployed contract, real deposit, withdrawal, order, stablecoin, pZEC, custody, identity, or authoritative matching service. Every value and state in the public interface is illustrative. Wallet signing stays disabled while the verified testnet deployment manifest is undeployed. This specification does not authorize mainnet, custody, publication, or financial services.
 
-The legacy simulation uses the market aliases `ZEC / USDC` and `ZEC / USDT` while disclosing its simulated settlement pair, `pZEC / USDC` or `pZEC / USDT0`. The target replaces those receipt pairs with native transparent ZEC and an exact issuer-approved stablecoin, settled through chain-native conditional locks.
+The user-facing market aliases are `ZEC / USDC` and `ZEC / USDT`, matching the requested markets. Every market ticket, review, and history surface must also state the exact proposed settlement pair, `pZEC / USDC` or `pZEC / USDT0`. Pool labels use the settlement assets. Native `ZEC` refers only to Zcash that would enter or leave the transparent gateway.
 
 ## Product outcome
 
-The legacy landing page was designed to answer four questions before asking a visitor to enter the terminal:
+The landing page should answer four questions before asking a visitor to enter the terminal:
 
 - What is Phlebas?
 - What exists today?
-- Why is pZEC shown only as a superseded simulation?
+- What is pZEC, and where does custody begin?
 - What can a visitor safely do in the current preview?
 
 The intended first impression is a serious market design with its limits shown in public. The page must not resemble a live exchange launch, token sale, rewards campaign, or liquidity solicitation.
@@ -47,9 +45,13 @@ Planning dials:
 | `/trade` | Terminal shell, defaults to trade | Implemented locally, simulation only |
 | `/trade?view=trade` | Trade preview | Implemented locally with illustrative order entry |
 | `/trade?view=trade&feed=stale` | Ticket gate | Allowlisted feed states: `illustrative`, `loading`, `empty`, `stale`, `unavailable`. Invalid values return to illustrative. |
+| `/trade?access=blocked` | Country-blocked demonstration | Allowlisted access values: `open`, `blocked`. Invalid values return to open. Never infers location. |
+| `/trade?education=1` | First-session education | Allowlisted education values: `1`. Invalid values do not force the dialog. |
 | `/trade?view=liquidity` | LP preview | Implemented locally with illustrative pool calculations |
 | `/trade?view=bridge` | Gateway boundary | Implemented locally as a deposit ZIP 321 preview and withdrawal state tour |
-| `/trade?view=architecture` | Product boundary | Implemented locally as a read-only explanation |
+| `/trade?view=architecture` | Product boundary | Implemented locally as a read-only explanation plus labeled incident demonstrations |
+| `/legal` | Legal boundary | Implemented locally. Not legal advice. No licensed operator. |
+| `/security` | Security boundary | Implemented locally. No production support commitment. |
 
 Only allowlisted query values may affect rendering. Invalid values return to the default trade preview without an error loop. Never place a wallet address, Zcash address, transaction hash, order identifier, amount, screening result, account state, or review reference in a URL.
 

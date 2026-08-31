@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { quoteConstantProductSwapAtoms } from "@/lib/amm";
 import { AMM_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
@@ -15,11 +15,19 @@ import {
   type PoolShares,
 } from "@/lib/lp";
 import { pools, type MarketId } from "@/lib/market-data";
+import {
+  FEED_STATUS_LABELS,
+  FEED_STATUSES,
+  nextFeedStatus,
+  ticketGate,
+  type FeedStatus,
+} from "@/lib/market-state";
+import { nextPoolId, POOL_IDS, type PoolId } from "@/lib/pool-ids";
+import { interpretRovingKey } from "@/lib/roving-keys";
 import { parseAtomicUnits, formatAtomicUnits, PZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
-type PoolId = (typeof pools)[number]["id"];
 type EntryDeposit = { pzecAtoms: bigint; quoteAtoms: bigint };
 type LpReview = {
   kind: "mint" | "swap";
@@ -50,12 +58,22 @@ function emptyDeposits(): Record<PoolId, EntryDeposit> {
 
 export function LiquidityPanel({
   marketId,
+  feedStatus,
   onMarketChange,
+  onFeedChange,
+  onRetryFeed,
 }: {
   marketId: MarketId;
+  feedStatus: FeedStatus;
   onMarketChange: (market: MarketId) => void;
+  onFeedChange: (status: FeedStatus) => void;
+  onRetryFeed: () => void;
 }) {
   const amountHelpId = useId();
+  const amountErrorId = useId();
+  const poolRefs = useRef<Partial<Record<PoolId, HTMLButtonElement | null>>>({});
+  const feedRefs = useRef<Partial<Record<FeedStatus, HTMLButtonElement | null>>>({});
+  const [feedFocusId, setFeedFocusId] = useState<FeedStatus>(feedStatus);
   const selectedPool = marketId === "ZEC/USDT" ? pools[1] : pools[0];
   const [amount, setAmount] = useState("10");
   const [poolState, setPoolState] = useState(initialPools);
@@ -66,6 +84,9 @@ export function LiquidityPanel({
   const [review, setReview] = useState<LpReview | null>(null);
   const poolReserves = poolState[selectedPool.id];
   const sessionEntry = entryDeposits[selectedPool.id];
+  const gate = ticketGate(feedStatus, false);
+  const mintEnabled = lpOperationAllowed("mint", tradingPaused) && gate.canReview;
+  const swapEnabled = lpOperationAllowed("swap", tradingPaused) && gate.canReview;
 
   const amountPreview = useMemo(() => {
     try {
@@ -137,7 +158,79 @@ export function LiquidityPanel({
       : { hodlQuoteAtoms: 0n, positionQuoteAtoms: 0n, lossQuoteAtoms: 0n },
   }));
 
+  function selectPool(id: PoolId) {
+    onMarketChange(id === "pZEC/USDT0" ? "ZEC/USDT" : "ZEC/USDC");
+  }
+
+  function selectFeed(id: FeedStatus) {
+    setReview(null);
+    setFeedFocusId(id);
+    onFeedChange(id);
+  }
+
+  function moveFeedFocus(next: FeedStatus) {
+    setFeedFocusId(next);
+    feedRefs.current[next]?.focus();
+  }
+
+  function onFeedKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: FeedStatus) {
+    const action = interpretRovingKey(event.key);
+    if (!action) {
+      return;
+    }
+    event.preventDefault();
+    if (action === "next") {
+      moveFeedFocus(nextFeedStatus(id, 1));
+      return;
+    }
+    if (action === "prev") {
+      moveFeedFocus(nextFeedStatus(id, -1));
+      return;
+    }
+    if (action === "home") {
+      moveFeedFocus(FEED_STATUSES[0]);
+      return;
+    }
+    if (action === "end") {
+      moveFeedFocus(FEED_STATUSES[FEED_STATUSES.length - 1]);
+      return;
+    }
+    selectFeed(id);
+  }
+
+  function onPoolKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: PoolId) {
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      const next = nextPoolId(id, 1);
+      selectPool(next);
+      poolRefs.current[next]?.focus();
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const next = nextPoolId(id, -1);
+      selectPool(next);
+      poolRefs.current[next]?.focus();
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      selectPool(POOL_IDS[0]);
+      poolRefs.current[POOL_IDS[0]]?.focus();
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      selectPool(POOL_IDS[POOL_IDS.length - 1]);
+      poolRefs.current[POOL_IDS[POOL_IDS.length - 1]]?.focus();
+    }
+  }
+
   function requestMintReview() {
+    if (!gate.canReview) {
+      setNotice(gate.message);
+      return;
+    }
     if (!lpOperationAllowed("mint", tradingPaused)) {
       setNotice("Trading is paused. LP withdrawal remains available.");
       return;
@@ -172,8 +265,8 @@ export function LiquidityPanel({
           quoteAtoms: current[selectedPool.id].quoteAtoms + minted.quoteAtoms,
         },
       }));
-      setNotice(`Minted ${minted.shares.toString()} local LP shares. Wallet actions stay disabled.`);
       setReview(null);
+      setNotice(`Minted ${minted.shares.toString()} local LP shares. Wallet actions stay disabled.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : amountPreview.message);
     }
@@ -197,6 +290,10 @@ export function LiquidityPanel({
   }
 
   function requestSwapReview() {
+    if (!gate.canReview) {
+      setNotice(gate.message);
+      return;
+    }
     if (!lpOperationAllowed("swap", tradingPaused)) {
       setNotice("Trading is paused. LP withdrawal remains available.");
       return;
@@ -234,8 +331,8 @@ export function LiquidityPanel({
           reserveQuoteAtoms: current[selectedPool.id].reserveQuoteAtoms - swap.amountOut,
         },
       }));
-      setNotice(`Simulated pZEC→${selectedPool.quote} swap. Output ${formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2)} ${selectedPool.quote}. Local preview only.`);
       setReview(null);
+      setNotice(`Simulated pZEC→${selectedPool.quote} swap. Output ${formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2)} ${selectedPool.quote}. Local preview only.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Swap quote is outside the preview range.");
     }
@@ -252,14 +349,25 @@ export function LiquidityPanel({
           <span className={styles.statusDot}>Superseded preview</span>
         </div>
 
-        <div className={styles.poolTabs} role="group" aria-label="Liquidity pool">
+        <div
+          id="liquidity-pools"
+          className={styles.poolTabs}
+          role="radiogroup"
+          aria-label="Liquidity pool"
+          tabIndex={-1}
+        >
           {pools.map((pool) => (
             <button
               type="button"
               key={pool.id}
-              aria-pressed={selectedPool.id === pool.id}
+              role="radio"
+              aria-checked={selectedPool.id === pool.id}
               className={selectedPool.id === pool.id ? styles.poolActive : undefined}
-              onClick={() => onMarketChange(pool.id === "pZEC/USDT0" ? "ZEC/USDT" : "ZEC/USDC")}
+              ref={(node) => {
+                poolRefs.current[pool.id] = node;
+              }}
+              onClick={() => selectPool(pool.id)}
+              onKeyDown={(event) => onPoolKeyDown(event, pool.id)}
             >
               <span>{pool.id}</span>
               {pool.id === "pZEC/USDT0" && <small>Later listing gate</small>}
@@ -267,8 +375,43 @@ export function LiquidityPanel({
           ))}
         </div>
 
+        <div className={styles.inputLabel}>
+          <span>Market data</span>
+          <div className={styles.selectorTabs} role="radiogroup" aria-label="Market data state">
+            {FEED_STATUSES.map((id) => (
+              <button
+                type="button"
+                key={id}
+                role="radio"
+                aria-checked={feedStatus === id}
+                tabIndex={feedFocusId === id ? 0 : -1}
+                className={feedStatus === id ? styles.selectorActive : undefined}
+                ref={(node) => {
+                  feedRefs.current[id] = node;
+                }}
+                onClick={() => selectFeed(id)}
+                onKeyDown={(event) => onFeedKeyDown(event, id)}
+              >
+                {FEED_STATUS_LABELS[id]}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {selectedPool.id === "pZEC/USDT0" && (
           <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
+        )}
+
+        {!gate.canReview && (
+          <p className={styles.gateNotice}>
+            <strong>{gate.heading}</strong>
+            {" "}
+            {gate.message}
+            {" "}
+            <button type="button" className={styles.textButton} onClick={() => { setReview(null); setFeedFocusId("illustrative"); onRetryFeed(); }}>
+              Retry illustrative feed
+            </button>
+          </p>
         )}
 
         <div className={styles.depositStack}>
@@ -280,7 +423,8 @@ export function LiquidityPanel({
               onChange={(event) => setAmount(event.target.value)}
               aria-label="pZEC liquidity amount"
               aria-invalid={!amountPreview.valid}
-              aria-describedby={amountHelpId}
+              aria-errormessage={!amountPreview.valid ? amountErrorId : undefined}
+              aria-describedby={!amountPreview.valid ? `${amountErrorId} ${amountHelpId}` : amountHelpId}
             />
             <strong>pZEC</strong>
           </label>
@@ -293,16 +437,30 @@ export function LiquidityPanel({
             <strong>{selectedPool.quote}</strong>
           </div>
         </div>
+        {!amountPreview.valid ? (
+          <p id={amountErrorId} className={styles.inlineNotice} role="alert">{amountPreview.message}</p>
+        ) : null}
         <p id={amountHelpId} className={styles.inlineNotice} aria-live="polite">
-          {amountPreview.message}
+          {amountPreview.valid ? amountPreview.message : "Use a positive plain decimal with no more than 8 places. Integer quote."}
         </p>
 
-        <dl className={styles.statGrid} role="group" aria-label="Pool stats and impermanent loss versus hold">
+        <dl
+          id="pool-stats"
+          className={styles.statGrid}
+          role="group"
+          aria-label="Pool stats and impermanent loss versus hold"
+          tabIndex={-1}
+        >
           <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
+          <div><dt>TVL</dt><dd>Fixture {selectedPool.tvl}</dd></div>
+          <div><dt>24h volume</dt><dd>Fixture {selectedPool.volume}</dd></div>
           <div><dt>pZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reservePzecAtoms, PZEC_DECIMALS, 2)}</dd></div>
           <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
           <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
-          <div><dt>Session LP shares</dt><dd>{heldShares[selectedPool.id].toString()}</dd></div>
+          <div>
+            <dt>Session LP shares</dt>
+            <dd>{heldShares[selectedPool.id].toString()}</dd>
+          </div>
           <div>
             <dt>Session IL vs hold</dt>
             <dd>{formatAtomicUnits(sessionIl.lossQuoteAtoms, QUOTE_DECIMALS, 2)} {selectedPool.quote}</dd>
@@ -314,6 +472,11 @@ export function LiquidityPanel({
             </div>
           ))}
         </dl>
+        {heldShares[selectedPool.id] === 0n && (
+          <p className={styles.inlineNotice}>
+            No session LP shares. Burn stays available when shares exist. Mint is a local preview.
+          </p>
+        )}
         <p className={styles.inlineNotice}>
           Not a return or profit projection. Local integer preview of constant-product divergence versus holding the same deposited assets.
         </p>
@@ -325,7 +488,10 @@ export function LiquidityPanel({
 
         {review ? (
           <div className={styles.reviewBlock}>
-            <p className={styles.gateNotice}>
+            {selectedPool.id === "pZEC/USDT0" && (
+              <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
+            )}
+            <p className={styles.gateNotice} aria-label="Review custody notice">
               pZEC is a custody receipt, not native ZEC. This LP preview is public in the simulation. The matcher is not trustless.
             </p>
             <dl className={styles.ticketSummary}>
@@ -360,6 +526,7 @@ export function LiquidityPanel({
             </dl>
             <p className={styles.inlineNotice}>
               Transparent Zcash and this Arbitrum LP action are publicly linkable. pZEC redemption depends on the gateway.
+              LPs also face stablecoin risk, smart-contract risk, impermanent loss, and toxic flow from the order book.
             </p>
             <p className={styles.inlineNotice}>
               Confirm runs the local integer pool preview. Wallet actions stay disabled.
@@ -378,9 +545,9 @@ export function LiquidityPanel({
         ) : null}
 
         <div className={styles.tourNav}>
-          <button type="button" onClick={requestMintReview} disabled={!lpOperationAllowed("mint", tradingPaused)}>Review simulated mint</button>
+          <button type="button" onClick={requestMintReview} disabled={!mintEnabled}>Review simulated mint</button>
           <button type="button" onClick={simulateBurn} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
-          <button type="button" onClick={requestSwapReview} disabled={!lpOperationAllowed("swap", tradingPaused)}>Review simulated swap</button>
+          <button type="button" onClick={requestSwapReview} disabled={!swapEnabled}>Review simulated swap</button>
           <button
             type="button"
             aria-pressed={tradingPaused}
@@ -393,7 +560,7 @@ export function LiquidityPanel({
           >
             {tradingPaused ? "Resume trading preview" : "Pause trading preview"}
           </button>
-          <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setNotice("Local pool reserves restored."); }}>
+          <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setReview(null); setNotice("Local pool reserves restored."); }}>
             Reset pool
           </button>
         </div>

@@ -2,25 +2,21 @@
 
 import { useRef, useState, type KeyboardEvent } from "react";
 
+import {
+  BLOTTER_TAB_LABELS,
+  BLOTTER_TABS,
+  nextBlotterTab,
+  type BlotterTab,
+} from "@/lib/blotter-tabs";
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
 import type { RestingOrder } from "@/lib/matcher";
-import type { SessionLogEvent } from "@/lib/replay";
+import { describeSessionLogEvent, type SessionLogEvent } from "@/lib/replay";
 import type { PaperAccount, UserFill } from "@/lib/session";
 import { availablePzec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
 import { PZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
-
-const BLOTTER_TABS = ["orders", "fills", "inventory", "log"] as const;
-type BlotterTab = (typeof BLOTTER_TABS)[number];
-
-const TAB_LABELS: Record<BlotterTab, string> = {
-  orders: "Open orders",
-  fills: "Fills",
-  inventory: "Inventory",
-  log: "Event log",
-};
 
 export function OrderBlotter({
   marketId,
@@ -46,6 +42,7 @@ export function OrderBlotter({
   accountEpoch: number;
 }) {
   const [tab, setTab] = useState<BlotterTab>("orders");
+  const [focusId, setFocusId] = useState<BlotterTab>("orders");
   const tabRefs = useRef<Partial<Record<BlotterTab, HTMLButtonElement | null>>>({});
   const market = markets[marketId];
   const marketFills = fills.filter((fill) => fill.marketId === marketId);
@@ -53,22 +50,45 @@ export function OrderBlotter({
   const start = startingMarkQuote(lastTicks);
   const pnl = mark - start;
 
-  function onTabListKey(event: KeyboardEvent<HTMLDivElement>) {
-    const index = BLOTTER_TABS.indexOf(tab);
-    let next = index;
-    if (event.key === "ArrowRight") next = (index + 1) % BLOTTER_TABS.length;
-    else if (event.key === "ArrowLeft") next = (index - 1 + BLOTTER_TABS.length) % BLOTTER_TABS.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = BLOTTER_TABS.length - 1;
-    else return;
-    event.preventDefault();
-    const nextTab = BLOTTER_TABS[next];
-    setTab(nextTab);
-    queueMicrotask(() => tabRefs.current[nextTab]?.focus());
+  function moveFocus(next: BlotterTab) {
+    setFocusId(next);
+    tabRefs.current[next]?.focus();
+  }
+
+  function selectTab(id: BlotterTab) {
+    setTab(id);
+    setFocusId(id);
+  }
+
+  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: BlotterTab) {
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      moveFocus(nextBlotterTab(id, 1));
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      moveFocus(nextBlotterTab(id, -1));
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      moveFocus("orders");
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      moveFocus("log");
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      selectTab(id);
+    }
   }
 
   return (
-    <section className={`${styles.panel} ${styles.blotter}`} aria-labelledby="blotter-title">
+    <section id="session-blotter" tabIndex={-1} className={`${styles.panel} ${styles.blotter}`} aria-labelledby="blotter-title">
       <div className={styles.panelHeader}>
         <div>
           <span className={styles.eyebrow}>Session blotter</span>
@@ -79,7 +99,7 @@ export function OrderBlotter({
         </button>
       </div>
 
-      <div className={styles.orderTypes} role="tablist" aria-label="Blotter views" onKeyDown={onTabListKey}>
+      <div className={styles.orderTypes} role="tablist" aria-label="Blotter views" aria-orientation="horizontal">
         {BLOTTER_TABS.map((id) => (
           <button
             type="button"
@@ -88,14 +108,15 @@ export function OrderBlotter({
             role="tab"
             aria-selected={tab === id}
             aria-controls={`blotter-panel-${id}`}
-            tabIndex={tab === id ? 0 : -1}
+            tabIndex={focusId === id ? 0 : -1}
             className={tab === id ? styles.textActive : undefined}
             ref={(node) => {
               tabRefs.current[id] = node;
             }}
-            onClick={() => setTab(id)}
+            onClick={() => selectTab(id)}
+            onKeyDown={(event) => onTabKeyDown(event, id)}
           >
-            {TAB_LABELS[id]}
+            {BLOTTER_TAB_LABELS[id]}
           </button>
         ))}
       </div>
@@ -244,13 +265,7 @@ export function OrderBlotter({
                 <tr key={`${event.kind}-${index}`}>
                   <th scope="row">{events.length - Math.min(events.length, 20) + index + 1}</th>
                   <td>{event.kind}</td>
-                  <td>
-                    {event.kind === "submit"
-                      ? `${event.side} ${event.tif} ${event.id} expiry ${!event.expiryUnix || event.expiryUnix === 0n ? "none" : event.expiryUnix.toString()}`
-                      : event.kind === "cancel"
-                        ? event.orderId
-                        : "session reset"}
-                  </td>
+                  <td>{describeSessionLogEvent(event)}</td>
                 </tr>
               ))}
             </tbody>

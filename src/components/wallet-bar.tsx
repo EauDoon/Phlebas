@@ -43,7 +43,12 @@ export function WalletBar({
     return (
       <div className={styles.headerActions}>
         <span className={styles.network}><i />Arbitrum Sepolia</span>
-        <button type="button" className={styles.connectButton} onClick={() => onChange(disconnectedWallet)}>
+        <button
+          type="button"
+          className={styles.connectButton}
+          onClick={() => onChange(disconnectedWallet)}
+          aria-label={`Disconnect ${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}`}
+        >
           {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
         </button>
       </div>
@@ -64,7 +69,7 @@ export function WalletBar({
         {busy ? "Connecting" : "Connect wallet"}
       </button>
       {wallet.error && (
-        <span className={styles.inlineNotice} role="status">
+        <span className={styles.inlineNotice} role="status" aria-label="Wallet connection rejection">
           {wallet.error}
         </span>
       )}
