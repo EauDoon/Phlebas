@@ -810,6 +810,11 @@
   min-height: 240px;
 }
 
+.tradesPanel .dataTable tbody th,
+.tradesPanel .dataTable tbody td {
+  height: 44px;
+}
+
 .blotter {
   grid-area: blotter;
   min-height: 180px;
