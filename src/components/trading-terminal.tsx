@@ -17,7 +17,7 @@ import { terminalUrl } from "@/lib/terminal-url";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
-import { feedSurface, type FeedStatus } from "@/lib/market-state";
+import { feedSurface, feedWithheldCopy, type FeedStatus } from "@/lib/market-state";
 import type { SessionLogEvent } from "@/lib/replay";
 import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingOrder, type TimeInForce } from "@/lib/matcher";
 import {
@@ -27,6 +27,9 @@ import {
   canCover,
   describeSubmit,
   formatFillTime,
+  inventoryRejectCopy,
+  selfTradeRejectCopy,
+  ticketRejectCopy,
   releaseRestingOrder,
   seedBook,
   seedPaperAccount,
@@ -174,9 +177,7 @@ export function TradingTerminal({
         setAccounts({ ...accounts, [marketId]: nextAccount });
         setEvents((current) => [...current, ...expireEvents(userExpired)]);
       }
-      return order.side === "buy"
-        ? "Session quote inventory is insufficient."
-        : "Session pZEC inventory is insufficient.";
+      return inventoryRejectCopy(order.side, marketId);
     }
 
     const id = `user-${nextOrderId.current}`;
@@ -189,7 +190,7 @@ export function TradingTerminal({
         setAccounts({ ...accounts, [marketId]: nextAccount });
         setEvents((current) => [...current, ...expireEvents(userExpired)]);
       }
-      return "Self-trade prevented. Cancel the resting session order or choose another price.";
+      return selfTradeRejectCopy(marketId);
     }
 
     const applied = applySubmit(nextAccount, order, result);
@@ -199,7 +200,7 @@ export function TradingTerminal({
         setAccounts({ ...accounts, [marketId]: nextAccount });
         setEvents((current) => [...current, ...expireEvents(userExpired)]);
       }
-      return applied.blockedReason;
+      return ticketRejectCopy(applied.blockedReason, marketId);
     }
 
     setBooks({ ...books, [marketId]: result.book });
@@ -452,7 +453,7 @@ export function TradingTerminal({
                         ? (
                           <tr>
                             <td colSpan={3}>
-                              <p className={styles.emptyState}>{statsSurface.heading}. {statsSurface.message}</p>
+                              <p className={styles.emptyState}>{feedWithheldCopy(feedStatus, market.settlementPair)}</p>
                             </td>
                           </tr>
                         )

@@ -1,6 +1,6 @@
 import type { ChartRange, MarketId } from "@/lib/market-data";
-import { chartSeries } from "@/lib/market-data";
-import { feedSurface, type FeedStatus } from "@/lib/market-state";
+import { chartSeries, markets } from "@/lib/market-data";
+import { feedSurface, feedWithheldCopy, type FeedStatus } from "@/lib/market-state";
 import { PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -16,8 +16,7 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
   if (!surface.showFixtures) {
     return (
       <p className={styles.emptyState} role="status">
-        <strong>{surface.heading}. </strong>
-        {surface.message}
+        {feedWithheldCopy(feedStatus, markets[marketId].settlementPair)}
       </p>
     );
   }

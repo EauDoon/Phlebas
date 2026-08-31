@@ -11,6 +11,7 @@ import { TESTNET } from "@/lib/testnet";
 import { parseExpiryUnix, settlementDigest, typedOrderFromTicket } from "@/lib/ticket-order";
 import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
+import { describeSubmit, isTicketRejectCopy } from "@/lib/session";
 import { interpretTicketKey } from "@/lib/ticket-shortcuts";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
 import { compareVenues, type RouteComparison } from "@/lib/router";
@@ -332,8 +333,9 @@ export function TradeTicket({
       nowUnix,
     });
     if (clobPreview.status === "rejected" && clobPreview.reason === "Order expiry has passed") {
-      setRejected(`Rejected. ${clobPreview.reason}`);
-      setNotice(clobPreview.reason);
+      const rejectedCopy = describeSubmit(clobPreview, market.id);
+      setRejected(rejectedCopy);
+      setNotice(rejectedCopy);
       setReview(null);
       return;
     }
@@ -452,10 +454,7 @@ export function TradeTicket({
       sizeAtoms: review.sizeAtoms,
       expiryUnix: review.expiryUnix,
     });
-    const isRejected = result.startsWith("Rejected.")
-      || result.includes("insufficient")
-      || result.startsWith("Self-trade");
-    setRejected(isRejected ? result : null);
+    setRejected(isTicketRejectCopy(result) ? result : null);
     setNotice(result);
     setReview(null);
   }

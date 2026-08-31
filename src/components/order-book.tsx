@@ -1,6 +1,6 @@
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
-import { feedSurface, type FeedStatus } from "@/lib/market-state";
+import { depthEmptyCopy, feedSurface, feedWithheldCopy, orderBookCaptionCopy, type FeedStatus } from "@/lib/market-state";
 import { levelsFromBook, type Book } from "@/lib/matcher";
 import { PRICE_DECIMALS, PZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
@@ -35,7 +35,7 @@ export function OrderBook({
       </div>
       <table className={styles.dataTable}>
         <caption className={styles.srOnly}>
-          Local {marketId} order book. Totals are cumulative pZEC depth from the best price. Click a price to copy it into the ticket.
+          {orderBookCaptionCopy(marketId)}
         </caption>
         <thead>
           <tr>
@@ -50,8 +50,8 @@ export function OrderBook({
               <td colSpan={3}>
                 <p className={styles.emptyState}>
                   {surface.showFixtures || feedStatus === "empty"
-                    ? "No resting depth. The local book is empty."
-                    : `${surface.heading}. ${surface.message}`}
+                    ? depthEmptyCopy(market.settlementPair)
+                    : feedWithheldCopy(feedStatus, market.settlementPair)}
                 </p>
               </td>
             </tr>
