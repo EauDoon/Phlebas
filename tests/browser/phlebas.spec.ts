@@ -505,7 +505,7 @@ test("LP preview shows integer IL versus hold", async ({ page }) => {
   await page.getByRole("button", { name: "Review simulated mint" }).click();
   await expect(page.getByText("Leaves the session")).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated mint" }).click();
-  await expect(page.getByText(/Minted .* local LP shares/)).toBeVisible();
+  await expect(page.getByText(/Minted .* local LP shares\. Wallet actions stay disabled\. Settled as pZEC-USDC\./)).toBeVisible();
   await expect(stats.getByText("Session IL vs hold")).toBeVisible();
 });
 
@@ -733,6 +733,7 @@ test("chart range uses a tablist and unavailable tape names the feed", async ({ 
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "ZEC/USDC · pZEC-USDC" })).toBeVisible();
   await expect(page.getByText("Illustrative market data · pZEC-USDC")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDC, settled as pZEC-USDC" })).toBeVisible();
   await expect(page.getByRole("tablist", { name: "Chart range" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "4H · pZEC-USDC" })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "1D · pZEC-USDC" }).click();
