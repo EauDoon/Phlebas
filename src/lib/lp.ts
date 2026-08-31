@@ -29,6 +29,13 @@ export function lpResetNoticeCopy(settlementPair: Market["settlementPair"]): str
   return `Local pool reserves restored. Settled as ${settlementPair}.`;
 }
 
+export function lpMintNoticeCopy(
+  shares: bigint,
+  settlementPair: Market["settlementPair"],
+): string {
+  return `Minted ${shares.toString()} local LP shares. Wallet actions stay disabled. Settled as ${settlementPair}.`;
+}
+
 export function seedPool(reservePzecAtoms: bigint, reserveQuoteAtoms: bigint): PoolShares {
   if (reservePzecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
     throw new Error("Pool reserves must be positive");
