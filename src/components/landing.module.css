@@ -177,6 +177,7 @@
   display: none;
   min-width: 44px;
   min-height: 44px;
+  flex-shrink: 0;
   padding: 0 13px;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
