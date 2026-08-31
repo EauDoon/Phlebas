@@ -87,6 +87,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /Nothing was sent/);
   assert.match(await readFile(join(root, "src/lib/ticket-shortcuts.ts"), "utf8"), /reviewOpen/);
   const liquidity = await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8");
+  assert.match(liquidity, /aria-errormessage/);
+  assert.match(liquidity, /amountErrorId/);
   assert.match(liquidity, /Retry illustrative feed/);
   assert.match(liquidity, /No session LP shares/);
   assert.match(liquidity, /not a return or profit projection/i);

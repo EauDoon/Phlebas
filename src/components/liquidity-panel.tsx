@@ -63,6 +63,7 @@ export function LiquidityPanel({
   onRetryFeed: () => void;
 }) {
   const amountHelpId = useId();
+  const amountErrorId = useId();
   const poolRefs = useRef<Partial<Record<PoolId, HTMLButtonElement | null>>>({});
   const selectedPool = marketId === "ZEC/USDT" ? pools[1] : pools[0];
   const [amount, setAmount] = useState("10");
@@ -368,7 +369,8 @@ export function LiquidityPanel({
               onChange={(event) => setAmount(event.target.value)}
               aria-label="pZEC liquidity amount"
               aria-invalid={!amountPreview.valid}
-              aria-describedby={amountHelpId}
+              aria-errormessage={!amountPreview.valid ? amountErrorId : undefined}
+              aria-describedby={!amountPreview.valid ? `${amountErrorId} ${amountHelpId}` : amountHelpId}
             />
             <strong>pZEC</strong>
           </label>
@@ -381,8 +383,11 @@ export function LiquidityPanel({
             <strong>{selectedPool.quote}</strong>
           </div>
         </div>
+        {!amountPreview.valid ? (
+          <p id={amountErrorId} className={styles.inlineNotice} role="alert">{amountPreview.message}</p>
+        ) : null}
         <p id={amountHelpId} className={styles.inlineNotice} aria-live="polite">
-          {amountPreview.message}
+          {amountPreview.valid ? amountPreview.message : "Use a positive plain decimal with no more than 8 places. Integer quote."}
         </p>
 
         <dl className={styles.statGrid} role="group" aria-label="Pool stats and impermanent loss versus hold">
