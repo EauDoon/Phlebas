@@ -3,6 +3,9 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
+import { eip712DigestHex, sepoliaDomain, typedData, venuesBitmask, type TypedOrder } from "@/lib/eip712";
+import { getInjectedProvider, signTypedData } from "@/lib/evm-wallet";
+import { quoteTokenAddress, TESTNET } from "@/lib/testnet";
 import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
@@ -92,6 +95,7 @@ export function TradeTicket({
   reserveQuoteAtoms,
   accountEpoch,
   feedStatus,
+  walletAddress = null,
   onRetryFeed,
   onSubmit,
 }: {
@@ -105,6 +109,7 @@ export function TradeTicket({
   reserveQuoteAtoms: bigint;
   accountEpoch: number;
   feedStatus: FeedStatus;
+  walletAddress?: string | null;
   onRetryFeed: () => void;
   onSubmit: (order: {
     side: Side;
@@ -130,6 +135,8 @@ export function TradeTicket({
     sizeAtoms: bigint;
     tif: TimeInForce;
     digest: string;
+    eip712Digest?: string;
+    typed?: TypedOrder;
     comparison: RouteComparison;
     clobDebitAtoms: bigint;
     clobReservationAtoms: bigint;
@@ -324,14 +331,57 @@ export function TradeTicket({
       verifyingContract: "not-deployed",
     };
     nonceRef.current += 1;
+    let eip712 = undefined as string | undefined;
+    let typed = undefined as TypedOrder | undefined;
+    if (walletAddress) {
+      typed = {
+        maker: walletAddress,
+        side: side === "buy" ? 0 : 1,
+        baseAsset: TESTNET.pzec,
+        quoteAsset: quoteTokenAddress(market.quote),
+        baseAmount: prepared.sizeAtoms,
+        limitPriceTicks: prepared.priceTicks,
+        nonce: BigInt(canonical.nonce),
+        accountEpoch: BigInt(accountEpoch),
+        expiry: 0n,
+        salt: 1n,
+        recipient: walletAddress,
+        maximumFeeBps: 30,
+        allowedVenues: venuesBitmask("clob"),
+      };
+      eip712 = eip712DigestHex(sepoliaDomain(TESTNET.settlement), typed);
+    }
     setReview({
       ...prepared,
       side,
       digest: await digestCanonicalOrder(canonical),
+      eip712Digest: eip712,
+      typed,
       comparison,
       clobDebitAtoms,
       clobReservationAtoms,
     });
+  }
+
+  async function signTestnetOrder() {
+    if (!review?.typed || !walletAddress) {
+      return;
+    }
+    const provider = getInjectedProvider();
+    if (!provider) {
+      setNotice("No injected EVM wallet.");
+      return;
+    }
+    try {
+      const signature = await signTypedData(
+        provider,
+        walletAddress,
+        typedData(sepoliaDomain(TESTNET.settlement), review.typed),
+      );
+      setNotice(`Signed testnet typed data ${signature.slice(0, 10)}… Settlement is undeployed. Nothing was sent.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Testnet signing failed.");
+    }
   }
 
   function confirmSimulatedOrder() {
@@ -549,6 +599,12 @@ export function TradeTicket({
               <dt>Simulation digest</dt>
               <dd>{review.digest.slice(0, 16)}…</dd>
             </div>
+            {review.eip712Digest && (
+              <div>
+                <dt>Keccak EIP-712</dt>
+                <dd>{review.eip712Digest.slice(0, 16)}…</dd>
+              </div>
+            )}
           </dl>
           <p className={styles.inlineNotice}>
             Confirm submits only the local CLOB. Split and AMM figures are comparison quotes, not an executed router fill.
@@ -560,6 +616,11 @@ export function TradeTicket({
           >
             Confirm simulated {review.side}
           </button>
+          {review.typed && (
+            <button type="button" className={styles.textButton} onClick={() => void signTestnetOrder()}>
+              Sign testnet typed data
+            </button>
+          )}
           <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
             Back
           </button>
@@ -577,7 +638,7 @@ export function TradeTicket({
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
         {inputError ?? notionalError ?? notice}
       </p>
-      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type. Click a book price to copy it here. SHA-256 digest is a simulation encoding, not an Ethereum signature.</p>
+      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type. Click a book price to copy it here. SHA-256 is the session digest. Keccak EIP-712 appears only after an Arbitrum Sepolia wallet is connected.</p>
     </section>
   );
 }

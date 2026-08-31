@@ -59,7 +59,7 @@ The banner is the first focusable content after the skip link and remains visibl
 
 Exact copy:
 
-> Simulation only. No wallets, real assets, live prices, contracts, deposits, withdrawals, or orders are connected.
+> Simulation only. No-value simulation. Optional Sepolia wallet and local testnet services stay off until started. No mainnet funds.
 
 The banner uses `role="status"` on initial load. It must not repeatedly announce on routine navigation. It cannot be dismissed.
 
@@ -70,7 +70,7 @@ Desktop order:
 1. Phlebas mark and wordmark, linked to `/`.
 2. Navigation: `Markets`, `Liquidity`, `Gateway`, `Architecture`.
 3. Status control: `No-value preview`.
-4. Primary action: `Enter simulation` on the landing page, or disabled `Wallets unavailable` in the preview.
+4. Primary action: `Enter simulation` on the landing page, or `Connect wallet` for optional Arbitrum Sepolia signing.
 
 Landing navigation targets:
 

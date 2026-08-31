@@ -5,6 +5,8 @@ const root = process.cwd();
 const skippedDirectories = new Set([
   ".git",
   ".next",
+  "broadcast",
+  "cache",
   "coverage",
   "node_modules",
   "out",

@@ -5,7 +5,7 @@ import { simulationStatus } from "@/lib/status";
 
 export const metadata: Metadata = {
   title: "Status",
-  description: "Phlebas simulation status. No live funds, custody, or production matcher.",
+  description: "Phlebas simulation status. No live funds or custody. Matcher defaults to in-browser.",
 };
 
 export default function StatusPage() {
@@ -18,11 +18,13 @@ export default function StatusPage() {
         <div><dt>Mode</dt><dd>{status.mode}</dd></div>
         <div><dt>Live funds</dt><dd>{status.liveFunds ? "yes" : "no"}</dd></div>
         <div><dt>Matcher</dt><dd>{status.matcher}</dd></div>
+        <div><dt>Matcher service</dt><dd>{status.matcherService}</dd></div>
         <div><dt>Custody</dt><dd>{status.custody}</dd></div>
         <div><dt>Deposits</dt><dd>{status.deposits}</dd></div>
         <div><dt>Withdrawals</dt><dd>{status.withdrawals}</dd></div>
         <div><dt>Wallets</dt><dd>{status.wallets}</dd></div>
         <div><dt>Contracts</dt><dd>{status.contracts}</dd></div>
+        <div><dt>Network</dt><dd>{status.network}</dd></div>
         <div><dt>Market data</dt><dd>{status.marketData}</dd></div>
       </dl>
       <p>

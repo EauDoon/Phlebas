@@ -18,7 +18,7 @@ Linux CI installs the required system packages with `npx playwright install --wi
 
 ## Covered behavior
 
-The suite checks `/`, `/trade`, and `/liquidity` at 320, 390, 768, and 1440 CSS pixels, plus `/status`, a 404 route, local matcher fills with a review-and-confirm step, stale-feed review gating, venue comparison copy, ZIP 321 copy, and destination inspection. Each width covers:
+The suite checks `/`, `/trade`, and `/liquidity` at 320, 390, 768, and 1440 CSS pixels, plus `/status`, a 404 route, local matcher fills with a review-and-confirm step, stale-feed review gating, venue comparison copy, testnet TEX issuance without a gateway, and destination inspection. Each width covers:
 
 - Successful production-route responses and the expected simulation disclosure.
 - Landing-to-liquidity navigation and terminal view navigation.

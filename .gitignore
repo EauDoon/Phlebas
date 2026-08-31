@@ -35,6 +35,15 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# foundry
+/contracts/out
+/contracts/cache
+/contracts/broadcast
+
+# local testnet services
+/services/gateway/.data
+/services/matcher/.data
+
 # vercel
 .vercel
 

@@ -1,6 +1,6 @@
 # Phlebas delivery plan
 
-Status: active full-build goal, dated 31-08-2026. The public app now includes an in-browser matcher, integer seed books, integer AMM quotes, CLOB+AMM split-route comparison, LP share mint/burn, empty/stale/unavailable ticket gates, canonical order encoding with a SHA-256 simulation digest, append-only replay, session inventory, `/status`, and branded error surfaces. Testnet contracts, receivable TEX addresses, and a keccak EIP-712 hash remain unbuilt.
+Status: active full-build goal, dated 31-08-2026. The public app now includes an in-browser matcher, integer seed books, integer AMM quotes, CLOB+AMM split-route comparison, LP share mint/burn, empty/stale/unavailable ticket gates, SHA-256 session digests, keccak EIP-712 typed data, optional Arbitrum Sepolia wallet connection, local testnet TEX issuance, a local matcher operator, `/status`, and branded error surfaces. Solidity sources for undeployed Sepolia contracts live in `contracts/`.
 
 ## 1. Objective
 

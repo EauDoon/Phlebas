@@ -5,12 +5,13 @@ export function simulationStatus() {
     mode: "simulation",
     liveFunds: false,
     matcher: "in-browser",
+    matcherService: "local-optional",
     custody: "none",
-    deposits: "disabled",
+    deposits: "testnet-gateway-optional",
     withdrawals: "tour-only",
-    wallets: "disabled",
-    contracts: "not-deployed",
-    network: "none",
+    wallets: "eip-1193-sepolia",
+    contracts: "source-undeployed",
+    network: "arbitrum-sepolia-unconfigured",
     marketData: "illustrative",
   } as const;
 }

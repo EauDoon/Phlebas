@@ -12,10 +12,13 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --test src/lib/*.test.ts",
+    "test": "node --test src/lib/*.test.ts services/gateway/*.test.ts",
+    "test:contracts": "forge test --root contracts",
     "test:browser": "playwright test",
     "scan:secrets": "node scripts/scan-secrets.mjs",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run scan:secrets && npm run build",
+    "gateway": "node --experimental-strip-types services/gateway/server.ts",
+    "matcher": "node --experimental-strip-types services/matcher/server.ts",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run test:contracts && npm run scan:secrets && npm run build",
     "check:browser": "npm run check && npm run test:browser"
   },
   "dependencies": {

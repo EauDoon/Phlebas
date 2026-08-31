@@ -268,6 +268,9 @@ test("gateway preview is not a receivable deposit", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await expect(page.getByText("zcash:{TEX_ADDRESS}?amount=1&label=Phlebas", { exact: true })).toBeVisible();
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
+  await page.getByRole("button", { name: "Issue testnet TEX" }).click();
+  await expect(page.getByText("Local gateway unavailable. No receivable address is displayed.")).toBeVisible();
+  await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Withdrawal states" })).toBeVisible();
   await page.getByRole("button", { name: "Withdrawal states" }).click();
   await expect(page.getByText("Preview withdrawal states, not Withdraw ZEC.")).toBeVisible();
@@ -317,10 +320,11 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   await expect(page.getByText("Simulation only", { exact: true })).toBeVisible();
 });
 
-test("ZIP 321 copy warns that the template is not payable", async ({ page }) => {
+test("ZIP 321 copy stays disabled without a gateway", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Copy URI template" }).click();
-  await expect(page.getByText("Copied a non-payable template. {TEX_ADDRESS} is a placeholder, not a deposit address.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy testnet URI" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Issue testnet TEX" }).click();
+  await expect(page.getByText("No receivable address is displayed.")).toBeVisible();
 });
 
 test("stale market data disables preview-to-sign and retries to illustrative", async ({ page }) => {

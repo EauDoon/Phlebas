@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { inspectTransparentDestination } from "@/lib/zcash-address";
-import { syntheticDepositRequest } from "@/lib/zip321";
+import { isTestnetTex } from "@/lib/tex";
 
 import styles from "./terminal.module.css";
 
@@ -11,7 +11,7 @@ const depositSteps = [
   {
     number: "01",
     title: "Issue one TEX intent",
-    body: "A production gateway would mint a fresh ZIP 320 TEX address for this deposit only and never reassign it. This simulation does not generate an address.",
+    body: "The local testnet gateway issues one ZIP 320 textest address per intent and never reassigns it. Mainnet encodings are not generated.",
   },
   {
     number: "02",
@@ -48,9 +48,27 @@ export function BridgePanel() {
   const [tourIndex, setTourIndex] = useState(0);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const [destination, setDestination] = useState("");
-  const request = syntheticDepositRequest();
+  const [intent, setIntent] = useState<{ tex: string; request: string } | null>(null);
+  const [gatewayNotice, setGatewayNotice] = useState("Local gateway off. No receivable address is displayed.");
   const tour = withdrawalTour[tourIndex];
   const destinationCheck = inspectTransparentDestination(destination);
+
+  async function issueTestnetTex() {
+    try {
+      const response = await fetch("/api/deposit-intent", { method: "POST" });
+      const body = await response.json() as { tex?: string; request?: string; reason?: string };
+      if (!response.ok || !body.tex || !body.request || !isTestnetTex(body.tex)) {
+        setIntent(null);
+        setGatewayNotice("Local gateway unavailable. No receivable address is displayed.");
+        return;
+      }
+      setIntent({ tex: body.tex, request: body.request });
+      setGatewayNotice("Testnet TEX issued for this session intent. Not mainnet, not pZEC credit.");
+    } catch {
+      setIntent(null);
+      setGatewayNotice("Local gateway unavailable. No receivable address is displayed.");
+    }
+  }
 
   return (
     <div className={styles.featureGrid}>
@@ -90,19 +108,28 @@ export function BridgePanel() {
         {journey === "deposit" ? (
           <>
             <p className={styles.gateNotice}>
-              Simulation only. No TEX address is issued, no QR is payable, and no ZEC can be received here.
+              {gatewayNotice}
             </p>
             <div className={styles.uriBlock}>
-              <span className={styles.eyebrow}>ZIP 321 shape</span>
-              <code>{request}</code>
-              <small>Placeholder address, not a receivable TEX string. Amount is an example 1 ZEC. Label is Phlebas.</small>
-              <button type="button" onClick={() => {
-                void navigator.clipboard?.writeText(request).catch(() => undefined);
-                setCopyNotice("Copied a non-payable template. {TEX_ADDRESS} is a placeholder, not a deposit address.");
-              }}
-              >
-                Copy URI template
+              <span className={styles.eyebrow}>ZIP 321 testnet request</span>
+              <code>{intent?.request ?? "zcash:{TEX_ADDRESS}?amount=1&label=Phlebas"}</code>
+              <small>
+                {intent
+                  ? `Receivable testnet TEX ${intent.tex}. Independent observation still required. No pZEC is minted here.`
+                  : "Placeholder until the local gateway issues a textest address. Mainnet TEX is never shown."}
+              </small>
+              <button type="button" onClick={() => void issueTestnetTex()}>
+                Issue testnet TEX
               </button>
+              {intent && (
+                <button type="button" onClick={() => {
+                  void navigator.clipboard?.writeText(intent.request).catch(() => undefined);
+                  setCopyNotice("Copied a Zcash testnet payment request. Not mainnet and not a mint.");
+                }}
+                >
+                  Copy testnet URI
+                </button>
+              )}
               {copyNotice && <p>{copyNotice}</p>}
             </div>
             <ol className={styles.stepList}>

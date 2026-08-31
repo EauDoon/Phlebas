@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
+
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
 import { type FeedStatus } from "@/lib/market-state";
@@ -33,6 +35,7 @@ import { OrderBlotter } from "./order-blotter";
 import { OrderBook } from "./order-book";
 import { PriceChart } from "./price-chart";
 import { TradeTicket } from "./trade-ticket";
+import { WalletBar } from "./wallet-bar";
 import styles from "./terminal.module.css";
 
 type View = "trade" | "liquidity" | "bridge" | "architecture";
@@ -90,6 +93,7 @@ export function TradingTerminal({
   const [events, setEvents] = useState<SessionLogEvent[]>([]);
   const [accountEpoch, setAccountEpoch] = useState(0);
   const [priceSelection, setPriceSelection] = useState<{ ticks: bigint; nonce: number } | null>(null);
+  const [wallet, setWallet] = useState<WalletState>(disconnectedWallet);
   const nextOrderId = useRef(1);
   const nextPriceNonce = useRef(1);
   const nextFillId = useRef(1);
@@ -197,7 +201,7 @@ export function TradingTerminal({
       <a className={styles.skipLink} href="#main-content">Skip to main content</a>
       <div className={styles.simulationBanner} role="status">
         <strong>Protocol preview</strong>
-        <span>Local in-browser matcher only. No wallets, real assets, live prices, contracts, or deposits are connected. This matcher is not the proposed production operator and is not trustless.</span>
+        <span>Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless.</span>
       </div>
 
       <header className={styles.topbar}>
@@ -218,10 +222,7 @@ export function TradingTerminal({
             </button>
           ))}
         </nav>
-        <div className={styles.headerActions}>
-          <span className={styles.network}><i />Arbitrum design</span>
-          <button type="button" className={styles.connectButton} disabled>Wallets unavailable</button>
-        </div>
+        <WalletBar wallet={wallet} onChange={setWallet} />
       </header>
 
       <main id="main-content" tabIndex={-1}>
@@ -308,6 +309,7 @@ export function TradingTerminal({
                 reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
                 accountEpoch={accountEpoch}
                 feedStatus={feedStatus}
+                walletAddress={wallet.address}
                 onRetryFeed={() => selectFeed("illustrative")}
                 onSubmit={submitUserOrder}
               />

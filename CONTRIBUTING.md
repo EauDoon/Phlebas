@@ -1,6 +1,6 @@
 # Contributing to Phlebas
 
-Phlebas is currently a design and no-value simulation. Do not add live deposit addresses, custody credentials, production endpoints, real signing keys, fabricated market data, or language that implies the system is deployed or audited.
+Phlebas is a no-value simulation with optional local testnet services. Do not add mainnet deposit addresses, custody credentials, production endpoints, real signing keys, fabricated market data, or language that implies the system is deployed, audited, or moving mainnet funds. Testnet `textest` addresses may be issued only by the local gateway.
 
 ## Before proposing a change
 
