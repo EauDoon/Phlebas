@@ -214,6 +214,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/app/security/page.tsx"), "utf8"), /no production support commitment/);
   assert.match(await readFile(join(root, "src/app/security/page.tsx"), "utf8"), /Skip to security article/);
   assert.match(await readFile(join(root, "src/app/security/page.tsx"), "utf8"), /id="security-article"/);
+  assert.match(await readFile(join(root, "src/app/security/page.tsx"), "utf8"), /aria-label="Security ledger"/);
   assert.match(await readFile(join(root, "src/app/not-found.tsx"), "utf8"), /Skip to missing-route copy/);
   assert.match(await readFile(join(root, "src/app/not-found.tsx"), "utf8"), /id="missing-route"/);
   assert.match(await readFile(join(root, "src/app/trade/page.tsx"), "utf8"), /isRenderFailureQuery/);

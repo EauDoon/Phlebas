@@ -19,12 +19,12 @@ export default function SecurityPage() {
           Phlebas has no production release and no production security support commitment.
           Do not send ZEC, pZEC, USDC, USDT0, or any other asset to an address from this preview.
         </p>
-        <dl>
-          <div><dt>Public app</dt><dd>no-value interface, noindex</dd></div>
-          <div><dt>Matcher</dt><dd>in-browser; loopback operator never hosted on Vercel</dd></div>
-          <div><dt>Keys</dt><dd>no custody, attester, governance, or deployer keys in Vercel or git</dd></div>
-          <div><dt>Bug bounty</dt><dd>none</dd></div>
-          <div><dt>Support</dt><dd>no production support commitment</dd></div>
+        <dl role="list" aria-label="Security ledger">
+          <div role="listitem"><dt>Public app</dt><dd>no-value interface, noindex</dd></div>
+          <div role="listitem"><dt>Matcher</dt><dd>in-browser; loopback operator never hosted on Vercel</dd></div>
+          <div role="listitem"><dt>Keys</dt><dd>no custody, attester, governance, or deployer keys in Vercel or git</dd></div>
+          <div role="listitem"><dt>Bug bounty</dt><dd>none</dd></div>
+          <div role="listitem"><dt>Support</dt><dd>no production support commitment</dd></div>
         </dl>
         <p>
           Use GitHub private vulnerability reporting for the Phlebas repository when it is
