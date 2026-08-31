@@ -4,6 +4,12 @@ import { useState } from "react";
 
 import { DEPOSIT_TOUR, depositTourStep } from "@/lib/deposit-tour";
 import { copyUri } from "@/lib/copy-uri";
+import {
+  gatewayIssuedCopy,
+  gatewayIssuingCopy,
+  gatewayOffCopy,
+  gatewayUnavailableCopy,
+} from "@/lib/gateway-copy";
 import { inspectTransparentDestination } from "@/lib/zcash-address";
 import { payoutClaimForTourStep, screenPayout } from "@/lib/payout";
 import { isTestnetTex } from "@/lib/tex";
@@ -59,7 +65,7 @@ export function BridgePanel({
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const [destination, setDestination] = useState("");
   const [intent, setIntent] = useState<{ tex: string; request: string } | null>(null);
-  const [gatewayNotice, setGatewayNotice] = useState("Local gateway off. No receivable address is displayed.");
+  const [gatewayNotice, setGatewayNotice] = useState(gatewayOffCopy());
   const [issuing, setIssuing] = useState(false);
   const tour = withdrawalTour[tourIndex];
   const deposit = depositTourStep(depositIndex);
@@ -72,20 +78,20 @@ export function BridgePanel({
 
   async function issueTestnetTex() {
     setIssuing(true);
-    setGatewayNotice("Issuing a local textest intent. Nothing is receivable until a loopback gateway answers.");
+    setGatewayNotice(gatewayIssuingCopy());
     try {
       const response = await fetch("/api/deposit-intent", { method: "POST" });
       const body = await response.json() as { tex?: string; request?: string; reason?: string };
       if (!response.ok || !body.tex || !body.request || !isTestnetTex(body.tex)) {
         setIntent(null);
-        setGatewayNotice("Local gateway unavailable. No receivable address is displayed.");
+        setGatewayNotice(gatewayUnavailableCopy());
         return;
       }
       setIntent({ tex: body.tex, request: body.request });
-      setGatewayNotice("Testnet TEX issued for this session intent. Not mainnet, not minted credit.");
+      setGatewayNotice(gatewayIssuedCopy());
     } catch {
       setIntent(null);
-      setGatewayNotice("Local gateway unavailable. No receivable address is displayed.");
+      setGatewayNotice(gatewayUnavailableCopy());
     } finally {
       setIssuing(false);
     }

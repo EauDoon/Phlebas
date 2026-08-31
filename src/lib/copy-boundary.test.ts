@@ -126,6 +126,9 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(bridge, /Preview withdrawal states, not Withdraw ZEC/);
   assert.match(bridge, /payoutClaimForTourStep/);
   assert.match(bridge, /Nothing is sent/);
+  assert.match(bridge, /gatewayOffCopy/);
+  assert.match(bridge, /gatewayUnavailableCopy/);
+  assert.match(bridge, /gatewayIssuingCopy/);
   const liquidity = await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8");
   assert.match(liquidity, /not a return or profit projection/i);
   assert.match(liquidity, /feeEnvelopeCopy/);
