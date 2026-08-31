@@ -66,6 +66,14 @@ test("rejected stale and unavailable tour copy fails closed and does not mint", 
   assert.equal(DEPOSIT_TOUR.length, depositTourIds().length);
 });
 
+test("deposit tour unavailable is observer disagreement, not a live outage", () => {
+  const unavailable = depositTourById("unavailable");
+  assert.ok(unavailable);
+  assert.match(unavailable.body, /disagree/);
+  assert.doesNotMatch(unavailable.body, /live outage/);
+  assert.doesNotMatch(unavailable.body, /pZEC/);
+});
+
 test("deposit tour does not present a receivable address or shielded path", () => {
   const joined = DEPOSIT_TOUR.map((step) => `${step.title} ${step.body}`).join(" ");
   assert.doesNotMatch(joined, /tex1/i);
