@@ -7,9 +7,9 @@ export function SimulationLoading() {
         <strong>Simulation only</strong>
         <span>Loading the preview. No market data is live.</span>
       </div>
-      <main className={styles.simpleMain}>
+      <main id="main-content" tabIndex={-1} className={styles.simpleMain}>
         <h1>Loading the simulation</h1>
-        <p>
+        <p id="withheld-price" tabIndex={-1}>
           No prices, balances, or depth are shown while this route loads.
           Nothing was submitted.
         </p>

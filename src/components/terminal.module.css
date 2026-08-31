@@ -48,7 +48,8 @@
 #liquidity-pools,
 #destination-inspector,
 #retry-copy,
-#recent-trades {
+#recent-trades,
+#withheld-price {
   scroll-margin-top: 12px;
 }
 

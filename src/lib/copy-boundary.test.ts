@@ -215,6 +215,7 @@ test("Open Graph and Twitter cards stay labeled as a simulation", async () => {
 test("route loading copy names a simulation and withholds prices", async () => {
   const loading = await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8");
   assert.match(loading, /Loading the simulation/);
+  assert.match(loading, /id="withheld-price"/);
   assert.match(loading, /No market data is live/);
   assert.match(loading, /Nothing was submitted/);
   assert.doesNotMatch(loading, /APY|wallet balance|tex1/i);
