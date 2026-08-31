@@ -204,6 +204,14 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /padding: 8px;/);
   assert.match(landingCss, /word-break: break-word;/);
   assert.match(terminalCss, /word-break: break-word;/);
+  assert.match(
+    landingCss,
+    /\.skipLink \{\r?\n    flex: 1 1 calc\(50% - 4px\);\r?\n    min-width: 44px;\r?\n    min-height: 44px;/,
+  );
+  assert.match(
+    terminalCss,
+    /\.skipLink \{\r?\n    flex: 1 1 calc\(50% - 4px\);\r?\n    min-width: 44px;\r?\n    min-height: 44px;/,
+  );
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /id="status-ledger"/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /role="list" aria-label="Simulation status ledger"/);
   assert.match(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /Nothing was sent/);
