@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
@@ -132,7 +132,7 @@ export function TradeTicket({
   const [expiry, setExpiry] = useState("0");
   const [notice, setNotice] = useState("Local matcher only. Session inventory is not a wallet.");
   const [appliedPriceNonce, setAppliedPriceNonce] = useState(0);
-  const nonceRef = useRef(1);
+  const [sessionNonce, setSessionNonce] = useState(1);
   const [review, setReview] = useState<{
     side: Side;
     priceTicks: bigint;
@@ -162,10 +162,20 @@ export function TradeTicket({
       ) {
         return;
       }
+      if (document.querySelector("dialog[open]")) {
+        return;
+      }
+      if (event.key === "Escape") {
+        setReview(null);
+        return;
+      }
       if (event.key === "b" || event.key === "B") setSide("buy");
       if (event.key === "s" || event.key === "S") setSide("sell");
       if (event.key === "l" || event.key === "L") setOrderType("limit");
       if (event.key === "m" || event.key === "M") setOrderType("market");
+      if (event.key === "g" || event.key === "G") setTif("GTC");
+      if (event.key === "i" || event.key === "I") setTif("IOC");
+      if (event.key === "f" || event.key === "F") setTif("FOK");
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -332,7 +342,7 @@ export function TradeTicket({
       quoteAsset: market.quote,
       baseAmountAtoms: prepared.sizeAtoms.toString(),
       limitPriceTicks: prepared.priceTicks.toString(),
-      nonce: String(nonceRef.current),
+      nonce: String(sessionNonce),
       accountEpoch: String(accountEpoch),
       expiry: prepared.expiryUnix.toString(),
       salt: prepared.tif,
@@ -342,7 +352,7 @@ export function TradeTicket({
       chainId: "42161",
       verifyingContract: "not-deployed",
     };
-    nonceRef.current += 1;
+    setSessionNonce((current) => current + 1);
     let eip712 = undefined as string | undefined;
     let typed = undefined as TypedOrder | undefined;
     if (walletAddress) {
@@ -613,7 +623,7 @@ export function TradeTicket({
         </div>
         <div>
           <dt>Session nonce</dt>
-          <dd>{nonceRef.current}</dd>
+          <dd>{sessionNonce}</dd>
         </div>
         <div>
           <dt>Expiry</dt>
@@ -717,7 +727,7 @@ export function TradeTicket({
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
         {inputError ?? notionalError ?? notice}
       </p>
-      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type. Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
+      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type, G/I/F time in force, Escape back from review. Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
     </section>
   );
 }

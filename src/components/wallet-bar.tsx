@@ -43,7 +43,12 @@ export function WalletBar({
     return (
       <div className={styles.headerActions}>
         <span className={styles.network}><i />Arbitrum Sepolia</span>
-        <button type="button" className={styles.connectButton} onClick={() => onChange(disconnectedWallet)}>
+        <button
+          type="button"
+          className={styles.connectButton}
+          onClick={() => onChange(disconnectedWallet)}
+          aria-label={`Disconnect ${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}`}
+        >
           {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
         </button>
       </div>
