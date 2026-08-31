@@ -288,6 +288,20 @@ test("local matcher fills a buy against the fixture ask", async ({ page }) => {
   await expect(page.getByRole("table", { name: /Session fills for ZEC\/USDC/ })).toBeVisible();
 });
 
+test("price improvement cannot create a free pZEC atom", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("100");
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("0.00000001");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await expect(page.getByText(/Dust-blocked crossed remainder was cancelled/)).toBeVisible();
+
+  await page.getByRole("tab", { name: "Inventory" }).click();
+  const blotter = page.getByRole("region", { name: "Open orders, fills, inventory" });
+  await expect(blotter.getByText("100", { exact: true })).toBeVisible();
+  await expect(blotter.getByText("10000.00", { exact: true })).toBeVisible();
+});
+
 test("status and missing routes stay labeled as simulation", async ({ page }) => {
   const status = await page.goto("/status", { waitUntil: "load" });
   expect(status?.ok(), "/status response").toBe(true);

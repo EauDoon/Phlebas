@@ -1,6 +1,6 @@
 import { quoteConstantProductAmountIn, quoteConstantProductSwapAtoms } from "./amm.ts";
 import { submitOrder, type Book, type OrderSide } from "./matcher.ts";
-import { quoteAtomsForFill } from "./units.ts";
+import { quoteAtomsForFills } from "./units.ts";
 
 export type VenueQuote = {
   venue: "clob" | "amm";
@@ -28,10 +28,7 @@ export function quoteClob(
     priceTicks: limitTicks,
     sizeAtoms,
   });
-  const quoteAtoms = result.fills.reduce(
-    (sum, fill) => sum + quoteAtomsForFill(fill.sizeAtoms, fill.priceTicks),
-    0n,
-  );
+  const quoteAtoms = quoteAtomsForFills(result.fills, side === "buy" ? "up" : "down");
   return {
     venue: "clob",
     filledAtoms: sizeAtoms - result.remainingAtoms,

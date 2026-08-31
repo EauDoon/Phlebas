@@ -77,3 +77,88 @@ test("rejects non-positive size or price", () => {
   assert.equal(submitOrder(book, { id: "x", side: "buy", tif: "GTC", priceTicks: 0n, sizeAtoms: 1n }).status, "rejected");
   assert.equal(submitOrder(book, { id: "x", side: "buy", tif: "GTC", priceTicks: 1n, sizeAtoms: 0n }).status, "rejected");
 });
+
+test("rejects an order below one quote atom at the matcher boundary", () => {
+  const book = emptyBook(5284n);
+  const result = submitOrder(book, {
+    id: "dust",
+    side: "buy",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: 1n,
+  });
+  assert.equal(result.status, "rejected");
+  assert.match(result.reason ?? "", /at least one quote atom/);
+  assert.equal(result.book, book);
+});
+
+test("never leaves an unsettleable maker remainder", () => {
+  let book = emptyBook(5284n);
+  book = submitOrder(book, {
+    id: "maker",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: 4n,
+  }).book;
+
+  const result = submitOrder(book, {
+    id: "taker",
+    side: "buy",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: 3n,
+  });
+  assert.equal(result.status, "cancelled");
+  assert.equal(result.fills[0]?.sizeAtoms, 2n);
+  assert.equal(result.remainingAtoms, 1n);
+  assert.equal(result.book.asks[0]?.remainingAtoms, 2n);
+  assert.match(result.reason ?? "", /remainder was cancelled/);
+});
+
+test("FOK rejects atomically when dust rules prevent a full fill", () => {
+  let book = emptyBook(5284n);
+  book = submitOrder(book, {
+    id: "maker",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: 4n,
+  }).book;
+  const result = submitOrder(book, {
+    id: "taker",
+    side: "buy",
+    tif: "FOK",
+    priceTicks: 5291n,
+    sizeAtoms: 3n,
+  });
+  assert.equal(result.status, "rejected");
+  assert.equal(result.fills.length, 0);
+  assert.equal(result.book, book);
+  assert.equal(book.asks[0]?.remainingAtoms, 4n);
+});
+
+test("cancels a dust-blocked GTC remainder instead of crossing the book", () => {
+  let book = emptyBook(5284n);
+  book = submitOrder(book, {
+    id: "maker",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: 3n,
+  }).book;
+  const result = submitOrder(book, {
+    id: "taker",
+    side: "buy",
+    tif: "GTC",
+    priceTicks: 10_000n,
+    sizeAtoms: 2n,
+  });
+
+  assert.equal(result.status, "cancelled");
+  assert.equal(result.fills.length, 0);
+  assert.equal(result.remainingAtoms, 2n);
+  assert.equal(result.book.bids.length, 0);
+  assert.equal(result.book.asks[0]?.remainingAtoms, 3n);
+  assert.match(result.reason ?? "", /Dust-blocked crossed remainder/);
+});

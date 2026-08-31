@@ -5,6 +5,8 @@ export const QUOTE_DECIMALS = 6;
 /** sizeAtoms * priceTicks / QUOTE_COST_DIVISOR = quoteAtoms (6 decimals). */
 export const QUOTE_COST_DIVISOR = 10_000n;
 
+export type QuoteRounding = "down" | "up";
+
 export function formatAtomicUnits(
   units: bigint,
   decimals: number,
@@ -58,11 +60,52 @@ export function parseAtomicUnits(
   return units;
 }
 
-export function quoteAtomsForFill(sizeAtoms: bigint, priceTicks: bigint): bigint {
+function divideQuoteNumerator(numerator: bigint, rounding: QuoteRounding): bigint {
+  if (numerator < 0n) {
+    throw new RangeError("Quote numerator must be non-negative");
+  }
+  if (rounding === "up" && numerator > 0n) {
+    return ((numerator - 1n) / QUOTE_COST_DIVISOR) + 1n;
+  }
+  return numerator / QUOTE_COST_DIVISOR;
+}
+
+export function quoteAtomsForFill(
+  sizeAtoms: bigint,
+  priceTicks: bigint,
+  rounding: QuoteRounding,
+): bigint {
   if (sizeAtoms < 0n || priceTicks < 0n) {
     throw new RangeError("Fill size and price must be non-negative");
   }
-  return (sizeAtoms * priceTicks) / QUOTE_COST_DIVISOR;
+  return divideQuoteNumerator(sizeAtoms * priceTicks, rounding);
+}
+
+export function quoteAtomsForFills(
+  fills: readonly { sizeAtoms: bigint; priceTicks: bigint }[],
+  rounding: QuoteRounding,
+): bigint {
+  let numerator = 0n;
+  for (const fill of fills) {
+    if (fill.sizeAtoms < 0n || fill.priceTicks < 0n) {
+      throw new RangeError("Fill size and price must be non-negative");
+    }
+    numerator += fill.sizeAtoms * fill.priceTicks;
+  }
+  return divideQuoteNumerator(numerator, rounding);
+}
+
+export function meetsMinimumQuoteSettlement(sizeAtoms: bigint, priceTicks: bigint): boolean {
+  return sizeAtoms > 0n
+    && priceTicks > 0n
+    && sizeAtoms * priceTicks >= QUOTE_COST_DIVISOR;
+}
+
+export function minimumSizeAtomsForQuoteSettlement(priceTicks: bigint): bigint {
+  if (priceTicks <= 0n) {
+    throw new RangeError("Minimum settlement requires a positive price");
+  }
+  return ((QUOTE_COST_DIVISOR - 1n) / priceTicks) + 1n;
 }
 
 export function sizeAtomsForQuote(quoteAtoms: bigint, priceTicks: bigint): bigint {
