@@ -148,6 +148,14 @@ for (const width of viewports) {
           await expect(page.getByRole("heading", { name: "Choose what to inspect." })).toBeVisible();
           await expect(page.getByRole("tab", { name: "Trader" })).toBeVisible();
           await expect(page.getByRole("tab", { name: "Withdrawal" })).toBeVisible();
+          await expect(page.getByRole("heading", { name: "A working preview, bounded on purpose." })).toBeVisible();
+          await expect(page.getByRole("heading", { name: "Order book preview" })).toBeVisible();
+          await expect(page.getByRole("heading", { name: "Inspect the market model without connecting a wallet." })).toBeVisible();
+          await expect(page.getByText("Simulation", { exact: true })).toBeVisible();
+          await expect(page.getByRole("link", { name: "Open full simulation" })).toBeVisible();
+          await expect(page.getByText("Not a live book.")).toBeVisible();
+          await expect(page.getByText("Not cleared", { exact: true })).toHaveCount(6);
+          await expect(page.getByRole("link", { name: "Read the launch gates" })).toBeVisible();
         }
       }
 

@@ -32,6 +32,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /No mainnet funds/);
   assert.match(landing, /Deny by default/);
   assert.match(landing, /not native ZEC, shielded ZEC, or a trustless bridge asset/);
+  assert.match(landing, /No shielded deposit or withdrawal is planned for v1/);
+  assert.match(landing, /zips\.z\.cash\/zip-0320/);
   assert.match(terminal, /do not move mainnet funds/);
   assert.match(terminal, /not trustless/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicly linkable/);
@@ -61,6 +63,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /Open status details/);
   assert.match(landing, /Legal and compliance/);
   assert.match(landing, /Choose what to inspect/);
+  assert.match(landing, /A working preview, bounded on purpose/);
+  assert.match(landing, /Not cleared for real assets/);
   assert.doesNotMatch(landing, /github.com/);
   const journeys = await readFile(join(root, "src/lib/landing-journeys.ts"), "utf8");
   assert.match(journeys, /Preview trading/);
@@ -68,6 +72,18 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(journeys, /Preview deposit states/);
   assert.match(journeys, /Preview withdrawal states/);
   assert.doesNotMatch(journeys, /^Deposit ZEC$/m);
+  const evidence = await readFile(join(root, "src/lib/landing-evidence.ts"), "utf8");
+  assert.match(evidence, /no return projection/);
+  assert.match(evidence, /no address generation/);
+  const gates = await readFile(join(root, "src/lib/landing-gates.ts"), "utf8");
+  assert.match(gates, /Not cleared/);
+  assert.doesNotMatch(gates, /waitlist/i);
+  const preview = await readFile(join(root, "src/components/landing-terminal-preview.tsx"), "utf8");
+  assert.match(preview, />Simulation</);
+  assert.match(preview, /cannot submit, sign, or fill/);
+  assert.doesNotMatch(preview, /tex1/);
+  assert.doesNotMatch(preview, /wallet balance/i);
+  assert.doesNotMatch(preview, /APY|profit/i);
 });
 
 test("robots and security headers keep the public app noindex", async () => {
