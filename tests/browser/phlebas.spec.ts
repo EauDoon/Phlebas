@@ -3146,3 +3146,83 @@ test("education Back Enter simulation heading ring leftover 768 and skip-nav rin
   await leftover("/", 768, 1024, 7);
 });
 
+test("education disabled Back sticky copy Continue ring leftover 390 768 and skip-nav ring at 390", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  const back = dialog.getByRole("button", { name: "Back" });
+  await expect(back).toBeDisabled();
+  expect((await back.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect((await back.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(44);
+
+  const copy = dialog.getByRole("region", { name: "Education copy" });
+  const copyBox = await copy.boundingBox();
+  const tourTop = await back.evaluate((element) => element.parentElement?.getBoundingClientRect().top ?? 0);
+  const copyBottomContent = (copyBox?.y ?? 0) + (copyBox?.height ?? 0) - 52;
+  expect(copyBottomContent).toBeLessThanOrEqual(tourTop + 1);
+
+  const continueButton = dialog.getByRole("button", { name: "Continue" });
+  await continueButton.focus();
+  const continueRing = await continueButton.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.closest("dialog");
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      outlineWidth: style.outlineWidth,
+      outlineOffset: style.outlineOffset,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      parentTop: parentRect?.top ?? 0,
+      parentBottom: parentRect?.bottom ?? 0,
+    };
+  });
+  expect(continueRing.outlineWidth).toBe("2px");
+  expect(continueRing.outlineOffset).toBe("2px");
+  expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
+  expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
+
+  async function leftover(path: string, width: number, height: number, count: number) {
+    await page.setViewportSize({ width, height });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")];
+      const last = links[links.length - 1]?.getBoundingClientRect();
+      const first = links[0];
+      const style = first ? getComputedStyle(first) : null;
+      const parentRect = element.getBoundingClientRect();
+      const rect = first?.getBoundingClientRect();
+      const extent = style
+        ? (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0)
+        : 0;
+      return {
+        count: links.length,
+        lastWidth: last?.width ?? 0,
+        lastHeight: last?.height ?? 0,
+        padding: getComputedStyle(element).paddingTop,
+        ringTop: (rect?.top ?? 0) - extent,
+        ringBottom: (rect?.bottom ?? 0) + extent,
+        parentTop: parentRect.top,
+        parentBottom: parentRect.bottom,
+      };
+    });
+    expect(layout.count).toBe(count);
+    expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+    expect(layout.padding).toBe("8px");
+    expect(layout.ringTop).toBeGreaterThanOrEqual(layout.parentTop - 0.5);
+    expect(layout.ringBottom).toBeLessThanOrEqual(layout.parentBottom + 0.5);
+  }
+
+  await leftover("/liquidity", 390, 844, 3);
+  await leftover("/trade?view=bridge", 768, 1024, 3);
+  await leftover("/trade?access=blocked", 768, 1024, 2);
+  await leftover("/", 390, 844, 7);
+});
+
