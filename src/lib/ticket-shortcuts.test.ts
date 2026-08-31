@@ -10,6 +10,15 @@ test("G I F map to time in force when no dialog is open", () => {
   assert.equal(interpretTicketKey("Escape", { target: null, dialogOpen: false }), "escape");
 });
 
+test("B and S map to side when no dialog or review is open", () => {
+  assert.equal(interpretTicketKey("b", { target: null, dialogOpen: false }), "buy");
+  assert.equal(interpretTicketKey("S", { target: null, dialogOpen: false }), "sell");
+  assert.equal(interpretTicketKey("b", { target: null, dialogOpen: true }), null);
+  assert.equal(interpretTicketKey("s", { target: null, dialogOpen: true }), null);
+  assert.equal(interpretTicketKey("b", { target: null, dialogOpen: false, reviewOpen: true }), null);
+  assert.equal(interpretTicketKey("s", { target: null, dialogOpen: false, reviewOpen: true }), null);
+});
+
 test("ticket shortcuts ignore open dialogs and typing targets", () => {
   assert.equal(interpretTicketKey("i", { target: null, dialogOpen: true }), null);
   assert.equal(interpretTicketKey("g", { target: null, dialogOpen: true }), null);
