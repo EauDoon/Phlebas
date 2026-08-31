@@ -505,6 +505,11 @@
   flex-shrink: 0;
 }
 
+.journeyList article > a {
+  min-width: 44px;
+  flex-shrink: 0;
+}
+
 .marketCards article > a span {
   margin-left: 15px;
 }
