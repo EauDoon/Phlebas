@@ -346,6 +346,17 @@ test("invalid demo query does not highlight incidents", async ({ page }) => {
   await expect(page.getByText("Status field architecture-demonstration.")).toHaveCount(0);
 });
 
+test("architecture keeps demo=incidents when the market changes", async ({ page }) => {
+  await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
+  await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(page).toHaveURL(/view=architecture/);
+  await expect(page).toHaveURL(/demo=incidents/);
+  await expect(page).toHaveURL(/USDT/);
+  await expect(page.getByText("settles pZEC-USDT0")).toBeVisible();
+  await expect(page.getByText("architecture-demonstration")).toBeVisible();
+});
+
 test("status Architecture link keeps the demonstration label", async ({ page }) => {
   await page.goto("/status", { waitUntil: "networkidle" });
   await page.getByRole("link", { name: "Architecture incident demonstrations" }).click();
@@ -576,7 +587,9 @@ test("status, legal, and security pages cross-link", async ({ page }) => {
 test("blotter tabs expose a selected tabpanel", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByRole("tab", { name: "Open orders" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("tabpanel", { name: "Open orders" })).toContainText("No open session orders");
+  await expect(page.getByRole("tabpanel", { name: "Open orders" })).toContainText("No open session orders. Settled as pZEC-USDC.");
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(page.getByRole("tabpanel", { name: "Open orders" })).toContainText("Settled as pZEC-USDT0");
   await page.getByRole("tab", { name: "Inventory" }).click();
   await expect(page.getByRole("tabpanel", { name: "Inventory" })).toContainText("Account epoch");
 });
@@ -609,7 +622,7 @@ test("blotter arrow keys move to the next tabpanel", async ({ page }) => {
   await page.getByRole("tab", { name: "Open orders" }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("tab", { name: "Fills" })).toBeFocused();
-  await expect(page.getByRole("tabpanel", { name: "Fills" })).toContainText("No session fills yet");
+  await expect(page.getByRole("tabpanel", { name: "Fills" })).toContainText("No session fills yet. Settled as pZEC-USDC.");
 });
 
 test("first-session education can be completed by keyboard", async ({ page }) => {
