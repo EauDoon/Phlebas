@@ -568,6 +568,16 @@ test("country-blocked demonstration hides trading controls", async ({ page }) =>
   await expect(page.getByRole("link", { name: "Return home" })).toBeVisible();
 });
 
+test("country-blocked demonstration hides liquidity controls", async ({ page }) => {
+  await page.goto("/liquidity?access=blocked", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Phlebas is not available in this location." })).toBeVisible();
+  await expect(page.getByText("State demonstration")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review simulated mint" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review simulated swap" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Read the architecture" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Return home" })).toBeVisible();
+});
+
 test("deposit tour never shows a receivable address", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await expect(page.getByText("Preview deposit states, not Deposit ZEC.")).toBeVisible();
