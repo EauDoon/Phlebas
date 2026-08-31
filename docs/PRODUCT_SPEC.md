@@ -1,6 +1,6 @@
 # Phlebas product specification
 
-Status: design and no-value simulation, dated 30-08-2026.
+Status: design and no-value simulation, dated 01-09-2026.
 
 ## 1. Product statement
 
@@ -39,7 +39,7 @@ It combines signed order intents and atomic onchain settlement with small-scope 
 | Matcher | Accept, sequence, and propose compatible orders | Cannot move funds without valid signatures and contract checks |
 | Router | Atomically select or split CLOB and AMM execution | Stateless, bounded by signed venue and price constraints |
 | Gateway attester | Confirm an eligible native ZEC deposit | Cannot spend custody reserves |
-| Custody signer | Authorize native ZEC withdrawal transactions | Cannot mint pZEC without a valid deposit attestation |
+| Custody signer | Authorize native ZEC withdrawal transactions | Cannot mint tZEC without a valid deposit attestation |
 | Emergency council | Pause mints, fills, or routing | Cannot seize assets, unpause, upgrade, or change economics |
 | Governance | Apply delayed parameter changes | Bound by timelock, caps, and immutable contract limits |
 
@@ -136,7 +136,7 @@ Each swap enforces the fee-adjusted constant-product inequality, and the fixed 3
 
 Excluded features include callbacks, flash swaps, dynamic fees, farms, gauges, leverage, arbitrary token listings, and governance-controlled pool assets.
 
-LP warnings must cover pZEC redemption and reserve risk, stablecoin risk, smart-contract risk, impermanent loss, toxic flow from the order book, and emergency operating restrictions. Removing liquidity remains available during a trading pause unless the specific pool itself is compromised.
+LP warnings must cover ZEC redemption and reserve risk, stablecoin risk, smart-contract risk, impermanent loss, toxic flow from the order book, and emergency operating restrictions. Removing liquidity remains available during a trading pause unless the specific pool itself is compromised.
 
 ## 8. Best execution router
 
@@ -171,26 +171,26 @@ tip hash and chain-work evidence
 attestation epoch
 ```
 
-The mint authorization is single-use. Native amounts remain integer zatoshis from observation through reconciliation. pZEC has 8 decimals, so no decimal conversion is required.
+The mint authorization is single-use. Native amounts remain integer zatoshis from observation through reconciliation. `tZEC` has 8 decimals, so no decimal conversion is required.
 
 The [Zcash confirmation guidance in ZIP 315](https://zips.z.cash/zip-0315) provides a network baseline, but Phlebas mainnet policy is separately risk-tiered. A restricted canary would start with a substantially more conservative threshold, elapsed-time floor, and per-deposit cap. No zero-confirmation mint is allowed.
 
 ### 9.3 Withdrawal
 
-A user completes one finalized pZEC burn to create a native-ZEC payout claim. The first implementation does not create a payout liability from escrowed tokens. The withdrawal state machine is:
+A user completes one finalized `tZEC` burn to create a native-ZEC payout claim. The first implementation does not create a payout liability from escrowed tokens. The withdrawal state machine is:
 
 ```text
 requested -> screened -> burn submitted -> burn finalized -> payable
 requested | screened -> rejected before burn with review reason
 burn submitted -> expired or reorganized evidence -> closed without finalized burn
-burn finalized | payable -> pZEC restored only on unrecoverable pre-signature failure
+burn finalized | payable -> tZEC restored only on unrecoverable pre-signature failure
 payable -> transaction_prepared -> signed -> broadcast -> mined -> confirmed
 signed | broadcast | mined -> unresolved
 unresolved -> exact committed transaction observed -> broadcast | mined
 unresolved -> verified input restoration -> payable
 ```
 
-Every finalized burn produces exactly one payout or pZEC-restoration outcome. A single-use refund authorization must permanently cancel the unpaid claim before restoring pZEC. Once a native transaction is signed, the claim cannot be refunded and remains payable. The signed bytes, their canonical transaction ID, and selected-input reservation must survive a coordinator restart, and only those exact bytes may be rebroadcast. An unresolved claim may return to broadcast or mined only through independent observation of that exact transaction ID. Native network fees, service fees, destination, and minimum output must be disclosed before the burn.
+Every finalized burn produces exactly one payout or tZEC-restoration outcome. A single-use refund authorization must permanently cancel the unpaid claim before restoring `tZEC`. Once a native transaction is signed, the claim cannot be refunded and remains payable. The signed bytes, their canonical transaction ID, and selected-input reservation must survive a coordinator restart, and only those exact bytes may be rebroadcast. An unresolved claim may return to broadcast or mined only through independent observation of that exact transaction ID. Native network fees, service fees, destination, and minimum output must be disclosed before the burn.
 
 The first implementation permits exactly one payout claim per native Zcash transaction. Inputs, change, fee, and signed bytes therefore belong to one claim. Canonical transaction IDs enter an append-only commitment history at signing and cannot be reused after confirmation or proof-gated restoration. Multi-claim payout batching remains unsupported until a transaction-level ledger can bind shared inputs and fees to multiple principals without double counting.
 
@@ -204,7 +204,7 @@ High-risk confirmations repeat:
 - The asset and network that will arrive
 - The worst acceptable price
 - All fees
-- The pZEC custody and redemption dependency
+- The ZEC custody and redemption dependency
 - The transparent and publicly linkable Zcash boundary
 
 ## 11. Accessibility and responsive behavior
@@ -234,7 +234,7 @@ High-risk confirmations repeat:
 ### Gateway
 
 - One native outpoint can authorize at most one mint.
-- One pZEC burn can produce at most one native payout.
+- One tZEC burn can produce at most one native payout.
 - Reserve and liability watchers reproduce the operator's result from public inputs.
 - Reorg, observer disagreement, stale proofs, or reconciliation mismatch fail closed.
 
