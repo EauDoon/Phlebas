@@ -91,7 +91,10 @@ function bookSegments(
   nowSeconds: bigint,
 ): Segment[] {
   const active = restingOrders.filter((entry) => entry.sequenced.order.expiry > nowSeconds);
-  const plan = planPriceTimeMatches(taker, active.map((entry) => entry.sequenced));
+  const segmentTaker = taker.order.timeInForce === 2
+    ? { ...taker, order: { ...taker.order, timeInForce: 1 as const } }
+    : taker;
+  const plan = planPriceTimeMatches(segmentTaker, active.map((entry) => entry.sequenced));
   const byHash = new Map(active.map((entry) => [normalizeHex32(entry.sequenced.orderHash, "Resting order hash"), entry]));
   return plan.fills.map((fill) => {
     const maker = byHash.get(fill.makerOrderHash);

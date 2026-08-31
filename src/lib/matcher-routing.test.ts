@@ -145,6 +145,19 @@ test("FOK produces no selected route when bounded capacity cannot fill the order
   assert.equal(result.candidates.every((candidate) => candidate.fills.length === 0), true);
 });
 
+test("FOK can combine partial book depth with solver capacity atomically", () => {
+  const taker = order("fok-combined", 0, 5_200n, 100n, 10n, 2, VENUE_CLOB | VENUE_SOLVER);
+  const result = compare(
+    taker,
+    [order("book-maker", 1, 5_000n, 40n, 1n, 0)],
+    [solver("solver-maker", 1, 5_010n, 60n, 2n)],
+  );
+  assert.equal(result.selected?.kind, "combined");
+  assert.equal(result.selected?.complete, true);
+  assert.equal(result.selected?.filledBaseAtoms, 100n);
+  assert.deepEqual(result.selected?.fills.map((fill) => fill.baseAmountAtoms), [40n, 60n]);
+});
+
 test("honors venue masks, quote expiry, fee caps, and self-trade prevention", () => {
   const clobOnly = order("taker", 0, 5_200n, 100_000_000n, 10n, 1, VENUE_CLOB);
   assert.equal(compare(clobOnly, [], [solver("solver", 1, 5_000n, 100_000_000n, 2n)]).selected, null);

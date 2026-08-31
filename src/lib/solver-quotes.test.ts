@@ -91,6 +91,15 @@ test("tracks wallet-advertised capacity without creating a platform balance", ()
   assert.equal("balance" in partlyConsumed, false);
 });
 
+test("copies nested curve terms before publishing accepted capacity", () => {
+  const mutable = quote() as unknown as { pricePolicy: { kind: "curve"; levels: { cumulativeBaseAtoms: bigint; priceTicks: bigint }[] } };
+  const accepted = acceptSolverQuote(mutable as unknown as SolverQuote, "signed-fixture", 7n, 10_000n, policy, verifier);
+  mutable.pricePolicy.levels[0]!.priceTicks = 9_999n;
+  assert.equal(accepted.quote.pricePolicy.kind, "curve");
+  assert.equal(accepted.quote.pricePolicy.levels[0]?.priceTicks, 5_000n);
+  assert.equal(Object.isFrozen(accepted.quote.pricePolicy.levels[0]), true);
+});
+
 test("rejects expired, excessive, misbound, and cross-asset quotes", () => {
   assert.throws(() => assertSolverQuote(quote({ expirySeconds: 10_000n }), policy, 10_000n), /expiry/);
   assert.throws(() => assertSolverQuote(quote({ capacityBaseAtoms: 1_000_000_001n }), policy, 10_000n), /capacity/i);

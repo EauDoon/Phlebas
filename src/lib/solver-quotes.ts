@@ -200,6 +200,16 @@ export function hashSolverQuote(quote: SolverQuote): Hex32 {
   return keccak256Text(quotePayload(quote));
 }
 
+function immutableQuote(quote: SolverQuote): SolverQuote {
+  const pricePolicy: SolverPricePolicy = quote.pricePolicy.kind === "fixed"
+    ? Object.freeze({ ...quote.pricePolicy })
+    : Object.freeze({
+        kind: "curve" as const,
+        levels: Object.freeze(quote.pricePolicy.levels.map((level) => Object.freeze({ ...level }))),
+      });
+  return Object.freeze({ ...quote, pricePolicy });
+}
+
 export function acceptSolverQuote(
   quote: SolverQuote,
   signature: string,
@@ -218,7 +228,7 @@ export function acceptSolverQuote(
     acceptedAtSeconds: nowSeconds,
     remainingCapacityBaseAtoms: quote.capacityBaseAtoms,
     signature,
-    quote: Object.freeze({ ...quote }),
+    quote: immutableQuote(quote),
   });
 }
 
