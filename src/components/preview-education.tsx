@@ -50,26 +50,26 @@ export function PreviewEducation({ force = false }: { force?: boolean }) {
   }
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
     function skipNavFocused() {
       return Boolean(document.querySelector('nav[aria-label="Skip links"]')?.matches(":focus-within"));
     }
 
     function openEducation() {
-      if (!visible || dialog.open || skipNavFocused()) {
+      const node = dialogRef.current;
+      if (!node || !visible || node.open || skipNavFocused()) {
         return;
       }
-      dialog.showModal();
+      node.showModal();
       headingRef.current?.focus();
     }
 
-    if (visible && !dialog.open) {
+    const node = dialogRef.current;
+    if (!node) return;
+    if (visible && !node.open) {
       openEducation();
     }
-    if (!visible && dialog.open) {
-      dialog.close();
+    if (!visible && node.open) {
+      node.close();
     }
 
     const skipNav = document.querySelector('nav[aria-label="Skip links"]');
