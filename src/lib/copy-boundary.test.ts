@@ -63,6 +63,12 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /reservePzecAtoms/);
   assert.match(await readFile(join(root, "contracts/src/token/Zec.sol"), "utf8"), /"tZEC"/);
   assert.doesNotMatch(await readFile(join(root, "contracts/src/token/Zec.sol"), "utf8"), /tpZEC/);
+  assert.match(await readFile(join(root, "contracts/src/amm/Pair.sol"), "utf8"), /"tLP"/);
+  assert.doesNotMatch(await readFile(join(root, "contracts/src/amm/Pair.sol"), "utf8"), /tpLP/);
+  assert.match(await readFile(join(root, "src/lib/matcher.ts"), "utf8"), /8-decimal ZEC atoms/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/session.test.ts"), "utf8"), /credits pZEC/);
+  assert.match(await readFile(join(root, "src/lib/session.test.ts"), "utf8"), /credits ZEC and debits quote/);
+  assert.match(await readFile(join(root, "README.md"), "utf8"), /does not mint/);
   assert.match(await readFile(join(root, "contracts/src/amm/Factory.sol"), "utf8"), /address public immutable zec;/);
   assert.doesNotMatch(await readFile(join(root, "contracts/src/amm/Factory.sol"), "utf8"), /address public immutable pzec;/);
   assert.match(await readFile(join(root, "src/lib/units.ts"), "utf8"), /ZEC_DECIMALS = 8/);

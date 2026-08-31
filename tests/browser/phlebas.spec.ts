@@ -303,7 +303,7 @@ test("local matcher fills a buy against the fixture ask", async ({ page }) => {
   await expect(page.getByRole("table", { name: /Session fills for ZEC\/USDC/ })).toBeVisible();
 });
 
-test("price improvement cannot create a free pZEC atom", async ({ page }) => {
+test("price improvement cannot create a free ZEC atom", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("100");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("0.00000001");
