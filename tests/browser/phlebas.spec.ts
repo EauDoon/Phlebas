@@ -696,6 +696,9 @@ test("landing without JavaScript still shows four journey descriptions", async (
     const journeyCard = page.getByRole("list", { name: "Preview journeys" }).getByRole("listitem").first();
     await expect(journeyCard).toBeVisible();
     expect((await journeyCard.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+    const journeyAction = page.getByRole("link", { name: /Preview trading/ });
+    await expect(journeyAction).toBeVisible();
+    expect((await journeyAction.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
     await expect(page.getByText(
       "pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.",
       { exact: true },
@@ -1688,5 +1691,19 @@ test("landing hero CTAs Open status details launch gates and brand home stay 44p
   const tradeBrand = page.getByRole("link", { name: "Phlebas home" });
   await expect(tradeBrand).toBeVisible();
   expect((await tradeBrand.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("landing market preview journey actions and header brand stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const market = page.getByRole("list", { name: "Focused markets" }).getByRole("link", { name: /Preview market/ }).first();
+  await expect(market).toBeVisible();
+  expect((await market.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const journey = page.getByRole("tabpanel").getByRole("link", { name: /Preview trading/ });
+  await expect(journey).toBeVisible();
+  expect((await journey.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const brand = page.locator("header").getByRole("link", { name: "Phlebas home" });
+  await expect(brand).toBeVisible();
+  expect((await brand.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
