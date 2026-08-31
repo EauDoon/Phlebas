@@ -1,6 +1,13 @@
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
-import { depthEmptyCopy, feedSurface, feedWithheldCopy, orderBookCaptionCopy, type FeedStatus } from "@/lib/market-state";
+import {
+  depthEmptyCopy,
+  depthSessionLastCopy,
+  feedSurface,
+  feedWithheldCopy,
+  orderBookCaptionCopy,
+  type FeedStatus,
+} from "@/lib/market-state";
 import { levelsFromBook, type Book } from "@/lib/matcher";
 import { PRICE_DECIMALS, PZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
@@ -70,8 +77,10 @@ export function OrderBook({
               <div className={styles.midPrice}>
                 <strong>{formatAtomicUnits(book.lastTicks, PRICE_DECIMALS, 2)}</strong>
                 <span>
-                  session last
-                  {spreadTicks !== null ? ` · spread ${formatAtomicUnits(spreadTicks, PRICE_DECIMALS, 2)}` : ""}
+                  {depthSessionLastCopy(
+                    market.settlementPair,
+                    spreadTicks !== null ? formatAtomicUnits(spreadTicks, PRICE_DECIMALS, 2) : null,
+                  )}
                 </span>
               </div>
             </td>
