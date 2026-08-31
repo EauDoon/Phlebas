@@ -1901,6 +1901,7 @@ a.skipLink:focus-visible {
     position: relative;
     z-index: 2;
     flex-shrink: 0;
+    overflow: visible;
   }
 }
 
