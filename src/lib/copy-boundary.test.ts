@@ -71,7 +71,9 @@ test("landing and terminal banners stay simulation-only", async () => {
   const bridge = await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8");
   assert.match(bridge, /Preview withdrawal states, not Withdraw ZEC/);
   assert.match(bridge, /Preview deposit states, not Deposit ZEC/);
+  assert.match(bridge, /WITHDRAWAL_TOUR/);
   assert.match(bridge, /payoutClaimForTourStep/);
+  assert.match(await readFile(join(root, "src/lib/withdrawal-tour.ts"), "utf8"), /does not invent a payout/);
   assert.match(bridge, /Nothing is sent/);
   assert.match(bridge, /Not a payable QR/);
   assert.match(bridge, /copyUri/);

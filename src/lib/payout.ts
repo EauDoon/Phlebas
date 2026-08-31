@@ -134,7 +134,9 @@ export function payoutClaimForTourStep(stepId: string, destination: string): Pay
   if (stepId === "burn submitted" || claim.state === "rejected") return claim;
   claim = finalizePayoutBurn(claim);
   if (stepId === "burn finalized" || claim.state === "rejected") return claim;
-  return markPayoutPayable(claim);
+  claim = markPayoutPayable(claim);
+  if (stepId === "unresolved") return markPayoutUnresolved(claim);
+  return claim;
 }
 
 export function markPayoutUnresolved(claim: PayoutClaim): PayoutClaim {
