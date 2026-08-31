@@ -1770,7 +1770,7 @@ a.skipLink:focus-visible {
 
   .skipLink {
     flex: 1 1 calc(50% - 4px);
-    max-width: calc(50% - 4px);
+    max-width: min(100%, calc(50% - 4px));
     min-width: 44px;
     min-height: 44px;
     align-self: stretch;
