@@ -29,6 +29,14 @@ import {
   type SloState,
   type SloTarget,
 } from "../../src/lib/slo-tracker.ts";
+import {
+  checkRateLimit,
+  emptyRateLimitMiddleware,
+  extractClientKey,
+  sendRateLimitExceeded,
+  sendRateLimitHeaders,
+  type RateLimitMiddleware,
+} from "../../src/lib/rate-limit-http.ts";
 import { TESTNET } from "../../src/lib/testnet.ts";
 import { atomicWriteFile } from "../durable-file.ts";
 import { readOperator, writeOperator } from "./persist.ts";
@@ -96,6 +104,7 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
   const persistPath = options.persistPath ?? dataPath;
   let metricsState: MetricsState = defineCounter(emptyMetricsState(), "requests_total", "Total HTTP requests");
   let sloState: SloState = emptySloState();
+  let rateLimit: RateLimitMiddleware = emptyRateLimitMiddleware({ capacity: 60n, refillPerSecond: 1n });
   const availabilityTarget: SloTarget = {
     service: "matcher",
     metric: "availability",
@@ -141,6 +150,15 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
 
   const server = createServer((request, response) => {
     void (async () => {
+      const now = BigInt(Math.floor(Date.now() / 1000));
+      const clientKey = extractClientKey(request);
+      const rl = checkRateLimit(rateLimit, clientKey, now);
+      rateLimit = { state: rl.state, config: rateLimit.config };
+      if (!rl.allowed) {
+        sendRateLimitExceeded(response, rl.remaining, rl.retryAfterSeconds);
+        return;
+      }
+      sendRateLimitHeaders(response, rl.remaining, 0n);
       await ready;
       if (!operator) throw new Error("Matcher failed to initialize");
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
