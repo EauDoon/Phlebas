@@ -189,9 +189,17 @@
 
 .headerActions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.headerActions .inlineNotice {
+  display: inline-flex;
+  min-height: 44px;
+  margin: 0;
+  align-items: center;
 }
 
 .network,
