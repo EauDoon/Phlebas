@@ -21,6 +21,8 @@ test("status page links to legal and security without a live-funds claim", async
   const statusPage = await readFile(join(root, "src/app/status/page.tsx"), "utf8");
   assert.match(statusPage, /href="\/legal"/);
   assert.match(statusPage, /href="\/security"/);
+  assert.match(statusPage, /href="\/trade\?view=architecture"/);
+  assert.match(statusPage, /href="\/#launch-gates"/);
   assert.match(statusPage, /No live funds or custody/);
   assert.doesNotMatch(statusPage, /is audited/);
 });

@@ -38,6 +38,10 @@ export default function StatusPage() {
         Boundary pages: <a href="/legal">Legal and compliance</a>
         {" · "}
         <a href="/security">Security</a>
+        {" · "}
+        <a href="/trade?view=architecture">Architecture</a>
+        {" · "}
+        <a href="/#launch-gates">Launch gates</a>
       </p>
     </SimulationFrame>
   );

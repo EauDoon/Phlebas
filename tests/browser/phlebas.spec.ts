@@ -350,6 +350,8 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   await expect(page.getByText("unset", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Legal and compliance" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Security" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Architecture" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Launch gates" })).toBeVisible();
 
   const missing = await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "load" });
   expect(missing?.status(), "404 status").toBe(404);
@@ -575,6 +577,23 @@ test("first-session education dismisses on Escape", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+});
+
+test("education dialog stays inside a 320px viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: "Continue" })).toBeVisible();
+  const box = await dialog.boundingBox();
+  expect(box, "education dialog bounding box").toBeTruthy();
+  expect(box?.width ?? 0).toBeLessThanOrEqual(320);
+  const continueBox = await dialog.getByRole("button", { name: "Continue" }).boundingBox();
+  expect(continueBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const overflow = await page.evaluate(() => ({
+    body: document.body.scrollWidth - document.body.clientWidth,
+    document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  }));
+  expect(overflow).toEqual({ body: 0, document: 0 });
 });
 
 test("country-blocked demonstration hides trading controls", async ({ page }) => {
