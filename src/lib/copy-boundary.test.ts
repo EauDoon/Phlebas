@@ -60,6 +60,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(skipCopy, /Skip to pZEC/);
   assert.match(skipCopy, /Skip to terminal preview/);
   assert.match(skipCopy, /Skip to journeys/);
+  assert.match(skipCopy, /Skip to launch gates/);
   assert.match(await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"), /No shielded deposit or withdrawal is planned for v1/);
   assert.match(await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"), /zips\.z\.cash\/zip-0320/);
   assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);

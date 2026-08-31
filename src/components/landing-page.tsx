@@ -128,7 +128,7 @@ export function LandingPage() {
           <LandingJourneys />
         </section>
 
-        <section className={styles.gatesSection} id="launch-gates" aria-labelledby="gates-title">
+        <section className={styles.gatesSection} id="launch-gates" tabIndex={-1} aria-labelledby="gates-title">
           <div>
             <span className={styles.eyebrow}>Not cleared for real assets</span>
             <h2 id="gates-title">Mainnet starts after evidence, not before it.</h2>

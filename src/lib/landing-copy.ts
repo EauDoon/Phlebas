@@ -43,4 +43,5 @@ export const LANDING_SKIP_LINKS = [
   { href: "#pzec", label: "Skip to pZEC" },
   { href: "#terminal-preview", label: "Skip to terminal preview" },
   { href: "#journeys", label: "Skip to journeys" },
+  { href: "#launch-gates", label: "Skip to launch gates" },
 ] as const;
