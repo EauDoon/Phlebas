@@ -967,6 +967,14 @@
 }
 
 @media (max-width: 820px) {
+  .skipNav:focus-within {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: auto;
+    max-width: none;
+  }
+
   .simulationBanner {
     align-items: flex-start;
     flex-direction: column;
