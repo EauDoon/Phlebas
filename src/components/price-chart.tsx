@@ -1,5 +1,6 @@
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { chartSeries } from "@/lib/market-data";
+import { PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
@@ -10,8 +11,8 @@ type PriceChartProps = {
 
 export function PriceChart({ marketId, range }: PriceChartProps) {
   const values = chartSeries[marketId][range];
-  const min = Math.min(...values) - 0.25;
-  const max = Math.max(...values) + 0.25;
+  const min = Math.min(...values) - 25;
+  const max = Math.max(...values) + 25;
   const width = 760;
   const height = 270;
   const points = values
@@ -22,6 +23,7 @@ export function PriceChart({ marketId, range }: PriceChartProps) {
     })
     .join(" ");
   const areaPoints = `0,${height} ${points} ${width},${height}`;
+  const midTicks = BigInt(Math.trunc((min + max) / 2));
 
   return (
     <div className={styles.chartWrap}>
@@ -53,9 +55,9 @@ export function PriceChart({ marketId, range }: PriceChartProps) {
         <polyline points={points} className={styles.chartLine} />
       </svg>
       <div className={styles.chartAxis} aria-hidden="true">
-        <span>{max.toFixed(2)}</span>
-        <span>{((min + max) / 2).toFixed(2)}</span>
-        <span>{min.toFixed(2)}</span>
+        <span>{formatAtomicUnits(BigInt(max), PRICE_DECIMALS, 2)}</span>
+        <span>{formatAtomicUnits(midTicks, PRICE_DECIMALS, 2)}</span>
+        <span>{formatAtomicUnits(BigInt(min), PRICE_DECIMALS, 2)}</span>
       </div>
     </div>
   );

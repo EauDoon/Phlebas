@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { emptyBook, submitOrder } from "./matcher.ts";
 import { pools } from "./market-data.ts";
-import { compareVenues, quoteClob } from "./router.ts";
+import { compareVenues, quoteClob, quoteSplitRoute } from "./router.ts";
 import { seedBook } from "./session.ts";
+
+const usdcPool = {
+  reservePzecAtoms: pools[0].reserveZecAtoms,
+  reserveQuoteAtoms: pools[0].reserveQuoteAtoms,
+};
 
 test("CLOB preview does not mutate the seeded book", () => {
   const book = seedBook("ZEC/USDC");
@@ -21,10 +27,72 @@ test("buy comparison prefers the cheaper complete venue", () => {
     side: "buy",
     sizeAtoms: 1_00000000n,
     limitTicks: 5310n,
-    reservePzecAtoms: pools[0].reserveZecAtoms,
-    reserveQuoteAtoms: pools[0].reserveQuoteAtoms,
+    ...usdcPool,
   });
   assert.equal(comparison.clob.complete, true);
   assert.equal(comparison.amm.complete, true);
   assert.notEqual(comparison.better, "none");
+});
+
+test("split uses CLOB while it is cheaper, then the AMM remainder", () => {
+  let book = emptyBook(5284n);
+  book = submitOrder(book, {
+    id: "cheap-ask",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 100n,
+    sizeAtoms: 1_00000000n,
+  }).book;
+
+  const split = quoteSplitRoute({
+    book,
+    side: "buy",
+    sizeAtoms: 3_00000000n,
+    limitTicks: 10_000n,
+    reservePzecAtoms: 10_000_00000000n,
+    reserveQuoteAtoms: 500_000_000000n,
+  });
+
+  assert.equal(split.clobFilledAtoms, 1_00000000n);
+  assert.equal(split.ammFilledAtoms, 2_00000000n);
+  assert.equal(split.complete, true);
+  assert.ok(split.clobQuoteAtoms < split.ammQuoteAtoms);
+
+  const comparison = compareVenues({
+    book,
+    side: "buy",
+    sizeAtoms: 3_00000000n,
+    limitTicks: 10_000n,
+    reservePzecAtoms: 10_000_00000000n,
+    reserveQuoteAtoms: 500_000_000000n,
+  });
+  assert.equal(comparison.better, "split");
+  assert.ok(comparison.split.quoteAtoms < comparison.amm.quoteAtoms);
+  assert.equal(book.asks.length, 1);
+});
+
+test("split preview does not mutate the book", () => {
+  const book = seedBook("ZEC/USDC");
+  const asks = book.asks.map((order) => order.remainingAtoms);
+  quoteSplitRoute({
+    book,
+    side: "buy",
+    sizeAtoms: 20_00000000n,
+    limitTicks: 5400n,
+    ...usdcPool,
+  });
+  assert.deepEqual(book.asks.map((order) => order.remainingAtoms), asks);
+});
+
+test("split stays inside the signed worst price", () => {
+  const book = seedBook("ZEC/USDC");
+  const split = quoteSplitRoute({
+    book,
+    side: "buy",
+    sizeAtoms: 1_00000000n,
+    limitTicks: 5200n,
+    ...usdcPool,
+  });
+  assert.equal(split.clobFilledAtoms, 0n);
+  assert.equal(split.complete, false);
 });
