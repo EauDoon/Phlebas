@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the reduced-motion skip-nav, overflow-clip margin, and skip-nav stacking slice.
+Last updated: 31-08-2026 after the terminal-banner stacking, 320px skip-nav vs brand, and 320px skip-link viewport slice.
 
 ## Branch
 
@@ -248,13 +248,17 @@ Last updated: 31-08-2026 after the reduced-motion skip-nav, overflow-clip margin
 - Landing overflow clip leaves 8px so the skip-link focus ring is not clipped
 - Skip-nav remains above the simulation banner
 - Playwright covers reduced-motion skip-nav, skip-link ring not clipped, and skip-nav stacking
+- Terminal simulation banner stays below skip-nav
+- Skip-nav does not cover the header brand at 320px under reduced motion until focused
+- Skip-link focus stays inside the viewport at 320px
+- Playwright covers terminal banner stacking, 320px reduced-motion skip-nav vs brand, and 320px skip-link ring
 
 ## Next
 
-- Terminal simulation banner should stay below skip-nav
-- Skip-nav should not cover the header brand at 320px under reduced motion
-- Skip-link focus should stay inside the viewport at 320px
-- Playwright: terminal banner stacking, 320px reduced-motion skip-nav vs brand, and 320px skip-link ring
+- Focused skip-nav should not cover the simulation banner copy at 320px
+- Header brand should stay a 44px target at 320px under reduced motion
+- Skip-nav clip-path restore should keep skip links 44px tall
+- Playwright: 320px focused skip-nav vs banner copy, 44px brand, and 44px skip links after clip restore
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
