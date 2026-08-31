@@ -975,6 +975,7 @@
     width: auto;
     max-width: none;
     flex-direction: row;
+    flex-wrap: wrap;
   }
 
   .simulationBanner {
