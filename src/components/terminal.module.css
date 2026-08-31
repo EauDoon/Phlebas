@@ -1403,9 +1403,11 @@
 }
 
 .tourNav button {
+  display: inline-flex;
   min-width: 44px;
   min-height: 44px;
   flex-shrink: 0;
+  align-items: center;
   padding: 8px 14px;
   border: 1px solid var(--border);
   border-radius: 6px;
