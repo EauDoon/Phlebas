@@ -401,18 +401,21 @@ test("LP preview shows integer IL versus hold", async ({ page }) => {
   await expect(stats.getByText("IL vs hold at 4x pZEC/quote")).toBeVisible();
   await expect(stats.getByText("IL vs hold at 1/4x pZEC/quote")).toBeVisible();
   await expect(page.getByText("Not a return or profit projection.")).toBeVisible();
-  await page.getByRole("button", { name: "Simulate mint" }).click();
+  await page.getByRole("button", { name: "Review simulated mint" }).click();
+  await expect(page.getByText("Leaves the session")).toBeVisible();
+  await page.getByRole("button", { name: "Confirm simulated mint" }).click();
   await expect(page.getByText(/Minted .* local LP shares/)).toBeVisible();
   await expect(stats.getByText("Session IL vs hold")).toBeVisible();
 });
 
 test("LP burn stays available after a trading pause", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Simulate mint" }).click();
+  await page.getByRole("button", { name: "Review simulated mint" }).click();
+  await page.getByRole("button", { name: "Confirm simulated mint" }).click();
   await expect(page.getByText(/Minted .* local LP shares/)).toBeVisible();
   await page.getByRole("button", { name: "Pause trading preview" }).click();
-  await expect(page.getByRole("button", { name: "Simulate mint" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Simulate swap" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
   await page.getByRole("button", { name: "Burn session shares" }).click();
   await expect(page.getByText(/Burned session shares/)).toBeVisible();
@@ -443,7 +446,7 @@ test("IOC cancels an unfilled remainder and FOK rejects a full miss", async ({ p
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("100");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
-  await expect(page.getByText("Fill-or-kill could not fill in full")).toBeVisible();
+  await expect(page.getByText("Rejected. Fill-or-kill could not fill in full", { exact: true })).toBeVisible();
 });
 
 test("invalidate-epoch control is keyboard focusable", async ({ page }) => {
@@ -496,4 +499,43 @@ test("connect wallet without a provider shows a visible rejection", async ({ pag
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
   await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only.")).toBeVisible();
+});
+
+test("past unix expiry rejects before review and names the rejected panel", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
+  await expect(page.getByText("Order expiry has passed").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+});
+
+test("confirmed ticket writes expiry onto the blotter event log", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("4102444800");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("tab", { name: "Event log" }).click();
+  await expect(page.getByRole("tabpanel")).toContainText("expiry 4102444800");
+});
+
+test("status, legal, and security pages cross-link", async ({ page }) => {
+  await page.goto("/status", { waitUntil: "networkidle" });
+  await expect(page.getByRole("main").getByRole("link", { name: "Legal" })).toBeVisible();
+  await page.goto("/legal", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Legal and compliance" })).toBeVisible();
+  await expect(page.getByText("not a live exchange")).toBeVisible();
+  await page.goto("/security", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Security" })).toBeVisible();
+  await expect(page.getByText("no production support commitment")).toBeVisible();
+});
+
+test("blotter tabs expose a selected tabpanel", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await expect(page.getByRole("tab", { name: "Open orders" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel")).toContainText("No open session orders");
+  await page.getByRole("tab", { name: "Inventory" }).click();
+  await expect(page.getByRole("tabpanel")).toContainText("Account epoch");
 });
