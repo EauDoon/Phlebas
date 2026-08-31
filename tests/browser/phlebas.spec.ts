@@ -5097,3 +5097,119 @@ test("leftover skip last-child stays 44px at 1440 768 and architecture 390", asy
   await leftover("/liquidity", 768, 1024, 3);
   await leftover("/trade?view=architecture", 390, 844, 4);
 });
+test("education Continue in 1440 Enter Back in 768 heading ring 768 and Continue ring at 390", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const continueButton = page.getByRole("dialog").getByRole("button", { name: "Continue" });
+  await expect(continueButton).toBeVisible();
+  const continueBox = await continueButton.boundingBox();
+  expect(continueBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(continueBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((continueBox?.y ?? 0) + (continueBox?.height ?? 0)).toBeLessThanOrEqual(900);
+  expect((continueBox?.x ?? 0) + (continueBox?.width ?? 0)).toBeLessThanOrEqual(1440);
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const heading = page.getByRole("dialog").getByRole("heading", { level: 2 });
+  await expect(heading).toBeFocused();
+  const headingRing = await heading.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.closest("dialog");
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      width: style.outlineWidth,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      parentTop: parentRect?.top ?? 0,
+      parentBottom: parentRect?.bottom ?? 0,
+    };
+  });
+  expect(Number.parseFloat(headingRing.width)).toBeGreaterThanOrEqual(2);
+  expect(headingRing.top).toBeGreaterThanOrEqual(headingRing.parentTop - 0.5);
+  expect(headingRing.bottom).toBeLessThanOrEqual(headingRing.parentBottom + 0.5);
+
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  const back = dialog.getByRole("button", { name: "Back" });
+  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  await expect(back).toBeEnabled();
+  await expect(enter).toBeVisible();
+  const backBox = await back.boundingBox();
+  const enterBox = await enter.boundingBox();
+  expect(backBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(enterBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(enterBox?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(backBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect(enterBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((backBox?.y ?? 0) + (backBox?.height ?? 0)).toBeLessThanOrEqual(1024);
+  expect((enterBox?.y ?? 0) + (enterBox?.height ?? 0)).toBeLessThanOrEqual(1024);
+  expect((enterBox?.x ?? 0) + (enterBox?.width ?? 0)).toBeLessThanOrEqual(768);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const continue390 = page.getByRole("dialog").getByRole("button", { name: "Continue" });
+  await tabTo(page, continue390);
+  await expect(continue390).toBeFocused();
+  const continueRing = await continue390.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.closest("dialog");
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      color: style.outlineColor,
+      width: style.outlineWidth,
+      scrollMarginBottom: style.scrollMarginBottom,
+      paddingBottom: parent ? getComputedStyle(parent).paddingBottom : "",
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      parentTop: parentRect?.top ?? 0,
+      parentBottom: parentRect?.bottom ?? 0,
+    };
+  });
+  expect(continueRing.color).toBe("rgb(244, 201, 93)");
+  expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
+  expect(Number.parseFloat(continueRing.scrollMarginBottom)).toBeGreaterThanOrEqual(12);
+  expect(Number.parseFloat(continueRing.paddingBottom)).toBeGreaterThanOrEqual(12);
+  expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
+  expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
+});
+
+test("security loading error bridge leftover at 1440 and country-block leftover at 768 stay 44px", async ({ page }) => {
+  async function leftover(path: string, width: number, height: number, count: number) {
+    await page.setViewportSize({ width, height });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")];
+      const last = links[links.length - 1];
+      const lastBox = last?.getBoundingClientRect();
+      return {
+        count: links.length,
+        lastWidth: lastBox?.width ?? 0,
+        lastHeight: lastBox?.height ?? 0,
+        lastRight: lastBox?.right ?? 0,
+        lastShrink: last ? getComputedStyle(last).flexShrink : "",
+      };
+    });
+    expect(layout.count).toBe(count);
+    expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+    expect(layout.lastRight).toBeLessThanOrEqual(width);
+    expect(layout.lastShrink).toBe("0");
+  }
+
+  await leftover("/security", 1440, 900, 2);
+  await leftover("/trade?loading=1", 1440, 900, 2);
+  await leftover("/trade?error=1", 1440, 900, 2);
+  await leftover("/trade?view=bridge", 1440, 900, 3);
+  await leftover("/trade?access=blocked", 768, 1024, 2);
+});
