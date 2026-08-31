@@ -968,6 +968,12 @@
   font: inherit;
 }
 
+.simpleMain a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+}
+
 .ticketBlocked {
   min-height: 44px;
   margin: 0 14px 10px;
