@@ -1624,7 +1624,7 @@ a.skipLink:focus-visible {
     position: sticky;
     bottom: 0;
     background: var(--surface);
-    padding-bottom: 4px;
+    padding: 8px 4px;
   }
 
   .educationDialog .tourNav button {
