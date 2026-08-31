@@ -743,3 +743,80 @@ Stop conditions that must halt the leg and surface to the operator:
   addresses.
 * Custodial or wrapped representations of ZEC. The observer is
   read-only on the chains.
+
+## 21. Public market data surface
+
+The public market data surface is four read-only HTTP endpoints
+on the matcher service: /ticker, /trades, /depth, and
+/markets. The surface is the public read-only view of the
+matcher operator's in-memory state.
+
+### 21.1 Trust boundary
+
+The public surface trusts the matcher operator's in-memory state
+to be the canonical order book and receipt history. The public
+surface does not trust the network: every endpoint validates its
+input and bounds its response size. The public surface does not
+trust the requester: the endpoints do not authenticate the
+caller; the public surface is by design unauthenticated.
+
+### 21.2 Threat matrix
+
+| Adversary | Goal | Required control |
+| --- | --- | --- |
+| Public reader | Probe the order book to front-run the next fill | The depth endpoint aggregates by price level and does not expose the maker identifier; the trades endpoint exposes the receipt sequence and the maker id but not the underlying order detail |
+| Rate-limit attacker | Saturate the operator with public read traffic | The HTTP layer applies a per-IP rate limit; the public surface is the only consumer of the per-request 
+owSeconds clock |
+| Reflected XSS | Inject a script into the JSON response | The endpoints return pplication/json; the response is not embedded in HTML; the frontend treats the response as data, not as HTML |
+| Parameter abuse | Send a limit of 2^31 to exhaust memory | The endpoints cap limit at 1000 and levels at 200; values outside the bound return 400 |
+| Order-book replay | Reconstruct the maker's resting order from the public depth | The depth endpoint aggregates size per price level only; the maker's order id and the receipt's order digest are not exposed |
+
+### 21.3 Invariants and stop conditions
+
+The public market data surface must satisfy the following
+invariants. A violation halts the surface and surfaces an
+operator alert.
+
+1. The ticker is derived from the operator's ook and
+   eceipts; the function is pure and never mutates the
+   operator.
+2. The trades feed walks receipts in reverse and stops at the
+   requested limit; the function never returns more than
+   limit trades.
+3. The depth endpoint aggregates size by price level; the
+   aggregation is deterministic for a fixed book.
+4. The markets endpoint reflects the operator's aseAsset and
+   quoteAssets; a misconfiguration in the operator is
+   surfaced as a 503 on the matcher service's /orders
+   endpoint, not on the public surface.
+5. The endpoints never reach out to the network; the latency is
+   bounded by the operator's in-memory state size.
+
+Stop conditions that must halt the surface and surface to the
+operator:
+
+* the operator's ook and eceipts are out of sync (the
+  watchtower surfaces the desync as a coordinator alert);
+* the matcher service's /health returns 503 (the public
+  surface inherits the 503);
+* the rate limiter reports a sustained attack on a single IP
+  (the operator pages the on-call).
+
+### 21.4 Test coverage
+
+| Invariant | Test |
+| --- | --- |
+| 1 | market-data.test.ts::tickerFromOperator reports bid, ask, mid, spread, last, and 24h volume |
+| 2 | market-data.test.ts::tradesFromReceipts respects the limit |
+| 3 | market-data.test.ts::depthFromBook aggregates same-price orders and limits levels |
+| 4 | market-data.test.ts::marketsFromOperator reads the base and quote assets from the operator |
+| 5 | market-data.test.ts::tickerFromOperator rejects a negative now (the function is pure) |
+
+### 21.5 Out of scope
+
+* WebSocket and SSE for live updates. The surface exposes
+  snapshots only; live streaming is a follow-up PR.
+* Per-user order book subscriptions. The surface is public; a
+  per-user feed is the responsibility of the auth surface.
+* Aggregated candles (1m, 5m, 1h). The chart surface is a
+  separate concern.
