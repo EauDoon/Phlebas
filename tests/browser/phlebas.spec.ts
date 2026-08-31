@@ -690,6 +690,19 @@ test("connect wallet without a provider names pZEC-USDT0 after switching market"
   ).toBeVisible();
 });
 
+test("missing-provider error keeps settlement after switching market", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  await connect.click();
+  await expect(
+    page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDC.", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  const retargeted = "No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDT0.";
+  await expect(page.getByText(retargeted, { exact: true })).toBeVisible();
+  await expect(connect).toHaveAttribute("title", retargeted);
+});
+
 test("connecting wallet title keeps the settlement pair", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, "ethereum", {
