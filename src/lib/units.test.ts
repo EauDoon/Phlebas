@@ -8,9 +8,14 @@ import {
   quoteAtomsForFills,
   sizeAtomsForQuote,
   worstPriceTicks,
+  ZEC_DECIMALS,
 } from "./units.ts";
 
-test("formats and parses 8-decimal pZEC atoms", () => {
+test("ZEC_DECIMALS is 8", () => {
+  assert.equal(ZEC_DECIMALS, 8);
+});
+
+test("formats and parses 8-decimal ZEC atoms", () => {
   assert.equal(formatAtomicUnits(1n, 8), "0.00000001");
   assert.equal(formatAtomicUnits(10_00000000n, 8), "10");
   assert.equal(parseAtomicUnits("10.5", 8), 10_50000000n);
@@ -22,7 +27,7 @@ test("formats prices as 0.01 ticks", () => {
   assert.equal(parseAtomicUnits("52.84", 2), 5284n);
 });
 
-test("converts one pZEC at 52.84 to 52.84 quote atoms", () => {
+test("converts one ZEC at 52.84 to 52.84 quote atoms", () => {
   const quoteAtoms = quoteAtomsForFill(100_000000n, 5284n, "up");
   assert.equal(quoteAtoms, 52_840000n);
   assert.equal(formatAtomicUnits(quoteAtoms, 6, 2), "52.84");

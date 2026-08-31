@@ -10,11 +10,11 @@ test("recording a broadcast never sets deployed without an explicit mark", () =>
   const recorded = recordBroadcast(emptyManifest(), {
     chain: 421614,
     transactions: [
-      { contractName: "PZec", contractAddress: PZED, hash: TX, transactionType: "CREATE" },
+      { contractName: "Zec", contractAddress: PZED, hash: TX, transactionType: "CREATE" },
     ],
   });
   assert.equal(recorded.deployed, false);
-  assert.equal(recorded.contracts.PZec, PZED);
+  assert.equal(recorded.contracts.Zec, PZED);
   assert.equal(recorded.broadcastTx, TX);
 });
 

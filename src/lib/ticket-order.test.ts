@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { hashOrder } from "./eip712.ts";
 import { bytesToHex } from "./keccak.ts";
+import { TESTNET } from "./testnet.ts";
 import { parseExpiryUnix, settlementDigest, typedOrderFromTicket } from "./ticket-order.ts";
 
 const MAKER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
@@ -19,6 +20,7 @@ test("ticket typed orders match the Solidity struct hash", () => {
     tif: "GTC",
   });
   assert.equal(order.salt, 1n);
+  assert.equal(order.baseAsset, TESTNET.zec);
   assert.equal(order.baseAsset, "0x0000000000000000000000000000000000000001");
   assert.equal(
     bytesToHex(hashOrder(order)),
