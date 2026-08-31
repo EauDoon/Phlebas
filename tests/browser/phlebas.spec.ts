@@ -2202,3 +2202,129 @@ test("skip-link focus-visible wrap stays 44px and the 320px skip-nav does not cl
   expect((await tradeSkip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("skip-nav keeps wrapped line-height, 390px two-up ring, gutter, and header clearance", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+
+  const skipStyle = await skip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      lineHeight: Number.parseFloat(style.lineHeight),
+      fontSize: Number.parseFloat(style.fontSize),
+      minHeight: Number.parseFloat(style.minHeight),
+      minWidth: Number.parseFloat(style.minWidth),
+      outlineColor: style.outlineColor,
+    };
+  });
+  expect(skipStyle.lineHeight).toBeGreaterThanOrEqual(skipStyle.fontSize * 1.25);
+  expect(skipStyle.minHeight).toBeGreaterThanOrEqual(44);
+  expect(skipStyle.minWidth).toBeGreaterThanOrEqual(44);
+  expect(skipStyle.outlineColor).toBe("rgb(21, 20, 13)");
+
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  expect(await nav.evaluate((element) => getComputedStyle(element).scrollbarGutter)).toBe("stable");
+  expect(await nav.evaluate((element) => getComputedStyle(element).overflowY)).toBe("auto");
+
+  await tabTo(page, page.getByRole("link", { name: "Skip to terminal preview" }));
+  const longSkip = page.getByRole("link", { name: "Skip to terminal preview" });
+  await expectVisibleFocus(longSkip);
+  expect((await longSkip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  const verticalRing = await longSkip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.parentElement;
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      parentTop: parentRect?.top ?? 0,
+      parentBottom: parentRect?.bottom ?? 0,
+    };
+  });
+  expect(verticalRing.top).toBeGreaterThanOrEqual(verticalRing.parentTop - 0.5);
+  expect(verticalRing.bottom).toBeLessThanOrEqual(verticalRing.parentBottom + 0.5);
+
+  const navBox = await nav.boundingBox();
+  const headerBox = await page.locator("header").boundingBox();
+  expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((headerBox?.y ?? 0) + 1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip390 = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip390);
+  const layout390 = await nav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const links = [...element.querySelectorAll("a")].slice(0, 2).map((link) => link.getBoundingClientRect());
+    return {
+      wrap: style.flexWrap,
+      direction: style.flexDirection,
+      overflowY: style.overflowY,
+      firstTop: links[0]?.top ?? 0,
+      secondTop: links[1]?.top ?? 0,
+      firstRight: links[0]?.right ?? 0,
+      secondLeft: links[1]?.left ?? 0,
+    };
+  });
+  expect(layout390.direction).toBe("row");
+  expect(layout390.wrap).toBe("wrap");
+  expect(layout390.overflowY).toBe("auto");
+  expect(Math.abs(layout390.firstTop - layout390.secondTop)).toBeLessThan(2);
+  expect(layout390.secondLeft).toBeGreaterThan(layout390.firstRight);
+
+  const ring390 = await skip390.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      left: rect.left - extent,
+      right: rect.right + extent,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      color: style.outlineColor,
+    };
+  });
+  expect(ring390.color).toBe("rgb(21, 20, 13)");
+  expect(ring390.left).toBeGreaterThanOrEqual(-0.5);
+  expect(ring390.top).toBeGreaterThanOrEqual(-0.5);
+  expect(ring390.right).toBeLessThanOrEqual(390.5);
+  expect(ring390.bottom).toBeLessThanOrEqual(844.5);
+  expect((await skip390.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const motionSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(motionSkip);
+  const motionNav = page.getByRole("navigation", { name: "Skip links" });
+  expect(await motionNav.evaluate((element) => getComputedStyle(element).overflowY)).toBe("auto");
+  const motionRing = await motionSkip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.parentElement;
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      left: rect.left - extent,
+      right: rect.right + extent,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      parentLeft: parentRect?.left ?? 0,
+      parentRight: parentRect?.right ?? 0,
+      parentTop: parentRect?.top ?? 0,
+      parentBottom: parentRect?.bottom ?? 0,
+    };
+  });
+  expect(motionRing.left).toBeGreaterThanOrEqual(motionRing.parentLeft - 0.5);
+  expect(motionRing.right).toBeLessThanOrEqual(motionRing.parentRight + 0.5);
+  expect(motionRing.top).toBeGreaterThanOrEqual(motionRing.parentTop - 0.5);
+  expect(motionRing.bottom).toBeLessThanOrEqual(motionRing.parentBottom + 0.5);
+});
+
