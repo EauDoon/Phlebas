@@ -534,6 +534,16 @@ test("LP swap success notice names the settlement pair", async ({ page }) => {
   await expect(page.getByText(/Simulated pZEC→USDC swap\. Output .* USDC\. Local preview only\. Settled as pZEC-USDC\./)).toBeVisible();
 });
 
+test("LP swap success notice names pZEC-USDT0 on the USDT0 pool", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
+  await expect(page.getByRole("button", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Review simulated swap" }).click();
+  await expect(page.getByRole("button", { name: "Confirm simulated swap" })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm simulated swap" }).click();
+  await expect(page.getByText(/Simulated pZEC→USDT0 swap\. Output .* USDT0\. Local preview only\. Settled as pZEC-USDT0\./)).toBeVisible();
+});
+
 test("withdrawal tour drives a stub claim without changing tour copy", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Withdrawal states" }).click();
@@ -640,6 +650,34 @@ test("connecting wallet title keeps the settlement pair", async ({ page }) => {
   );
 });
 
+test("connecting wallet title keeps settlement after switching market", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "ethereum", {
+      configurable: true,
+      value: {
+        request() {
+          return new Promise(() => {});
+        },
+      },
+    });
+  });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  await connect.click();
+  await expect(connect).toHaveText("Connecting");
+  await expect(connect).toHaveAttribute(
+    "title",
+    "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDC.",
+  );
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(connect).toHaveText("Connecting");
+  await expect(connect).toBeDisabled();
+  await expect(connect).toHaveAttribute(
+    "title",
+    "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDT0.",
+  );
+});
+
 test("past unix expiry rejects before review and names the rejected panel", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
@@ -726,6 +764,20 @@ test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
   await expect(page.getByText("Integrity checks failed. Preview-to-sign is disabled. Retry is safe; nothing was submitted. Settled as pZEC-USDC.")).toBeVisible();
+});
+
+test("chart 1H and 1D img labels return on ZEC/USDT after fixtures", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDT, settled as pZEC-USDT0" })).toBeVisible();
+  await page.getByRole("combobox", { name: "Market data state" }).selectOption("unavailable");
+  await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Retry illustrative feed" }).click();
+  await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDT, settled as pZEC-USDT0" })).toBeVisible();
+  await page.getByRole("tab", { name: "1H · pZEC-USDT0" }).click();
+  await expect(page.getByRole("img", { name: "Illustrative 1H price chart for ZEC/USDT, settled as pZEC-USDT0" })).toBeVisible();
+  await page.getByRole("tab", { name: "1D · pZEC-USDT0" }).click();
+  await expect(page.getByRole("img", { name: "Illustrative 1D price chart for ZEC/USDT, settled as pZEC-USDT0" })).toBeVisible();
 });
 
 test("blotter arrow keys move to the next tabpanel", async ({ page }) => {
