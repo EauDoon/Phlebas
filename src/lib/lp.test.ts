@@ -5,13 +5,14 @@ import { quoteConstantProductSwapAtoms } from "./amm.ts";
 import {
   burnShares,
   emptyShareCopy,
+  lpPauseNoticeCopy,
   hypotheticalImpermanentLoss,
   lpOperationAllowed,
   mintShares,
   realizedImpermanentLoss,
   seedPool,
 } from "./lp.ts";
-import { pools } from "./market-data.ts";
+import { markets, pools } from "./market-data.ts";
 
 test("mint then burn returns the added reserves on a fresh pool ratio", () => {
   const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
@@ -44,6 +45,21 @@ test("LP burn stays available when trading is paused", () => {
   assert.equal(lpOperationAllowed("swap", true), false);
   assert.equal(lpOperationAllowed("mint", false), true);
   assert.equal(lpOperationAllowed("swap", false), true);
+});
+
+test("LP pause notice names the selected pool settlement pair", () => {
+  const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
+  assert.ok(pool.totalShares > 0n);
+  assert.equal(lpOperationAllowed("mint", true), false);
+  assert.equal(
+    lpPauseNoticeCopy(markets["ZEC/USDC"].settlementPair, true),
+    "Trading paused. LP withdrawal remains available. Settled as pZEC-USDC.",
+  );
+  assert.equal(
+    lpPauseNoticeCopy(markets["ZEC/USDT"].settlementPair, false),
+    "Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDT0.",
+  );
+  assert.doesNotMatch(lpPauseNoticeCopy("pZEC-USDC", true), /native ZEC/);
 });
 
 test("hypothetical 4x IL equals the deposited quote on an even size", () => {
