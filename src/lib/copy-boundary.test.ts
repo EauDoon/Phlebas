@@ -146,6 +146,14 @@ test("vercel.json does not assign operator URLs", async () => {
   assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_URL\s*[:=]/);
 });
 
+test("route loading copy names a simulation and withholds prices", async () => {
+  const loading = await readFile(join(root, "src/app/loading.tsx"), "utf8");
+  assert.match(loading, /Loading the simulation/);
+  assert.match(loading, /No market data is live/);
+  assert.match(loading, /Nothing was submitted/);
+  assert.doesNotMatch(loading, /APY|wallet balance|tex1/i);
+});
+
 test("robots and security headers keep the public app noindex", async () => {
   const robots = await readFile(join(root, "src/app/robots.ts"), "utf8");
   const nextConfig = await readFile(join(root, "next.config.ts"), "utf8");
