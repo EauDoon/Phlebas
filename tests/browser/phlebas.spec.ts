@@ -1385,3 +1385,38 @@ test("loading skip link reaches the withheld-price notice", async ({ page }) => 
   await expect(page.locator("#withheld-price")).toBeFocused();
 });
 
+test("event-log LP stats and chart empty stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("tab", { name: "Event log" }).click();
+  const logRow = page.getByRole("table", { name: /Append-only session event log/ }).locator("tbody tr").first();
+  await expect(logRow).toBeVisible();
+  expect((await logRow.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.getByRole("radio", { name: "Empty" }).click();
+  const chartEmpty = page.getByRole("status", { name: "Chart empty state" });
+  await expect(chartEmpty).toBeVisible();
+  expect((await chartEmpty.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  const stats = page.getByRole("group", { name: "Pool stats and impermanent loss versus hold" });
+  await expect(stats).toBeVisible();
+  const statsRow = stats.locator(":scope > div").first();
+  expect((await statsRow.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("liquidity skip link reaches pool stats", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipStats = page.getByRole("link", { name: "Skip to pool stats" });
+  await expect(skipStats).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#pool-stats")).toBeFocused();
+});
+
