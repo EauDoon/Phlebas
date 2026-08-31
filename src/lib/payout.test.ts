@@ -98,6 +98,8 @@ test("tour step walker reaches payable only after a screened transparent destina
   assert.equal(payoutClaimForTourStep("broadcast", DEST).state, "broadcast");
   assert.equal(payoutClaimForTourStep("mined", DEST).state, "mined");
   assert.equal(payoutClaimForTourStep("confirmed", DEST).state, "confirmed");
+  assert.equal(payoutClaimForTourStep("unresolved", DEST).state, "unresolved");
+  assert.equal(payoutClaimForTourStep("unresolved", "").state, "rejected");
   assert.equal(payoutClaimForTourStep("unresolved-observed", DEST).state, "broadcast");
   assert.equal(payoutClaimForTourStep("input-restored", DEST).state, "payable");
   assert.equal(payoutClaimForTourStep("screened", "zs1notreal").state, "rejected");

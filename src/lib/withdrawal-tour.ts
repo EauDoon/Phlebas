@@ -11,7 +11,7 @@ export const WITHDRAWAL_TOUR = [
   { id: "signed", title: "Signed", body: "The exact bytes and transaction ID are committed. They cannot be swapped for a different payout." },
   { id: "broadcast", title: "Broadcast", body: "Only those committed bytes may be rebroadcast. Transparent activity is public." },
   { id: "mined", title: "Mined", body: "The payout is in a Zcash block. The close threshold has not been met." },
-  { id: "unresolved", title: "Unresolved", body: "The committed transaction is invalid, stale, conflicted, or reorganized. Incident halt. Nothing is sent." },
+  { id: "unresolved", title: "Unresolved", body: "The committed transaction is invalid, stale, conflicted, or reorganized. Incident halt. The tour does not invent a payout. Nothing is sent." },
   { id: "unresolved-observed", title: "Observed recovery", body: "The exact committed transaction was observed. The claim returns to broadcast. Nothing is sent. This is not live settlement." },
   { id: "input-restored", title: "Inputs restored", body: "Verified input restoration returns the claim to payable. Nothing is sent. This is not live settlement." },
   { id: "confirmed", title: "Confirmed", body: "State demonstration complete. Nothing was burned and no native ZEC was sent." },

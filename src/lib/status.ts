@@ -1,4 +1,6 @@
 import { GATEWAY_DEFAULT_MAX_INTENTS } from "./intent-cap.ts";
+import { sepoliaSubmitEnabled } from "./sepolia-submit.ts";
+import { TESTNET } from "./testnet.ts";
 import { isLoopbackOperatorUrl } from "./operator-url.ts";
 
 export function simulationStatus(env: Record<string, string | undefined> = process.env) {
@@ -15,9 +17,9 @@ export function simulationStatus(env: Record<string, string | undefined> = proce
     deposits: "testnet-gateway-optional",
     withdrawals: "tour-only",
     wallets: "eip-1193-sepolia",
-    sepoliaSubmit: "flag-off",
-    contracts: "source-undeployed",
-    network: "arbitrum-sepolia-unconfigured",
+    sepoliaSubmit: sepoliaSubmitEnabled(env) && TESTNET.deployed ? "testnet-enabled" : "flag-off",
+    contracts: TESTNET.deployed ? "sepolia-deployed" : "source-undeployed",
+    network: TESTNET.deployed ? "arbitrum-sepolia" : "arbitrum-sepolia-unconfigured",
     marketData: "illustrative",
     countryAccess: "deny-default",
     incidents: "architecture-demonstration",

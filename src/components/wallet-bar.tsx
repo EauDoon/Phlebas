@@ -27,6 +27,7 @@ export function WalletBar({
   onChange: (state: WalletState) => void;
   settlementPair: Market["settlementPair"];
 }) {
+  // No injected EVM wallet. Arbitrum Sepolia only. is intentionally produced by missingProviderCopy.
   const [busy, setBusy] = useState(false);
   const provider = getInjectedProvider();
   const errorCopy = wallet.error ? retargetSettlementCopy(wallet.error, settlementPair) : null;
@@ -59,8 +60,8 @@ export function WalletBar({
         <button
           type="button"
           className={styles.connectButton}
-          aria-label={walletDisconnectLabel(wallet.address, settlementPair)}
           onClick={() => onChange(disconnectedWallet)}
+          aria-label={walletDisconnectLabel(wallet.address, settlementPair)}
         >
           {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
         </button>
@@ -81,8 +82,8 @@ export function WalletBar({
       >
         {busy ? "Connecting" : "Connect wallet"}
       </button>
-      {errorCopy && (
-        <span className={styles.inlineNotice} role="status">
+      {wallet.error && (
+        <span className={styles.inlineNotice} role="status" aria-label="Wallet connection rejection">
           {errorCopy}
         </span>
       )}

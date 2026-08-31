@@ -58,6 +58,7 @@ test("blotter log event copy names the event market settlement pair", () => {
       tif: "IOC",
       priceTicks: 5279n,
       sizeAtoms: 1_00000000n,
+      expiryUnix: 0n,
     }),
     "sell IOC user-2 expiry none. Settled as ZEC-USDT.",
   );
@@ -78,5 +79,6 @@ test("blotter log event copy names the event market settlement pair", () => {
     tif: "GTC",
     priceTicks: 1n,
     sizeAtoms: 1n,
+    expiryUnix: 0n,
   }), /native ZEC/);
 });

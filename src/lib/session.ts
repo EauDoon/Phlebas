@@ -218,17 +218,18 @@ export function describeSubmit(result: SubmitResult, marketId: MarketId): string
       .map((fill) => `${formatAtomicUnits(fill.sizeAtoms, ZEC_DECIMALS)} ZEC at ${formatAtomicUnits(fill.priceTicks, PRICE_DECIMALS, 2)}`)
       .join("; ");
 
+  const chain = " Nothing was signed or submitted to a chain.";
   if (result.status === "rejected") {
     return ticketRejectCopy(result.reason ?? "Order was not accepted.", marketId);
   }
   if (result.status === "filled") {
-    return `Filled against the local ${marketId} book: ${fillSummary}.`;
+    return `Filled against the local ${marketId} book: ${fillSummary}.${chain}`;
   }
   if (result.status === "cancelled") {
     const prefix = result.reason ?? "Immediate-or-cancel finished";
-    return `${prefix} with ${fillSummary}. Unfilled size was cancelled.`;
+    return `${prefix} with ${fillSummary}. Unfilled size was cancelled.${chain}`;
   }
-  return `Resting on the local ${marketId} book with ${formatAtomicUnits(result.remainingAtoms, ZEC_DECIMALS)} ZEC remaining. Fills: ${fillSummary}.`;
+  return `Resting on the local ${marketId} book with ${formatAtomicUnits(result.remainingAtoms, ZEC_DECIMALS)} ZEC remaining. Fills: ${fillSummary}.${chain}`;
 }
 
 export function userOrders(book: Book): RestingOrder[] {

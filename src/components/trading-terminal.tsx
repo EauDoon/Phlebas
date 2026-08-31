@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { AccessDemo } from "@/lib/access-demo";
+import { CHART_RANGES, nextChartRange } from "@/lib/chart-ranges";
 import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
 import {
   INCIDENT_DEMO_QUERY,
@@ -17,18 +18,29 @@ import { terminalUrl } from "@/lib/terminal-url";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
+import { MARKET_ID_LABELS, MARKET_IDS, nextMarketId } from "@/lib/market-ids";
 import {
+  FEED_STATUS_LABELS,
+  FEED_STATUSES,
   chartPanelEyebrowCopy,
   chartPanelHeadingCopy,
   chartRangeTabLabel,
   feedSurface,
   feedWithheldCopy,
+  nextFeedStatus,
   sessionLastStatLabel,
   tapeCaptionCopy,
   tapeMiniLabel,
   tapeSideCopy,
   type FeedStatus,
 } from "@/lib/market-state";
+import { interpretRovingKey } from "@/lib/roving-keys";
+import {
+  nextTerminalView,
+  TERMINAL_VIEW_LABELS,
+  TERMINAL_VIEWS,
+  type TerminalView,
+} from "@/lib/terminal-views";
 import type { SessionLogEvent } from "@/lib/replay";
 import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingOrder, type TimeInForce } from "@/lib/matcher";
 import {
@@ -64,16 +76,7 @@ import { TradeTicket } from "./trade-ticket";
 import { WalletBar } from "./wallet-bar";
 import styles from "./terminal.module.css";
 
-type View = "trade" | "liquidity" | "bridge" | "architecture";
-
-const views: { id: View; label: string }[] = [
-  { id: "trade", label: "Trade" },
-  { id: "liquidity", label: "Liquidity" },
-  { id: "bridge", label: "ZEC gateway" },
-  { id: "architecture", label: "Architecture" },
-];
-
-function viewUrl(view: View, market: MarketId, feed: FeedStatus, demo?: string) {
+function viewUrl(view: TerminalView, market: MarketId, feed: FeedStatus, demo?: string) {
   return terminalUrl({ view, market, feed, demo });
 }
 
@@ -91,8 +94,6 @@ function seedAccounts(): Record<MarketId, PaperAccount> {
   };
 }
 
-const CHART_RANGES: ChartRange[] = ["1H", "4H", "1D"];
-
 export function TradingTerminal({
   initialView = "trade",
   initialMarket = "ZEC/USDC",
@@ -102,7 +103,7 @@ export function TradingTerminal({
   forceEducation = false,
   highlightIncidents = false,
 }: {
-  initialView?: View;
+  initialView?: TerminalView;
   initialMarket?: MarketId;
   initialFeed?: FeedStatus;
   initialBridgeJourney?: "deposit" | "withdrawal";
@@ -111,9 +112,12 @@ export function TradingTerminal({
   highlightIncidents?: boolean;
 }) {
   const router = useRouter();
-  const [view, setView] = useState<View>(initialView);
+  const [view, setView] = useState<TerminalView>(initialView);
+  const [viewFocusId, setViewFocusId] = useState<TerminalView>(initialView);
   const [marketId, setMarketId] = useState<MarketId>(initialMarket);
+  const [marketFocusId, setMarketFocusId] = useState<MarketId>(initialMarket);
   const [feedStatus, setFeedStatus] = useState<FeedStatus>(initialFeed);
+  const [feedFocusId, setFeedFocusId] = useState<FeedStatus>(initialFeed);
   const [range, setRange] = useState<ChartRange>("4H");
   const [books, setBooks] = useState(seedBooks);
   const [accounts, setAccounts] = useState(seedAccounts);
@@ -128,15 +132,20 @@ export function TradingTerminal({
     getIncidentDemoServerSnapshot,
   );
   const incidentDemo = highlightIncidents || storedIncidentDemo;
+  const demoQuery = incidentDemo ? INCIDENT_DEMO_QUERY : undefined;
   const nextOrderId = useRef(1);
   const nextPriceNonce = useRef(1);
   const nextFillId = useRef(1);
+  const rangeRefs = useRef<Partial<Record<ChartRange, HTMLButtonElement | null>>>({});
+  const viewRefs = useRef<Partial<Record<TerminalView, HTMLButtonElement | null>>>({});
+  const marketRefs = useRef<Partial<Record<MarketId, HTMLButtonElement | null>>>({});
+  const feedRefs = useRef<Partial<Record<FeedStatus, HTMLButtonElement | null>>>({});
   const market = markets[marketId];
   const book = books[marketId];
-  const displayedBook = feedStatus === "empty" ? emptyBook(book.lastTicks) : book;
+  const feed = feedSurface(feedStatus);
+  const statsSurface = feed;
+  const displayedBook = feed.showFixtures ? book : emptyBook(book.lastTicks);
   const account = accounts[marketId];
-
-  const demoQuery = incidentDemo ? INCIDENT_DEMO_QUERY : undefined;
 
   useEffect(() => {
     if (highlightIncidents) {
@@ -144,19 +153,114 @@ export function TradingTerminal({
     }
   }, [highlightIncidents]);
 
-  function selectView(nextView: View) {
+  function selectView(nextView: TerminalView) {
     setView(nextView);
+    setViewFocusId(nextView);
     router.replace(viewUrl(nextView, marketId, feedStatus, demoQuery), { scroll: false });
+  }
+
+  function moveViewFocus(next: TerminalView) {
+    setViewFocusId(next);
+    viewRefs.current[next]?.focus();
+  }
+
+  function onViewKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: TerminalView) {
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      moveViewFocus(nextTerminalView(id, 1));
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      moveViewFocus(nextTerminalView(id, -1));
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      moveViewFocus("trade");
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      moveViewFocus("architecture");
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      selectView(id);
+    }
   }
 
   function selectMarket(nextMarket: MarketId) {
     setMarketId(nextMarket);
+    setMarketFocusId(nextMarket);
     router.replace(viewUrl(view, nextMarket, feedStatus, demoQuery), { scroll: false });
   }
 
   function selectFeed(nextFeed: FeedStatus) {
     setFeedStatus(nextFeed);
+    setFeedFocusId(nextFeed);
     router.replace(viewUrl(view, marketId, nextFeed, demoQuery), { scroll: false });
+  }
+
+  function moveMarketFocus(next: MarketId) {
+    setMarketFocusId(next);
+    marketRefs.current[next]?.focus();
+  }
+
+  function moveFeedFocus(next: FeedStatus) {
+    setFeedFocusId(next);
+    feedRefs.current[next]?.focus();
+  }
+
+  function onMarketKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: MarketId) {
+    const action = interpretRovingKey(event.key);
+    if (!action) {
+      return;
+    }
+    event.preventDefault();
+    if (action === "next") {
+      moveMarketFocus(nextMarketId(id, 1));
+      return;
+    }
+    if (action === "prev") {
+      moveMarketFocus(nextMarketId(id, -1));
+      return;
+    }
+    if (action === "home") {
+      moveMarketFocus(MARKET_IDS[0]);
+      return;
+    }
+    if (action === "end") {
+      moveMarketFocus(MARKET_IDS[MARKET_IDS.length - 1]);
+      return;
+    }
+    selectMarket(id);
+  }
+
+  function onFeedKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: FeedStatus) {
+    const action = interpretRovingKey(event.key);
+    if (!action) {
+      return;
+    }
+    event.preventDefault();
+    if (action === "next") {
+      moveFeedFocus(nextFeedStatus(id, 1));
+      return;
+    }
+    if (action === "prev") {
+      moveFeedFocus(nextFeedStatus(id, -1));
+      return;
+    }
+    if (action === "home") {
+      moveFeedFocus(FEED_STATUSES[0]);
+      return;
+    }
+    if (action === "end") {
+      moveFeedFocus(FEED_STATUSES[FEED_STATUSES.length - 1]);
+      return;
+    }
+    selectFeed(id);
   }
 
   function sweepExpired(sourceBook = book, sourceAccount = account) {
@@ -258,6 +362,34 @@ export function TradingTerminal({
     setAccountEpoch((epoch) => epoch + 1);
   }
 
+  function onRangeKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: ChartRange) {
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      const next = nextChartRange(id, 1);
+      setRange(next);
+      rangeRefs.current[next]?.focus();
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const next = nextChartRange(id, -1);
+      setRange(next);
+      rangeRefs.current[next]?.focus();
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      setRange("1H");
+      rangeRefs.current["1H"]?.focus();
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      setRange("1D");
+      rangeRefs.current["1D"]?.focus();
+    }
+  }
+
   function resetSession() {
     setBooks(seedBooks());
     setAccounts(seedAccounts());
@@ -269,12 +401,45 @@ export function TradingTerminal({
   }
 
   const sessionTape = fills.filter((fill) => fill.marketId === marketId).slice(0, 6);
-  const statsSurface = feedSurface(feedStatus);
+  const fixtureTape = feed.showFixtures ? recentTrades[marketId] : [];
 
   return (
     <div className={styles.shell}>
-      <a className={styles.skipLink} href="#main-content">Skip to main content</a>
-      <div className={styles.simulationBanner} role="status">
+      <nav className={styles.skipNav} aria-label="Skip links">
+        <a className={styles.skipLink} href="#main-content">Skip to main content</a>
+        {initialAccess === "blocked" ? (
+          <a className={styles.skipLink} href="#country-block">Skip to country-block notice</a>
+        ) : null}
+        {initialAccess === "open" && view === "trade" ? (
+          <>
+            <a className={styles.skipLink} href="#order-ticket">Skip to order ticket</a>
+            <a className={styles.skipLink} href="#price-chart">Skip to price chart</a>
+            <a className={styles.skipLink} href="#order-book">Skip to order book</a>
+            <a className={styles.skipLink} href="#session-blotter">Skip to blotter</a>
+            <a className={styles.skipLink} href="#recent-trades">Skip to recent trades</a>
+          </>
+        ) : null}
+        {initialAccess === "open" && view === "architecture" ? (
+          <>
+            <a className={styles.skipLink} href="#architecture-layers">Skip to architecture layers</a>
+            <a className={styles.skipLink} href="#honesty-bar">Skip to honesty bar</a>
+            <a className={styles.skipLink} href="#incident-demonstration">Skip to incident demonstration</a>
+          </>
+        ) : null}
+        {initialAccess === "open" && view === "liquidity" ? (
+          <>
+            <a className={styles.skipLink} href="#liquidity-pools">Skip to pool tabs</a>
+            <a className={styles.skipLink} href="#pool-stats">Skip to pool stats</a>
+          </>
+        ) : null}
+        {initialAccess === "open" && view === "bridge" ? (
+          <>
+            <a className={styles.skipLink} href="#destination-inspector">Skip to destination inspector</a>
+            <a className={styles.skipLink} href="#privacy-callouts">Skip to privacy callouts</a>
+          </>
+        ) : null}
+      </nav>
+      <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
         <strong>Protocol preview</strong>
         <span>Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless.</span>
       </div>
@@ -284,23 +449,36 @@ export function TradingTerminal({
           <span className={styles.brandMark}>P</span>
           <span>PHLEBAS</span>
         </Link>
-        <nav className={styles.nav} aria-label="Primary navigation">
-          {views.map((item) => (
+        <nav
+          className={styles.nav}
+          role="tablist"
+          aria-label="Primary navigation"
+          aria-orientation="horizontal"
+        >
+          {TERMINAL_VIEWS.map((id) => (
             <button
               type="button"
-              key={item.id}
-              className={view === item.id ? styles.navActive : undefined}
-              aria-current={view === item.id ? "page" : undefined}
-              onClick={() => selectView(item.id)}
+              key={id}
+              role="tab"
+              id={`terminal-view-${id}`}
+              aria-controls="main-content"
+              aria-selected={view === id}
+              tabIndex={viewFocusId === id ? 0 : -1}
+              className={view === id ? styles.navActive : undefined}
+              ref={(node) => {
+                viewRefs.current[id] = node;
+              }}
+              onClick={() => selectView(id)}
+              onKeyDown={(event) => onViewKeyDown(event, id)}
             >
-              {item.label}
+              {TERMINAL_VIEW_LABELS[id]}
             </button>
           ))}
         </nav>
         <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
       </header>
 
-      {initialAccess === "open" && <PreviewEducation force={forceEducation} />}
+      <PreviewEducation force={forceEducation} />
 
       <main id="main-content" tabIndex={-1}>
         <h1 className={styles.srOnly}>Phlebas ZEC trading terminal</h1>
@@ -310,32 +488,51 @@ export function TradingTerminal({
             <section className={styles.marketBar} aria-label="Selected market summary">
               <div className={styles.marketSelectorWrap}>
                 <span className={styles.coinMark}>Z</span>
-                <label>
+                <div>
                   <span>Market</span>
-                  <select
-                    value={marketId}
-                    aria-label="Selected market"
-                    onChange={(event) => selectMarket(event.target.value as MarketId)}
-                  >
-                    <option value="ZEC/USDC">ZEC / USDC</option>
-                    <option value="ZEC/USDT">ZEC / USDT</option>
-                  </select>
-                </label>
+                  <div className={styles.selectorTabs} role="radiogroup" aria-label="Selected market">
+                    {MARKET_IDS.map((id) => (
+                      <button
+                        type="button"
+                        key={id}
+                        role="radio"
+                        aria-checked={marketId === id}
+                        tabIndex={marketFocusId === id ? 0 : -1}
+                        className={marketId === id ? styles.selectorActive : undefined}
+                        ref={(node) => {
+                          marketRefs.current[id] = node;
+                        }}
+                        onClick={() => selectMarket(id)}
+                        onKeyDown={(event) => onMarketKeyDown(event, id)}
+                      >
+                        {MARKET_ID_LABELS[id]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <span className={styles.settlementBadge}>settles {market.settlementPair}</span>
-                <label>
+                <div>
                   <span>Market data</span>
-                  <select
-                    value={feedStatus}
-                    aria-label="Market data state"
-                    onChange={(event) => selectFeed(event.target.value as FeedStatus)}
-                  >
-                    <option value="illustrative">Illustrative</option>
-                    <option value="loading">Loading</option>
-                    <option value="empty">Empty</option>
-                    <option value="stale">Stale</option>
-                    <option value="unavailable">Unavailable</option>
-                  </select>
-                </label>
+                  <div className={styles.selectorTabs} role="radiogroup" aria-label="Market data state">
+                    {FEED_STATUSES.map((id) => (
+                      <button
+                        type="button"
+                        key={id}
+                        role="radio"
+                        aria-checked={feedStatus === id}
+                        tabIndex={feedFocusId === id ? 0 : -1}
+                        className={feedStatus === id ? styles.selectorActive : undefined}
+                        ref={(node) => {
+                          feedRefs.current[id] = node;
+                        }}
+                        onClick={() => selectFeed(id)}
+                        onKeyDown={(event) => onFeedKeyDown(event, id)}
+                      >
+                        {FEED_STATUS_LABELS[id]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
               <dl className={styles.marketStats} aria-label="Market statistics">
                 <div className={styles.priceStat}>
@@ -344,65 +541,46 @@ export function TradingTerminal({
                 </div>
                 <div>
                   <dt>24h change</dt>
-                  <dd className={statsSurface.showFixtures && market.changeBps >= 0 ? styles.buyText : styles.sellText}>
-                    {statsSurface.showFixtures ? formatSignedChange(market.changeBps) : "—"}
+                  <dd className={feed.showFixtures ? (market.changeBps >= 0 ? styles.buyText : styles.sellText) : undefined}>
+                    {feed.showFixtures ? formatSignedChange(market.changeBps) : "—"}
                   </dd>
                 </div>
-                <div><dt>24h high</dt><dd>{statsSurface.showFixtures ? formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
-                <div><dt>24h low</dt><dd>{statsSurface.showFixtures ? formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
-                <div><dt>24h volume</dt><dd>{statsSurface.showFixtures ? market.volume : "—"}</dd></div>
+                <div><dt>24h high</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
+                <div><dt>24h low</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
+                <div><dt>24h volume</dt><dd>{feed.showFixtures ? `Fixture ${market.volume}` : "—"}</dd></div>
               </dl>
-              {!statsSurface.showFixtures || feedStatus === "stale" ? (
-                <p className={styles.inlineNotice} role="status">
-                  {feedWithheldCopy(feedStatus, market.settlementPair)}
-                </p>
-              ) : null}
+              <p className={styles.inlineNotice}>{feed.statsNote}</p>
             </section>
 
             <div className={styles.tradeGrid}>
-              <section className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
+              <section id="price-chart" tabIndex={-1} className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
                 <div className={styles.panelHeader}>
                   <div>
                     <span className={styles.eyebrow}>{chartPanelEyebrowCopy(market.settlementPair)}</span>
                     <h2 id="chart-title" aria-label={chartPanelHeadingCopy(marketId)}>{marketId}</h2>
                   </div>
-                  <div
-                    className={styles.rangeTabs}
-                    role="tablist"
-                    aria-label="Chart range"
-                    onKeyDown={(event) => {
-                      const index = CHART_RANGES.indexOf(range);
-                      let next = index;
-                      if (event.key === "ArrowRight") next = (index + 1) % CHART_RANGES.length;
-                      else if (event.key === "ArrowLeft") next = (index - 1 + CHART_RANGES.length) % CHART_RANGES.length;
-                      else if (event.key === "Home") next = 0;
-                      else if (event.key === "End") next = CHART_RANGES.length - 1;
-                      else return;
-                      event.preventDefault();
-                      setRange(CHART_RANGES[next] ?? range);
-                    }}
-                  >
+                  <div className={styles.rangeTabs} role="radiogroup" aria-label="Chart range">
                     {CHART_RANGES.map((item) => (
                       <button
                         type="button"
                         key={item}
-                        id={`chart-tab-${item}`}
-                        role="tab"
+                        role="radio"
+                        aria-checked={range === item}
                         aria-label={chartRangeTabLabel(item, market.settlementPair)}
-                        aria-selected={range === item}
-                        aria-controls="chart-panel"
                         tabIndex={range === item ? 0 : -1}
                         className={range === item ? styles.textActive : undefined}
+                        ref={(node) => {
+                          rangeRefs.current[item] = node;
+                        }}
                         onClick={() => setRange(item)}
+                        onKeyDown={(event) => onRangeKeyDown(event, item)}
                       >
                         {item}
                       </button>
                     ))}
                   </div>
                 </div>
-                <div role="tabpanel" id="chart-panel" aria-labelledby={`chart-tab-${range}`}>
-                  <PriceChart marketId={marketId} range={range} feedStatus={feedStatus} />
-                </div>
+                <PriceChart marketId={marketId} range={range} feedStatus={feedStatus} />
               </section>
 
               <OrderBook
@@ -431,7 +609,7 @@ export function TradingTerminal({
                 onSubmit={submitUserOrder}
               />
 
-              <section className={`${styles.panel} ${styles.tradesPanel}`} aria-labelledby="recent-trades-title">
+              <section id="recent-trades" tabIndex={-1} className={`${styles.panel} ${styles.tradesPanel}`} aria-labelledby="recent-trades-title">
                 <div className={styles.panelHeader}>
                   <h2 id="recent-trades-title">Recent trades</h2>
                   <span className={styles.miniLabel}>
@@ -453,25 +631,22 @@ export function TradingTerminal({
                         <td>{trade.time}</td>
                       </tr>
                     ))}
-                    {statsSurface.showFixtures
-                      ? recentTrades[marketId].map((trade) => (
-                        <tr key={`fixture-${trade.time}-${trade.priceTicks.toString()}`}>
-                          <th scope="row" className={trade.side === "buy" ? styles.buyText : styles.sellText}>
-                            {tapeSideCopy(trade.side)} {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
-                          </th>
-                          <td>{formatAtomicUnits(trade.sizeAtoms, ZEC_DECIMALS, 2)}</td>
-                          <td>{trade.time}</td>
-                        </tr>
-                      ))
-                      : sessionTape.length === 0
-                        ? (
-                          <tr>
-                            <td colSpan={3}>
-                              <p className={styles.emptyState}>{feedWithheldCopy(feedStatus, market.settlementPair)}</p>
-                            </td>
-                          </tr>
-                        )
-                        : null}
+                    {fixtureTape.map((trade) => (
+                      <tr key={`fixture-${trade.time}-${trade.priceTicks.toString()}`}>
+                        <th scope="row" className={trade.side === "buy" ? styles.buyText : styles.sellText}>
+                          {tapeSideCopy(trade.side)} {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
+                        </th>
+                        <td>{formatAtomicUnits(trade.sizeAtoms, ZEC_DECIMALS, 2)}</td>
+                        <td>{trade.time}</td>
+                      </tr>
+                    ))}
+                    {sessionTape.length === 0 && fixtureTape.length === 0 && (
+                      <tr>
+                        <td colSpan={3}>
+                          <p className={styles.emptyState}>{feedWithheldCopy(feedStatus, market.settlementPair)}</p>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </section>
@@ -495,41 +670,25 @@ export function TradingTerminal({
         {initialAccess === "open" && view === "liquidity" && (
           <LiquidityPanel
             marketId={marketId}
-            onMarketChange={selectMarket}
             feedStatus={feedStatus}
+            onMarketChange={selectMarket}
+            onFeedChange={selectFeed}
             onRetryFeed={() => selectFeed("illustrative")}
           />
         )}
         {initialAccess === "open" && view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
-        {initialAccess === "open" && view === "architecture" && (
-          <>
-            <section className={styles.marketBar} aria-label="Selected market">
-              <div className={styles.marketSelectorWrap}>
-                <label>
-                  <span>Market</span>
-                  <select
-                    value={marketId}
-                    aria-label="Selected market"
-                    onChange={(event) => selectMarket(event.target.value as MarketId)}
-                  >
-                    <option value="ZEC/USDC">ZEC / USDC</option>
-                    <option value="ZEC/USDT">ZEC / USDT</option>
-                  </select>
-                </label>
-                <span className={styles.settlementBadge}>settles {market.settlementPair}</span>
-              </div>
-            </section>
-            <ArchitecturePanel highlightIncidents={incidentDemo} />
-          </>
-        )}
+        {initialAccess === "open" && view === "architecture" && <ArchitecturePanel highlightIncidents={incidentDemo} />}
       </main>
 
       <footer className={styles.footer}>
-        <span>Phlebas protocol preview, 31-08-2026</span>
-        <Link href="/status">Status</Link>
-        <Link href="/legal">Legal</Link>
-        <Link href="/security">Security</Link>
-        <span>Research repository candidate, not a live exchange or an offer of financial services</span>
+        <span>Phlebas is a protocol preview, not a live exchange or an offer of financial services.</span>
+        <nav aria-label="Footer">
+          <Link href="/trade?view=architecture">Architecture</Link>
+          <Link href="/legal">Legal and compliance</Link>
+          <Link href="/#launch-gates">Launch gates</Link>
+          <Link href="/security">Security</Link>
+          <Link href="/status">Status</Link>
+        </nav>
       </footer>
     </div>
   );

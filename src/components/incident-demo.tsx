@@ -12,7 +12,13 @@ export function IncidentDemo({ highlight = false }: { highlight?: boolean }) {
   const incident = GATEWAY_INCIDENTS.find((item) => item.id === incidentId) ?? GATEWAY_INCIDENTS[0];
 
   return (
-    <div className={styles.incidentDemo} id="incident-demo" role="region" aria-labelledby={labelId}>
+    <div
+      id="incident-demonstration"
+      className={styles.incidentDemo}
+      role="region"
+      aria-labelledby={labelId}
+      tabIndex={-1}
+    >
       <div className={styles.panelHeader}>
         <div>
           <span className={styles.eyebrow}>State demonstration</span>
@@ -33,7 +39,13 @@ export function IncidentDemo({ highlight = false }: { highlight?: boolean }) {
           </select>
         </div>
       </label>
-      <div className={styles.uriBlock} aria-live="polite">
+      <div
+        id="incident-demo"
+        className={styles.uriBlock}
+        role="region"
+        aria-label="Selected incident demonstration"
+        aria-live="polite"
+      >
         <span className={styles.eyebrow}>State demonstration</span>
         <strong>{incident.title}</strong>
         <p>{incident.body}</p>

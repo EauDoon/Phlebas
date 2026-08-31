@@ -11,6 +11,7 @@ import {
   hashOrder,
   sepoliaDomain,
   typedData,
+  timeInForceCode,
   venuesBitmask,
   type TypedOrder,
 } from "./eip712.ts";
@@ -28,6 +29,7 @@ const sample: TypedOrder = {
   quoteAsset: QUOTE,
   baseAmount: 100_000_000n,
   limitPriceTicks: 5291n,
+  timeInForce: 0,
   nonce: 1n,
   accountEpoch: 0n,
   expiry: 0n,
@@ -39,7 +41,7 @@ const sample: TypedOrder = {
 
 test("EIP-712 typehashes are keccak of the canonical type strings", () => {
   assert.equal(EIP712_DOMAIN_TYPEHASH, "8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f");
-  assert.equal(ORDER_TYPEHASH, "500d62235725032be08d01f5a4aa11a96e771d40267bdf234cbf9dc51399cc24");
+  assert.equal(ORDER_TYPEHASH, "59d262d3dfbfd89c25b7ee0d870e5189eeea097456890c5d4769de7efefef4e8");
   assert.match(ORDER_TYPE, /^Order\(/);
 });
 
@@ -59,21 +61,34 @@ test("order digest is deterministic and changes with nonce", () => {
   assert.equal(digest, eip712DigestHex(domain, sample));
   assert.match(digest, /^[0-9a-f]{64}$/);
   assert.notEqual(digest, eip712DigestHex(domain, { ...sample, nonce: 2n }));
-  assert.equal(digest, "eed61ef0af305769d9791ea9cb3a6cf587afa1e8acc3c81108e692e4900c8c1a");
-  assert.equal(bytesToHex(hashOrder(sample)), "7dec6a8eea90d206d60f03afeb1576724c542c1f118535c875003e6719c6c334");
+  assert.equal(digest, "23cf06d636047955c46b031bd1e5e788d74321da1c19d01ee562b2e194cdc4e9");
+  assert.equal(bytesToHex(hashOrder(sample)), "78d7cf7804add8ba16e86edaba899f9ea37df1d536de8dd19091f5f09c035120");
 });
 
 test("wallet typed data carries the same fields as the Solidity order", () => {
   const payload = typedData(sepoliaDomain(ZERO), sample);
   assert.equal(payload.primaryType, "Order");
-  assert.equal(payload.domain.chainId, Number(ARBITRUM_SEPOLIA_CHAIN_ID));
+  assert.equal(payload.domain.chainId, ARBITRUM_SEPOLIA_CHAIN_ID.toString());
   assert.equal(payload.message.side, 0);
   assert.equal(payload.message.baseAmount, "100000000");
+  assert.equal(payload.message.timeInForce, 0);
   assert.equal(venuesBitmask("clob,amm"), 3);
+  assert.equal(timeInForceCode("FOK"), 2);
 });
 
 test("rejects over-cap fees and malformed addresses", () => {
   const domain = sepoliaDomain(ZERO);
   assert.throws(() => eip712DigestHex(domain, { ...sample, maximumFeeBps: 31 }), /30/);
   assert.throws(() => sepoliaDomain("not-an-address"), /address/);
+  assert.throws(() => typedData(domain, { ...sample, nonce: 1n << 64n }), /uint64/);
+});
+
+test("rejects values that Solidity cannot encode into the declared integer widths", () => {
+  const domain = sepoliaDomain(ZERO);
+  assert.throws(() => eip712DigestHex(domain, { ...sample, baseAmount: 1n << 128n }), /uint128/);
+  assert.throws(() => eip712DigestHex(domain, { ...sample, nonce: 1n << 64n }), /uint64/);
+  assert.throws(() => eip712DigestHex(domain, { ...sample, expiry: -1n }), /uint64/);
+  assert.throws(() => eip712DigestHex(domain, { ...sample, baseAmount: 0n }), /positive/);
+  assert.throws(() => eip712DigestHex(domain, { ...sample, maximumFeeBps: 1.5 }), /30/);
+  assert.throws(() => eip712DigestHex(domain, { ...sample, timeInForce: 3 as 0 }), /timeInForce/);
 });

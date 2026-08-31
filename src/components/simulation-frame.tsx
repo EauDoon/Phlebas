@@ -8,14 +8,19 @@ import styles from "./terminal.module.css";
 export function SimulationFrame({
   title,
   children,
+  skipTo,
 }: {
   title: string;
   children: ReactNode;
+  skipTo?: { href: string; label: string };
 }) {
   return (
     <div className={styles.shell}>
-      <a className={styles.skipLink} href="#main-content">Skip to main content</a>
-      <div className={styles.simulationBanner} role="status">
+      <nav className={styles.skipNav} aria-label="Skip links">
+        <a className={styles.skipLink} href="#main-content">Skip to main content</a>
+        {skipTo ? <a className={styles.skipLink} href={skipTo.href}>{skipTo.label}</a> : null}
+      </nav>
+      <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
         <strong>Simulation only</strong>
         <span>No-value simulation. Optional Sepolia wallet and local testnet services do not move mainnet funds.</span>
       </div>
@@ -36,6 +41,16 @@ export function SimulationFrame({
         <h1>{title}</h1>
         {children}
       </main>
+      <footer className={styles.footer}>
+        <span>Phlebas is a protocol preview, not a live exchange or an offer of financial services.</span>
+        <nav aria-label="Footer">
+          <Link href="/trade?view=architecture">Architecture</Link>
+          <Link href="/legal">Legal and compliance</Link>
+          <Link href="/#launch-gates">Launch gates</Link>
+          <Link href="/security">Security</Link>
+          <Link href="/status">Status</Link>
+        </nav>
+      </footer>
     </div>
   );
 }

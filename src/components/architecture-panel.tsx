@@ -33,7 +33,13 @@ export function ArchitecturePanel({ highlightIncidents = false }: { highlightInc
         The public UI must never become the custody backend. Each layer receives only the
         authority it needs. Any implemented cross-layer message must be replay-protected and auditable.
       </p>
-      <div className={styles.layerGrid}>
+      <div
+        id="architecture-layers"
+        className={styles.layerGrid}
+        role="region"
+        aria-label="Architecture layers"
+        tabIndex={-1}
+      >
         {layers.map((layer, index) => (
           <article key={layer.title} className={styles.layerCard}>
             <span className={styles.layerNumber}>0{index + 1}</span>
@@ -45,11 +51,17 @@ export function ArchitecturePanel({ highlightIncidents = false }: { highlightInc
           </article>
         ))}
       </div>
-      <IncidentDemo highlight={highlightIncidents} />
-      <div className={styles.honestyBar}>
-        <strong>Proposed product label</strong>
-        <span>Designed as a hybrid DEX with an offchain matcher, onchain settlement, constrained AMM contracts, and a custody-backed ZEC gateway. The matcher is not trustless. Mainnet access policy remains unresolved.</span>
+      <div
+        id="honesty-bar"
+        className={styles.honestyBar}
+        role="region"
+        aria-label="Architecture honesty bar"
+        tabIndex={-1}
+      >
+        <strong>Target product boundary</strong>
+        <span>Designed as a non-custodial exchange with an offchain matcher and wallet-signed native-ZEC atomic settlement. The matcher is not trustless. It can censor or delay orders. Mainnet access policy remains unresolved.</span>
       </div>
+      <IncidentDemo highlight={highlightIncidents} />
     </section>
   );
 }

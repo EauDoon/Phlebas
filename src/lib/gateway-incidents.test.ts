@@ -1,15 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  GATEWAY_INCIDENTS,
-  INCIDENT_DEMO_QUERY,
-  INCIDENT_DEMO_STORAGE_KEY,
-  gatewayIncidentById,
-  getIncidentDemoServerSnapshot,
-  isIncidentDemoQuery,
-  rememberIncidentDemo,
-} from "./gateway-incidents.ts";
+import { GATEWAY_INCIDENTS, gatewayIncidentById } from "./gateway-incidents.ts";
 
 test("incident demonstrations stay labeled copy, not live incidents", () => {
   assert.equal(GATEWAY_INCIDENTS.length, 10);
@@ -21,32 +13,6 @@ test("incident demonstrations stay labeled copy, not live incidents", () => {
   assert.ok(planned);
   assert.match(planned.body, /UTC/);
   assert.doesNotMatch(planned.body, /\btomorrow\b/i);
-});
-
-test("incident demo query is allowlisted to incidents", () => {
-  assert.equal(INCIDENT_DEMO_QUERY, "incidents");
-  assert.equal(isIncidentDemoQuery("incidents"), true);
-  assert.equal(isIncidentDemoQuery("live"), false);
-  assert.equal(isIncidentDemoQuery(undefined), false);
-});
-
-test("rememberIncidentDemo stays sticky after the URL drops demo", () => {
-  const store = new Map<string, string>();
-  const storage = {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      store.set(key, value);
-    },
-  };
-  assert.equal(rememberIncidentDemo(true, storage), true);
-  assert.equal(store.get(INCIDENT_DEMO_STORAGE_KEY), INCIDENT_DEMO_QUERY);
-  assert.equal(rememberIncidentDemo(false, storage), true);
-  assert.equal(rememberIncidentDemo(false, null), false);
-  assert.equal(rememberIncidentDemo(true, null), true);
-});
-
-test("incident demo store snapshot is false on the server", () => {
-  assert.equal(getIncidentDemoServerSnapshot(), false);
 });
 
 test("incident copy does not promise credit, loss, or a live outage", () => {

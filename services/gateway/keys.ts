@@ -1,4 +1,4 @@
-import { createECDH, createHash, randomBytes } from "node:crypto";
+import { createECDH, createHash, createHmac, randomBytes } from "node:crypto";
 
 import { bytesToHex } from "../../src/lib/keccak.ts";
 
@@ -21,15 +21,23 @@ export function deriveTestnetChildKey(master: Uint8Array, sequence: number): Uin
   if (master.length !== 32) {
     throw new RangeError("Master key must be 32 bytes");
   }
-  if (!Number.isInteger(sequence) || sequence < 0) {
-    throw new RangeError("Sequence must be a non-negative integer");
+  if (!Number.isSafeInteger(sequence) || sequence < 0) {
+    throw new RangeError("Sequence must be a non-negative safe integer");
   }
-  const material = Buffer.concat([
-    Buffer.from("phlebas-testnet-tex-v1"),
-    Buffer.from(master),
-    Buffer.from(String(sequence)),
-  ]);
-  return createHash("sha256").update(material).digest();
+  const index = Buffer.alloc(8);
+  index.writeBigUInt64BE(BigInt(sequence));
+  for (let attempt = 0; attempt < 256; attempt += 1) {
+    const candidate = createHmac("sha256", master)
+      .update("phlebas-testnet-tex-v1")
+      .update(index)
+      .update(Uint8Array.of(attempt))
+      .digest();
+    const scalar = BigInt(`0x${candidate.toString("hex")}`);
+    if (scalar > 0n && scalar < 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n) {
+      return candidate;
+    }
+  }
+  throw new Error("Unable to derive a valid secp256k1 child key");
 }
 
 export function newMasterKey(): Uint8Array {

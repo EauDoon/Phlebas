@@ -1,12 +1,12 @@
-# Phlebas progress
+﻿# Phlebas progress
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after reserve tZEC refund helper and gateway stub walker states.
+Last updated: 01-09-2026 after native ZEC-USDC/ZEC-USDT pair labels, reserve tZEC refund helper, and leftover 44px education/skip-nav work.
 
 ## Branch
 
-`feat/native-zec-usdc-usdt` stacked on `feat/simulation-hardening` (open PR #23 at `146069e`). Do not add commits to PR #22 or PR #23.
+`feat/native-zec-usdc-usdt` stacked on `feat/simulation-hardening` (open PR #23 at `146069e`). Do not add commits to PR #22 or PR #23. This merge brings current `main` audit/atomic-swap and leftover product-ui tests into the native-pair branch.
 
 ## Done
 
@@ -27,15 +27,16 @@ Last updated: 01-09-2026 after reserve tZEC refund helper and gateway stub walke
 - Receivable testnet TEX via a local gateway (`textest` only, single-use ledger). Public app issues nothing without `PHLEBAS_GATEWAY_URL`.
 - Injected EVM wallet connector limited to Arbitrum Sepolia. Signing does not submit a settlement transaction.
 - Local matcher operator sequences, recovers EIP-712 signatures, and matches. Not bundled into Vercel.
-- Foundry Sepolia deploy script plus `scripts/record-sepolia-deploy.mjs`. Manifest stays `deployed: false` until `--mark-deployed` sees a real tx.
+- Foundry Sepolia deploy script plus `scripts/record-sepolia-deploy.mjs`. Manifest stays `deployed: false` until `--mark-deployed` verifies a successful receipt and bytecode at every recorded address over Sepolia RPC.
 - Session tickets bind keccak EIP-712 to settlement when a wallet is connected. SHA-256 remains the session-only simulation encoding.
-- Wallet sign-and-submit is behind `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1`. Default is sign-only. Zero settlement address cannot send a tx.
+- Wallet signing stays disabled until the verified manifest is deployed. Sign-and-submit also requires `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1`.
 - Matcher persists book, receipts, recover, and sequence under `services/matcher/.data` on 127.0.0.1.
 - Isolated local Compose under `services/` for gateway, matcher, and observer. Host ports bind `127.0.0.1`. Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.
-- Zebra observer and mint-attestation stubs: textest only, 10 confirmations, one outpoint one mint. No Zebra RPC. HTTP `/attest` is covered by a live loopback test.
+- Zebra observer and mint-attestation stubs: textest only, 10 confirmations, durable one-outpoint/one-mint replay protection, strict observation input, and conservative multi-observer confirmation agreement. No Zebra RPC. HTTP `/attest` is covered by a live loopback/restart test.
 - License: Apache License 2.0 (`LICENSE`, `docs/LICENSE_CHOICE.md`). Not MIT. Product language unchanged.
 - Operator runbook for local Compose: `docs/OPERATOR_RUNBOOK.md`. Gateway, matcher, and observer health and incident steps. Loopback HTTP tests cover issue, sequence health, attest, quarantine, and disagreement.
 - Public `/api/deposit-intent` and `/api/matcher` only proxy `http://127.0.0.1` (or localhost / `[::1]`) with no path. Anything else, including unset, is 503.
+- Public operator APIs accept only loopback HTTP services and remain unavailable on Vercel.
 - Payout stub: one burn, one transparent-shape destination, never TEX or shielded. Withdrawal inspector previews the stub and still sends nothing.
 - Observer reorg drops off-chain and under-confirmed observations.
 - Country access default deny, empty enable list, shown on the landing ledger and `/status`.
@@ -74,6 +75,19 @@ Last updated: 01-09-2026 after reserve tZEC refund helper and gateway stub walke
 - Session ticket expiry is unix time or 0 for none. It binds the SHA-256 canonical encoding and the keccak typed order.
 - Playwright covers market-IOC worst price, expiry on review, IL versus hold, and `/status` intent-cap `unset`.
 - Ticket shows the next session nonce beside epoch. Invalid expiry keeps review closed.
+- First-session education dialog on `/trade` and `/liquidity` (`phlebas.previewEducationVersion = 2026-08-30-1`). Education, not consent. Force with `?education=1`. Escape dismisses it. 320px keeps the dialog and Continue at 44px.
+- Country-blocked state demonstration via allowlisted `?access=blocked` on `/trade` and `/liquidity`. Never infers location.
+- Deposit state tour: Eligibility through Complete. Address request never shows a receivable address.
+- `/legal` and `/security` simulation pages. Landing and terminal footers: Architecture, Legal, Security, Status. No GitHub URL.
+- LP mint and swap use review-and-confirm repeating PRODUCT_SPEC §10. Burn stays available during a trading pause.
+- Architecture labeled incident demonstrations: blocked, review, reorg, planned and unplanned maintenance. Incident select is a 44px target.
+- Ticket keyboard: G/I/F time in force, Escape back from review. Shortcuts ignore an open dialog.
+- Landing journey chooser: four manual tabs (Trader, LP, Deposit, Withdrawal). Arrow keys move focus; Enter/Space selects. Without JavaScript, all four descriptions remain. Header Liquidity selects LP after hydration.
+- Landing evidence rows: order book, LP math, gateway design, published boundary.
+- Landing terminal preview (`#terminal-preview`): labeled Simulation, illustrative ZEC/USDC depth and a non-submitting ticket slice. Header Markets points here. No wallet, fill, or payable address.
+- Mainnet gates: six evidence rows, all `Not cleared`. Action is Read the launch gates.
+- pZEC section cites ZIP 320 and states no shielded deposit or withdrawal for v1.
+- `/status` links to legal, security, architecture, and launch gates.
 - Session blotter log line includes expiry when a ticket is confirmed. Nonce-bitmap helper matches Settlement.sol (`word = nonce >> 8`, `bit = 1 << uint8(nonce)`).
 - In-browser matcher rejects a taker whose unix expiry has passed and drops resting orders after that unix time. Replay still omits `nowUnix` so a logged submit reconstructs.
 - Ticket shows a rejected panel (role=alert) for expiry, matcher reject, inventory, and self-trade. Retry is safe.
@@ -198,9 +212,280 @@ Last updated: 01-09-2026 after reserve tZEC refund helper and gateway stub walke
 - LANDING_AND_USER_JOURNEYS includes unresolved recovery and deposit fail-closed Unavailable, Rejected, and Stale.
 - `refundWithdrawalBeforeSignature` restores tZEC supply from a payable reserve snapshot and refuses signed claims. Unit test starts from `burnedState`.
 - Gateway stub uses `payoutClaimStubCopy(tourClaim)` so later happy-path ids show `signed`/`broadcast`/`mined`/`confirmed`, not collapsed payable.
+- Blotter tabs expose one tabpanel each, with arrow/Home/End keys and Enter/Space select.
+- Landing hero, current-system ledger, and pZEC heading match LANDING_AND_USER_JOURNEYS copy. Wallet row is Unavailable, not Optional Sepolia.
+- Landing skip links reach journeys, evidence, and the terminal preview.
+- EIP-712 and settlement calldata bind time-in-force and enforce Solidity integer widths; wallets recheck Sepolia immediately before signing.
+- Settlement rejects high-s signatures, reentrancy, self-trades, invalid roles/assets, unsupported TIF behavior, and unsafe token-return conventions. Exact buyer, seller, and fee accounting is tested.
+- AMM first mint uses geometric-mean shares with locked minimum liquidity; later mints use both reserves, LP exits remain open during a trading pause, and donation-aware burn/sync paths are tested.
+- Matcher rejects replay, expiry, unapproved assets/venues, self-trades, unsupported multi-fill IOC/FOK, and fee caps that cannot settle. Signatures are mandatory outside explicit unit-test bypasses.
+- Matcher, gateway, and observer mutations are serialized and use file fsync plus atomic rename. Corrupt or unexpectedly missing replay state fails closed. Windows lacks a portable directory-fsync barrier, which is documented without weakening file fsync or rename.
+- Sepolia deployment requires distinct roles. The manifest is wired into runtime configuration and cannot be marked deployed without a complete, commit-bound successful Sepolia receipt and verified bytecode at every address.
+- CI pins the Foundry action and toolchain. Contract invariants include 10,000-case AMM-product and settlement-rounding fuzz runs in the release check.
+- Chart, 24h stats, depth, and LP mint/swap reuse ticket-gate feed names. Empty, loading, and unavailable withhold fixtures. Chart panel keeps height. Stale still shows delayed fixtures.
+- ZIP 321 placeholder QR is labeled not payable. Clipboard failure and missing clipboard stay honest. Nothing is sent.
+- Ticket G/I/F stay idle while review is open. Escape leaves review. Shortcuts ignore native dialogs.
+- Status names architecture incident demonstrations and is not an incident feed. Terminal and simulation-frame footers include Launch gates.
+- Chart range and LP pool choice are radiogroups with arrow/Home/End keys.
+- Skip links reach the order ticket, price chart, order book, and blotter.
+- Ticket validation errors sit beside price, size, slippage, and expiry, with `aria-errormessage`.
+- Review sheets repeat the later listing gate for `ZEC/USDT` and `pZEC/USDT0`.
+- App Router `loading.tsx` names a simulation and withholds prices. Open Graph and Twitter cards say no-value simulation.
+- Local fill copy says nothing was signed or submitted to a chain. Simulation error Retry uses the primary action style.
+- Playwright covers feed surfaces, placeholder QR, clipboard failure, G/I/F during review, skip-to-chart, chart-range arrows, field errors, USDT review listing-gate, LP pool arrows, and OG metadata.
+- Terminal view tabs move focus with arrows and select with Enter/Space, matching blotter tabs
+- LP amount field errors use `aria-errormessage` and keep review closed
+- 24h volume and LP TVL visible values are labeled Fixture
+- Ticket keyboard copy is a named 44px region
+- Withdrawal tour includes an unresolved demonstration; stub claim stays unresolved and nothing is sent
+- Chart SVG pixel coordinates are documented display floats; axis labels stay integer ticks
+- Playwright covers view-tab arrows, LP field errors, fixture-labeled volume, shortcut region, and unresolved withdrawal
+- Ticket side, type, and time-in-force groups move focus with arrows and select with Enter/Space
+- Size percent shortcuts are 44px on desktop
+- Gateway deposit/withdrawal journey buttons move with arrows
+- Landing terminal preview depth names last, price, and size as Fixture
+- Status skip link reaches the status ledger
+- Playwright covers ticket-group arrows, 44px size shortcuts, gateway journey arrows, preview fixture labels, and status skip
+- Market and feed-state selectors move with arrows, Home/End, and Enter/Space the way blotter tabs do
+- Review Back and ticket primary actions stay 44px at desktop, not only under 820px
+- LP mint, swap, and burn tour buttons stay 44px on desktop
+- `/legal` and `/security` skip to the article the way status skips to the ledger
+- Architecture incident demonstrations keep the selected copy in a named region
+- Market bar keeps market and feed selectors inside the panel when USDT listing-gate copy appears
+- Playwright covers market/feed arrows, desktop 44px review Back, LP tour targets, legal and security skip, and the incident region
+- Market and feed selector tabs stay 44px on desktop, not only under 820px
+- Ticket side segmented buttons stay 44px on desktop
+- Wallet connect stays 44px on desktop
+- Chart range buttons stay 44px on desktop
+- 404 page skips to the missing-route copy
+- Architecture skips to the incident demonstration
+- Playwright covers desktop 44px market/feed tabs, connect, chart range, ticket side, 404 skip, and architecture skip
+- Ticket order-type buttons stay 44px on desktop
+- Terminal view tabs stay 44px on desktop
+- Blotter tabs stay 44px on desktop
+- Liquidity skips to the pool tabs
+- Destination inspector stays on both gateway journeys; bridge skips to it
+- Playwright covers desktop 44px order-type, view, and blotter tabs, liquidity skip, and bridge skip
+- Allowlisted `?error=1` is a labeled rendering-failure demonstration; Retry is safe; nothing is submitted
+- Error page skips to the retry copy
+- Global-error Retry stays 44px and skips to the retry copy
+- Order book price rows stay 44px on desktop
+- Playwright covers error skip, 44px GTC, and 44px order-book price rows. Global-error Retry is asserted in copy-boundary because it is not a public route.
+- Reset session, blotter Cancel, Cancel all, and Invalidate older session orders stay 44px on desktop
+- Retry illustrative feed stays 44px on desktop
+- Recent-trade tape rows stay 44px on desktop
+- Trade skip links reach recent trades
+- Playwright covers 44px Reset, Cancel, Retry illustrative, tape rows, and recent-trades skip
+- Session-last / mid-price row stays 44px on desktop
+- Blotter fills and inventory rows stay 44px on desktop
+- Allowlisted `?loading=1` shows the simulation loading copy with prices withheld
+- Loading copy skips to the withheld-price notice
+- Playwright covers 44px mid-price, fills, inventory rows, and loading skip
+- Blotter event-log rows stay 44px on desktop
+- LP pool-stats rows stay 44px on desktop
+- Chart empty state is a named 44px region
+- Order-book empty state stays 44px on desktop
+- Liquidity skips to pool stats
+- Playwright covers 44px event-log, LP stats, chart empty, and pool-stats skip
+- Ticket inline notices stay 44px on desktop
+- Wallet-provider rejection is a named 44px notice
+- Terminal and landing simulation banners stay 44px and are named Simulation disclosure
+- Playwright covers 44px ticket notice, wallet rejection, and simulation banners
+- Ticket blocked and gate notices stay 44px on desktop
+- Country-block notice stays 44px; skip reaches it; trade skips stay hidden while blocked
+- Education dialog copy is a named 44px region
+- Playwright covers 44px ticket blocked, gate, country-block, education copy, and country-block skip
+- Architecture honesty bar stays 44px and is a named skip target
+- Selected incident demonstration copy stays 44px on desktop
+- Ticket and LP review custody notices are named 44px regions
+- Playwright covers 44px honesty bar, incident copy, review custody, and honesty-bar skip
+- Bridge privacy callouts stay 44px on desktop and are a named skip target
+- Landing evidence rows stay 44px on desktop and are a named list
+- Architecture layer cards stay 44px on desktop and are a named skip target
+- Playwright covers 44px privacy callouts, evidence rows, layer cards, privacy skip, and layers skip
+- Status, legal, and security ledger rows stay 44px on desktop
+- Landing skip links follow on-page order: markets, evidence, pZEC, terminal preview, journeys, launch gates
+- Landing skip links reach markets, pZEC, and launch gates
+- Landing market cards and launch gates are named lists
+- Landing mobile menu links stay 44px
+- Playwright covers 44px status ledgers, named market cards and launch gates, landing skips in page order, and menu links
+- Landing current-system ledger is a named list
+- Landing no-JS journey cards are a named list
+- Landing desktop nav and footer links stay 44px on desktop
+- Simulation-frame and terminal footer rows stay 44px on desktop
+- Landing pZEC flow steps stay 44px on desktop
+- Playwright covers 44px landing nav, footer, pZEC flow, simulation-frame and terminal footer links, and named current-system and no-JS journey lists
+- Status, legal, and security ledgers are named lists
+- Landing header Enter simulation stays 44px on desktop
+- Simulation-frame primary nav links stay 44px on desktop
+- Landing journey tabs stay 44px on desktop
+- Landing pZEC ZIP 320 source link stays 44px on desktop
+- Playwright covers 44px header CTA, journey tabs, pZEC source, simulation-frame nav, and named status ledgers
+- Landing hero Enter simulation and Understand pZEC stay 44px on desktop
+- Landing Open status details stays 44px on desktop
+- Landing Read the launch gates stays 44px on desktop
+- Simulation-frame and terminal brand home links stay 44px on desktop
+- Playwright covers 44px hero CTAs, Open status details, launch-gates link, and brand home links
+- Landing market Preview market links stay 44px on desktop
+- Landing journey panel actions stay 44px on desktop
+- Landing no-JS journey card actions stay 44px on desktop
+- Landing header brand home stays 44px on desktop
+- Playwright covers 44px market preview links, journey actions, no-JS journey actions, and landing brand
+- Status, legal, and security in-page links stay 44px on desktop
+- Landing skip links stay 44px on desktop
+- Landing Menu and Close stay 44px
+- Playwright covers 44px status in-page links, landing skip links, and Menu/Close
+- Terminal and simulation-frame skip links stay 44px on desktop
+- Education Continue stays 44px on desktop
+- Error Retry stays 44px on desktop
+- Playwright covers 44px terminal skip links, education Continue, and error Retry
+- 404 skip and missing-route copy stay 44px on desktop
+- Loading skip and withheld-price notice stay 44px on desktop
+- Education Back and Enter simulation stay 44px on desktop
+- Playwright covers 44px 404 skip, loading skip, education Back, and education Enter simulation
+- Deposit and withdrawal tour buttons stay 44px on desktop
+- Retry copy region stays 44px on desktop
+- Country-block skip stays 44px on desktop
+- Playwright covers 44px tour buttons, retry copy, and country-block skip
+- Architecture skip, honesty-bar skip, and layers skip stay 44px on desktop
+- Liquidity pool-tabs skip and pool-stats skip stay 44px on desktop
+- Bridge destination-inspector skip and privacy-callouts skip stay 44px on desktop
+- Playwright covers 44px architecture, liquidity, and bridge skip links
+- Trade skip links (ticket, chart, book, blotter, tape) stay 44px on desktop
+- Incident demonstration skip stays 44px on desktop
+- Playwright covers 44px trade skips and incident skip
+- Skip-target scroll-margin applies to unhashed ids
+- Status, legal, and security skip links stay 44px on desktop
+- Playwright covers 44px status/legal/security skips and skip-target scroll-margin
+- Trade skip targets keep 12px scroll-margin
+- Landing skip sections keep 12px scroll-margin
+- Landing skip links keep a 2px focus ring
+- Playwright covers skip-target scroll-margin on trade and landing, and skip-link focus ring
+- Terminal skip links keep a 2px focus ring
+- Skip-nav leaves 12px inset so the skip-link focus ring is not clipped
+- Landing pZEC, journeys, and launch-gates skip targets keep 12px scroll-margin
+- Playwright covers terminal skip-link focus ring, skip-nav inset, and remaining landing skip-margins
+- Reduced-motion keeps skip-nav in place without a slide
+- Landing overflow clip leaves 8px so the skip-link focus ring is not clipped
+- Skip-nav remains above the simulation banner
+- Playwright covers reduced-motion skip-nav, skip-link ring not clipped, and skip-nav stacking
+- Terminal simulation banner stays below skip-nav
+- Skip-nav does not cover the header brand at 320px under reduced motion until focused
+- Skip-link focus stays inside the viewport at 320px
+- Playwright covers terminal banner stacking, 320px reduced-motion skip-nav vs brand, and 320px skip-link ring
+- Focused skip-nav stays in flow at 320px so it does not cover the simulation banner copy
+- Header brand stays a 44px target at 320px under reduced motion
+- Skip-nav clip-path restore keeps skip links 44px tall
+- Playwright covers 320px focused skip-nav vs banner copy, 44px brand, and 44px skip links after clip restore
+- Focused skip-nav wraps skip links two-up at 320px so it does not consume the full viewport height
+- Terminal skip-nav in flow does not cover the topbar brand
+- Skip-nav returns to its clipped hidden state after skip-link activation
+- Playwright covers 320px skip-nav wrap, terminal brand below skip-nav, and hide after skip
+- Skip-link `:focus-visible` keeps the 2px `#15140d` ring for keyboard focus
+- Two-up skip links stay 44px tall when the label wraps at 320px
+- Focused skip-nav stays inside the 320px viewport (`max-width: 100%`)
+- Skip-nav focused padding is 4px so the 2px ring plus offset stays inside overflow-y auto
+- Hidden reduced-motion skip-nav zeros padding and gap and sets `transition: none` so hide restores a 1px clip box
+- Playwright covers focus-visible wrap height, 320px overflow, unclipped ring, and hide after skip
+- Skip-link wrapped labels use `line-height: 1.3` at 320px
+- Skip-nav height cap uses 6px padding so the 2px ring plus offset is not clipped vertically
+- A later `max-width: 820px` rule keeps `overflow-y: auto` after reduced-motion `overflow: visible`
+- Skip-nav `scrollbar-gutter: stable` keeps two-up skip links at least 44px
+- Focused skip-nav at 390px is `width: 100%` two-up with the 2px ring inside the viewport
+- `a.skipLink:focus-visible` keeps outline `#15140d` against global `a:focus-visible`
+- Overflow-y auto without reduced-motion still contains the skip-link ring
+- Focused skip-nav stays in flow (`position: relative; inset auto`) so it does not cover the landing header after wrap
+- Playwright covers wrapped line-height, vertical ring, gutter, 390px two-up, focus-visible color, motion overflow-y auto, and header clearance
+- Two-up skip-link labels use `overflow-wrap: anywhere` so width stays at least 44px
+- Focused skip-nav stays two-up at 768px (`flex-direction: row; flex-wrap: wrap`) with the 2px ring inside the viewport
+- Skip-nav `column-gap` / `row-gap` 4px plus `max-width: calc(50% - 2px)` keeps two-up links inside the guttered nav
+- A wrapped two-up pair uses `align-items: stretch` so both links share the same row height
+- Focused skip-nav `z-index: auto` at 820px so it does not cover the landing Menu button
+- Terminal skip-nav at 390px stays two-up with the 2px ring inside the viewport
+- Playwright covers 768px two-up, overflow-wrap, gutter max-width, stretched row height, Menu clearance, and terminal 390px two-up
+- Skip-nav `row-gap: 8px` so 2px rings plus offset do not clip between wrapped rows
+- Two-up skip-link `padding: 8px` and `box-sizing: border-box` keep overflow-wrap labels inside the 44px target
+- Two-up skip links use `flex: 1 0` so a leftover odd link stays at least 44px
+- Focused skip-nav `z-index: 1` at 820px so skip links stay above the simulation banner
+- Focused skip-nav at 768px does not cover the landing header brand
+- Terminal skip-nav at 768px stays two-up with the 2px ring inside the viewport
+- Simulation-frame skip-nav on `/legal` and `/security` stays two-up at 320px
+- Playwright covers row-gap rings, leftover 44px, 768px brand, terminal 768 two-up, legal/security two-up, and banner stacking
+- Skip-nav `column-gap: 8px` so 2px rings plus offset do not overlap two-up neighbors
+- Two-up skip links use `flex: 1 0 calc(50% - 4px)` to match the 8px column-gap
+- Two-up skip links use `word-break: break-word` so overflow-wrap stays inside the cell
+- `/status` skip-nav stays two-up at 320px
+- Liquidity leftover skip link (three links) stays at least 44px at 320px
+- Skip-link 8px padding still leaves a 44px min-height
+- Focused skip-nav at 768px does not cover the landing Menu button
+- Focused skip-nav z-index 1 does not cover the landing header after wrap at 320px
+- Playwright covers column-gap rings, status two-up, liquidity leftover, 768px Menu, 320px header, and security wrap
+- Two-up skip links use `flex: 1 1` so 8px column-gap plus scrollbar-gutter still leaves 44px at 320px
+- Focused skip-nav `min-width: 0` so the guttered nav can shrink
+- Two-up `max-width: min(100%, calc(50% - 4px))` keeps word-break inside the 44px cell
+- 404 and loading skip-nav stay two-up at 320px
+- Bridge leftover skip link (three links) stays at least 44px at 320px
+- Architecture skip-nav at 320px stays two-up with the 2px ring inside the viewport
+- Status skip-nav at 768px stays two-up with the 2px ring inside the viewport
+- Playwright covers gutter 44px, 404/loading two-up, bridge leftover, architecture 320 ring, status 768, and word-break overflow
+- Trailing `max-width: 820px` skip-link rule keeps `min-width`/`min-height` 44px after skip-nav `min-width: 0`
+- Trailing skip-link `flex: 1 1 calc(50% - 4px)` keeps two-up after reduced-motion
+- Error-page skip-nav stays two-up at 320px
+- Country-block skip-nav stays two-up at 320px
+- Architecture skip links stay at least 44px at 390px
+- Loading, 404, and bridge skip-nav stay two-up at 768px with the 2px ring inside the viewport
+- Playwright covers error and country-block two-up, architecture 390 leftover, and 768 loading/404/bridge two-up
+- Trailing skip-link `max-width: min(100%, calc(50% - 4px))` and `box-sizing: border-box` keep two-up plus 8px gap inside 320px
+- Global-error skip-nav has Skip to main content and Skip to retry copy, two-up, with a `#15140d` focus-visible ring
+- Global-error Retry stays 44px
+- Legal skip links stay at least 44px at 390px
+- Liquidity, country-block, architecture, and error skip-nav stay two-up at 768px with the 2px ring inside the viewport
+- Playwright covers 768 liquidity/country-block/architecture/error two-up, legal leftover at 390px, and 320 trailing overflow
+- Trailing skip-nav `padding: 8px` keeps the 2px ring inside overflow-y auto
+- Education dialog `margin-top: min(40vh, 17.5rem)` at 820px so it stays below skip-nav
+- Education waits to `showModal` while skip-nav is `:focus-within`
+- Security and status leftover skip links stay at least 44px at 390px
+- Liquidity leftover skip link stays at least 44px at 768px
+- Bridge leftover skip link stays at least 44px at 390px
+- Global-error skip-nav is two-up at every width, including 768px
+- Playwright covers leftover 44px, education clearance, and overflow-y ring padding
+- Education dialog `max-height: calc(100vh - min(40vh, 17.5rem) - 12px)` and `overflow-y: auto` keep Continue inside 320px
+- Education `.tourNav` is sticky at the bottom of the 320px dialog
+- Security and status leftover skip links stay at least 44px at 768px
+- Country-block, 404, and loading leftover skip links stay at least 44px at 390px
+- First and trailing 820px skip-nav padding is 8px so two-up links stay 44px at 320px after the gutter
+- Playwright covers education Continue in 320px, leftover 44px, and 8px padding two-up
+- Education dialog `scroll-padding-top/bottom: 8px` and heading `scroll-margin-top: 8px` keep the 2px ring inside max-height
+- Education Back stays inside the 320px viewport with sticky tourNav
+- Education Enter simulation stays 44px (`flex-shrink: 0`) after skip-nav margin-top
+- Legal leftover skip link stays at least 44px at 768px
+- Architecture leftover skip links stay at least 44px at 768px
+- Error-page leftover skip link stays at least 44px at 390px
+- Skip-nav 8px padding keeps the 2px ring inside overflow-y auto at 768px
+- Playwright covers education Back, Enter simulation, heading ring, leftover 768/390, and skip-nav ring at 768px
+- Education Back stays 44px when disabled on the first step
+- Education copy has 52px padding-bottom at 820px so sticky tourNav does not cover it
+- Education Continue `:focus-visible` is a 2px ring; tourNav padding keeps it inside overflow-y auto
+- Liquidity leftover skip link stays at least 44px at 390px
+- Bridge and country-block leftover skip links stay at least 44px at 768px
+- Skip-nav 8px padding keeps the 2px ring inside overflow-y auto at 390px
+- Playwright covers disabled Back, sticky copy clearance, Continue ring, leftover 390/768, and skip-nav ring at 390px
+- Education dialog is a column at 820px; tourNav `margin-top: auto` keeps Enter simulation in the 320px viewport
+- Education copy padding-bottom is 8px so Continue is not pushed below 320px
+- Education Continue ring is `#f4c95d` against global `button:focus-visible`
+- Status and security leftover skip links stay at least 44px at 320px
+- Loading and 404 leftover skip links stay at least 44px at 768px
+- Playwright covers Enter simulation in 320px, Continue `#f4c95d`, and leftover 320/768
 
 ## Next
 
+- Education Back should stay inside the 320px viewport on the last step
+- Education sticky tourNav `z-index: 1` should not cover the heading 2px ring
+- Legal leftover skip link should stay at least 44px at 320px
+- Architecture leftover skip links should stay at least 44px at 320px
+- Error-page leftover skip link should stay at least 44px at 768px
+- Country-block leftover skip link should stay at least 44px at 320px
+- Education dialog flex column should keep the heading scroll-margin inside overflow-y auto
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
@@ -212,5 +497,68 @@ Last updated: 01-09-2026 after reserve tZEC refund helper and gateway stub walke
 ## Blockers
 
 - None for this slice
+- Mainnet remains a no-go: there is no production custody, reserve attester, mint controller, redemption service, identity/compliance tier, surveillance system, or independently audited deployment.
+- The local JSON persistence added for testnet is intentionally single-process and is not the production authoritative ledger.
 - Language bar still holds: never imply live, audited, trustless, private, shielded, or live native-ZEC execution
 - Vercel still must not hold spend keys, issue mainnet TEX, or run the authoritative matcher
+
+## Done this batch (PR 22 + conditional lock)
+
+PR 1 added the EVM half of the native-ZEC atomic swap. The contract is key-independent and remains undeployed.
+
+- `docs/adr/0003-evm-conditional-lock.md` — design, hash function choice, claim/refund semantics, safety rails
+- `contracts/src/swap/IConditionalLock.sol` — interface, error surface, event signatures
+- `contracts/src/swap/ConditionalLock.sol` — non-upgradeable deposit, claim, refund, reentrancy guard, SHA-256 preimage check, pauser/governor roles
+- `contracts/test/ConditionalLock.t.sol` — happy path, edge cases, double-claim, double-refund, wrong preimage, unauthorized claimant, paused-deposits-keep-refund
+- `contracts/script/DeployConditionalLock.s.sol` — standalone Anvil/testnet deploy with role distinctness check
+- `src/lib/conditional-lock-abi.ts` and `.test.ts` — pinned selectors (`deposit 7402f10a`, `claim 31d14457`, `refund 278ecde1`, `pause 8456cb59`, `unpause 3f4ba83a`) and event topics, plus calldata encoders
+- `docs/THREAT_MODEL.md` — section 18 for the lock surface
+- `contracts/README.md` — contract table and standalone deploy section
+- 273 node tests pass, secret-pattern scan clean over 190 files, production build clean
+- Foundry tests will run on GitHub Verify
+
+## Done this batch (PR 23 + atomic swap state machine)
+
+PR 2 added the deterministic state machine and the read-only `/swap` view. Both are key-independent. No signing surface ships in this PR.
+
+- `docs/adr/0004-atomic-swap-state-machine.md` — leg-state model, transition rules, preimage primitive, read-only `/swap` route, signing boundary
+- `src/lib/swap-state.ts` and `.test.ts` — pure state machine: `proposed`, `awaiting-zec-fund`, `awaiting-zec-claim`, `awaiting-evm-claim`, `settled`, `evm-refundable`, `zec-refundable`, `evm-refunded`, `zec-refunded`, `fully-refunded`, `disputed`. 24 unit tests cover happy path, claim after refund, refund after claim, double fund, deadline enforcement, and per-role `nextAction` dispatch
+- `src/lib/preimage.ts` and `.test.ts` — browser preimage primitive: 32 random bytes from `crypto.getRandomValues`, SHA-256 hash via `crypto.subtle` (Node `node:crypto` fallback), `verifyPreimage` round-trip, malformed-input rejection. Pinned test vector covers a real SHA-256 of a known preimage
+- `src/components/swap-state-panel.tsx` — client island: generate, display, paste-and-verify. No signing, no broadcast
+- `src/app/swap/page.tsx` — server route at `/swap`, derives state from `fill`, `evm`, `zec`, `evmRefund`, `zecRefund`, `state`, `now`, `role` URL params. Noindex, simulation-frame layout, replay query
+- 361 node tests pass, secret-pattern scan clean over 250 files, production build clean
+
+## Done this batch (PR 24 + Zcash P2SH tx lab)
+
+PR 3 added the ZEC half of the atomic swap. The address encoder, the
+P2SH script builder, and the wallet adapter are all key-independent.
+The signing surface stays gated. The browser path for `ripemd160` is a
+follow-up because Web Crypto does not expose `ripemd160`.
+
+- `docs/adr/0005-zcash-p2sh-atomic-swap.md` — design, hash function
+  choice, P2SH script layout, wallet adapter seam, signing boundary
+- `src/lib/ripemd160.ts` and `.test.ts` — thin Node-native wrapper,
+  pinned against the canonical vectors that Node 24 reproduces
+- `src/lib/sha256d.ts` and `.test.ts` — double SHA-256 wrapper for
+  Base58Check
+- `src/lib/base58check.ts` and `.test.ts` — Base58Check encoder and
+  decoder with checksum validation
+- `src/lib/zcash-script.ts` and `.test.ts` — op-code table, push
+  encoders, concat helper
+- `src/lib/zcash-pubkey.ts` and `.test.ts` — compressed secp256k1
+  pubkey parser and encoder
+- `src/lib/zcash-atomic-swap.ts` and `.test.ts` — claim branch, refund
+  branch, full atomic-swap script, round-trip parser
+- `src/lib/zcash-address.ts` and `.test.ts` — merged
+  `inspectTransparentDestination` with the Base58Check address
+  encoder and decoder; testnet and mainnet version bytes
+- `src/lib/zcash-wallet-adapter.ts` and `.test.ts` — typed
+  `buildFundTransaction`, `buildClaimTransaction`,
+  `buildRefundTransaction`; `hashAtomicSwapParams` for the script
+  hash
+- `src/app/zcash/page.tsx` — server route at `/zcash`, noindex,
+  simulation-frame layout, derives the script, address, and unsigned
+  transactions from URL params, exposes the replay query
+- `docs/THREAT_MODEL.md` — section 19 for the ZEC leg
+- 425 node tests pass, secret-pattern scan clean, production build
+  clean

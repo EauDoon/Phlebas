@@ -1,5 +1,9 @@
 # Phlebas Wallet Compatibility
 
+Status: legacy gateway evidence only, not native-settlement compatibility
+
+The current matrix covers transparent payments, TEX, and ZIP 321 for the superseded ADR 0001 gateway. It does not prove compatibility with the fund, claim, or refund transactions required by [ADR 0002](adr/0002-native-zec-atomic-settlement.md). No wallet is approved for native atomic settlement. All deposit, mint, burn, custody-signer, and withdrawal procedures below are historical simulation requirements, not target-product instructions.
+
 Status: Simulation only
 As of: 30-08-2026
 
@@ -7,7 +11,7 @@ Phlebas has no live Zcash wallet integration, deposit address service, chain obs
 
 The target flow is wallet-neutral. It uses a standard Zcash address, a ZIP 321 payment-request URI, QR or copy and paste, and public-chain observation. It does not assume a browser extension, WalletConnect session, injected provider, or direct wallet callback. Phlebas must never ask for a seed phrase, spending key, viewing key, wallet database, or signed arbitrary message.
 
-This document refines the transparent ZEC gateway in [Architecture](ARCHITECTURE.md) and preserves the lifecycle and confirmation rules in [Asset and Accounting](ASSET_AND_ACCOUNTING.md). It does not rewrite [ADR 0001](adr/0001-arbitrum-and-pzec.md), which remains historical. Product labels and the undeployed `tZEC` receipt follow [ADR 0002](adr/0002-native-zec-usdc-usdt.md).
+This document refines the transparent ZEC gateway in [Architecture](ARCHITECTURE.md) and preserves the lifecycle and confirmation rules in [Asset and Accounting](ASSET_AND_ACCOUNTING.md). It does not rewrite [ADR 0001](adr/0001-arbitrum-and-pzec.md), which remains historical. Product labels and the undeployed `tZEC` receipt follow [ADR 0002](adr/0002-native-zec-atomic-settlement.md). Current wallet qualification for native atomic settlement must follow ADR 0002 and the [Architecture release gate](ARCHITECTURE.md#release-gate). The gateway material below remains only to explain the current simulation and the evidence that cannot be reused as atomic-swap compatibility proof.
 
 ## Status vocabulary
 
@@ -278,4 +282,4 @@ The remaining project dependencies are concrete:
 * Zkool needs explicit maintainer evidence or an executed TEX and ZIP 321 test. Zingo Mobile needs the same.
 * Wallet qualification must be repeated after material wallet releases, Zcash network upgrades, address-library changes, or changes to Phlebas confirmation and refund policy.
 
-Until those dependencies close and the mainnet gate in [Architecture](ARCHITECTURE.md#mainnet-gate) passes, wallet compatibility remains a Testnet plan and `tZEC` remains a simulation label.
+Until the native-settlement dependencies close and the [Architecture release gate](ARCHITECTURE.md#release-gate) passes, wallet compatibility remains unproven. `tZEC` remains a simulation label, not live native-ZEC execution.

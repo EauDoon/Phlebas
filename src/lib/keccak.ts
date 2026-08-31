@@ -1,6 +1,6 @@
 const MASK64 = 0xffffffffffffffffn;
 
-const RC = [
+const ROUND_CONSTANTS = [
   0x0000000000000001n, 0x0000000000008082n, 0x800000000000808an, 0x8000000080008000n,
   0x000000000000808bn, 0x0000000080000001n, 0x8000000080008081n, 0x8000000000008009n,
   0x000000000000008an, 0x0000000000000088n, 0x0000000080008009n, 0x000000008000000an,
@@ -9,7 +9,7 @@ const RC = [
   0x8000000080008081n, 0x8000000000008080n, 0x0000000080000001n, 0x8000000080008008n,
 ] as const;
 
-const ROT = [
+const ROTATION_OFFSETS = [
   0, 1, 62, 28, 27,
   36, 44, 6, 55, 20,
   3, 10, 43, 25, 39,
@@ -17,39 +17,39 @@ const ROT = [
   18, 2, 61, 56, 14,
 ] as const;
 
-function rotl64(value: bigint, shift: number): bigint {
-  const n = BigInt(shift % 64);
-  return ((value << n) | (value >> (64n - n))) & MASK64;
+function rotateLeft(value: bigint, shift: number): bigint {
+  const offset = BigInt(shift % 64);
+  return ((value << offset) | (value >> (64n - offset))) & MASK64;
 }
 
-function keccakF(state: bigint[]): void {
-  const c = new Array<bigint>(5);
-  const d = new Array<bigint>(5);
-  const b = new Array<bigint>(25);
+function permute(state: bigint[]): void {
+  const column = new Array<bigint>(5);
+  const delta = new Array<bigint>(5);
+  const mixed = new Array<bigint>(25);
 
-  for (let round = 0; round < 24; round += 1) {
+  for (const roundConstant of ROUND_CONSTANTS) {
     for (let x = 0; x < 5; x += 1) {
-      c[x] = state[x] ^ state[x + 5] ^ state[x + 10] ^ state[x + 15] ^ state[x + 20];
+      column[x] = state[x] ^ state[x + 5] ^ state[x + 10] ^ state[x + 15] ^ state[x + 20];
     }
     for (let x = 0; x < 5; x += 1) {
-      d[x] = c[(x + 4) % 5] ^ rotl64(c[(x + 1) % 5], 1);
+      delta[x] = column[(x + 4) % 5] ^ rotateLeft(column[(x + 1) % 5], 1);
     }
-    for (let i = 0; i < 25; i += 1) {
-      state[i] ^= d[i % 5];
+    for (let index = 0; index < 25; index += 1) state[index] ^= delta[index % 5];
+
+    for (let index = 0; index < 25; index += 1) {
+      const x = index % 5;
+      const y = Math.floor(index / 5);
+      mixed[y + (5 * ((2 * x + 3 * y) % 5))] = rotateLeft(state[index], ROTATION_OFFSETS[index]);
     }
-    for (let i = 0; i < 25; i += 1) {
-      const x = i % 5;
-      const y = Math.floor(i / 5);
-      b[y + 5 * ((2 * x + 3 * y) % 5)] = rotl64(state[i], ROT[i]);
-    }
+
     for (let y = 0; y < 5; y += 1) {
       for (let x = 0; x < 5; x += 1) {
-        const index = x + 5 * y;
-        state[index] = b[index] ^ ((~b[((x + 1) % 5) + 5 * y]) & b[((x + 2) % 5) + 5 * y]);
+        const index = x + (5 * y);
+        state[index] = mixed[index] ^ ((~mixed[((x + 1) % 5) + (5 * y)]) & mixed[((x + 2) % 5) + (5 * y)]);
         state[index] &= MASK64;
       }
     }
-    state[0] ^= RC[round];
+    state[0] ^= roundConstant;
   }
 }
 
@@ -62,29 +62,29 @@ function absorb(bytes: Uint8Array): bigint[] {
   padded[padded.length - 1] ^= 0x80;
 
   for (let offset = 0; offset < padded.length; offset += rate) {
-    for (let i = 0; i < rate / 8; i += 1) {
-      let lane = 0n;
-      for (let j = 0; j < 8; j += 1) {
-        lane |= BigInt(padded[offset + i * 8 + j]) << BigInt(8 * j);
+    for (let lane = 0; lane < rate / 8; lane += 1) {
+      let value = 0n;
+      for (let byte = 0; byte < 8; byte += 1) {
+        value |= BigInt(padded[offset + (lane * 8) + byte]) << BigInt(byte * 8);
       }
-      state[i] ^= lane;
+      state[lane] ^= value;
     }
-    keccakF(state);
+    permute(state);
   }
   return state;
 }
 
 export function keccak256(bytes: Uint8Array): Uint8Array {
   const state = absorb(bytes);
-  const out = new Uint8Array(32);
-  for (let i = 0; i < 4; i += 1) {
-    let lane = state[i];
-    for (let j = 0; j < 8; j += 1) {
-      out[i * 8 + j] = Number(lane & 0xffn);
-      lane >>= 8n;
+  const output = new Uint8Array(32);
+  for (let lane = 0; lane < 4; lane += 1) {
+    let value = state[lane];
+    for (let byte = 0; byte < 8; byte += 1) {
+      output[(lane * 8) + byte] = Number(value & 0xffn);
+      value >>= 8n;
     }
   }
-  return out;
+  return output;
 }
 
 export function bytesToHex(bytes: Uint8Array): string {
@@ -96,14 +96,18 @@ export function hexToBytes(hex: string): Uint8Array {
   if (normalized.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(normalized)) {
     throw new TypeError("Hex string must be even-length hexadecimal");
   }
-  const out = new Uint8Array(normalized.length / 2);
-  for (let i = 0; i < out.length; i += 1) {
-    out[i] = Number.parseInt(normalized.slice(i * 2, i * 2 + 2), 16);
+  const output = new Uint8Array(normalized.length / 2);
+  for (let index = 0; index < output.length; index += 1) {
+    output[index] = Number.parseInt(normalized.slice(index * 2, (index * 2) + 2), 16);
   }
-  return out;
+  return output;
 }
 
 export function keccak256Hex(input: Uint8Array | string): string {
   const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
   return bytesToHex(keccak256(bytes));
+}
+
+export function keccak256Text(value: string): `0x${string}` {
+  return `0x${keccak256Hex(value)}`;
 }

@@ -13,7 +13,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --test src/lib/*.test.ts services/*.test.ts services/gateway/*.test.ts services/matcher/*.test.ts services/observer/*.test.ts",
+    "test": "node --test src/lib/*.test.ts services/*.test.ts services/gateway/*.test.ts services/matcher/*.test.ts services/observer/*.test.ts services/atomic-swap-observer/*.test.ts",
     "record:sepolia": "node scripts/record-sepolia-deploy.mjs",
     "test:contracts": "forge test --root contracts",
     "test:browser": "playwright test",

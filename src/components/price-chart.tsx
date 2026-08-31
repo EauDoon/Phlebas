@@ -1,6 +1,11 @@
+import {
+  CHART_DISPLAY_HEIGHT,
+  CHART_DISPLAY_WIDTH,
+  chartDisplayGeometry,
+} from "@/lib/chart-display";
 import type { ChartRange, MarketId } from "@/lib/market-data";
-import { chartSeries, markets } from "@/lib/market-data";
-import { feedSurface, feedWithheldCopy, priceChartLabelCopy, type FeedStatus } from "@/lib/market-state";
+import { chartSeries } from "@/lib/market-data";
+import { feedSurface, priceChartLabelCopy, type FeedStatus } from "@/lib/market-state";
 import { PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -15,36 +20,30 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
   const surface = feedSurface(feedStatus);
   if (!surface.showFixtures) {
     return (
-      <p className={styles.emptyState} role="status">
-        {feedWithheldCopy(feedStatus, markets[marketId].settlementPair)}
-      </p>
+      <div className={styles.chartWrap}>
+        <p className={styles.emptyState} role="status" aria-label="Chart empty state">
+          <strong>{surface.heading}. </strong>
+          {surface.message}
+        </p>
+      </div>
     );
   }
   const values = chartSeries[marketId][range];
-  const min = Math.min(...values) - 25;
-  const max = Math.max(...values) + 25;
-  const width = 760;
-  const height = 270;
-  const points = values
-    .map((value, index) => {
-      const x = (index / (values.length - 1)) * width;
-      const y = height - ((value - min) / (max - min)) * height;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-  const areaPoints = `0,${height} ${points} ${width},${height}`;
-  const midTicks = BigInt(Math.trunc((min + max) / 2));
+  const chartLabel = priceChartLabelCopy(marketId, range);
+  const { min, max, midTicks, points, areaPoints } = chartDisplayGeometry(values);
 
   return (
     <div className={styles.chartWrap}>
       <svg
         className={styles.chart}
-        viewBox={`0 0 ${width} ${height}`}
+        viewBox={`0 0 ${CHART_DISPLAY_WIDTH} ${CHART_DISPLAY_HEIGHT}`}
         role="img"
-        aria-label={priceChartLabelCopy(marketId, range)}
+        aria-label={feedStatus === "stale" ? `Delayed ${chartLabel}` : chartLabel}
         preserveAspectRatio="none"
       >
-        <title>{priceChartLabelCopy(marketId, range)}</title>
+        <title>
+          {feedStatus === "stale" ? `Delayed ${chartLabel}` : chartLabel}
+        </title>
         <defs>
           <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="#f4c95d" stopOpacity="0.2" />
@@ -55,9 +54,9 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
           <line
             key={line}
             x1="0"
-            x2={width}
-            y1={(height / 3) * line}
-            y2={(height / 3) * line}
+            x2={CHART_DISPLAY_WIDTH}
+            y1={(CHART_DISPLAY_HEIGHT / 3) * line}
+            y2={(CHART_DISPLAY_HEIGHT / 3) * line}
             className={styles.chartGrid}
           />
         ))}

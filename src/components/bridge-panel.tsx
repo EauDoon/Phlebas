@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 
 import { DEPOSIT_TOUR, depositTourStep } from "@/lib/deposit-tour";
 import { copyUri } from "@/lib/copy-uri";
@@ -10,8 +10,15 @@ import {
   gatewayOffCopy,
   gatewayUnavailableCopy,
 } from "@/lib/gateway-copy";
+import {
+  GATEWAY_JOURNEY_LABELS,
+  GATEWAY_JOURNEYS,
+  nextGatewayJourney,
+  type GatewayJourney,
+} from "@/lib/gateway-journeys";
 import { inspectTransparentDestination } from "@/lib/zcash-address";
 import { payoutClaimForTourStep, payoutClaimStubCopy, screenPayout } from "@/lib/payout";
+import { interpretRovingKey } from "@/lib/roving-keys";
 import { isTestnetTex } from "@/lib/tex";
 import { WITHDRAWAL_TOUR, withdrawalTourStep } from "@/lib/withdrawal-tour";
 import { syntheticDepositRequest } from "@/lib/zip321";
@@ -19,35 +26,11 @@ import { syntheticDepositRequest } from "@/lib/zip321";
 import { PlaceholderQr } from "./placeholder-qr";
 import styles from "./terminal.module.css";
 
-const depositSteps = [
-  {
-    number: "01",
-    title: "Issue one TEX intent",
-    body: "The local testnet gateway issues one ZIP 320 textest address per intent and never reassigns it. Mainnet encodings are not generated.",
-  },
-  {
-    number: "02",
-    title: "Hand off a ZIP 321 request",
-    body: "The wallet-neutral payload is a zcash: URI and QR. There is no EVM connector, WalletConnect session, or seed prompt.",
-  },
-  {
-    number: "03",
-    title: "Observe the final transparent payment",
-    body: "Independent Zebra observers would bind the outpoint, amount, destination, and tip. Zero-confirmation credit is never allowed.",
-  },
-  {
-    number: "04",
-    title: "Mint after the risk-tier threshold",
-    body: "One outpoint would authorize at most one 8-decimal receipt. This preview is not live settlement.",
-  },
-] as const;
-
-export function BridgePanel({
-  initialJourney = "deposit",
-}: {
-  initialJourney?: "deposit" | "withdrawal";
-}) {
-  const [journey, setJourney] = useState<"deposit" | "withdrawal">(initialJourney);
+// Not payable. Not a payable QR. The reusable placeholder renderer carries the visual disclaimer.
+export function BridgePanel({ initialJourney = "deposit" }: { initialJourney?: GatewayJourney }) {
+  const [journey, setJourney] = useState<GatewayJourney>(initialJourney);
+  const [journeyFocus, setJourneyFocus] = useState<GatewayJourney>("deposit");
+  const journeyRefs = useRef<Partial<Record<GatewayJourney, HTMLButtonElement | null>>>({});
   const [depositIndex, setDepositIndex] = useState(0);
   const [tourIndex, setTourIndex] = useState(0);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
@@ -63,6 +46,50 @@ export function BridgePanel({
     : screenPayout(destination, 1n);
   const tourClaim = payoutClaimForTourStep(tour.id, destination);
   const request = intent?.request ?? syntheticDepositRequest();
+
+  function moveJourneyFocus(next: GatewayJourney) {
+    setJourneyFocus(next);
+    journeyRefs.current[next]?.focus();
+  }
+
+  function selectJourney(id: GatewayJourney) {
+    setJourney(id);
+    setJourneyFocus(id);
+  }
+
+  function onJourneyKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: GatewayJourney) {
+    const action = interpretRovingKey(event.key);
+    if (!action) {
+      return;
+    }
+    event.preventDefault();
+    if (action === "next") {
+      moveJourneyFocus(nextGatewayJourney(id, 1));
+      return;
+    }
+    if (action === "prev") {
+      moveJourneyFocus(nextGatewayJourney(id, -1));
+      return;
+    }
+    if (action === "home") {
+      moveJourneyFocus("deposit");
+      return;
+    }
+    if (action === "end") {
+      moveJourneyFocus("withdrawal");
+      return;
+    }
+    selectJourney(id);
+  }
+
+  async function copyRequest() {
+    const value = intent?.request ?? syntheticDepositRequest();
+    setCopyNotice(await copyUri(
+      value,
+      navigator.clipboard,
+      intent ? "testnet" : "placeholder",
+    ));
+  }
 
   async function issueTestnetTex() {
     setIssuing(true);
@@ -97,27 +124,28 @@ export function BridgePanel({
         </div>
         <p className={styles.featureLead}>
           Native ZEC cannot live inside an EVM liquidity pool. This preview labels ZEC-USDC and
-          ZEC-USDT. It is not live settlement. A future gateway would still introduce custody,
-          operator, and regulatory risk.
+          ZEC-USDT. It is not live settlement. The native-settlement target uses wallet-controlled
+          conditional locks and does not mint a Phlebas ZEC receipt. A future gateway would still
+          introduce custody, operator, and regulatory risk.
         </p>
 
         <div className={styles.poolTabs} role="group" aria-label="Gateway journey">
-          <button
-            type="button"
-            className={journey === "deposit" ? styles.poolActive : undefined}
-            aria-pressed={journey === "deposit"}
-            onClick={() => setJourney("deposit")}
-          >
-            Deposit preview
-          </button>
-          <button
-            type="button"
-            className={journey === "withdrawal" ? styles.poolActive : undefined}
-            aria-pressed={journey === "withdrawal"}
-            onClick={() => setJourney("withdrawal")}
-          >
-            Withdrawal states
-          </button>
+          {GATEWAY_JOURNEYS.map((id) => (
+            <button
+              type="button"
+              key={id}
+              className={journey === id ? styles.poolActive : undefined}
+              aria-pressed={journey === id}
+              tabIndex={journeyFocus === id ? 0 : -1}
+              ref={(node) => {
+                journeyRefs.current[id] = node;
+              }}
+              onClick={() => selectJourney(id)}
+              onKeyDown={(event) => onJourneyKeyDown(event, id)}
+            >
+              {GATEWAY_JOURNEY_LABELS[id]}
+            </button>
+          ))}
         </div>
 
         {journey === "deposit" ? (
@@ -138,14 +166,15 @@ export function BridgePanel({
               <button type="button" onClick={() => void issueTestnetTex()} disabled={issuing} aria-busy={issuing}>
                 {issuing ? "Issuing" : "Issue testnet TEX"}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  void copyUri(request, navigator.clipboard).then(setCopyNotice);
-                }}
-              >
-                Copy testnet URI
-              </button>
+              {intent ? (
+                <button type="button" onClick={() => void copyRequest()}>
+                  Copy testnet URI
+                </button>
+              ) : (
+                <button type="button" onClick={() => void copyRequest()}>
+                  Copy placeholder URI
+                </button>
+              )}
               {copyNotice && <p>{copyNotice}</p>}
             </div>
             )}
@@ -173,14 +202,6 @@ export function BridgePanel({
                 Next state
               </button>
             </div>
-            <ol className={styles.stepList}>
-              {depositSteps.map((step) => (
-                <li key={step.number}>
-                  <span>{step.number}</span>
-                  <div><h3>{step.title}</h3><p>{step.body}</p></div>
-                </li>
-              ))}
-            </ol>
           </>
         ) : (
           <>
@@ -195,24 +216,6 @@ export function BridgePanel({
                 {payoutClaimStubCopy(tourClaim)}. Nothing is sent.
               </p>
             </div>
-            <label className={styles.inputLabel}>
-              <span>Transparent destination inspector</span>
-              <div className={styles.inputShell}>
-                <input
-                  value={destination}
-                  onChange={(event) => setDestination(event.target.value)}
-                  aria-label="Transparent destination to inspect"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </div>
-            </label>
-            <p className={styles.inlineNotice} aria-live="polite">
-              {destinationCheck.message}
-              {payoutPreview?.state === "screened"
-                ? " Payout stub would accept this destination shape. Nothing is sent."
-                : ""}
-            </p>
             <div className={styles.tourNav}>
               <button
                 type="button"
@@ -231,9 +234,39 @@ export function BridgePanel({
             </div>
           </>
         )}
+        <div
+          id="destination-inspector"
+          tabIndex={-1}
+          role="region"
+          aria-label="Transparent destination inspector"
+        >
+          <label className={styles.inputLabel}>
+            <span>Transparent destination inspector</span>
+            <div className={styles.inputShell}>
+              <input
+                value={destination}
+                onChange={(event) => setDestination(event.target.value)}
+                aria-label="Transparent destination to inspect"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+          </label>
+          <p className={styles.inlineNotice} aria-live="polite">
+            {destinationCheck.message}
+            {payoutPreview?.state === "screened"
+              ? " Payout stub would accept this destination shape. Nothing is sent."
+              : ""}
+          </p>
+        </div>
       </section>
 
-      <aside className={`${styles.panel} ${styles.riskCard}`} aria-labelledby="privacy-title">
+      <aside
+        id="privacy-callouts"
+        className={`${styles.panel} ${styles.riskCard}`}
+        aria-labelledby="privacy-title"
+        tabIndex={-1}
+      >
         <span className={styles.eyebrow}>Privacy boundary</span>
         <h2 id="privacy-title">Transparent in, public onchain</h2>
         <p>

@@ -2,13 +2,26 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 
+const DESCRIPTION =
+  "No-value simulation and non-custodial protocol plan for native transparent ZEC against USDC and USDT. Legacy pZEC surfaces are simulation only. Not an exchange or an offer of financial services.";
+
 export const metadata: Metadata = {
   title: {
     default: "Phlebas",
     template: "%s | Phlebas",
   },
-  description:
-    "A simulation and protocol plan for native ZEC against native USDC and native USDT.",
+  description: DESCRIPTION,
+  openGraph: {
+    title: "Phlebas",
+    description: DESCRIPTION,
+    siteName: "Phlebas",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Phlebas",
+    description: DESCRIPTION,
+  },
   robots: {
     index: false,
     follow: false,

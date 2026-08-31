@@ -1,6 +1,6 @@
 # Security Policy
 
-> Status as of 31-08-2026: Phlebas is a no-value simulation with optional local testnet stubs. It is not a live exchange, bridge, or custody service. It must not be used with real funds or mainnet TEX.
+> Status as of 31-08-2026: Phlebas is a no-value simulation with undeployed Sepolia contract sources and optional local testnet services. It is not a deployed exchange, bridge, automated market maker, or custody service. It must not be used with real funds or mainnet TEX.
 
 ## Supported versions
 
@@ -8,14 +8,14 @@ Phlebas has no production release and no production security support commitment.
 
 | Version | Status |
 | --- | --- |
-| `0.1.x` | Local simulation only |
+| `0.1.x` | Local simulation and no-value testnet development only |
 | Any public preview | Demonstration only, no real assets |
 
 The public Vercel app is a no-value interface. Local optional stubs exist and are not production:
 
 - In-browser session matcher, plus a loopback matcher operator that is never hosted on Vercel.
 - Undeployed Arbitrum Sepolia contract sources. The manifest stays `deployed: false` until a real Sepolia transaction is recorded.
-- Optional EIP-1193 wallet connection on Arbitrum Sepolia only. Default is sign-only.
+- Optional EIP-1193 wallet connection on Arbitrum Sepolia only. Signing stays disabled until the manifest is backed by a successful Sepolia receipt and verified deployed bytecode.
 - Local `textest` gateway and observer stubs on `127.0.0.1`. No Zebra RPC, no mainnet TEX.
 - No custody, attester, governance, deployer, or treasury keys in Vercel or git.
 
@@ -57,7 +57,7 @@ The proposed architecture is documented in [docs/THREAT_MODEL.md](docs/THREAT_MO
 - Reserve assets and liabilities must reconcile in zatoshis before minting can proceed.
 - Vercel may host a public interface, but it must never hold custody, attester, governance, or deployer keys.
 
-These are design requirements, not implemented or audited properties.
+The repository exercises parts of these requirements in local code and tests. They are not deployed or audited properties.
 
 ## Release security gates
 

@@ -1,253 +1,303 @@
-# Phlebas delivery plan
+# Phlebas Delivery Plan
 
-Status: active full-build goal, dated 31-08-2026. The public app now includes an in-browser matcher, integer seed books, integer AMM quotes, CLOB+AMM split-route comparison, LP share mint/burn, empty/stale/unavailable ticket gates, SHA-256 session digests, keccak EIP-712 typed data, optional Arbitrum Sepolia wallet connection, local testnet TEX issuance, a local matcher operator, `/status`, and branded error surfaces. Solidity sources for undeployed Sepolia contracts live in `contracts/`.
+Status: active full-build goal
+Updated: 31-08-2026
 
-## 1. Objective
+The public app now includes an in-browser matcher, integer seed books, legacy AMM previews, split-route comparison, LP share previews, feed-state ticket gates, SHA-256 session digests, keccak EIP-712 typed data, an optional Arbitrum Sepolia wallet connection, local testnet TEX issuance, a local matcher operator, `/status`, and branded error surfaces. The in-repository Sepolia contracts remain undeployed and belong to the legacy pZEC testnet slice, not the native-settlement target.
 
-Build and verify Phlebas as a GitHub and Vercel project with:
+## Objective
 
-- An original landing and onboarding experience
-- A professional `ZEC/USDC` and `ZEC/USDT` trading terminal
-- A deterministic order-book simulation and, later, testnet settlement contracts
-- Small-scope `ZEC/USDC` and `ZEC/USDT` constant product pools
-- Transparent-ZEC wallet-compatible deposit and withdrawal journeys
-- Zcash testnet observers, a single-use deposit ledger, withdrawal state machine, and reserve proofs
-- Security, compliance, monitoring, incident, and release controls
+Build Phlebas into a non-custodial exchange for native transparent ZEC against native USDC and native USDT. Settlement pairs are `ZEC-USDC` and `ZEC-USDT`. USDT0 is abandoned. The product needs a professional order-book interface, wallet-held maker and solver liquidity, two-chain atomic settlement, complete wallet journeys, persistent services, security controls, tests, and operations.
 
-The current application remains a no-value simulation. Mainnet and real-funds capability are not part of any automatic deployment path.
+The current Vercel site remains a no-value simulation. Development continues through every key-independent milestone. A missing key blocks only the exact signing, broadcast, or deployment action that needs it.
 
-## 2. Agent Team task contract
+## Product invariant
+
+Phlebas never receives unilateral spending authority over a user's ZEC or stablecoin.
+
+The active design follows [ADR 0002](adr/0002-native-zec-atomic-settlement.md):
+
+* native ZEC remains on Zcash;
+* USDC or the selected USDT asset remains on its approved EVM chain;
+* each matched fill creates one pair of user-authorized conditional locks;
+* wallets control funding, claim, and refund transactions;
+* observers and the coordinator are read-only with respect to funds;
+* the matcher sequences orders but cannot settle or redirect assets;
+* maker and solver inventory stays in its owner's wallets until one swap is authorized.
+
+Custody-backed `pZEC`, platform balances, reserve wallets, minting, burns, and operator payouts are outside the target architecture. They remain only in historical simulation code until that code is migrated or removed.
+
+Native ZEC and an EVM token do not share one contract state. Passive Uniswap v2 LP shares are therefore outside version 1. Curve-priced solver liquidity replaces the old pZEC pool target.
+
+## Agent Team task contract
 
 | Field | Contract |
 | --- | --- |
-| Objective | Deliver the exact product and infrastructure above through independently reviewable milestones |
-| In scope | Product, frontend, simulation engines, testnet contracts and services, documentation, tests, CI, GitHub PRs, Vercel previews |
-| Out of scope | Real custody, mainnet contracts, live quote assets, public deposit addresses, production keys, leverage, lending, shielded deposits |
-| Risk tier | High, because later milestones touch financial and identity-bearing infrastructure design |
-| Mutation authority | Local project files are authorized. GitHub and Vercel changes are limited to the named Phlebas project and exact reviewed releases |
-| Done when | Every milestone passes its tests and independent review, every approved PR and preview verifies, and no blocked real-funds claim remains |
-| Failure rule | A missing source, audit, legal decision, credential, wallet test, or accounting proof remains `unknown` or blocked, never converted to a pass |
+| Objective | Deliver the target through small, independently reviewed milestones |
+| In scope | Product, frontend, protocol domains, matcher, observers, coordinator, local contracts, wallet adapters, Testnet work, security, operations, CI, GitHub PRs, and Vercel previews |
+| Excluded until a named gate passes | Mainnet transactions, real assets, production keys, blind signatures, custody, leverage, lending, and shielded atomic swaps |
+| Risk | High, because later milestones prepare financial transaction paths |
+| Mutation authority | Local project files are authorized. GitHub and Vercel changes stay limited to Phlebas and exact reviewed releases |
+| Failure rule | Missing protocol, wallet, audit, legal, identity, or recovery evidence remains unresolved. It never becomes a pass because one key is absent |
 
-## 3. Intended repository topology
+## Repository topology
 
-The project starts as one Next.js application and adds boundaries only when a milestone needs them.
+The repository adds boundaries when code needs them:
 
 ```text
 phlebas/
   src/
-    app/                       public web routes
-    components/                product UI
-    lib/                       browser-safe simulation logic
+    app/                         public web routes
+    components/                  product UI
+    lib/                         browser-safe domains and simulation
   packages/
-    orderbook-domain/          order encoding, matching, fills, cancellation
-    amm-domain/                integer AMM and route models
-    protocol-types/            versioned cross-service schemas
-  contracts/                   no-value Arbitrum testnet contracts
+    protocol-types/              versioned order, fill, swap, and observer schemas
+    orderbook-domain/            signed orders, matching, receipts, and cancellation
+    native-swap-domain/          two-chain state machine and replay
+    solver-liquidity-domain/     wallet-held quotes and curve pricing
+    zcash-transactions/          transparent scripts and unsigned artifacts
+  contracts/
+    evm/                         local and Testnet stablecoin conditional locks
   services/
-    matcher/                   order intake, sequencing, matching
-    gateway/                   deposit and withdrawal state machines
-    reserve-watcher/           independent reserve and liability calculation
+    matcher/                     order intake, sequence, match, and receipts
+    zcash-observer/              read-only native-chain evidence
+    evm-observer/                read-only stablecoin-chain evidence
+    swap-coordinator/            persistent state, action policy, and recovery
+    watchtower/                  timeout, refund, and incident alerts
   infra/
-    local/                     local containers and synthetic fixtures
-    testnet/                   testnet-only deployment templates
-  docs/                        product, architecture, risks, operations, sources
+    local/                       deterministic local chains and fixtures
+    testnet/                     key-free manifests and deployment procedures
+  docs/                          product, architecture, risks, operations, and sources
 ```
 
-The public Vercel application imports only browser-safe packages. Custody, observer, matcher, compliance, and reserve services are never bundled into or configured through the public frontend.
+The public application imports only browser-safe packages. It cannot import node credentials, service journals, signer code, or deployment secrets.
 
-## 4. Pull request sequence
+## Pull request sequence
 
-### Baseline: repository and release controls
+### PR 19: native settlement foundation
 
-Purpose: publish the reviewed simulation candidate to `main`, connect the Vercel project, enable required checks, and establish the no-mainnet boundary.
-
-Acceptance:
-
-- Exact tracked tree passes lint, type checking, unit tests, production build, secret scan, and independent review.
-- Repository visibility, license, public description, topics, and profile impact are explicitly decided.
-- GitHub authentication maps to the approved owner without exposing credentials.
-- Vercel builds the same commit and serves no secrets or real-funds configuration.
-
-### PR 1: landing and onboarding completion
-
-Branch: `feat/landing-and-onboarding`
-
-Baseline already present locally:
-
-- Original landing page at `/`
-- Trading terminal at `/trade`
-- Protocol-status, custody, transparent-ZEC, and simulation disclosures
-- Market and liquidity previews with direct, truthful calls to action
-- Responsive and keyboard-accessible navigation
-
-Remaining PR deliverables:
-
-- Complete the tZEC education and launch-gate copy against final reviewed terminology.
-- Close keyboard, focus, semantic-table, touch-target, reduced-motion, and small-screen findings.
-- Add repeatable route and browser acceptance evidence for the existing surfaces.
-- Preserve the no-value simulation boundary through the published preview.
-
-Acceptance:
-
-- 320, 390, 768, and 1440 pixel browser checks pass without page overflow.
-- A first-time visitor can identify what Phlebas does, what is simulated, and what native ZEC labels mean without opening documentation.
-- No comparison-site asset, copy, or layout is reproduced.
-
-### PR 2: ZEC wallet journeys
-
-Branch: `feat/zec-wallet-journeys`
+This PR contains at least eight meaningful commits. Each commit has one reviewable purpose.
 
 Deliverables:
 
-- Wallet-neutral ZIP 321 payment request and QR model for a synthetic TEX deposit intent
-- Transparent address validation and explicit unsupported-wallet state
-- Deposit, confirmation, review, mint, burn, withdrawal, refund, and reorg UI states
-- Synthetic Zcash testnet vectors and wallet compatibility matrix
+* superseding non-custodial architecture decision;
+* explicit Zcash and EVM chain and asset identities;
+* browser-safe Ethereum Keccak implementation;
+* versioned EIP-712 order schema and fixed vectors;
+* exact order-policy validation;
+* nonce bitmap and account-epoch cancellation model;
+* deterministic settlement receipts and replay invariants;
+* adversarial and property tests;
+* updated product and delivery boundaries.
 
 Acceptance:
 
-- No browser extension or EVM-style ZEC wallet connection is implied.
-- At least two maintained ZEC wallets complete the testnet payment-request flow in executed, recorded tests before the feature is labeled compatible.
-- Destination, amount, network, memo limitations, fees, linkability, and irreversible-action warnings are visible.
-- All generated addresses remain synthetic or isolated testnet values.
+* every amount and identifier has an explicit integer or byte representation;
+* an order binds its chain, asset, recipient, expiry, fee limit, nonce, epoch, and venue;
+* cancellation and replay rules fail closed;
+* deterministic vectors are independently reproduced;
+* no code connects a wallet, node, contract, key, or real asset;
+* lint, type checking, tests, secret scan, build, and browser checks pass;
+* an independent reviewer finds no unresolved P0, P1, or P2 issue;
+* the exact PR commit has a working Vercel preview before merge.
 
-### PR 3: order-book engine
-
-Branch: `feat/orderbook-engine`
+### PR 20: native swap state machine and UI journey
 
 Deliverables:
 
-- Versioned EIP-712 order schema and deterministic encoding vectors
-- Price-time matching engine with GTC, IOC, and FOK behavior
-- Partial fills, nonce bitmap, account epoch, expiry, fee cap, and replay model
-- Append-only sequence receipts and deterministic event replay
-- Terminal wired to the local simulation API
+* immutable fill-to-swap terms and digest;
+* Zcash and EVM leg states;
+* funding order and staggered refund deadlines;
+* claim, refund, replacement, and reorganization transitions;
+* deterministic replay;
+* a no-value lock, claim, and refund journey in the trading UI;
+* removal of active pZEC deposit, withdrawal, mint, burn, and platform-balance language.
 
 Acceptance:
 
-- Integer conservation and side-aware rounding properties pass randomized tests.
-- A market order is always IOC with a signed worst price.
-- Replaying the same event log produces the exact same book and balances.
-- Matcher authority and censorship limitations remain visible.
+* one fill creates one swap identifier;
+* duplicate or conflicting evidence fails closed;
+* claim and refund are mutually exclusive;
+* every incomplete swap retains a wallet-controlled refund path;
+* stale or disagreeing observations move the workflow to a disputed state;
+* browser tests cover every user action and unsafe state.
 
-### PR 4: AMM and best execution
-
-Branch: `feat/amm-and-routing`
+### PR 21: Zcash transparent transaction lab
 
 Deliverables:
 
-- Integer constant product model with fixed 30 basis point fee
-- LP share mint and burn simulation
-- CLOB-only, AMM-only, and bounded split-route comparison
-- Liquidity position, fee, slippage, and impermanent-loss previews
+* deterministic P2SH fund, claim, and refund script builders;
+* unsigned transparent transaction artifacts;
+* chain-specific lock-time and fee policy;
+* local script execution vectors;
+* reorganization, expiry, replacement, and restart tests;
+* a wallet adapter interface that never handles secret key bytes.
 
 Acceptance:
 
-- Conservation, minimum output, rounding, reserve, and LP-share properties pass.
-- Only `ZEC/USDC` and `ZEC/USDT` are constructible.
-- The router is stateless and cannot retain user value.
+* vectors match the current Zcash protocol and selected implementation;
+* claim requires the exact preimage and recipient signature;
+* refund requires its deadline and funder signature;
+* malformed, wrong-network, or nonstandard scripts fail closed;
+* no key, address, RPC endpoint, broadcast, or live transaction enters the repository.
 
-### PR 5: Arbitrum testnet contracts
-
-Branch: `feat/testnet-contracts`
+### PR 22: EVM stablecoin conditional locks
 
 Deliverables:
 
-- Test-only tZEC, settlement, cancellation, pair, factory, and stateless router contracts
-- Deployment manifest for an approved Arbitrum test network
-- Unit, invariant, fuzz, and role-boundary tests
-- Source and bytecode verification procedure
+* non-upgradeable local contracts for exact-token locks, claim, and refund;
+* USDC-first configuration; native USDT listed in product copy, USDT0 abandoned, exact USDT contract disabled until approved;
+* SafeERC20 handling and reentrancy protection;
+* deterministic deployment manifest schema;
+* unit, fuzz, invariant, role, and token-behavior tests;
+* source and bytecode verification procedure.
 
 Acceptance:
 
-- Core contracts are non-upgradeable.
-- No arbitrary mint, seizure, callback, pair creation, or fee path exists.
-- Independent Solidity review has no unresolved Critical or High finding.
-- Every deployed address is testnet-only and labeled with the exact source commit.
+* arbitrary tokens, recipients, callbacks, fees, and admin seizure paths are impossible;
+* claim and refund are mutually exclusive;
+* deadlines and hashes match the native-swap domain;
+* an independent Solidity review has no unresolved Critical or High issue;
+* only local chains run until Testnet receives separate approval.
 
-### PR 6: Zcash testnet gateway
-
-Branch: `feat/zcash-testnet-gateway`
+### PR 23: observers and coordinator
 
 Deliverables:
 
-- Private Zebra observer configuration for testnet
-- Multi-observer agreement model
-- Single-use outpoint and deposit-intent ledger
-- Threshold attestation simulation
-- Burn-to-payout withdrawal journal
-- Independent reserve and liability watcher
+* read-only Zcash and EVM observer interfaces;
+* multi-observer agreement and staleness policy;
+* persistent append-only swap journal;
+* deterministic recovery after process restart;
+* timeout watchtower and action policy;
+* read-only public status projection.
 
 Acceptance:
 
-- One outpoint authorizes at most one mint.
-- One burn claim produces at most one payout or refund.
-- Observer disagreement, reorg, stale proof, or any one-atom mismatch stops new minting.
-- No production key material or mainnet endpoint enters GitHub, Vercel, logs, or fixtures.
+* the services have no signing capability;
+* wrong-chain, wrong-contract, stale, conflicting, or reorganized evidence fails closed;
+* journal replay produces the exact state and recommended wallet action;
+* duplicate transactions and swap identifiers are rejected;
+* recovery drills preserve every refund path.
 
-### PR 7: operations and hardening
-
-Branch: `feat/operations-and-hardening`
+### PR 24: wallet adapters and approved Testnet execution
 
 Deliverables:
 
-- CI and deterministic release evidence
-- Security headers, dependency policy, rate and resource controls
-- Status, reserve, sequence, and incident observability
-- Recovery drills and testnet incident runbooks
-- Final independent architecture and implementation review
+* Zcash wallet adapter for reviewable transaction artifacts;
+* EVM wallet connection for the approved Testnet only;
+* clear-signing displays for every amount, asset, recipient, deadline, fee, and privacy effect;
+* executed funding, claim, timeout refund, restart, and reorganization tests;
+* wallet compatibility matrix backed by recorded evidence.
 
 Acceptance:
 
-- Every applicable security gate passes or has an explicit blocking owner.
-- Preview deployments contain no source maps, credentials, internal endpoints, or private diagnostics.
-- A release cannot enable mainnet or real assets through an environment-variable change alone.
+* Phlebas never receives a seed, private key, spending key, viewing key, or blind signature;
+* the user can reject any changed term before signing;
+* compatibility labels appear only after the exact wallet and version pass;
+* Testnet actions have separate explicit approval.
 
-## 5. Per-PR release protocol
+### PR 25: persistent matcher and public market data
 
-Every pull request follows the same sequence:
+Deliverables:
 
-1. Freeze the intended file scope and acceptance assertions.
-2. Run focused tests, the full repository check, and secret and publication scans.
-3. Obtain an independent review against current bytes.
-4. Record the exact branch commit, tree, test results, and residual risk.
-5. Push only the reviewed branch to the Phlebas GitHub repository.
-6. Open the pull request with the acceptance evidence and no unsupported claim.
-7. Publish a Vercel preview for the exact PR commit.
-8. Verify the preview in a browser at desktop, tablet, and phone widths, including console and error-overlay checks.
-9. Recheck GitHub and Vercel commit identity before merge.
-10. Merge only when the required checks and explicit human gates pass.
+* authenticated signed-order intake;
+* monotonic sequencing and append-only receipts;
+* price-time matching and cancellation service;
+* externally checkable sequence checkpoints;
+* rate, size, expiry, and abuse controls;
+* read-only market and order-book feeds for the UI.
 
-No force push, tag, release, mainnet deployment, contract role assignment, wallet key, or real asset is included unless it is separately named and approved.
+Acceptance:
 
-## 6. Vercel boundary
+* the matcher cannot create balances or settlement evidence;
+* a market order is IOC with a signed worst price;
+* replay yields the same fills and swap plans;
+* omission and sequence gaps are visible;
+* resource exhaustion tests pass.
 
-Allowed:
+### PR 26: solver liquidity
 
-- Marketing and product UI
-- Synthetic or public read-only data
-- Browser-safe typed-data and transaction construction
-- Documentation and testnet status
+Deliverables:
 
-Prohibited:
+* signed solver quotes from wallet-held ZEC and stablecoin inventory;
+* constant-product and inventory-skew pricing strategies;
+* quote expiry, capacity, fee, and slippage bounds;
+* best-execution comparison across book and solver routes;
+* maker dashboard for inventory and active swap risk.
 
-- Zcash node or wallet RPC
-- Custody, mint, withdrawal, governance, deployer, or attester keys
-- Authoritative deposit, withdrawal, or customer-liability ledger
-- Identity, sanctions, Travel Rule, or investigation case data
-- Authoritative matcher and surveillance state
+Acceptance:
 
-## 7. Real-funds gate
+* Phlebas cannot retain solver or user value;
+* a quote binds exact assets, networks, amounts, recipients, expiry, and fee;
+* each accepted quote settles through one atomic swap;
+* the UI never labels solver liquidity as Uniswap v2 or passive LP shares.
 
-Completing all PRs produces a testnet reference implementation, not authorization to operate a mainnet exchange. Real funds remain blocked until the legal, licensing, custody, signer-independence, accounting, audit, insurance, market-integrity, reserve-monitoring, incident, and jurisdiction requirements in the launch plan have current written evidence.
+### PR 27: operations and production hardening
 
-## 8. Current external decisions
+Deliverables:
 
-Before the first GitHub or Vercel mutation, the release packet still needs:
+* service health and swap-state observability;
+* deterministic release evidence and exact commit identity;
+* security headers, dependency policy, secret scans, and build-output scans;
+* source-map and internal-endpoint controls;
+* incident, timeout, reorganization, and recovery drills;
+* final architecture, contract, wallet, legal, and operations reviews.
 
-- Repository visibility: public or private
-- Software license and contribution terms
-- A working GitHub session for the approved owner
-- Approval of the exact baseline tree and public metadata
+Acceptance:
 
-These decisions do not block local product and testnet development. They do block the first pushed branch, pull request, and Vercel publication.
+* every applicable release gate passes or has a named blocking owner;
+* no environment variable can enable mainnet or real assets by itself;
+* production cannot start without an exact approved manifest and contract identities;
+* preview and production deployments contain no credential or private diagnostic.
+
+## Per-PR release protocol
+
+Every PR follows this order:
+
+1. Freeze the file scope and acceptance assertions.
+2. Run focused tests, full checks, secret scans, and publication scans.
+3. Obtain an independent review against the exact bytes.
+4. Record commit, tree, tests, and residual risk.
+5. Push only the reviewed branch to the private Phlebas repository.
+6. Open or update the PR with exact evidence.
+7. Verify the Vercel preview for the same commit in desktop, tablet, and phone views.
+8. Recheck GitHub checks, reviews, mergeability, and deployment identity.
+9. Merge only when the gates pass.
+10. Verify that production serves the merge commit and rerun the affected user journeys.
+
+No force push, tag, release, key creation, wallet funding, chain transaction, or contract role assignment is implied by this protocol.
+
+## Key skip rule
+
+When a step needs a key that is unavailable:
+
+1. record the exact key purpose and boundary;
+2. build and test the unsigned input and expected output;
+3. add a deterministic adapter or deployment manifest;
+4. verify every key-independent invariant;
+5. leave the signing, broadcast, or deployment action blocked;
+6. continue with the next independent milestone.
+
+Code must not insert a placeholder secret, private endpoint, or real address to bypass the gate.
+
+## Deployment boundary
+
+Vercel may host:
+
+* the public UI;
+* static documentation;
+* read-only public market and status data;
+* browser-side preparation of unsigned orders and swap terms.
+
+Vercel must not host:
+
+* wallet keys or signing services;
+* private node credentials;
+* the authoritative matcher journal;
+* the authoritative swap coordinator database;
+* an observer that exposes private infrastructure;
+* a service that can claim, refund, redirect, or custody funds.
+
+## Completion condition
+
+Phlebas becomes a live working exchange only after the full product, both chain paths, wallet integrations, contracts, persistent services, monitoring, recovery, audits, and legal gates pass on current evidence. A polished UI, green build, deployed preview, or missing key does not prove that result by itself.

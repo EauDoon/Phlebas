@@ -1,22 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { markets } from "./market-data.ts";
 import {
   ARBITRUM_SEPOLIA_HEX,
   connectTestnetWallet,
   isMissingProviderCopy,
   missingProviderCopy,
   retargetSettlementCopy,
-  walletConnectFailureCopy,
+  signTypedData,
   walletConnectBarTitle,
   walletConnectBusyTitle,
+  walletConnectFailureCopy,
   walletConnectIdleTitle,
   walletConnectTitle,
   walletDisconnectLabel,
   walletStateWithSettlement,
   type Eip1193Provider,
 } from "./evm-wallet.ts";
+import { markets } from "./market-data.ts";
 
 test("connects only after switching to Arbitrum Sepolia", async () => {
   const calls: string[] = [];
@@ -195,4 +196,15 @@ test("connecting bar title wins over a prior reject after the market pair change
     "User rejected the request. Settled as ZEC-USDT.",
   );
   assert.doesNotMatch(walletConnectBarTitle(usdt0, { busy: true, error: reject }), /native ZEC/);
+});
+
+test("rechecks the active chain immediately before signing", async () => {
+  const provider: Eip1193Provider = {
+    async request({ method }) {
+      if (method === "eth_chainId") return "0x1";
+      if (method === "eth_signTypedData_v4") throw new Error("must not sign");
+      throw new Error(method);
+    },
+  };
+  await assert.rejects(() => signTypedData(provider, "0xabc", {}), /Arbitrum Sepolia/);
 });

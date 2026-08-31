@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, type MouseEvent } from "react";
 
 import styles from "./landing.module.css";
 
 const navigation = [
-  { href: "#markets", label: "Markets" },
-  { href: "#journey-lp", label: "Liquidity" },
-  { href: "#journey-deposit", label: "Gateway" },
+  { href: "#terminal-preview", label: "Markets" },
+  { href: "#journeys", label: "Liquidity" },
+  { href: "#pzec", label: "Native settlement" },
   { href: "/trade?view=architecture", label: "Architecture" },
+  { href: "#launch-gates", label: "Launch gates" },
+  { href: "/status", label: "Status" },
 ];
 
 export function LandingHeader() {
@@ -21,6 +23,18 @@ export function LandingHeader() {
 
   function closeMenu() {
     dialogRef.current?.close();
+  }
+
+  function followHash(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    if (!href.startsWith("#")) {
+      closeMenu();
+      return;
+    }
+    event.preventDefault();
+    closeMenu();
+    const target = document.getElementById(href.slice(1));
+    target?.scrollIntoView();
+    window.history.replaceState(null, "", href);
   }
 
   return (
@@ -47,7 +61,7 @@ export function LandingHeader() {
         </div>
         <nav aria-label="Mobile landing navigation">
           {navigation.map((item) => (
-            <a href={item.href} key={item.href} onClick={closeMenu}>{item.label}</a>
+            <a href={item.href} key={item.href} onClick={(event) => followHash(event, item.href)}>{item.label}</a>
           ))}
           <Link href="/trade?view=trade" onClick={closeMenu}>Enter simulation</Link>
         </nav>

@@ -1,226 +1,386 @@
 # Phlebas Architecture
 
-Status: Simulation only
+Status: native-settlement target, no-value simulation
 As of: 01-09-2026
 
-Phlebas is a user interface and protocol design for ZEC markets. The public app does not accept live deposits, hold assets, or move mainnet funds. Optional loopback stubs exist for a textest gateway, matcher, and observer. They are never hosted on Vercel.
+Phlebas is being built as a non-custodial exchange for native transparent ZEC against USDC and USDT. The current public application is a no-value browser simulation. Optional loopback stubs exist for a textest gateway, matcher, and observer, and an optional wallet connector is limited to undeployed Arbitrum Sepolia terms. Those services are never hosted on Vercel and do not move mainnet funds.
 
-No Phlebas contracts are deployed. No Zcash node, signer, reserve account, or custody process is operating. Every balance, order, trade, pool, price, and transaction shown by the public application is simulated.
+No Phlebas contract is deployed. No Zcash node, production signer, reserve account, custody process, transaction, or real asset is connected. Every balance, order, trade, pool, price, and transaction shown by the public application is simulated.
 
-The candidate mainnet design remains gated by the controls in [Mainnet gate](#mainnet-gate). This document does not authorize deployment or custody.
+[ADR 0002](adr/0002-native-zec-atomic-settlement.md) supersedes the custody-backed pZEC design in ADR 0001.
 
 ## Product boundary
 
-The target product has two displayed markets:
+The target markets are:
 
 * `ZEC/USDC`
 * `ZEC/USDT`
 
-The candidate settlement assets on Arbitrum One are:
+`ZEC` means native transparent ZEC on Zcash. It never becomes a Phlebas receipt or platform balance. The quote asset remains the exact issuer-approved token on the selected EVM chain.
 
-* `ZEC/USDC`
-* `ZEC/USDT`
+The product UI labels `ZEC-USDC` and `ZEC-USDT` as native ZEC against native USDC and native USDT. USDT0 is abandoned. Shielded ZEC stays out of scope. The public app is still a no-value simulation.
 
-The product UI now settles `ZEC-USDC` and `ZEC-USDT` as native ZEC against native USDC and native USDT. USDT0 is abandoned. Shielded ZEC stays out of scope. The public app is still a no-value simulation.
+The undeployed 8-decimal receipt symbol is `tZEC`. The Solidity type is `Zec`. Those names are simulation labels, not live native-ZEC execution. [ADR 0001](adr/0001-arbitrum-and-pzec.md) historically named the custody-backed ERC-20 `pZEC`. That name is not the current listed form. ADR 0001 remains historical.
 
-Phlebas would accept transparent Zcash deposits only. Transparent Zcash exposes transaction and balance information publicly, as described by [Zcash's comparison of transparent and shielded ZEC](https://z.cash/learn/what-is-the-difference-between-shielded-and-transparent-zcash/).
+Transparent Zcash exposes transaction and balance information publicly, as described by [Zcash's comparison of transparent and shielded ZEC](https://z.cash/learn/what-is-the-difference-between-shielded-and-transparent-zcash/).
 
-## Architecture decision
+Each fill settles through a pair of chain-native conditional locks. The matcher does not control either lock. Users and solvers sign asset-moving transactions in their own wallet boundary.
 
-The product labels native ZEC against native USDC and native USDT. Both requested market structures still need a common Arbitrum settlement environment:
-
-* A central limit order book can match signed orders and settle ERC-20 transfers.
-* A Uniswap v2 style pool requires two ERC-20 reserves in one contract and issues fungible ERC-20 LP shares. The [Uniswap protocol description](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works) states these properties directly.
-
-The undeployed 8-decimal receipt symbol is `tZEC`. The Solidity type is `Zec`. Those names are simulation labels, not live native-ZEC execution.
-
-Native transparent ZEC can support bilateral hash time-locked swaps. [ZIP 300](https://zips.z.cash/zip-0300) specifies a proposed transparent P2SH atomic-swap protocol. It remains Proposed and says the approach had not achieved widespread adoption. A native ZEC atomic-swap lane could settle matched orders, but it cannot by itself create a single-state Uniswap v2 pool. Phlebas therefore treats atomic swaps as a possible later settlement route, not the base for the LP system.
-
-[ADR 0001](adr/0001-arbitrum-and-pzec.md) historically selected Arbitrum One and a custody-backed `pZEC` ERC-20. That name is not the current listed form. Product settlement labels and the `tZEC` receipt symbol are recorded in [ADR 0002](adr/0002-native-zec-usdc-usdt.md). ADR 0001 remains historical.
+Version 1 is transparent. It does not provide shielded settlement or privacy.
 
 ## Current system
 
 The current repository contains a Next.js no-value simulation, undeployed Arbitrum Sepolia contract sources, and optional loopback operator stubs. Public Vercel must not run the gateway, matcher, or observer.
 
-| Component | Current state | Candidate gated state |
+| Component | Current state | Target state |
 | --- | --- | --- |
-| Web application | Local or Vercel-compatible simulation (noindex) | Public interface with explicit network and asset disclosures |
-| Market data | Static sample values plus session fills | Indexed contract events and signed service responses |
-| Order book | In-browser matcher; optional loopback operator stubs | Off-chain order intake and matching with on-chain settlement |
-| LP pools | In-memory constant-product calculation | Audited `ZEC/USDC` and `ZEC/USDT` contracts |
-| Zcash deposits | Local textest gateway stub, off by default | Fresh per-intent TEX addresses with final-transaction transparency checks |
-| Zcash withdrawals | Tour-only payout stub; nothing is sent | Burn-authorized transparent withdrawals |
-| `tZEC` | Undeployed 8-decimal receipt symbol; display label is native ZEC | Custody-backed Arbitrum receipt with controlled mint and burn; not live native-ZEC execution |
-| Custody | None | Approved operator, threshold policy, reserve ledger, and recovery plan |
-| Wallets | Optional EIP-1193 on Arbitrum Sepolia, sign-only default | Production wallet path after launch gates |
+| Web application | Vercel-hosted no-value simulation | Public interface and unsigned transaction preparation |
+| Market data | Illustrative fixtures plus session fills | Signed and independently monitored public feeds |
+| Order book | In-browser matcher and optional loopback operator | Persistent signed-order matcher with receipts |
+| Settlement | Local inventory updates and undeployed legacy Sepolia contracts | One two-chain atomic swap per fill |
+| Zcash path | Local textest gateway, ZIP 321, TEX, and payout-tour stubs | Transparent P2SH fund, claim, and refund transactions |
+| EVM path | Optional Sepolia wallet flow against an undeployed legacy manifest | Exact-token conditional-lock contract |
+| Liquidity | Simulation AMM and LP previews. Each pool holds `tZEC` | Wallet-held maker and solver quotes |
+| Simulation mint | tZEC mint controller in undeployed Sepolia sources | Not live native-ZEC execution |
+| `tZEC` | Undeployed 8-decimal receipt; display label is native ZEC | Simulation label, not live native-ZEC execution |
+| Wallets | Optional EIP-1193 testnet flow; no native swap adapter | Explicit adapters that keep every key in the wallet |
+| Observers | Optional loopback textest stub | Independent read-only Zcash and EVM evidence |
+| Coordinator | None | Persistent state, recovery, and safe-action policy |
 
-## Candidate topology
+The historical pZEC gateway and reserve model remains in the repository while the simulation UI is migrated. It is not the active target and must not receive new production functionality.
 
-The following diagram describes a gated target. It does not describe deployed infrastructure.
+## Target topology
 
 ```mermaid
 flowchart LR
-    ZW[Transparent Zcash wallet] --> TEX[Unique TEX deposit address]
-    TEX --> ZN[Private Zebra observers]
-    ZN --> BL[Bridge and reserve ledger]
-    BL --> MC[tZEC mint controller]
-    MC --> AR[Arbitrum settlement contracts]
+    ZW[Zcash wallet] --> ZL[Native ZEC conditional lock]
+    EW[EVM wallet] --> EL[Stablecoin conditional-lock contract]
 
-    EW[EVM wallet] --> UI[Vercel web interface]
-    UI --> API[Order and market API]
-    API --> ME[Matching service]
-    ME --> AR
-    EW --> AR
-    AR --> AMM[Constant-product pools]
+    UI[Public web interface] --> OI[Signed order intake]
+    OI --> SQ[Sequencer and matcher]
+    SQ --> SP[Immutable swap plan]
 
-    AR --> BQ[Finalized burn queue]
-    BQ --> PS[Policy service]
-    PS --> TS[Threshold ZEC signer]
-    TS --> ZN
-    ZN --> ZW
+    ZO[Zcash observers] --> CO[Swap coordinator]
+    EO[EVM observers] --> CO
+    SP --> CO
+
+    CO --> UI
+    UI --> ZW
+    UI --> EW
+
+    ZL -. same hash .-> EL
 ```
 
-Vercel may host the web interface and stateless public routes. It must not host the Zebra data directory, reserve ledger, signer, private keys, custody controls, or withdrawal queue. Zebra currently needs persistent storage. The [Zebra system requirements](https://zebra.zfnd.org/user/requirements.html) list about 300 GB for cached mainnet data as of 30-08-2026.
+The dotted relationship is data, not custody. Both legs bind the same approved hash and use different refund deadlines.
 
-## Zcash network dependency
+## Fill and settlement lifecycle
 
-Zebra is the candidate consensus node. `zcashd` reached end of life, halted at block `3,417,100` on 18-07-2026, and does not support NU6.3, according to the [official deprecation notice](https://z.cash/support/zcashd-deprecation/). Ironwood NU6.3 activated at block `3,428,143` on 28-07-2026, according to the [NU6.3 activation page](https://z.cash/upgrade/nu6-3/). The latest release checked for this design was [Zebra 6.3.0](https://github.com/ZcashFoundation/zebra/releases/latest), released 10-08-2026.
+One fill creates one immutable swap workflow:
 
-Zebra provides chain validation and RPC methods. It does not provide a wallet. Its RPC server is disabled by default and uses cookie authentication by default, as documented in the [Zebra RPC guide](https://zebra.zfnd.org/user/docker.html). The RPC endpoint must stay on a private network.
+```text
+matched
+  -> terms accepted
+  -> first leg funding prepared
+  -> first leg funded
+  -> first leg confirmed
+  -> second leg funding prepared
+  -> both legs funded
+  -> redeemable
+  -> settled
 
-[Zallet](https://zcash.github.io/zallet/) is the intended wallet replacement, but it is beta software, has not been fully reviewed, may make breaking changes, and still lacks several planned RPC methods. Phlebas may use Zallet for test integration. The production custody design must not depend on Zallet as its sole signer or wallet boundary while those warnings remain.
+first leg funded -> first leg refundable -> first leg refunded
+both legs funded -> second leg refundable -> second leg refunded
+any observed state -> disputed
+```
 
-## Transparent ZEC deposit flow
+Each partial fill creates a separate workflow. A match is never presented as settled.
 
-No part of this flow is active today.
+The candidate funding order is:
 
-1. The address service derives a fresh P2PKH receiver for one deposit intent, presents its ZIP 320 `tex...` encoding, and never reassigns the receiver.
-2. The observer records the expected address without importing a spend key.
-3. Zebra detects an output and returns the raw transaction, output index, block hash, and block height.
-4. The deposit validator confirms the network, output script, amount, and unique `(txid, vout)` key.
-5. The validator checks that the deposit transaction contains only transparent inputs and transparent outputs. A nonconforming transaction is quarantined for manual review and is not auto-credited.
-6. The deposit remains provisional until the confirmation policy is met.
-7. The reserve ledger creates a confirmed deposit entitlement.
-8. A separate mint policy may authorize the same integer amount of `tZEC` after all mainnet controls pass.
+1. The native-ZEC seller funds the Zcash leg with the longer refund deadline.
+2. Independent observers wait for the approved Zcash confirmation policy.
+3. The stablecoin seller funds the EVM leg with the shorter refund deadline.
+4. The ZEC seller claims the stablecoin and reveals the preimage.
+5. The stablecoin seller uses that preimage to claim native ZEC.
+6. If progress stops, each funder uses its own wallet-controlled refund path after the applicable deadline.
 
-[ZIP 320](https://zips.z.cash/zip-0320), Active since 12-01-2024, defines TEX as a Bech32m re-encoding of a transparent P2PKH address. Sending wallets must use only transparent UTXOs when paying a TEX address. This rule is not enforced by Zcash consensus. Phlebas must inspect the final deposit transaction instead of trusting the address prefix alone.
+The exact funding order and deadline margin require current protocol analysis and adversarial Testnet evidence. The local state machine must treat them as versioned policy.
 
-TEX proves no lifetime provenance. A transparent UTXO may have been created by an earlier transfer out of a shielded pool. The mainnet product must state whether "transparent only" means the final deposit transaction or all traceable ancestry. The candidate policy covers the final deposit transaction only.
+## Zcash leg
 
-## Confirmations and reorganization handling
+The candidate Zcash leg uses transparent P2SH. The [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf) states that transparent addresses include P2SH and that BIP 16 and BIP 65 apply from genesis. [ZIP 300](https://zips.z.cash/zip-0300) gives a candidate transparent atomic-swap construction with a hash-protected claim branch and a lock-time refund branch. [BIP 65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki) defines `OP_CHECKLOCKTIMEVERIFY` lock-time semantics.
 
-External deposits are untrusted transaction outputs. [ZIP 315](https://zips.z.cash/zip-0315), which remains Draft, recommends 10 confirmations for untrusted outputs and 3 for trusted outputs. Ten confirmations is the development and testnet observation minimum. The restricted-mainnet canary design starts at 100 confirmations and at least two hours, whichever is later, with value-based tiers allowed to become more conservative after formal review.
+The final implementation must verify:
 
-[ZIP 203](https://zips.z.cash/zip-0203) says services must never rely on zero-confirmation Zcash transactions. It also defines transaction expiry and a default expiry delta of 40 blocks at the current 75-second target spacing.
+* the exact redeem script and script hash;
+* network and transaction-version rules;
+* the shared hash function and byte order;
+* sighash and signature encoding;
+* lock-time type and transaction sequence;
+* standardness and relay policy;
+* fee and change construction;
+* transaction expiry and replacement behavior;
+* confirmation and reorganization policy;
+* wallet review, signature, broadcast, claim, and refund support.
 
-The deposit service stores the block hash and height for every observed outpoint. A reorganization causes it to:
+No repository fixture may contain a real key, funded address, private endpoint, or executable mainnet transaction.
 
-* remove orphaned provisional deposits;
-* find transactions that were included again on the new chain;
-* recalculate confirmations from the new tip;
-* stop minting and withdrawals if an already credited deposit is removed;
-* reconcile the reserve and liability ledgers before resuming.
+## EVM leg
 
-Ten confirmations are a risk policy, not absolute finality. Confirmation policy is expressed in blocks and risk tiers, not fixed minutes. NU7 has no activation height as of 30-08-2026. [Draft ZIP 218](https://zips.z.cash/zip-0218) proposes changing target spacing from 75 seconds to 25 seconds, so wall-clock assumptions may change.
+The candidate EVM leg is a non-upgradeable exact-token contract with these operations:
 
-## Withdrawal flow
+* fund one immutable swap;
+* claim with the exact preimage before expiry;
+* refund to the original funder after expiry;
+* read swap terms and terminal state.
 
-No part of this flow is active today.
+The contract has no token registry controlled by an administrator, callback, arbitrary recipient change, protocol balance, seizure path, hidden fee, proxy, or upgrade path.
 
-1. The user requests a transparent Zcash withdrawal and sees the gross amount, network fee, service fee, and net amount.
-2. After destination and amount validation, the user burns the required `tZEC`. The first implementation does not create a native payout liability from escrowed tokens.
-3. The bridge waits for the configured Arbitrum finality condition, consumes the burn event once, and records the native payout liability.
-4. The reserve ledger moves the amount from outstanding `tZEC` liability to native withdrawal payable.
-5. The policy service validates the destination, amount, limits, available UTXOs, fee, and change output.
-6. A threshold signer signs the approved transaction without exposing keys to the application, matching service, or Zebra node. Before release, the coordinator durably records its exact bytes, canonical transaction ID, and selected-input reservation.
-7. Zebra broadcasts the signed transaction with `sendrawtransaction`.
-8. The observer tracks mined, confirmed, expired, replaced, and reorganized states.
-9. The ledger closes the payable only after the configured confirmation rule is met.
-
-An unrecoverable failure before signature commitment may restore `tZEC` only through a single-use refund authorization that permanently cancels the unpaid claim. Once a native transaction is signed, the claim cannot be refunded and remains payable. An unresolved transaction may regain in-transit accounting only after independent observation of the exact committed transaction ID. A failed signed transaction reverses its input accounting only after independent proof that the exact inputs are spendable again and the signed transaction cannot confirm under the custody policy.
-
-Zcash transaction fees must use integer zatoshis. [ZIP 317](https://zips.z.cash/zip-0317), last updated 26-06-2026, defines the conventional fee as `5,000 zatoshis * max(2, logical_actions)`. The transaction builder should also query current node policy and must not hard-code a permanent flat fee.
-
-Transparent P2SH multisig exists on the network, but current wallet standardization is unfinished. [Draft ZIP 48](https://zips.z.cash/zip-0048) documents deterministic transparent multisig and a PCZT workflow, while also noting the lack of an established Zcash-compatible hardware-wallet approach. The mainnet gate therefore requires evidence for the exact HSM, MPC, or multisig signer used in production.
-
-## Arbitrum settlement
-
-Arbitrum One is the candidate settlement chain, not a deployed environment. The [Arbitrum documentation](https://docs.arbitrum.io/) supports Solidity contracts and ERC-20 transfers and was last updated 18-08-2026.
-
-The candidate quote assets are:
+USDC is the first quote candidate. Circle publishes its [current contract registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). Native USDT is the listed second quote. USDT0 is abandoned. No USDT address is approved by this document.
 
 | Product label | Candidate settlement asset | Source checked on 31-08-2026 |
 | --- | --- | --- |
 | `ZEC/USDC` | Native Circle USDC on Arbitrum | [Circle USDC address registry](https://developers.circle.com/stablecoins/usdc-contract-addresses) |
 | `ZEC/USDT` | Native USDT. USDT0 is abandoned. | Issuer-native USDT at the mainnet gate. No address is approved by this document. |
 
-Contract addresses are intentionally not configuration in the current application. The mainnet gate must reverify chain ID, bytecode, proxy and admin structure, token decimals, issuer documentation, and exact addresses from primary sources before any deployment.
+Contract code and test dependencies remain local until Testnet deployment receives separate approval.
 
-## Order book and pool behavior
+## Order book
 
-The candidate CLOB separates matching from settlement:
+The matcher accepts versioned signed orders that bind:
 
-* Users sign bounded orders with market, side, price, quantity, expiry, nonce, and chain domain.
-* The matching service orders compatible bids and asks without taking custody of user signing keys.
-* Settlement contracts enforce signatures, nonces, limits, fees, and asset transfers.
-* Cancellations invalidate unused order quantity.
-* Partial fills update filled quantity atomically.
+* maker and recipient;
+* side;
+* base and quote asset identities;
+* native and EVM network identities;
+* base amount and limit price;
+* nonce and account epoch;
+* expiry and salt;
+* maximum fee;
+* allowed settlement route;
+* protocol version and verifying domain.
 
-The candidate LP layer has one constant-product pool per quote asset. Each pool holds `tZEC` and one approved quote token, applies its configured fee, and issues fungible LP shares. The current interface's `0.30%` fee and sample reserves are simulation values, not approved mainnet parameters.
+EVM authorization uses [EIP-712](https://eips.ethereum.org/EIPS/eip-712). Zcash wallet authorization requires a separate, wallet-supported format. The matcher cannot treat an EVM signature as authority over ZEC.
 
-The router may compare executable CLOB liquidity with pool output. It must never present a simulated quote as executable or combine paths whose settlement cannot complete atomically.
+Price-time matching, GTC, IOC, FOK, partial fills, cancellation, fee caps, and side-aware integer rounding are deterministic. Sequence receipts and checkpoints make omission or reordering visible. They do not make the matcher trustless.
 
-## Trust and security model
+## Solver liquidity
 
-`tZEC` introduces custody. Token holders depend on the custody operator to keep native ZEC reserves, protect signing authority, honor burns, and prevent unauthorized minting. Smart-contract self-custody on Arbitrum does not remove the native reserve dependency. Product copy still labels this native ZEC. It is not live native-ZEC execution.
+Makers and solvers keep assets in their own wallets. They publish signed quotes that bind capacity, price, fee, expiry, networks, assets, and recipients. The quote may be calculated from a constant-product curve or inventory-skew strategy.
 
-The bridge enforces the accounting rules in [Asset and Accounting](ASSET_AND_ACCOUNTING.md). The minimum controls are:
+Accepting a quote creates one atomic-swap workflow. It does not transfer inventory into Phlebas.
 
-* separate observer, ledger, mint controller, and signer duties;
-* no spend keys in the frontend, Vercel environment, matching service, or Zebra process;
-* a limited hot withdrawal tier and threshold-controlled reserve storage;
-* deterministic, idempotent processing of Zcash outpoints and Arbitrum events;
-* daily supply and reserve reconciliation, plus reconciliation after every reorganization;
-* immediate mint and withdrawal halt on reserve, node, signer, or chain disagreement;
-* tested backup, restore, key rotation, and disaster recovery procedures;
-* public disclosure that `tZEC` is a custody-backed receipt, transparent-only, and not live native ZEC.
+A standard Uniswap v2 pool requires both assets in one contract state. Native ZEC and an EVM stablecoin do not meet that condition. The product must not describe solver liquidity as passive LP shares or a Uniswap v2 pool.
 
-## Failure policy
+## Wallet boundary
 
-| Condition | Required response |
-| --- | --- |
-| Zebra is behind the network tip | Pause deposit credit and native withdrawals |
-| Zebra observers disagree | Pause all bridge state transitions |
-| Deposit reorganization before mint | Remove the provisional entitlement |
-| Deposit reorganization after mint | Halt minting and withdrawals, isolate affected accounts, reconcile the deficit |
-| Arbitrum mint or burn reorganization | Roll back only unfinalized ledger state and never release native ZEC from an unfinalized burn |
-| Reserve is below customer liabilities | Halt minting and withdrawals, preserve records, begin incident response |
-| Signer or policy service is unavailable | Queue no new signing operation and preserve approved requests |
-| Token identity or chain ID differs from configuration | Reject the transaction and halt that market |
+Phlebas may prepare an unsigned transaction artifact and show the exact terms. The wallet performs review and signing.
+
+Phlebas never requests or stores:
+
+* a seed phrase;
+* a Zcash spending key or viewing key;
+* an EVM private key;
+* a wallet database;
+* an unrestricted signature;
+* a blind transaction approval.
+
+The user sees asset, amount, network, recipient, hash, deadline, fee, privacy effect, and refund path before every signature.
+
+The [Zallet PCZT interface](https://zcash.github.io/zallet/rpc/index.html) separates creation, inspection, signing, and extraction. That interface is a candidate adapter, not proof that a current wallet can safely complete the exact P2SH swap. Compatibility labels require executed tests.
+
+## Observers and coordinator
+
+At least two independent Zcash observations and two independent EVM observations feed the coordinator. The exact provider and node diversity policy remains a release decision.
+
+Every observation binds:
+
+* network and chain identity;
+* block height or number;
+* block hash;
+* transaction identifier;
+* output or log index;
+* contract or script identity;
+* amount;
+* confirmations or finality state;
+* observation time and observer identity.
+
+The coordinator stores an append-only journal and derives the current state by deterministic replay. It recommends a wallet action but cannot sign it.
+
+Observer disagreement, staleness, wrong-chain evidence, wrong-asset evidence, duplicate evidence, replacement, or reorganization moves the workflow to `disputed`. Automatic progress stops until a versioned recovery rule has enough evidence.
+
+## Service and deployment boundaries
+
+Vercel may host:
+
+* the public interface;
+* static documentation;
+* read-only public status and market routes;
+* browser-side preparation of unsigned order and swap terms.
+
+Vercel must not host:
+
+* wallet keys or transaction signing;
+* private node credentials;
+* the authoritative order or swap journal;
+* observer credentials;
+* a contract deployer;
+* any service that can spend, claim, refund, redirect, or custody assets.
+
+Persistent matcher, observer, coordinator, and watchtower services run in separate private infrastructure with least-privilege identities and audited release manifests.
 
 ## Environments
 
-| Environment | Permitted use | Assets |
-| --- | --- | --- |
-| Local simulation | Interface and deterministic logic tests | No chain assets |
-| Public preview | Read-only product demonstration | No chain assets |
-| Test environment | Contract and node integration after separate approval | Valueless test assets only |
-| Mainnet | Prohibited until every mainnet gate passes | Real assets only after explicit authorization |
+| Environment | Assets | Keys | Network actions | Public claim |
+| --- | --- | --- | --- | --- |
+| Local | Synthetic only | Deterministic disposable local keys when a test requires them | Local processes only | Simulation |
+| Preview | Synthetic only | None | No chain connections | No-value preview |
+| Closed Testnet | Testnet only | Approved test identities | Exact approved procedures | Testnet |
+| Public Testnet | Testnet only | Approved test identities | Monitored and capped | Testnet |
+| Mainnet | Real assets | Production controls | Separately approved manifest | Live exchange |
 
-The interface must label simulation and test environments. It must not display fabricated values as live market or reserve data.
+An environment variable cannot promote one environment to another. Mainnet code paths require an exact compiled manifest, build-time gate, runtime allowlist, and deployment approval.
 
-## Mainnet gate
+## Failure policy
 
-Mainnet remains blocked until all of the following have named owners, evidence, and explicit approval:
+Phlebas fails closed on:
 
-* legal analysis for custody, exchange operation, sanctions, money transmission, customer disclosures, and supported jurisdictions;
-* independent audits of `tZEC`, mint and burn controls, settlement contracts, order handling, router, and LP contracts;
-* a reviewed custody policy with exact signer technology, quorum, key generation, backups, rotation, and recovery;
-* live Zebra redundancy, private RPC controls, upgrade monitoring, and tested reorganization recovery;
-* stable Zcash wallet or independently audited transparent transaction builder and signer, without relying on beta Zallet as the production boundary;
-* proof that every configured chain ID and token address matches current primary sources and expected bytecode;
-* double-entry reserve accounting, invariant monitoring, public reserve disclosure, and independent attestation design;
-* deposit, mint, burn, withdrawal, expiry, and deep-reorganization tests across both chains;
-* rate limits, withdrawal limits, market controls, monitoring, incident response, and an emergency pause process;
-* a liquidity and market-integrity plan for the CLOB and both pools;
-* explicit approval to deploy contracts and establish operational custody.
+* invalid or expired signatures;
+* nonce, account-epoch, or replay conflict;
+* stale or disagreeing observations;
+* wrong network, token, contract, script, recipient, amount, or hash;
+* unsafe deadline ordering;
+* duplicate transaction or swap identifier;
+* claim and refund conflict;
+* chain reorganization beyond the active policy;
+* matcher sequence gap;
+* coordinator journal mismatch;
+* wallet adapter mismatch;
+* contract pause or code-hash mismatch.
+
+Failing closed preserves the user's refund route whenever the chain permits it. A service outage must not give Phlebas a new spending power.
+
+## Release gate
+
+Testnet needs current protocol evidence, deterministic vectors, local execution, adversarial timeout tests, wallet compatibility tests, independent contract and transaction-builder review, observer recovery tests, legal review, and explicit approval.
+
+Mainnet needs successful Testnet operation, independent audits, exact contract and service identities, reproducible builds, verified bytecode, monitoring, incident drills, legal approval, and separate authorization for real assets.
+
+The current Vercel deployment remains a simulation until every applicable gate passes.
+
+## ZEC half of the atomic swap
+
+The ZEC half of the atomic swap is a transparent P2SH output that holds ZEC until either the buyer reveals the preimage on the Zcash claim path or the seller refunds after the lock time. The address encoder, the P2SH script builder, and the wallet adapter are documented in [ADR 0005](adr/0005-zcash-p2sh-atomic-swap.md).
+
+### Components
+
+- **Address encoder** (`src/lib/zcash-address.ts`) — Base58Check transparent address encoder and decoder. Testnet and mainnet version bytes are pinned. The address surface is the only surface in PR 3 that depends on a hash function.
+- **P2SH script builder** (`src/lib/zcash-atomic-swap.ts`) — claim branch, refund branch, and full atomic-swap script. The script round-trips through the parser.
+- **Wallet adapter** (`src/lib/zcash-wallet-adapter.ts`) — typed `buildFundTransaction`, `buildClaimTransaction`, `buildRefundTransaction`, and `hashAtomicSwapParams`. The adapter returns unsigned transactions; the signing surface is an injected callback that the production code wires to a real Zcash wallet.
+- **Compressed pubkey parser** (`src/lib/zcash-pubkey.ts`) — 33-byte compressed secp256k1 public key parser and encoder.
+
+### Hash function
+
+The hash function is `RIPEMD160(SHA256(x))`, which the Zcash script engine exposes as `OP_HASH160`. The preimage primitive in `src/lib/preimage.ts` produces 32 random bytes; the same preimage and the same hash are valid on both the EVM leg (via `SHA256`) and the ZEC leg (via `RIPEMD160(SHA256)`).
+
+### Observer and watchtower (PR 4)
+
+The observer and the watchtower close the read-only half of the
+two-chain atomic swap. The observer polls the ConditionalLock
+contract and a set of P2SH lock addresses, reduces the events to
+coordinator transitions, and persists the snapshot to disk. The
+watchtower reads the coordinator state and emits alerts on stop
+conditions. The observer never holds a key and never signs a
+transaction; the signing surface lives in the wallet adapter.
+
+#### Components
+
+- **EVM observer** (src/lib/evm-observer.ts) — classifies the
+  ConditionalLock event topics and emits per-fill event records.
+- **ZEC observer** (src/lib/zcash-observer.ts) — polls each P2SH
+  address for outpoints and classifies them as funded, claimed, or
+  refunded.
+- **Event reducers** (src/lib/evm-event-reducer.ts,
+  src/lib/zcash-event-reducer.ts) — turn the event records into
+  sorted sequences of mapped transitions.
+- **Transition mapper** (src/lib/transition-mapper.ts) — names a
+  transition per event kind and side.
+- **Coordinator** (src/lib/atomic-coordinator.ts) — applies
+  transitions, persists fills by id, and records rejected
+  transitions in the alert log.
+- **Snapshot and persistence**
+  (src/lib/coordinator-snapshot.ts,
+  src/lib/coordinator-persistence.ts) — JSON-on-disk snapshot with
+  atomic write and bootstrap-time marker.
+- **Watchtower** (src/lib/watchtower.ts) — emits
+  reorg-depth-exceeded, missing-terminal-event, and deadline-breach
+  alerts.
+- **Service** (services/atomic-swap-observer/) — wires the
+  observers, the coordinator, and the watchtower into one HTTP
+  process with /health, /state, /fills, /fills/:fillId,
+  /alerts, and /observe.
+
+### Public market data (PR 5)
+
+The public market data surface is four read-only HTTP endpoints
+on the matcher service. The surface is the public read-only view
+of the matcher operator's in-memory state. The surface is the
+companion to the paper-trading fixtures in src/lib/market-data.ts:
+the fixtures drive the no-value simulation; the new endpoints
+drive matcher operator data once a real Sepolia deployment is recorded.
+
+#### Components
+
+- **Pure functions** (src/lib/market-data.ts) — tickerFromOperator,
+  tradesFromReceipts, depthFromBook, marketsFromOperator,
+  topFills. The functions take the operator state and a clock
+  and return a typed snapshot. The functions never mutate the
+  operator.
+- **HTTP endpoints** (services/matcher/server.ts) — /ticker,
+  /trades?limit=N, /depth?levels=N, /markets. The
+  endpoints bound the limit and levels parameters to
+  prevent memory exhaustion.
+
+### Operations hardening (PR 6)
+
+The operations hardening surface is a set of pure-function
+libraries that the services consume and an HTTP layer that the
+operator calls. The surface is the single source of truth for
+the operator's on-call rotation.
+
+#### Components
+
+- **Metrics counter** (src/lib/metrics.ts) — in-memory counter
+  with Prometheus text rendering. Pure function over a state
+  record.
+- **SLO tracker** (src/lib/slo-tracker.ts) — rolling-window
+  compliance verdict for a service against a target SLO.
+- **Health aggregator** (src/lib/health-aggregator.ts) —
+  composes the health of every service into a single response.
+- **Alert router** (src/lib/alert-router.ts) — maps watchtower
+  alerts to channels (pagerduty, slack, email, log) based on
+  severity and service.
+
+### Final integration and audit prep (PR 7)
+
+The final integration surface is the set of pure-function
+libraries and documents that gate the project's readiness for
+the production deployment.
+
+#### Components
+
+- **Release readiness gate** (src/lib/release-readiness.ts) —
+  pure function that evaluates a collection of per-gate
+  results into a single verdict.
+- **Audit checklist** (src/lib/audit-checklist.ts) — pure
+  data structure with required, blocked, and owner tracking.
+- **Release readiness script** (scripts/release-readiness.mjs)
+  — runs the automated gates and prints the verdict.
+- **Audit checklist doc** (docs/audit/audit-checklist.md) —
+  canonical record of the audit surface.
+- **Release readiness evidence pack**
+  (docs/audit/release-readiness-evidence.md) — the source
+  of truth for the release verdict.
+- **Final integration report**
+  (docs/audit/final-integration-report.md) — summary of the
+  seven PRs that delivered the project.

@@ -5,7 +5,10 @@ import { join } from "node:path";
 import next from "next";
 import { expect, type BrowserContext, test as base } from "@playwright/test";
 
-import { PREVIEW_EDUCATION_STORAGE_KEY, PREVIEW_EDUCATION_VERSION } from "../../src/lib/preview-education.ts";
+import {
+  PREVIEW_EDUCATION_STORAGE_KEY,
+  PREVIEW_EDUCATION_VERSION,
+} from "../../src/lib/preview-education.ts";
 
 const host = "127.0.0.1";
 
@@ -71,14 +74,10 @@ export const test = base.extend<object, WorkerFixtures>({
       headless: true,
     });
     await context.addInitScript(
-      ([key, version]) => {
-        try {
-          window.localStorage.setItem(key, version);
-        } catch {
-          // Private-mode tests still run. Education tests force the dialog.
-        }
+      ({ key, version }) => {
+        window.localStorage.setItem(key, version);
       },
-      [PREVIEW_EDUCATION_STORAGE_KEY, PREVIEW_EDUCATION_VERSION],
+      { key: PREVIEW_EDUCATION_STORAGE_KEY, version: PREVIEW_EDUCATION_VERSION },
     );
     for (const page of context.pages()) {
       await page.close();

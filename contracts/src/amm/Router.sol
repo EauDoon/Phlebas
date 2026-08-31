@@ -15,8 +15,8 @@ interface IERC20Router {
 contract Router {
     Factory public immutable factory;
     address public immutable zec;
-    address public pauser;
-    address public governor;
+    address public immutable pauser;
+    address public immutable governor;
     bool public paused;
 
     error Paused();
@@ -25,8 +25,15 @@ contract Router {
     error Residual();
     error NotPauser();
     error NotGovernor();
+    error InvalidConfiguration();
+    error Transfer();
+
+    event PauseSet(bool paused);
 
     constructor(Factory factory_, address pauser_, address governor_) {
+        if (address(factory_).code.length == 0 || pauser_ == address(0) || governor_ == address(0)) {
+            revert InvalidConfiguration();
+        }
         factory = factory_;
         zec = factory_.zec();
         pauser = pauser_;
@@ -41,31 +48,40 @@ contract Router {
     function pause() external {
         if (msg.sender != pauser) revert NotPauser();
         paused = true;
+        emit PauseSet(true);
     }
 
     function unpause() external {
         if (msg.sender != governor) revert NotGovernor();
         paused = false;
+        emit PauseSet(false);
     }
 
-    function addLiquidity(address quote, uint256 zecIn, uint256 quoteIn, address to, uint256 deadline)
-        external
-        whenLive
-        returns (uint256 shares)
-    {
+    function addLiquidity(
+        address quote,
+        uint256 zecIn,
+        uint256 quoteIn,
+        uint256 minShares,
+        address to,
+        uint256 deadline
+    ) external whenLive returns (uint256 shares) {
         if (block.timestamp > deadline) revert Expired();
         Pair pair = Pair(_pair(quote));
         _pull(zec, msg.sender, address(pair), zecIn);
         _pull(quote, msg.sender, address(pair), quoteIn);
         shares = pair.mint(to);
+        if (shares < minShares) revert Slippage();
         _assertEmpty();
     }
 
-    function removeLiquidity(address quote, uint256 shares, uint256 minZec, uint256 minQuote, address to, uint256 deadline)
-        external
-        whenLive
-        returns (uint256 outZec, uint256 outQuote)
-    {
+    function removeLiquidity(
+        address quote,
+        uint256 shares,
+        uint256 minZec,
+        uint256 minQuote,
+        address to,
+        uint256 deadline
+    ) external returns (uint256 outZec, uint256 outQuote) {
         if (block.timestamp > deadline) revert Expired();
         Pair pair = Pair(_pair(quote));
         _pull(address(pair), msg.sender, address(pair), shares);
@@ -74,11 +90,14 @@ contract Router {
         _assertEmpty();
     }
 
-    function swapExactIn(address tokenIn, address tokenOut, uint256 amountIn, uint256 minOut, address to, uint256 deadline)
-        external
-        whenLive
-        returns (uint256 amountOut)
-    {
+    function swapExactIn(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        uint256 minOut,
+        address to,
+        uint256 deadline
+    ) external whenLive returns (uint256 amountOut) {
         if (block.timestamp > deadline) revert Expired();
         if (to == address(this)) revert Residual();
         if ((tokenIn == zec) == (tokenOut == zec)) revert("Router: pair");
@@ -96,7 +115,10 @@ contract Router {
     }
 
     function _pull(address token, address from, address to, uint256 amount) internal {
-        if (!IERC20Router(token).transferFrom(from, to, amount)) revert("Router: pull");
+        (bool success, bytes memory result) = token.call(abi.encodeCall(IERC20Router.transferFrom, (from, to, amount)));
+        if (!success || (result.length != 0 && (result.length != 32 || !abi.decode(result, (bool))))) {
+            revert Transfer();
+        }
     }
 
     function _assertEmpty() internal view {

@@ -1,8 +1,10 @@
 # Phlebas Landing and User Journeys
 
-Status: the landing page, terminal shell, local matcher, LP preview, ZIP 321 deposit-shape preview, withdrawal state tour, destination inspector, and architecture explanation are implemented locally as no-value fixtures. Optional local loopback stubs exist for a textest gateway, matcher operator, and observer. They are never hosted on Vercel. The public app remains a no-value simulation.
+Status: the landing page, terminal shell, first-session education, country-blocked demonstration, local matcher, LP preview with review-and-confirm, ZIP 321 deposit-shape preview, deposit and withdrawal state tours, destination inspector, labeled incident demonstrations, `/legal`, `/security`, and architecture explanation are implemented locally as no-value fixtures. Optional local loopback stubs exist for a textest gateway, matcher operator, and observer. They are never hosted on Vercel. Wallet signing stays disabled while the verified testnet deployment manifest is undeployed. The public app remains a no-value simulation.
 
-Phlebas currently does not accept live funds or operate custody. Optional Arbitrum Sepolia wallet connection is sign-only by default. Contract sources are undeployed. Market data is illustrative. This specification does not authorize mainnet, custody, publication, or financial services.
+The pZEC, gateway, deposit, withdrawal, and passive LP surfaces are legacy simulation interfaces. The native-ZEC target and its replacement journey are governed by the architecture, product specification, and delivery plan.
+
+Phlebas currently has no live market data, deployed contract, real deposit, withdrawal, order, stablecoin, pZEC, custody, identity, or authoritative matching service. Every value and state in the public interface is illustrative. Wallet signing stays disabled while the verified testnet deployment manifest is undeployed. This specification does not authorize mainnet, custody, publication, or financial services.
 
 The user-facing market aliases are `ZEC / USDC` and `ZEC / USDT`, matching the requested markets. Every market ticket, review, and history surface must also state the exact settlement pair, `ZEC-USDC` or `ZEC-USDT`. Those pairs are native ZEC against native USDC or native USDT. Pool labels use the same assets. USDT0 is abandoned. This remains a no-value simulation and must not claim live native-ZEC execution.
 
@@ -43,9 +45,13 @@ Planning dials:
 | `/trade` | Terminal shell, defaults to trade | Implemented locally, simulation only |
 | `/trade?view=trade` | Trade preview | Implemented locally with illustrative order entry |
 | `/trade?view=trade&feed=stale` | Ticket gate | Allowlisted feed states: `illustrative`, `loading`, `empty`, `stale`, `unavailable`. Invalid values return to illustrative. |
+| `/trade?access=blocked` | Country-blocked demonstration | Allowlisted access values: `open`, `blocked`. Invalid values return to open. Never infers location. |
+| `/trade?education=1` | First-session education | Allowlisted education values: `1`. Invalid values do not force the dialog. |
 | `/trade?view=liquidity` | LP preview | Implemented locally with illustrative pool calculations |
 | `/trade?view=bridge` | Gateway boundary | Implemented locally as a deposit ZIP 321 preview and withdrawal state tour |
-| `/trade?view=architecture` | Product boundary | Implemented locally as a read-only explanation |
+| `/trade?view=architecture` | Product boundary | Implemented locally as a read-only explanation plus labeled incident demonstrations |
+| `/legal` | Legal boundary | Implemented locally. Not legal advice. No licensed operator. |
+| `/security` | Security boundary | Implemented locally. No production support commitment. |
 
 Only allowlisted query values may affect rendering. Invalid values return to the default trade preview without an error loop. Never place a wallet address, Zcash address, transaction hash, order identifier, amount, screening result, account state, or review reference in a URL.
 

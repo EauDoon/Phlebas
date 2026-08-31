@@ -19,15 +19,13 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export function interpretTicketKey(
   key: string,
-  options: { target: EventTarget | null; dialogOpen: boolean; reviewOpen?: boolean },
+  options: { target: EventTarget | null; dialogOpen: boolean; reviewOpen: boolean },
 ): TicketShortcut | null {
   if (options.dialogOpen || isTypingTarget(options.target)) {
     return null;
   }
   if (key === "Escape") return "escape";
-  if (options.reviewOpen) {
-    return null;
-  }
+  if (options.reviewOpen) return null;
   const lower = key.length === 1 ? key.toLowerCase() : key;
   if (lower === "b") return "buy";
   if (lower === "s") return "sell";

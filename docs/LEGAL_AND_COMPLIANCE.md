@@ -1,19 +1,21 @@
 # Phlebas Legal and Compliance Plan
 
-Status: local no-value simulation only as of 30-08-2026. Testnet remains a future gated stage.
+Status: historical ADR 0001 custody analysis, superseded for the target product
 
-Phlebas must not accept real ZEC, mint redeemable tZEC, list real USDC or USDT, charge trading fees, or offer real-value liquidity pools under the current project status. USDT0 is abandoned. Valueless `tZEC` may exercise technical mint, burn, and native Testnet payout paths. No test asset creates a legal or economic claim on mainnet ZEC, a future token, a reward, an airdrop, or monetary value.
+This document analyzes the legacy custody gateway and passive LP design. ADR 0001 historically named the receipt `pZEC`; the current listed form is undeployed `tZEC`. It does not approve or fully assess the native-ZEC atomic-swap target in [ADR 0002](adr/0002-native-zec-atomic-settlement.md). Testnet and Mainnet remain blocked until qualified counsel evaluates the non-custodial matcher, wallet-controlled cross-chain settlement, coordinator, observers, solver liquidity, stablecoin contracts, direct-contract access, operating entity, assets, users, and every served jurisdiction.
+
+Phlebas must not accept real ZEC, mint redeemable tZEC, list real USDC or USDT, charge trading fees, or offer real-value liquidity pools under the current project status. USDT0 is abandoned. Valueless `tZEC` may exercise technical mint, burn, and native Testnet payout paths. Those paths are not payable and are not live native-ZEC execution. No test asset creates a legal or economic claim on mainnet ZEC, a future token, a reward, an airdrop, or monetary value.
 
 This document is risk planning, not legal advice. A qualified lawyer must confirm the rules for the operating entity, custody model, assets, and every country served before mainnet.
 
 ## Product classification
 
-The planned service has two different operating layers:
+The superseded ADR 0001 service had two different operating layers:
 
 1. A non-custodial interface that lets a user connect a wallet, review market data, create an order, and sign a transaction locally.
 2. A custody-backed bridge that receives transparent ZEC, controls reserve keys, and mints or burns tZEC.
 
-The second layer makes the product custodial. Phlebas must not describe the full service as non-custodial while Phlebas or its contractor controls ZEC reserves, minting, redemption, withdrawal, or recovery keys.
+The second layer made that design custodial. ADR 0002 removes it from the target. Phlebas must not describe any system as non-custodial if Phlebas or its contractor controls ZEC reserves, minting, redemption, withdrawal, recovery keys, or either asset-moving swap path.
 
 The order book and liquidity pools can also create regulated activity even when users sign transactions themselves. Control over listings, matching, fees, contract upgrades, emergency pauses, routing, or the front end can identify an operator. The [FATF report on decentralized finance dated 21-07-2026](https://www.fatf-gafi.org/content/dam/fatf-gafi/reports/targeted-report-decentralised-finance-2026.pdf.coredownload.pdf) applies a technology-neutral, control-based test to virtual asset service providers.
 
@@ -163,4 +165,4 @@ Those services require isolated, durable infrastructure with HSM or MPC custody,
 
 ## Mainnet legal stop condition
 
-Mainnet is blocked until every requirement in [LAUNCH_PLAN.md](./LAUNCH_PLAN.md#mainnet-go-or-no-go-gate) has written evidence and the designated approvers record a go decision. A failed, expired, or unresolved gate is a no-go.
+Mainnet is blocked until a new ADR 0002 legal assessment exists, every applicable release requirement in the [Delivery plan](DELIVERY_PLAN.md#release-protocol) has written evidence, and the designated approvers record a go decision. A failed, expired, or unresolved gate is a no-go.

@@ -100,3 +100,23 @@ test("withdrawal tour step helper stays in range", () => {
   assert.equal(withdrawalTourById("missing"), null);
   assert.equal(WITHDRAWAL_TOUR.length, withdrawalTourIds().length);
 });
+
+test("withdrawal tour includes an unresolved demonstration without a payout", () => {
+  assert.equal(WITHDRAWAL_TOUR[0].title, "Requested");
+  assert.equal(WITHDRAWAL_TOUR.at(-1)?.title, "Confirmed");
+  const unresolved = WITHDRAWAL_TOUR.find((step) => step.id === "unresolved");
+  assert.ok(unresolved);
+  assert.match(unresolved.body, /stale/);
+  assert.match(unresolved.body, /Nothing is sent/);
+  assert.equal(withdrawalTourStep(-1).id, "requested");
+  assert.equal(withdrawalTourStep(99).id, "confirmed");
+});
+
+test("withdrawal tour does not present a payable address or shielded path", () => {
+  const joined = WITHDRAWAL_TOUR.map((step) => `${step.title} ${step.body}`).join(" ");
+  assert.doesNotMatch(joined, /tex1/i);
+  assert.doesNotMatch(joined, /t1[A-Za-z0-9]/);
+  assert.doesNotMatch(joined, /zs1/i);
+  assert.doesNotMatch(joined, /Withdraw ZEC/);
+  assert.doesNotMatch(joined, /shielded/i);
+});

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { once } from "node:events";
+import { mkdtemp, rm, unlink } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { hexToBytes } from "../../src/lib/keccak.ts";
 import { encodeTex } from "../../src/lib/tex.ts";
@@ -12,7 +15,9 @@ const TEX = encodeTex(hexToBytes("00112233445566778899aabbccddeeff00112233"));
 const TXID = "33".repeat(32);
 
 test("observer HTTP stub attests a textest outpoint and refuses a second mint", async () => {
-  const server = startObserver({ host: "127.0.0.1", port: 0 });
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-observer-"));
+  const persistPath = join(directory, "state.json");
+  const server = startObserver({ host: "127.0.0.1", port: 0, persistPath });
   await once(server, "listening");
   const address = server.address() as AddressInfo;
   assert.equal(address.address, "127.0.0.1");
@@ -35,7 +40,18 @@ test("observer HTTP stub attests a textest outpoint and refuses a second mint", 
       blockHeight: 50,
       blockHash: "44".repeat(32),
       tipHeight: 59,
+      transparentInputsOnly: true,
+      transparentOutputsOnly: true,
+      shieldedBundle: false,
     };
+    const incomplete = await fetch(`http://127.0.0.1:${port}/attest`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...payload, shieldedBundle: undefined }),
+    });
+    assert.equal(incomplete.status, 400);
+    assert.match(await incomplete.text(), /shieldedBundle-must-be-a-boolean/);
+
     const first = await fetch(`http://127.0.0.1:${port}/attest`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -61,10 +77,40 @@ test("observer HTTP stub attests a textest outpoint and refuses a second mint", 
     server.close();
     await once(server, "close");
   }
+
+  const restarted = startObserver({ host: "127.0.0.1", port: 0, persistPath });
+  await once(restarted, "listening");
+  const restartedPort = (restarted.address() as AddressInfo).port;
+  try {
+    const response = await fetch(`http://127.0.0.1:${restartedPort}/attest`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        txid: TXID,
+        vout: 1,
+        amountZatoshis: "100000000",
+        tex: TEX,
+        blockHeight: 50,
+        blockHash: "44".repeat(32),
+        tipHeight: 59,
+        transparentInputsOnly: true,
+        transparentOutputsOnly: true,
+        shieldedBundle: false,
+      }),
+    });
+    const body = await response.json() as { status: string; reason: string };
+    assert.equal(body.status, "rejected");
+    assert.match(body.reason, /already authorized/);
+  } finally {
+    restarted.close();
+    await once(restarted, "close");
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("observer HTTP quarantines shielded payments and fails closed on disagreement", async () => {
-  const server = startObserver({ host: "127.0.0.1", port: 0 });
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-observer-quarantine-"));
+  const server = startObserver({ host: "127.0.0.1", port: 0, persistPath: join(directory, "state.json") });
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
   const base = {
@@ -75,6 +121,9 @@ test("observer HTTP quarantines shielded payments and fails closed on disagreeme
     blockHeight: 10,
     blockHash: "66".repeat(32),
     tipHeight: 19,
+    transparentInputsOnly: true,
+    transparentOutputsOnly: true,
+    shieldedBundle: false,
   };
   try {
     const shielded = await fetch(`http://127.0.0.1:${port}/attest`, {
@@ -98,11 +147,13 @@ test("observer HTTP quarantines shielded payments and fails closed on disagreeme
   } finally {
     server.close();
     await once(server, "close");
+    await rm(directory, { recursive: true, force: true });
   }
 });
 
 test("observer HTTP coverage stub reproduces reserve coverage from public inputs", async () => {
-  const server = startObserver({ host: "127.0.0.1", port: 0 });
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-observer-coverage-"));
+  const server = startObserver({ host: "127.0.0.1", port: 0, persistPath: join(directory, "state.json") });
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
   const payload = {
@@ -163,5 +214,32 @@ test("observer HTTP coverage stub reproduces reserve coverage from public inputs
   } finally {
     server.close();
     await once(server, "close");
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("observer fails closed when initialized replay state disappears", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-observer-missing-"));
+  const persistPath = join(directory, "state.json");
+  const first = startObserver({ host: "127.0.0.1", port: 0, persistPath });
+  await once(first, "listening");
+  const firstPort = (first.address() as AddressInfo).port;
+  assert.equal((await fetch(`http://127.0.0.1:${firstPort}/health`)).status, 200);
+  first.close();
+  await once(first, "close");
+  await unlink(persistPath);
+
+  const restarted = startObserver({ host: "127.0.0.1", port: 0, persistPath });
+  await once(restarted, "listening");
+  const restartedPort = (restarted.address() as AddressInfo).port;
+  try {
+    const response = await fetch(`http://127.0.0.1:${restartedPort}/health`);
+    const body = await response.json() as { reason: string };
+    assert.equal(response.status, 400);
+    assert.match(body.reason, /state is missing after initialization/);
+  } finally {
+    restarted.close();
+    await once(restarted, "close");
+    await rm(directory, { recursive: true, force: true });
   }
 });

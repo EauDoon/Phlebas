@@ -50,15 +50,31 @@ export function PreviewEducation({ force = false }: { force?: boolean }) {
   }
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (visible && !dialog.open) {
-      dialog.showModal();
+    function skipNavFocused() {
+      return Boolean(document.querySelector('nav[aria-label="Skip links"]')?.matches(":focus-within"));
+    }
+
+    function openEducation() {
+      const node = dialogRef.current;
+      if (!node || !visible || node.open || skipNavFocused()) {
+        return;
+      }
+      node.showModal();
       headingRef.current?.focus();
     }
-    if (!visible && dialog.open) {
-      dialog.close();
+
+    const node = dialogRef.current;
+    if (!node) return;
+    if (visible && !node.open) {
+      openEducation();
     }
+    if (!visible && node.open) {
+      node.close();
+    }
+
+    const skipNav = document.querySelector('nav[aria-label="Skip links"]');
+    skipNav?.addEventListener("focusout", openEducation);
+    return () => skipNav?.removeEventListener("focusout", openEducation);
   }, [visible, step]);
 
   if (!visible) {
@@ -84,7 +100,7 @@ export function PreviewEducation({ force = false }: { force?: boolean }) {
       <h2 id="preview-education-title" ref={headingRef} tabIndex={-1}>
         {current.title}
       </h2>
-      <p>{current.body}</p>
+      <p role="region" aria-label="Education copy">{current.body}</p>
       <div className={styles.tourNav}>
         <button type="button" disabled={step === 0} onClick={() => setStep((index) => index - 1)}>
           Back

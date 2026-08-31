@@ -1,5 +1,9 @@
 # Phlebas Asset and Accounting Model
 
+Status: superseded custody model
+
+The pZEC reserve, mint, burn, deposit, and withdrawal model below is retained as historical design evidence. [ADR 0002](adr/0002-native-zec-atomic-settlement.md) replaces it with per-swap conditional-lock accounting for the target product. Do not extend this model into a live path.
+
 Status: Simulation only
 As of: 01-09-2026
 
@@ -278,7 +282,7 @@ Each pool has two token reserves and one LP share supply. For a pool with reserv
 x * y >= k_before
 ```
 
-The inequality accounts for fees retained by the pool. Contract code must use integer arithmetic with explicit rounding. The current interface's fee, TVL, volume, and reserve figures are simulations.
+The inequality accounts for fees retained by the pool. Contract code must use integer arithmetic with explicit rounding. The current interface's fee, TVL, volume, and reserve figures are simulations. The illustrative price chart maps integer tick fixtures to SVG pixel coordinates; those pixel positions may be IEEE floats. Axis labels remain integer ticks. That is a display exception, not a financial conversion.
 
 Adding liquidity transfers both assets into the pool and mints LP shares. Removing liquidity burns shares and transfers the proportional reserves. Neither action changes `tZEC` supply or the native reserve obligation.
 

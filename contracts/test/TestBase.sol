@@ -38,4 +38,8 @@ contract TestBase {
     function assertGt(uint256 left, uint256 right) internal pure {
         require(left > right, "not gt");
     }
+
+    function assertEq(address left, address right) internal pure {
+        require(left == right, "address neq");
+    }
 }

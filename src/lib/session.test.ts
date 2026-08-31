@@ -37,6 +37,20 @@ test("blocks a buy that exceeds session quote inventory", () => {
   assert.equal(canCover(account, "sell", 10_00000000n, 5278n), true);
 });
 
+test("submit copy names a local book fill and no chain submission", () => {
+  const result = submitOrder(seedBook("ZEC/USDC"), {
+    id: "user-1",
+    side: "buy",
+    tif: "IOC",
+    priceTicks: 5291n,
+    sizeAtoms: 10_00000000n,
+  });
+  const copy = describeSubmit(result, "ZEC/USDC");
+  assert.match(copy, /Filled against the local ZEC\/USDC book/);
+  assert.match(copy, /Nothing was signed or submitted to a chain/);
+  assert.doesNotMatch(copy, /\blive\b/i);
+});
+
 test("credits ZEC and debits quote on a buy fill", () => {
   const book = seedBook("ZEC/USDC");
   const account = seedPaperAccount();

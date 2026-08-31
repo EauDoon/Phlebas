@@ -1,3 +1,7 @@
+export const LANDING_JOURNEY_IDS = ["trader", "lp", "deposit", "withdrawal"] as const;
+
+export type LandingJourneyId = (typeof LANDING_JOURNEY_IDS)[number];
+
 export const LANDING_JOURNEYS = [
   {
     id: "trader",
@@ -33,10 +37,18 @@ export const LANDING_JOURNEYS = [
   },
 ] as const;
 
-export type LandingJourneyId = (typeof LANDING_JOURNEYS)[number]["id"];
-
 export function isLandingJourneyId(value: string | undefined): value is LandingJourneyId {
-  return LANDING_JOURNEYS.some((journey) => journey.id === value);
+  return LANDING_JOURNEY_IDS.includes(value as LandingJourneyId);
+}
+
+export function landingJourneyIndex(id: LandingJourneyId): number {
+  return LANDING_JOURNEY_IDS.indexOf(id);
+}
+
+export function nextLandingJourneyId(id: LandingJourneyId, delta: number): LandingJourneyId {
+  const count = LANDING_JOURNEY_IDS.length;
+  const index = (landingJourneyIndex(id) + delta + count) % count;
+  return LANDING_JOURNEY_IDS[index];
 }
 
 export function landingJourneyFromHash(hash: string): LandingJourneyId {

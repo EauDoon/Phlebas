@@ -1,183 +1,307 @@
-# Phlebas product specification
+# Phlebas Product Specification
 
-Status: design and no-value simulation, dated 01-09-2026.
+Status: native-settlement target, no-value simulation
+As of: 01-09-2026
 
 ## 1. Product statement
 
-Phlebas is a hybrid spot DEX design for two market labels:
+Phlebas is being built as a non-custodial spot exchange for native transparent ZEC against USDC and USDT. Display markets are `ZEC/USDC` and `ZEC/USDT`; settlement pairs are `ZEC-USDC` and `ZEC-USDT`. Settlement assets are native ZEC, native USDC, and native USDT. USDT0 is abandoned. It combines a professional offchain order book with one two-chain atomic-swap workflow per fill.
 
-- `ZEC/USDC`, settled as `ZEC-USDC`
-- `ZEC/USDT`, settled as `ZEC-USDT`
+Users and liquidity providers keep control of their wallets. Phlebas cannot sign, redirect, claim, refund, or custody either asset.
 
-It combines signed order intents and atomic onchain settlement with small-scope constant product liquidity pools. Settlement assets are native ZEC, native USDC, and native USDT. USDT0 is abandoned. This remains a no-value simulation.
+The current public application is a simulation. It does not place real orders or submit transactions.
 
-## 2. Goals
+## 2. Version 1 scope
 
-1. Give ZEC holders a compact, professional spot-trading experience.
-2. Let users keep quote assets and ZEC in their wallets until settlement.
-3. Add simple LP positions without farms, leverage, or exotic hooks. Mainnet contract-access policy remains unresolved.
-4. Make the ZEC custody and privacy boundary visible at every relevant decision.
-5. Make reserves, liabilities, sequencing, governance changes, and incidents independently observable.
+Version 1 includes:
 
-## 3. Non-goals for version 1
+* `ZEC/USDC` and `ZEC/USDT` market displays;
+* native transparent ZEC settlement;
+* one approved EVM network and exact stablecoin contract per market;
+* signed limit and market orders;
+* price-time matching with GTC, IOC, and FOK;
+* one immutable atomic-swap plan per fill;
+* wallet-controlled funding, claim, and refund;
+* maker and solver liquidity held in provider wallets;
+* deterministic receipts, replay, observation, and recovery;
+* responsive web, mobile, and keyboard-accessible interfaces;
+* public system, matcher, observer, and incident status.
 
-- Shielded ZEC deposits or withdrawals
-- Perpetuals, margin, borrowing, lending, or liquidation
-- Cross-margin or omnibus exchange balances
-- Token incentives, points, rebates, farms, or gauges
-- Arbitrary pair creation
-- Smart order types beyond limit, market, GTC, IOC, and FOK
-- Mobile-native applications
-- Claims of trustless, private, decentralized custody, or censorship-free operation
+USDC is the first quote candidate. Native USDT is listed. USDT0 is abandoned. Exact USDT contract identity remains unresolved until issuer, network, legal, and operational review.
 
-## 4. Users and permissions
+## 3. Non-goals
 
-| Role | Intended action | Authority boundary |
+Version 1 excludes:
+
+* custody-backed ERC-20 receipts;
+* platform customer balances;
+* minting, burns, reserve wallets, deposits into Phlebas, or withdrawals from Phlebas;
+* shielded atomic swaps;
+* passive cross-chain LP shares;
+* leverage, lending, liquidations, perps, options, farms, gauges, or token listings;
+* hidden or discretionary fees;
+* operator seizure or transaction substitution;
+* an oracle-dependent settlement path.
+
+The matcher is an operator and may omit or delay orders. Non-custodial does not mean trustless.
+
+## 4. Users
+
+### Trader
+
+A trader can inspect the market, place a signed order, review each fill, fund or claim a swap, and recover through a wallet-controlled refund path.
+
+### Maker or solver
+
+A maker or solver publishes signed quotes backed by inventory that stays in its wallets until one swap is authorized. It can set capacity, price, fee, expiry, and inventory controls.
+
+### Observer
+
+An observer supplies read-only chain evidence. It has no signing capability.
+
+### Operator
+
+The operator runs the matcher and coordinator, publishes receipts and status, and applies fail-closed policy. It has no authority over funds.
+
+## 5. Markets and units
+
+| Display market | Base settlement | Quote settlement |
 | --- | --- | --- |
-| Trader | Sign, cancel, and settle spot orders | Controls only their wallet assets and order intents |
-| LP | Add or remove pool liquidity | Controls only their LP position |
-| Matcher | Accept, sequence, and propose compatible orders | Cannot move funds without valid signatures and contract checks |
-| Router | Atomically select or split CLOB and AMM execution | Stateless, bounded by signed venue and price constraints |
-| Gateway attester | Confirm an eligible native ZEC deposit | Cannot spend custody reserves |
-| Custody signer | Authorize native ZEC withdrawal transactions | Cannot mint tZEC without a valid deposit attestation |
-| Emergency council | Pause mints, fills, or routing | Cannot seize assets, unpause, upgrade, or change economics |
-| Governance | Apply delayed parameter changes | Bound by timelock, caps, and immutable contract limits |
+| `ZEC/USDC` | Native transparent ZEC | Exact approved USDC contract |
+| `ZEC/USDT` | Native transparent ZEC | Exact approved native USDT contract |
 
-## 5. Market presentation
+ZEC quantities use integer zatoshis with 8 decimals. Quote quantities use the exact token's integer base units. Price uses a versioned integer tick.
 
-Every order ticket, confirmation, fill, and history record names the settlement pair `ZEC-USDC` or `ZEC-USDT`. Those pairs are native ZEC against native USDC or native USDT. USDT0 is not a listed quote asset.
+Every order ticket, confirmation, fill, and history record names the settlement pair `ZEC-USDC` or `ZEC-USDT`. Those pairs are native ZEC against native USDC or native USDT. USDT0 is not a listed quote asset. The undeployed 8-decimal receipt symbol is `tZEC`; product copy labels native ZEC. That is not live native-ZEC execution.
 
-Market data states are explicit:
+The reference ticket uses:
 
-- `Illustrative` for repository fixtures
-- `Delayed` with the as-of time when the feed is stale
-- `Live` only when connected to a monitored production source
-- `Unavailable` when freshness or integrity checks fail
+* `0.01` quote units per price tick;
+* one zatoshi as the minimum base step;
+* one quote-token base unit as the minimum settled notional.
 
-The interface never fabricates a balance, wallet state, deposit address, price, order, fill, or yield.
+All parsers reject exponent notation, extra precision, negative values, zero where positive is required, and values outside the configured integer range.
 
-## 6. Order book
+## 6. Signed order
 
-### 6.1 Signed order
-
-The proposed EIP-712 order binds at least:
+An order binds:
 
 ```text
-maker
+protocol version
+maker identity
+settlement recipient identities
 side
-base asset
-quote asset
+base asset and Zcash network
+quote asset, EVM chain, and exact token contract
 base amount
 limit price
+time in force
 nonce
 account epoch
 expiry
 salt
-recipient
 maximum fee
-allowed venues
-chain ID
-verifying contract
+allowed settlement route
+verifying domain
 ```
 
-Contract wallets use ERC-1271 signature validation. A market order is represented as IOC with a user-signed worst acceptable price. There is no unbounded market-order instruction.
+EVM signatures use EIP-712. Zcash authorization uses a separate wallet-supported format. One signature never grants authority on both chains.
 
-The reference ticket uses a `0.01` quote-price tick, one ZEC atom (`0.00000001 ZEC`) as the base-size step, and one quote-token atom (`0.000001 USDC` or `USDT`) as the minimum displayed notional. It rejects extra precision, underflow, and values outside the exact preview range. A market worst price rounds outward to the next tick, up for buys and down for sells. Production parameters must be versioned and enforced identically in the matcher and settlement contract.
+A market order is IOC with a signed worst acceptable price. There is no unbounded market order. A market worst price rounds outward to the next tick, up for buys and down for sells.
 
-### 6.2 Matching
+Contract wallets require ERC-1271 validation on the EVM path. That support remains a later contract milestone.
 
-The matcher follows deterministic price-time priority. It assigns a monotonic sequence number and produces signed intake receipts. Periodic sequence roots and an append-only event feed allow third parties to detect omission, reordering, or unexplained downtime.
+## 7. Matching
 
-The matcher may be fair and auditable, but it is not trustless. The UI must say that clearly.
+The matcher applies deterministic price-time priority.
 
-### 6.3 Settlement
+It supports:
 
-Compatible signed orders settle atomically from wallet to wallet. Settlement validates:
+* GTC resting orders;
+* IOC orders that cancel unfilled size;
+* FOK orders that settle in full or reject atomically at the matching layer;
+* partial fills;
+* integer side-aware quote rounding;
+* fee-cap validation;
+* expiry;
+* nonce bitmap cancellation;
+* account-epoch invalidation;
+* append-only intake and match receipts;
+* deterministic event replay.
 
-- Chain and verifying-contract domain
-- Pair allowlist and exact token addresses
-- Signature or ERC-1271 approval
-- Remaining amount, nonce, account epoch, and expiry
-- Side-aware integer price rounding
-- Maximum maker and taker fee
-- User-signed worst price and recipient
-- Replay protection and fill accounting
+Every partial fill creates one separate swap plan. A match never updates a real balance.
 
-No settlement call may depend on an oracle. External prices and TWAPs are monitoring signals only.
+Sequence receipts and checkpoints let users detect gaps or reordering. They do not force the matcher to include an order.
 
-### 6.4 Cancellation
+## 8. Atomic settlement
 
-Users have two onchain escape hatches:
+One fill creates immutable terms for two legs:
 
-1. Mark individual nonces as canceled in a bitmap.
-2. Increment the account epoch to invalidate every older order.
+| Leg | Asset | Candidate lock | Funder | Claimant | Refund rule |
+| --- | --- | --- | --- | --- | --- |
+| Native | Transparent ZEC | Zcash P2SH conditional lock | ZEC seller | Stablecoin seller | Later deadline |
+| Quote | USDC or selected native USDT | EVM exact-token conditional lock | Stablecoin seller | ZEC seller | Earlier deadline |
 
-Allowance revocation remains a final wallet-level control.
+Both legs bind the same hash. The exact deadline margin is a versioned policy.
 
-### 6.5 Initial fee envelope
-
-| Action | Proposed fee | Immutable or delayed limit |
-| --- | --- | --- |
-| Maker fill | 5 bps | Maximum 30 bps |
-| Taker fill | 15 bps | Maximum 30 bps |
-| AMM swap | 30 bps | Fixed in version 1 |
-| LP protocol fee | Off | Cannot be activated in version 1 |
-
-Any allowed fee change requires a seven-day timelock. Version 1 has no rebates because negative fees complicate solvency and manipulation controls.
-
-## 7. Liquidity pools
-
-Phlebas specifies only two constant product pools:
-
-- `ZEC/USDC`
-- `ZEC/USDT`
-
-Each swap enforces the fee-adjusted constant-product inequality, and the fixed 30 basis point input fee remains in the pool for LPs. Consequently, the reserve product after a valid swap is at least the reserve product before it, subject to exact integer-rounding rules. The version 1 pair and router surface is limited to add liquidity, remove liquidity, swap, permit, and reserve queries.
-
-Excluded features include callbacks, flash swaps, dynamic fees, farms, gauges, leverage, arbitrary token listings, and governance-controlled pool assets.
-
-LP warnings must cover ZEC redemption and reserve risk, stablecoin risk, smart-contract risk, impermanent loss, toxic flow from the order book, and emergency operating restrictions. Removing liquidity remains available during a trading pause unless the specific pool itself is compromised.
-
-## 8. Best execution router
-
-A stateless router may compare the signed order-book path with the AMM path and atomically split a trade. The user signs:
-
-- Maximum input or minimum output
-- Deadline
-- Allowed venues
-- Recipient
-- Maximum aggregate fee
-
-The router must revert the whole transaction when any bound fails. It cannot retain user balances.
-
-## 9. Transparent ZEC gateway
-
-### 9.1 Deposit intent
-
-A production gateway would issue one fresh, single-use [ZIP 320 TEX address](https://zips.z.cash/zip-0320) for every deposit intent and would never reassign it. TEX is a wallet-level mechanism that helps prevent direct shielded transfers to a transparent receiver. It is not a consensus restriction and does not prove the lifetime provenance of an input.
-
-### 9.2 Observation and mint
-
-Independent Zebra observers identify the exact transaction output and bind:
+The workflow states are:
 
 ```text
-transaction ID
-output index
-amount in zatoshis
-deposit address
-Arbitrum destination
-block height
-tip hash and chain-work evidence
-attestation epoch
+matched
+terms accepted
+first funding prepared
+first funded
+first confirmed
+second funding prepared
+both funded
+redeemable
+settled
+refundable
+refunded
+disputed
 ```
 
-The mint authorization is single-use. Native amounts remain integer zatoshis from observation through reconciliation. `tZEC` has 8 decimals, so no decimal conversion is required.
+Required invariants:
 
-The [Zcash confirmation guidance in ZIP 315](https://zips.z.cash/zip-0315) provides a network baseline, but Phlebas mainnet policy is separately risk-tiered. A restricted canary would start with a substantially more conservative threshold, elapsed-time floor, and per-deposit cap. No zero-confirmation mint is allowed.
+* one fill maps to one swap identifier;
+* asset, network, amount, recipient, hash, and deadlines never change;
+* second-leg funding requires confirmed first-leg evidence;
+* claims require the exact preimage;
+* claim and refund are mutually exclusive for each leg;
+* refunds require the applicable deadline;
+* duplicate or conflicting evidence fails closed;
+* wrong-chain, wrong-asset, stale, or reorganized evidence moves the workflow to disputed;
+* every incomplete funded swap retains a wallet-controlled refund path;
+* deterministic replay yields the same state and next safe action.
 
-### 9.3 Withdrawal
+## 9. Liquidity
 
-A user completes one finalized `tZEC` burn to create a native-ZEC payout claim. The first implementation does not create a payout liability from escrowed tokens. The withdrawal state machine is:
+Version 1 uses maker and solver liquidity.
+
+A signed quote binds:
+
+* provider identity;
+* both assets and networks;
+* exact input and output limits;
+* capacity;
+* fee;
+* expiry;
+* recipients;
+* pricing-policy version;
+* settlement protocol version.
+
+The provider may derive quotes from a constant-product curve. No funds enter a shared Phlebas pool. No LP token is issued.
+
+The router compares complete executable routes only. It may choose an order-book fill, solver quote, or bounded combination when every resulting fill has a valid atomic-swap plan.
+
+## 10. Trading journey
+
+1. The user selects `ZEC/USDC` or `ZEC/USDT`.
+2. The terminal shows book depth, recent trades, system status, settlement networks, and the exact quote asset.
+3. The user selects side, type, price or worst price, size, time in force, fee limit, expiry, and allowed routes.
+4. Review shows integer amounts, recipients, both networks, fees, refund rules, privacy effects, and matcher limits.
+5. The correct wallet signs the order authorization.
+6. The matcher returns an intake receipt and later a match receipt.
+7. Each fill opens a settlement ticket.
+8. The ticket shows the next safe wallet action and the evidence supporting it.
+9. The user signs funding, claim, or refund transactions only after reviewing exact terms.
+10. The ticket ends as settled, refunded, or disputed.
+
+## 11. Settlement ticket
+
+Every ticket shows:
+
+* swap identifier and protocol version;
+* order and fill receipt identifiers;
+* exact ZEC and stablecoin amounts;
+* stablecoin contract identity;
+* both networks;
+* both wallet recipients;
+* shared hash;
+* both deadlines and safety margin;
+* expected fees;
+* confirmation and finality state;
+* current observer agreement;
+* current required wallet action;
+* claim or refund outcome;
+* public-linkability warning for transparent ZEC.
+
+The ticket never asks the user to deposit into Phlebas.
+
+## 12. Wallet behavior
+
+The wallet boundary accepts only explicit transaction artifacts or supported adapter calls.
+
+Phlebas never asks for:
+
+* a seed phrase;
+* a private key;
+* a spending key;
+* a viewing key;
+* a wallet database;
+* an arbitrary message unrelated to the exact order;
+* an unrestricted token approval.
+
+Wallet compatibility requires executed tests for the exact release and the exact fund, claim, refund, fee, restart, and reorganization paths. ZIP 321 or TEX support alone is insufficient.
+
+## 13. Required system states
+
+The UI must represent:
+
+* market data live, stale, unavailable, or empty;
+* matcher available, degraded, or halted;
+* Zcash observers agreeing, stale, or conflicting;
+* EVM observers agreeing, stale, or conflicting;
+* contract identity verified, unresolved, paused, or mismatched;
+* wallet unsupported, disconnected, wrong network, ready, rejected, or failed;
+* swap matched, funding, both funded, redeemable, refundable, settled, refunded, or disputed;
+* incident active and recovery pending.
+
+No unsafe state may enable a signing action.
+
+## 14. Interface
+
+The terminal uses a dense professional hierarchy inspired by major order-book venues without copying their assets, copy, or layout.
+
+Desktop prioritizes chart, book, ticket, trades, and the active settlement ticket. Mobile prioritizes market status, order entry, signing review, and the refund path.
+
+Controls meet keyboard, focus, semantic-table, touch-target, contrast, and reduced-motion requirements. The application has no horizontal page overflow at 320, 390, 768, and 1440 pixel widths.
+
+Every signing action has a review step. Error messages identify the unsafe term or missing evidence and preserve the user's recovery path.
+
+## 15. Public status
+
+The status surface reports:
+
+* release commit and protocol schema version;
+* live-funds mode;
+* wallet and contract availability;
+* matcher sequence health;
+* Zcash and EVM observer freshness and agreement;
+* contract identity and pause state;
+* swap queues by state;
+* incident state.
+
+Until approved integrations exist, status remains `liveFunds: false`, wallets disabled, contracts not deployed, and networks none.
+
+## 16. Release acceptance
+
+The no-value milestone needs:
+
+* lint, type checking, unit tests, property tests, secret scan, build, and browser checks;
+* independent current-byte review;
+* an exact GitHub commit and Vercel preview;
+* no key, live endpoint, real address, contract deployment, or transaction.
+
+Testnet needs current protocol evidence, wallet execution, contract and transaction-builder review, observer recovery, legal approval, and a named authorization.
+
+Mainnet needs successful Testnet operation, independent audits, verified contract bytecode, reproducible services, monitoring, incident drills, legal approval, exact deployment manifests, production key controls, and separate authorization for real assets.
+
+## Simulation gateway (current public UI)
+
+The public application still demos a no-value gateway tour. Cannot mint tZEC without a valid deposit attestation. One tZEC burn can produce at most one native payout. High-risk confirmations repeat The ZEC custody and redemption dependency. Nothing is minted or sent.
+
+The simulation withdrawal walker is:
 
 ```text
 requested -> screened -> burn submitted -> burn finalized -> payable
@@ -190,55 +314,4 @@ unresolved -> exact committed transaction observed -> broadcast | mined
 unresolved -> verified input restoration -> payable
 ```
 
-Every finalized burn produces exactly one payout or tZEC-restoration outcome. A single-use refund authorization must permanently cancel the unpaid claim before restoring `tZEC`. Once a native transaction is signed, the claim cannot be refunded and remains payable. The signed bytes, their canonical transaction ID, and selected-input reservation must survive a coordinator restart, and only those exact bytes may be rebroadcast. An unresolved claim may return to broadcast or mined only through independent observation of that exact transaction ID. Native network fees, service fees, destination, and minimum output must be disclosed before the burn.
-
-The first implementation permits exactly one payout claim per native Zcash transaction. Inputs, change, fee, and signed bytes therefore belong to one claim. Canonical transaction IDs enter an append-only commitment history at signing and cannot be reused after confirmation or proof-gated restoration. Multi-claim payout batching remains unsupported until a transaction-level ledger can bind shared inputs and fees to multiple principals without double counting.
-
-## 10. Required UI states
-
-Every state must have visible loading, empty, stale, unavailable, rejected, and retry-safe behavior.
-
-High-risk confirmations repeat:
-
-- The asset that will leave the wallet
-- The asset and network that will arrive
-- The worst acceptable price
-- All fees
-- The ZEC custody and redemption dependency
-- The transparent and publicly linkable Zcash boundary
-
-## 11. Accessibility and responsive behavior
-
-- Full keyboard access and visible focus states
-- Semantic tables or grids with text equivalents for color-coded sides
-- At least 320-pixel viewport support
-- Reduced-motion support
-- Buy and sell never distinguished by color alone in actionable controls
-- Critical notices remain visible without hover
-
-## 12. Acceptance criteria by surface
-
-### Trading
-
-- Deterministic order encoding matches contract test vectors.
-- Partial fills, cancellations, expiries, and epoch invalidation reconcile exactly.
-- A simulated market order cannot execute beyond its signed worst price.
-- Stale data disables preview-to-sign transitions.
-
-### LP
-
-- Quote tests cover rounding, minimum output, reserve boundaries, and fee accounting.
-- Only the two approved pair addresses are constructible.
-- LP withdrawal works when fills, mints, and the router are paused.
-
-### Gateway
-
-- One native outpoint can authorize at most one mint.
-- One tZEC burn can produce at most one native payout.
-- Reserve and liability watchers reproduce the operator's result from public inputs.
-- Reorg, observer disagreement, stale proofs, or reconciliation mismatch fail closed.
-
-### Public release
-
-- The interface contains no live-funds path before every relevant launch gate passes.
-- No public claim exceeds the implemented and independently verified system.
+A single-use refund authorization must permanently cancel the unpaid claim before restoring tZEC. Once a native transaction is signed, the claim cannot be refunded. The public simulation exposes each fail-closed and walker preview state as a clickable tour step on both ZEC-USDC and ZEC-USDT labels.

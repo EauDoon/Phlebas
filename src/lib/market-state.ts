@@ -5,6 +5,20 @@ export const FEED_STATUSES = ["illustrative", "loading", "empty", "stale", "unav
 
 export type FeedStatus = (typeof FEED_STATUSES)[number];
 
+export const FEED_STATUS_LABELS: Record<FeedStatus, string> = {
+  illustrative: "Illustrative",
+  loading: "Loading",
+  empty: "Empty",
+  stale: "Stale",
+  unavailable: "Unavailable",
+};
+
+export function nextFeedStatus(id: FeedStatus, delta: number): FeedStatus {
+  const count = FEED_STATUSES.length;
+  const index = (FEED_STATUSES.indexOf(id) + delta + count) % count;
+  return FEED_STATUSES[index];
+}
+
 export type TicketGate = {
   status: Exclude<FeedStatus, "loading"> | "loading" | "empty";
   canReview: boolean;
@@ -115,44 +129,46 @@ export function ticketGate(
   };
 }
 
-export function feedSurface(status: FeedStatus): {
+export type FeedSurface = {
   showFixtures: boolean;
+  eyebrow: string;
+  statsNote: string;
   heading: string;
   message: string;
-} {
-  if (status === "loading") {
+};
+
+export function feedSurface(status: FeedStatus): FeedSurface {
+  const gate = ticketGate(status, status === "empty");
+  if (status === "illustrative") {
     return {
-      showFixtures: false,
-      heading: "Loading market data",
-      message: "Chart and 24h stats are waiting for a snapshot. Retry is safe.",
-    };
-  }
-  if (status === "unavailable") {
-    return {
-      showFixtures: false,
-      heading: "Market data unavailable",
-      message: "Chart and 24h stats are withheld. Integrity checks failed.",
+      showFixtures: true,
+      eyebrow: "Illustrative market data",
+      statsNote: "24h figures are repository fixtures. Not a live, delayed, or production feed.",
+      heading: gate.heading,
+      message: gate.message,
     };
   }
   if (status === "stale") {
     return {
       showFixtures: true,
-      heading: "Market data stale",
-      message: "Delayed illustrative series. As of 2026-08-30T16:32:08Z.",
-    };
-  }
-  if (status === "empty") {
-    return {
-      showFixtures: false,
-      heading: "Order book empty",
-      message: "No 24h stats or chart series. The local book has no resting depth.",
+      eyebrow: gate.heading,
+      statsNote: `24h figures stay fixture labels while market data is stale as of ${gate.asOf}.`,
+      heading: gate.heading,
+      message: gate.message,
     };
   }
   return {
-    showFixtures: true,
-    heading: "Illustrative",
-    message: "Repository fixtures. Not a live, delayed, or production feed.",
+    showFixtures: false,
+    eyebrow: gate.heading,
+    statsNote: `24h figures stay withheld. ${gate.message}`,
+    heading: gate.heading,
+    message: gate.message,
   };
+}
+
+export function feedSurfaceCopy(status: FeedStatus): { eyebrow: string; statsNote: string } {
+  const surface = feedSurface(status);
+  return { eyebrow: surface.eyebrow, statsNote: surface.statsNote };
 }
 
 export function depthEmptyCopy(settlementPair: Market["settlementPair"]): string {
@@ -160,8 +176,14 @@ export function depthEmptyCopy(settlementPair: Market["settlementPair"]): string
 }
 
 export function feedWithheldCopy(status: FeedStatus, settlementPair: Market["settlementPair"]): string {
-  const surface = feedSurface(status);
-  return `${surface.heading}. ${surface.message} Settled as ${settlementPair}.`;
+  const copy = {
+    loading: "Loading market data. Chart and 24h stats are waiting for a snapshot. Retry is safe.",
+    empty: "Order book empty. No 24h stats or chart series. The local book has no resting depth.",
+    stale: "Market data stale. Delayed illustrative series. As of 2026-08-30T16:32:08Z.",
+    unavailable: "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed.",
+    illustrative: "Illustrative. Repository fixtures are visible.",
+  } satisfies Record<FeedStatus, string>;
+  return `${copy[status]} Settled as ${settlementPair}.`;
 }
 
 export function orderBookCaptionCopy(marketId: MarketId): string {
