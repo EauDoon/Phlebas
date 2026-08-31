@@ -3,6 +3,7 @@ export const WITHDRAWAL_TOUR = [
   { id: "screened", title: "Screened", body: "Eligibility and destination checks run here. Signing the burn is the last action of this state." },
   { id: "rejected", title: "Rejected", body: "Destination or eligibility failed before burn. Nothing was burned. Nothing is sent." },
   { id: "burn submitted", title: "Burn submitted", body: "An unfinalized burn is on Arbitrum. The simulation does not submit a transaction." },
+  { id: "expired", title: "Expired evidence", body: "Burn evidence expired or was reorganized. Closed without a finalized burn. Nothing is sent. This is not live settlement." },
   { id: "burn finalized", title: "Burn finalized", body: "After Arbitrum finality the burn is consumed once and a native payout claim exists." },
   { id: "payable", title: "Payable", body: "The ledger owes transparent ZEC. No Zcash transaction has been signed." },
   { id: "transaction_prepared", title: "Transaction prepared", body: "One claim maps to one native transaction. No completion time is promised." },

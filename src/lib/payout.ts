@@ -58,6 +58,7 @@ export type PayoutClaimState =
   | "screened"
   | "rejected"
   | "burn-submitted"
+  | "closed"
   | "burn-finalized"
   | "payable"
   | "unresolved";
@@ -147,6 +148,18 @@ export function markPayoutUnresolved(claim: PayoutClaim): PayoutClaim {
   };
 }
 
+export function closePayoutWithoutFinalizedBurn(claim: PayoutClaim): PayoutClaim {
+  if (claim.state === "closed") return claim;
+  if (claim.state !== "burn-submitted") {
+    return { ...claim, state: "rejected", reason: "Only a submitted burn can close without a finalized burn." };
+  }
+  return {
+    ...claim,
+    state: "closed",
+    reason: "Burn evidence expired or was reorganized. Closed without a finalized burn.",
+  };
+}
+
 export function payoutClaimForTourStep(stepId: string, destination: string): PayoutClaim {
   const spent = emptyPayoutLedger();
   let claim = requestPayout({ burnId: "tour-preview", destination, amountZatoshis: 1n });
@@ -156,6 +169,7 @@ export function payoutClaimForTourStep(stepId: string, destination: string): Pay
   if (stepId === "rejected") return rejectPayoutBeforeBurn(claim);
   claim = submitPayoutBurn(claim, spent);
   if (stepId === "burn submitted" || claim.state === "rejected") return claim;
+  if (stepId === "expired") return closePayoutWithoutFinalizedBurn(claim);
   claim = finalizePayoutBurn(claim);
   if (stepId === "burn finalized" || claim.state === "rejected") return claim;
   claim = markPayoutPayable(claim);
