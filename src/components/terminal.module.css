@@ -100,6 +100,10 @@
   min-height: 44px;
 }
 
+:global(#destination-inspector) {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
