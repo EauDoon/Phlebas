@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
+import { custodyRedemptionCopy, publicLinkabilityCopy } from "@/lib/review-copy";
 import { sepoliaDomain, typedData, type TypedOrder } from "@/lib/eip712";
 import {
   getInjectedProvider,
@@ -709,6 +710,14 @@ export function TradeTicket({
               <dd>{feeEnvelopeCopy()}</dd>
             </div>
             <div>
+              <dt>Custody and redemption</dt>
+              <dd>{custodyRedemptionCopy()}</dd>
+            </div>
+            <div>
+              <dt>Public linkability</dt>
+              <dd>{publicLinkabilityCopy("fill")}</dd>
+            </div>
+            <div>
               <dt>CLOB vs AMM</dt>
               <dd>{describeRoute(review.comparison, market.quote)}</dd>
             </div>
@@ -717,9 +726,6 @@ export function TradeTicket({
               <dd>{review.digest.slice(0, 16)}…</dd>
             </div>
           </dl>
-          <p className={styles.inlineNotice}>
-            Transparent Zcash and this Arbitrum fill are publicly linkable. Redemption, if ever offered, would depend on a gateway.
-          </p>
           <p className={styles.inlineNotice}>
             Confirm submits only the local CLOB. Split and AMM figures are comparison quotes, not an executed router fill.
           </p>

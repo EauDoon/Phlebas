@@ -4,6 +4,7 @@ import { useId, useMemo, useState } from "react";
 
 import { quoteConstantProductSwapAtoms } from "@/lib/amm";
 import { AMM_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
+import { custodyRedemptionCopy, publicLinkabilityCopy } from "@/lib/review-copy";
 import {
   burnShares,
   emptyShareCopy,
@@ -406,10 +407,15 @@ export function LiquidityPanel({
                 <dt>Fees</dt>
                 <dd>{feeEnvelopeCopy()} AMM swap fee paid in ZEC: {review.swapFee}.</dd>
               </div>
+              <div>
+                <dt>Custody and redemption</dt>
+                <dd>{custodyRedemptionCopy()}</dd>
+              </div>
+              <div>
+                <dt>Public linkability</dt>
+                <dd>{publicLinkabilityCopy("LP action")}</dd>
+              </div>
             </dl>
-            <p className={styles.inlineNotice}>
-              Transparent Zcash and this Arbitrum LP action are publicly linkable. Redemption, if ever offered, would depend on a gateway.
-            </p>
             <p className={styles.inlineNotice}>
               Confirm runs the local integer pool preview. Wallet actions stay disabled.
             </p>
