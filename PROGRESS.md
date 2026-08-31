@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after education, session encoding, tUSDT, and IL-versus-hold native labels.
+Last updated: 31-08-2026 after native-pairs CTA, deposit-tour copy, session zecAtoms, and frozen SHA-256.
 
 ## Branch
 
@@ -154,18 +154,23 @@ Last updated: 31-08-2026 after education, session encoding, tUSDT, and IL-versus
 - Ticket, LP, and gateway review say the preview labels native ZEC and is not live settlement.
 - IL-versus-hold labels are `4x ZEC/quote` and `1/4x ZEC/quote`.
 - Undeployed quote faucet is `tUSDT`. Solidity `usdt0` storage is `usdt`. `tpZEC` remains the ERC-20 form.
+- Landing CTA is `Understand native pairs` and hashes `#pairs`.
+- Deposit-tour complete copy: nothing was minted. No pZEC in the tour bodies.
+- Session inventory fields are `zecAtoms` / `reservedZecAtoms` / `availableZec`.
+- Frozen SHA-256 for the sample `baseAsset=ZEC` order is `2d3360d350d50a83e69a46f50a4fedcfc77a610dc91fe0d80fee67616acb38ca`.
+- Blotter, ticket, LP amount, and depth caption name ZEC, not pZEC.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Landing CTA still says Understand pZEC; retarget or keep as a gateway-section label
 - Undeployed `PZec` / `tpZEC` contract names remain the ERC-20 form
-- Session blotter and matcher internals still use pZEC atom field names
-- Pin a frozen SHA-256 vector for `baseAsset=ZEC` if PRODUCT_SPEC wants a checked digest
-- Deposit-tour copy still names pZEC minting as a future receipt
-- Architecture `#pzec` section still uses the pZEC hash and Understand pZEC CTA
+- LP and AMM internals still use `reservePzecAtoms` / `pzecAtoms`
+- Gateway panel still has pZEC architecture copy (ZEC to pZEC heading, mint-after-threshold)
+- Incident demonstration copy still names pZEC minting
+- Matcher still sizes books in generic `sizeAtoms`; market-data helper is still `pzecAtomsFromHundredths`
+- Units helper is still `PZEC_DECIMALS`
 
 ## Blockers
 
