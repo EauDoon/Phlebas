@@ -100,7 +100,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletDisconnectLabel/);
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletConnectBarTitle/);
   assert.match(
-    await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"),
+    await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"),
     /busy \? walletConnectTitle\(settlementPair, true\)/,
   );
   assert.match(await readFile(join(root, "src/components/price-chart.tsx"), "utf8"), /priceChartLabelCopy/);
