@@ -32,6 +32,7 @@ import { PZEC_DECIMALS, PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 import { ArchitecturePanel } from "./architecture-panel";
 import { BridgePanel } from "./bridge-panel";
 import { LiquidityPanel } from "./liquidity-panel";
+import { NativeSwapPanel } from "./native-swap-panel";
 import { OrderBlotter } from "./order-blotter";
 import { OrderBook } from "./order-book";
 import { PriceChart } from "./price-chart";
@@ -39,10 +40,11 @@ import { TradeTicket } from "./trade-ticket";
 import { WalletBar } from "./wallet-bar";
 import styles from "./terminal.module.css";
 
-type View = "trade" | "liquidity" | "bridge" | "architecture";
+type View = "trade" | "settlement" | "liquidity" | "bridge" | "architecture";
 
 const views: { id: View; label: string }[] = [
   { id: "trade", label: "Trade" },
+  { id: "settlement", label: "Settlement" },
   { id: "liquidity", label: "Liquidity" },
   { id: "bridge", label: "ZEC gateway" },
   { id: "architecture", label: "Architecture" },
@@ -235,8 +237,12 @@ export function TradingTerminal({
     <div className={styles.shell}>
       <a className={styles.skipLink} href="#main-content">Skip to main content</a>
       <div className={styles.simulationBanner} role="status">
-        <strong>Protocol preview</strong>
-        <span>Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless.</span>
+        <strong>{view === "settlement" ? "No-value walkthrough" : "Protocol preview"}</strong>
+        <span>
+          {view === "settlement"
+            ? "No-value native settlement walkthrough. It prepares no transaction, connects no wallet, and moves no asset."
+            : "Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless."}
+        </span>
       </div>
 
       <header className={styles.topbar}>
@@ -257,11 +263,15 @@ export function TradingTerminal({
             </button>
           ))}
         </nav>
-        <WalletBar wallet={wallet} onChange={setWallet} />
+        {view === "settlement"
+          ? <span className={styles.fixturePill}>Fixture only</span>
+          : <WalletBar wallet={wallet} onChange={setWallet} />}
       </header>
 
       <main id="main-content" tabIndex={-1}>
-        <h1 className={styles.srOnly}>Phlebas ZEC trading terminal</h1>
+        <h1 className={styles.srOnly}>
+          {view === "settlement" ? "Phlebas native ZEC atomic settlement walkthrough" : "Phlebas ZEC trading terminal"}
+        </h1>
         {view === "trade" && (
           <>
             <section className={styles.marketBar} aria-label="Selected market summary">
@@ -402,6 +412,9 @@ export function TradingTerminal({
         )}
 
         {view === "liquidity" && <LiquidityPanel marketId={marketId} onMarketChange={selectMarket} />}
+        {view === "settlement" && (
+          <NativeSwapPanel key={marketId} marketId={marketId} onMarketChange={selectMarket} />
+        )}
         {view === "bridge" && <BridgePanel />}
         {view === "architecture" && <ArchitecturePanel />}
       </main>

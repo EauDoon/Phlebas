@@ -6,10 +6,10 @@ import { LandingHeader } from "./landing-header";
 import styles from "./landing.module.css";
 
 const statusRows = [
-  ["Application", "No-value simulation"],
+  ["Application", "No-value protocol previews"],
   ["Matcher", "In-browser; local operator optional"],
   ["Market data", "Fixtures plus local fills"],
-  ["Wallets", "Optional Sepolia; legacy only"],
+  ["Wallets", "Optional Sepolia; legacy pZEC only"],
   ["Contracts", "Source in repo, undeployed"],
   ["Asset custody", "Never connected"],
   ["Country access", COUNTRY_ACCESS.default === "deny" && COUNTRY_ACCESS.enabled.length === 0
@@ -20,14 +20,22 @@ const statusRows = [
 const journeys = [
   {
     number: "01",
-    label: "Order-book trading",
-    title: "Signed limits, visible bounds",
-    body: "Submit GTC, IOC, and FOK orders to an in-browser matcher. Market orders are IOC with a user-set worst price. The proposed production matcher remains offchain and is not this simulation.",
-    href: "/trade?view=trade",
-    link: "Open trade preview",
+    label: "Native settlement",
+    title: "Lock, claim, or recover",
+    body: "Walk through deterministic ZEC/USDC fixture terms, two conditional locks, the shared-preimage claim path, and later-deadline refunds. No wallet, transaction, service, or asset is used.",
+    href: "/trade?view=settlement&market=ZEC/USDC",
+    link: "Walk through settlement",
   },
   {
     number: "02",
+    label: "Legacy pZEC order simulation",
+    title: "Signed limits, visible bounds",
+    body: "Submit GTC, IOC, and FOK pZEC orders to an in-browser matcher. Market orders are IOC with a user-set worst price. This simulation is not the native settlement target.",
+    href: "/trade?view=trade",
+    link: "Open legacy trade preview",
+  },
+  {
+    number: "03",
     label: "Legacy liquidity simulator",
     title: "A historical pool model",
     body: "Explore the superseded pZEC pool fixture. The native-ZEC target uses wallet-held maker and solver quotes, not passive cross-chain LP shares.",
@@ -35,7 +43,7 @@ const journeys = [
     link: "Open LP preview",
   },
   {
-    number: "03",
+    number: "04",
     label: "Legacy custody simulator",
     title: "A superseded gateway tour",
     body: "Inspect local testnet TEX issuance and the withdrawal fixture. The public app receives no ZEC, mints no pZEC, and this is not the native-settlement target.",
@@ -79,8 +87,8 @@ export function LandingPage() {
           </aside>
 
           <div className={styles.heroActions}>
-            <Link href="/trade?view=trade" className={styles.primaryCta}>Enter simulation <span>↗</span></Link>
-            <a href="#pzec" className={styles.secondaryCta}>Understand settlement</a>
+            <Link href="/trade?view=settlement&market=ZEC/USDC" className={styles.primaryCta}>Walk through settlement <span>↗</span></Link>
+            <Link href="/trade?view=trade" className={styles.secondaryCta}>Open legacy pZEC simulation</Link>
           </div>
         </section>
 
@@ -94,12 +102,12 @@ export function LandingPage() {
             <article>
               <span className={styles.marketIndex}>01</span>
               <div><span>Primary target</span><h3>ZEC / USDC</h3><p>Native ZEC atomic settlement</p></div>
-              <Link href={{ pathname: "/trade", query: { view: "trade", market: "ZEC/USDC" } }}>Preview market <span>→</span></Link>
+              <Link href={{ pathname: "/trade", query: { view: "settlement", market: "ZEC/USDC" } }}>Walk through settlement <span>→</span></Link>
             </article>
             <article>
               <span className={styles.marketIndex}>02</span>
               <div><span>Later listing gate</span><h3>ZEC / USDT</h3><p>Native ZEC atomic settlement</p></div>
-              <Link href={{ pathname: "/trade", query: { view: "trade", market: "ZEC/USDT" } }}>Preview market <span>→</span></Link>
+              <Link href={{ pathname: "/trade", query: { view: "settlement", market: "ZEC/USDT" } }}>Inspect listing gate <span>→</span></Link>
             </article>
           </div>
         </section>
@@ -123,7 +131,7 @@ export function LandingPage() {
 
         <section className={styles.journeySection} id="journeys" aria-labelledby="journeys-title">
           <div className={styles.sectionIntro}>
-            <span className={styles.eyebrow}>One product, three journeys</span>
+            <span className={styles.eyebrow}>One product, four journeys</span>
             <h2 id="journeys-title">A narrow surface<br />for each decision.</h2>
           </div>
           <div className={styles.journeyList}>

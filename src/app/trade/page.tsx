@@ -5,14 +5,18 @@ import type { MarketId } from "@/lib/market-data";
 import { isFeedStatus } from "@/lib/market-state";
 
 export const metadata: Metadata = {
-  title: "Trading simulation",
-  description: "Explore the no-value Phlebas ZEC order-book and liquidity simulation.",
+  title: "Protocol preview",
+  description: "Explore no-value Phlebas native settlement and legacy pZEC simulations.",
 };
 
-type TradeView = "trade" | "liquidity" | "bridge" | "architecture";
+type TradeView = "trade" | "settlement" | "liquidity" | "bridge" | "architecture";
 
 function isTradeView(value: string | undefined): value is TradeView {
-  return value === "trade" || value === "liquidity" || value === "bridge" || value === "architecture";
+  return value === "trade"
+    || value === "settlement"
+    || value === "liquidity"
+    || value === "bridge"
+    || value === "architecture";
 }
 
 function isMarketId(value: string | undefined): value is MarketId {

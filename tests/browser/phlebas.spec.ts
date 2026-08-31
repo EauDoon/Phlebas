@@ -16,6 +16,11 @@ const routes = [
     marker: "legacy simulation: pZEC-USDC",
   },
   {
+    path: "/trade?view=settlement&market=ZEC/USDC",
+    disclosure: "No-value walkthrough",
+    marker: "Native ZEC atomic swap",
+  },
+  {
     path: "/liquidity",
     disclosure: "Protocol preview",
     marker: "Provide liquidity",
@@ -106,6 +111,24 @@ async function expectReducedMotion(page: Page) {
   expect(state.offenders, "Elements retaining motion under reduced-motion preference").toEqual([]);
 }
 
+async function runNativeFixtureActions(page: Page, labels: readonly string[]) {
+  for (const label of labels) {
+    const action = page.getByRole("button", { name: label, exact: true });
+    await expect(action).toBeEnabled();
+    await action.click();
+  }
+}
+
+const fundedNativeFixtureActions = [
+  "Accept exact fixture terms",
+  "Prepare fixture ZEC lock",
+  "Record fixture ZEC funding",
+  "Confirm fixture ZEC evidence",
+  "Prepare fixture USDC lock",
+  "Record fixture USDC funding",
+  "Confirm fixture USDC evidence",
+] as const;
+
 for (const width of viewports) {
   test.describe(`${width}px viewport`, () => {
     test.use({ viewport: { width, height: 900 } });
@@ -143,24 +166,21 @@ for (const width of viewports) {
       const runtimeErrors = captureRuntimeErrors(page);
       await page.goto("/", { waitUntil: "networkidle" });
 
-      const enterSimulation = page.locator("main").getByRole("link", { name: "Enter simulation" });
-      await tabTo(page, enterSimulation);
-      await expectVisibleFocus(enterSimulation);
+      const settlementWalkthrough = page.locator("main").getByRole("link", { name: "Walk through settlement" }).first();
+      await tabTo(page, settlementWalkthrough);
+      await expectVisibleFocus(settlementWalkthrough);
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(/\/trade\?view=settlement&market=ZEC(?:%2F|\/)USDC$/);
+      await expect(page.getByRole("heading", { name: "Native ZEC atomic swap" })).toBeVisible();
+
+      await page.goto("/", { waitUntil: "networkidle" });
+      const legacySimulation = page.getByRole("link", { name: "Open legacy pZEC simulation" }).first();
+      await tabTo(page, legacySimulation);
+      await expectVisibleFocus(legacySimulation);
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/trade\?view=trade$/);
       await expect(page.getByRole("combobox", { name: "Selected market" })).toHaveValue("ZEC/USDC");
       await expect(page.getByText("legacy simulation: pZEC-USDC", { exact: true })).toBeVisible();
-
-      await page.goto("/", { waitUntil: "networkidle" });
-      const understandSettlement = page.getByRole("link", { name: "Understand settlement" });
-      await tabTo(page, understandSettlement);
-      await expectVisibleFocus(understandSettlement);
-      await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(/\/#pzec$/);
-      await expect(page.getByText(
-        "The pZEC pool and gateway screens remain only as a clearly labeled legacy simulation while the native flow is built.",
-        { exact: true },
-      )).toBeVisible();
 
       await page.goto("/", { waitUntil: "networkidle" });
       const lpLink = page.getByRole("link", { name: "Open LP preview" });
@@ -256,6 +276,116 @@ for (const width of viewports) {
     });
   });
 }
+
+test("native settlement happy path reaches a no-value settled state", async ({ page }) => {
+  const serviceRequests: string[] = [];
+  page.on("request", (request) => {
+    if (/gateway|matcher|observer|\/rpc|wallet/i.test(request.url())) serviceRequests.push(request.url());
+  });
+
+  await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
+  await expect(page.getByText(
+    "No-value native settlement walkthrough. It prepares no transaction, connects no wallet, and moves no asset.",
+    { exact: true },
+  )).toBeVisible();
+  await expect(page.getByRole("button", { name: /connect.*wallet/i })).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: /pZEC/i })).toHaveCount(0);
+  await expect(page.getByText("No pZEC. The trade, liquidity, and gateway screens remain legacy simulations.")).toBeVisible();
+
+  await runNativeFixtureActions(page, [
+    ...fundedNativeFixtureActions,
+    "Record fixture USDC claim",
+    "Confirm fixture USDC claim",
+    "Record fixture ZEC claim",
+    "Confirm fixture ZEC claim",
+  ]);
+
+  await expect(page.getByRole("heading", { name: "Fixture settled" })).toBeVisible();
+  await expect(page.getByText("Fixture journey complete. No asset moved.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Fixture settled" })).toBeDisabled();
+  await expect(page.getByRole("table", { name: "Current deterministic native swap fixture evidence" })).toContainText("settled");
+  expect(serviceRequests).toEqual([]);
+});
+
+test("native settlement refund path stays early, then recovers both fixture legs", async ({ page }) => {
+  await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
+  await page.getByRole("combobox", { name: "Fixture scenario" }).selectOption("refund");
+  await runNativeFixtureActions(page, fundedNativeFixtureActions);
+
+  await expect(page.getByText("Both fixture locks are funded. Neither leg is settled, and refund remains early.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Record fixture USDC refund" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Advance fixture to USDC refund deadline" }).click();
+  await expect(page.getByRole("button", { name: "Record fixture USDC refund" })).toBeEnabled();
+
+  await runNativeFixtureActions(page, [
+    "Record fixture USDC refund",
+    "Confirm fixture USDC refund",
+    "Advance fixture to ZEC refund deadline",
+    "Record fixture ZEC refund",
+    "Confirm fixture ZEC refund",
+  ]);
+  await expect(page.getByRole("heading", { name: "Fixture refunded" })).toBeVisible();
+  await expect(page.getByText("Fixture refund complete. No transaction was submitted.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Fixture refunded" })).toBeDisabled();
+});
+
+for (const unsafe of [
+  ["stale", "Approved observer watermark is stale."],
+  ["conflict", "Approved observers disagree on the stablecoin lock."],
+  ["reorganization", "The fixture EVM claim left the canonical chain."],
+  ["contract-mismatch", "Observed contract identity differs from the signed fixture terms."],
+] as const) {
+  test(`native settlement ${unsafe[0]} evidence disables funding and claim`, async ({ page }) => {
+    await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
+    await page.getByRole("combobox", { name: "Fixture scenario" }).selectOption(unsafe[0]);
+    await expect(page.getByRole("heading", { name: "Disputed fixture evidence" })).toBeFocused();
+    await expect(page.getByRole("alert").filter({ hasText: unsafe[1] })).toBeVisible();
+    const disabled = page.getByRole("button", { name: "Fixture action disabled" });
+    await expect(disabled).toBeDisabled();
+    await expect(disabled).toHaveAttribute("aria-describedby", "native-swap-action-disabled");
+    await expect(page.getByText("Evidence is unsafe or conflicting. Funding and claim controls remain disabled.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Reset fixture" })).toBeEnabled();
+  });
+}
+
+test("native settlement announces progress, moves focus, and resets safely by keyboard", async ({ page }) => {
+  await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
+  const action = page.getByRole("button", { name: "Accept exact fixture terms" });
+  await action.focus();
+  await expectVisibleFocus(action);
+  await page.keyboard.press("Enter");
+
+  const phaseHeading = page.getByRole("heading", { name: "Terms accepted" });
+  await expect(phaseHeading).toBeFocused();
+  await expect(page.locator('li[aria-current="step"]')).toContainText("ZEC lock");
+  await expect(page.getByTestId("native-swap-live")).toHaveText(
+    "Exact fixture terms accepted. ZEC lock preparation is now available.",
+  );
+
+  await page.getByRole("combobox", { name: "Fixture scenario" }).selectOption("stale");
+  await page.getByRole("button", { name: "Reset fixture" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Matched fixture" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Accept exact fixture terms" })).toBeEnabled();
+});
+
+test("native settlement keeps USDT disabled until one exact asset identity is approved", async ({ page }) => {
+  await page.goto("/trade?view=settlement&market=ZEC/USDT", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "USDT identity unresolved" })).toBeVisible();
+  await expect(page.getByText("USDT is not USDT0.", { exact: true })).toBeVisible();
+  await expect(page.getByText(
+    "USDT and USDT0 are not interchangeable. No exact network and token contract has been approved for this walkthrough.",
+    { exact: true },
+  )).toBeVisible();
+  const disabled = page.getByRole("button", { name: "Fixture action disabled" });
+  await expect(disabled).toBeDisabled();
+  await expect(disabled).toHaveAttribute("aria-describedby", "native-swap-disabled-reason");
+  await expect(page.getByRole("button", { name: /connect.*wallet/i })).toHaveCount(0);
+
+  await page.getByRole("combobox", { name: "Selected native settlement market" }).selectOption("ZEC/USDC");
+  await expect(page.getByRole("heading", { name: "Matched fixture" })).toBeVisible();
+  await expect(page).toHaveURL(/\/trade\?market=ZEC%2FUSDC&view=settlement$/);
+});
 
 test("trade ticket shows parser errors instead of a tick notice", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });

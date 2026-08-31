@@ -1,6 +1,6 @@
 # Browser acceptance
 
-Phlebas uses a locked Playwright test suite against the production Next.js build. It covers the public no-value simulation only. The checks do not connect a wallet, call a chain, accept funds, or qualify any Zcash wallet.
+Phlebas uses a locked Playwright test suite against the production Next.js build. It covers the public no-value previews only. The checks do not connect a wallet, build or sign a transaction, call a chain or protocol service, accept funds, or qualify any Zcash wallet.
 
 ## Run locally
 
@@ -18,7 +18,7 @@ Linux CI installs the required system packages with `npx playwright install --wi
 
 ## Covered behavior
 
-The suite checks `/`, `/trade`, and `/liquidity` at 320, 390, 768, and 1440 CSS pixels, plus `/status`, `/legal`, `/security`, a 404 route, local matcher fills with a review-and-confirm step, GTC cancel and epoch invalidation, IOC/FOK and market-IOC outcomes, session expiry on review, past-expiry rejected panel, blotter event-log expiry, blotter tabpanels, LP mint review-and-confirm, LP pause-and-burn, LP IL-versus-hold preview, payout-tour stub claims, empty and loading feeds, stale-feed review gating, venue comparison copy, testnet TEX issuance without a gateway, destination inspection, and a visible wallet-provider rejection. Each width covers:
+The suite checks `/`, `/trade`, `/trade?view=settlement&market=ZEC/USDC`, and `/liquidity` at 320, 390, 768, and 1440 CSS pixels. It also checks `/status`, `/legal`, `/security`, a 404 route, local matcher fills with a review-and-confirm step, GTC cancel and epoch invalidation, IOC/FOK and market-IOC outcomes, session expiry on review, past-expiry rejected panel, blotter event-log expiry, blotter tabpanels, LP mint review-and-confirm, LP pause-and-burn, LP IL-versus-hold preview, payout-tour stub claims, empty and loading feeds, stale-feed review gating, venue comparison copy, testnet TEX issuance without a gateway, destination inspection, and a visible wallet-provider rejection. Each width covers:
 
 - Successful production-route responses and the expected simulation disclosure.
 - Landing-to-liquidity navigation and terminal view navigation.
@@ -28,8 +28,18 @@ The suite checks `/`, `/trade`, and `/liquidity` at 320, 390, 768, and 1440 CSS 
 - Zero page-level horizontal overflow.
 - Zero browser console errors, uncaught page errors, or Next.js error overlays.
 
+The native settlement cases use deterministic in-memory projections from the swap domain APIs. They cover:
+
+- The ZEC/USDC matched, terms-accepted, ZEC-lock, USDC-lock, shared-preimage claim, and settled path.
+- Early-refund gating, the shorter USDC refund, the later ZEC refund, and the refunded terminal state.
+- Stale observer, conflicting observer, claim reorganization, and contract-identity mismatch disputes with funding and claim disabled.
+- Reset behavior, keyboard activation, focus movement to the new state heading, `aria-current` progress, and polite state announcements.
+- The unresolved ZEC/USDT listing gate, with USDT and USDT0 kept separate and all fixture actions disabled.
+- Absence of wallet controls, pZEC inputs, and gateway, matcher, observer, RPC, or wallet requests throughout the native walkthrough.
+- Honest separation between the native target and the legacy pZEC trade, liquidity, and gateway simulations.
+
 Failure screenshots and traces are written to `test-results/`, which is ignored by Git.
 
 ## Limits
 
-The automated suite uses Chromium. It does not replace manual assistive-technology review, Firefox and WebKit coverage, deployed Vercel verification, JavaScript-disabled review, or wallet interoperability testing. Those checks remain separate release gates. No test result authorizes testnet or mainnet activity.
+The automated suite uses Chromium. It does not replace manual assistive-technology review, Firefox and WebKit coverage, deployed Vercel verification, JavaScript-disabled review, protocol integration, chain observation, or wallet interoperability testing. Those checks remain separate release gates. Fixture deadlines and identities are examples, not approvals. No test result authorizes testnet or mainnet activity.

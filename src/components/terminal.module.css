@@ -1219,6 +1219,298 @@
   line-height: 1.5;
 }
 
+.fixturePill {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid rgba(244, 201, 93, 0.34);
+  border-radius: 999px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.settlementToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 22px 22px 0;
+}
+
+.settlementToolbar label {
+  display: grid;
+  min-width: min(240px, 100%);
+  gap: 6px;
+}
+
+.settlementToolbar label > span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 620;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.settlementToolbar select {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--background);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.settlementSteps {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1px;
+  margin: 22px;
+  border: 1px solid var(--border);
+  background: var(--border);
+  list-style: none;
+}
+
+.settlementSteps li {
+  display: grid;
+  min-width: 0;
+  min-height: 108px;
+  align-content: space-between;
+  gap: 12px;
+  padding: 13px;
+  background: var(--surface-raised);
+}
+
+.settlementSteps li > span:first-child {
+  color: var(--text-muted);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10px;
+}
+
+.settlementSteps li > div {
+  display: grid;
+  gap: 4px;
+}
+
+.settlementSteps strong {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.settlementSteps small {
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.settlementSteps li[data-state="current"] {
+  box-shadow: inset 0 2px var(--accent);
+  background: rgba(244, 201, 93, 0.06);
+}
+
+.settlementSteps li[data-state="current"] > span:first-child,
+.settlementSteps li[data-state="current"] strong {
+  color: var(--accent);
+}
+
+.settlementSteps li[data-state="complete"] > span:first-child,
+.settlementSteps li[data-state="complete"] strong {
+  color: var(--buy);
+}
+
+.settlementCore {
+  display: grid;
+  grid-template-areas:
+    "phase phase"
+    "action refund"
+    "terms evidence";
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0 22px;
+  border: 1px solid var(--border);
+  background: var(--border);
+}
+
+.settlementPhase,
+.settlementActionCard,
+.refundCard,
+.termsCard,
+.evidenceCard {
+  min-width: 0;
+  padding: 18px;
+  background: var(--surface-raised);
+}
+
+.settlementPhase {
+  grid-area: phase;
+}
+
+.settlementActionCard {
+  grid-area: action;
+}
+
+.settlementUnavailable {
+  margin: 22px;
+  border: 1px solid var(--border);
+}
+
+.refundCard {
+  grid-area: refund;
+}
+
+.termsCard {
+  grid-area: terms;
+}
+
+.evidenceCard {
+  grid-area: evidence;
+}
+
+.settlementPhase h3,
+.settlementActionCard h3,
+.refundCard h3,
+.termsCard h3,
+.evidenceCard h3 {
+  margin-top: 6px;
+  font-size: 17px;
+  letter-spacing: -0.015em;
+}
+
+.settlementPhase > p,
+.settlementActionCard > p,
+.refundCard > p {
+  margin-top: 9px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.settlementActions {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.settlementActions .primaryAction {
+  width: auto;
+  min-width: min(230px, 100%);
+  flex: 1 1 230px;
+  margin: 0;
+  padding: 8px 12px;
+}
+
+.settlementActions .textButton {
+  min-height: 44px;
+  flex: 0 1 auto;
+  padding: 8px 12px;
+}
+
+.disabledReason {
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 122, 130, 0.26);
+  border-radius: 5px;
+  color: var(--sell) !important;
+  background: rgba(255, 122, 130, 0.06);
+}
+
+.unsafeNotice {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 11px 12px;
+  border: 1px solid rgba(255, 122, 130, 0.35);
+  border-radius: 6px;
+  color: var(--sell);
+  background: rgba(255, 122, 130, 0.07);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.unsafeNotice span {
+  color: var(--text-secondary);
+}
+
+.refundCard dl,
+.termsCard dl {
+  display: grid;
+  gap: 0;
+  margin-top: 14px;
+}
+
+.refundCard dl > div,
+.termsCard dl > div {
+  display: grid;
+  grid-template-columns: minmax(105px, 0.4fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+}
+
+.refundCard dt,
+.termsCard dt {
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.refundCard dd,
+.termsCard dd {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.termsCard code,
+.evidenceTable code {
+  color: var(--text);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.evidenceTable {
+  width: 100%;
+  margin-top: 14px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.evidenceTable th,
+.evidenceTable td {
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.evidenceTable th {
+  width: 112px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 620;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.evidenceTable td {
+  color: var(--text-secondary);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
 .footer {
   display: flex;
   min-height: 42px;
@@ -1288,6 +1580,10 @@
   .featureGrid {
     grid-template-columns: minmax(0, 1fr) 320px;
   }
+
+  .settlementSteps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 820px) {
@@ -1302,7 +1598,9 @@
   .primaryAction,
   .inputShell input,
   .assetInput input,
-  .poolTabs button {
+  .poolTabs button,
+  .settlementToolbar select,
+  .settlementActions button {
     min-width: 44px;
     min-height: 44px;
   }
@@ -1392,6 +1690,16 @@
     grid-template-columns: 1fr;
   }
 
+  .settlementCore {
+    grid-template-areas:
+      "phase"
+      "action"
+      "refund"
+      "terms"
+      "evidence";
+    grid-template-columns: 1fr;
+  }
+
   .statGrid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1466,7 +1774,11 @@
   .depositStack,
   .stepList,
   .layerGrid,
-  .honestyBar {
+  .honestyBar,
+  .settlementToolbar,
+  .settlementSteps,
+  .settlementCore,
+  .settlementUnavailable {
     margin-right: 16px;
     margin-left: 16px;
   }
@@ -1486,6 +1798,22 @@
   .stepList li {
     grid-template-columns: 38px minmax(0, 1fr);
     gap: 10px;
+  }
+
+  .settlementSteps {
+    grid-template-columns: 1fr;
+  }
+
+  .settlementSteps li {
+    min-height: 0;
+    grid-template-columns: 28px minmax(0, 1fr);
+    align-content: center;
+  }
+
+  .refundCard dl > div,
+  .termsCard dl > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 }
 
