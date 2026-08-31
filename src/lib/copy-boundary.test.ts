@@ -185,7 +185,10 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /scroll-margin-top: 8px;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button \{[\s\S]*?flex-shrink: 0;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button:disabled \{[\s\S]*?min-height: 44px;/);
-  assert.match(terminalCss, /padding-bottom: 52px;/);
+  assert.match(terminalCss, /padding-bottom: 8px;/);
+  assert.match(terminalCss, /flex-direction: column;/);
+  assert.match(terminalCss, /margin-top: auto;/);
+  assert.match(terminalCss, /outline: 2px solid #f4c95d;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button:focus,/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button:focus-visible \{/);
   assert.match(landingCss, /scrollbar-gutter: stable;/);
