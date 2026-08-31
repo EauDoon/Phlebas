@@ -5,7 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import { sepoliaDomain, typedData, type TypedOrder } from "@/lib/eip712";
-import { getInjectedProvider, signTypedData } from "@/lib/evm-wallet";
+import { getInjectedProvider, missingProviderCopy, signTypedData } from "@/lib/evm-wallet";
 import { planTestnetSubmit, sendSettlement, sepoliaSubmitEnabled } from "@/lib/sepolia-submit";
 import { TESTNET } from "@/lib/testnet";
 import { parseExpiryUnix, settlementDigest, typedOrderFromTicket } from "@/lib/ticket-order";
@@ -401,7 +401,7 @@ export function TradeTicket({
     }
     const provider = getInjectedProvider();
     if (!provider) {
-      setNotice("No injected EVM wallet.");
+      setNotice(missingProviderCopy(market.settlementPair));
       return;
     }
     try {
