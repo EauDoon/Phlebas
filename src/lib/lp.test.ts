@@ -21,16 +21,22 @@ import {
 import { markets, pools } from "./market-data.ts";
 import { PZEC_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "./units.ts";
 
+test("LP pool shares use reserveZecAtoms", () => {
+  const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
+  assert.equal(pool.reserveZecAtoms, pools[0].reserveZecAtoms);
+  assert.equal("reservePzecAtoms" in pool, false);
+});
+
 test("mint then burn returns the added reserves on a fresh pool ratio", () => {
   const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
   const minted = mintShares(pool, 10_00000000n);
   assert.ok(minted.shares > 0n);
-  assert.equal(minted.pool.reservePzecAtoms, pool.reservePzecAtoms + 10_00000000n);
+  assert.equal(minted.pool.reserveZecAtoms, pool.reserveZecAtoms + 10_00000000n);
 
   const burned = burnShares(minted.pool, minted.shares);
-  assert.equal(burned.pzecAtoms, 10_00000000n);
+  assert.equal(burned.zecAtoms, 10_00000000n);
   assert.equal(burned.quoteAtoms, minted.quoteAtoms);
-  assert.equal(burned.pool.reservePzecAtoms, pool.reservePzecAtoms);
+  assert.equal(burned.pool.reserveZecAtoms, pool.reserveZecAtoms);
   assert.equal(burned.pool.totalShares, pool.totalShares);
 });
 
@@ -138,7 +144,7 @@ test("LP reset notice names the selected pool settlement pair", () => {
   const minted = mintShares(pool, 10_00000000n);
   assert.ok(minted.shares > 0n);
   const restored = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
-  assert.equal(restored.reservePzecAtoms, pool.reservePzecAtoms);
+  assert.equal(restored.reserveZecAtoms, pool.reserveZecAtoms);
   assert.equal(
     lpResetNoticeCopy(markets["ZEC/USDC"].settlementPair),
     "Local pool reserves restored. Settled as ZEC-USDC.",
@@ -157,7 +163,7 @@ test("LP reset notice names ZEC-USDT from a real USDT mint then restore", () => 
   assert.equal(pools[1].quote, "USDT");
   assert.equal(markets["ZEC/USDT"].settlementPair, "ZEC-USDT");
   const restored = seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms);
-  assert.equal(restored.reservePzecAtoms, pool.reservePzecAtoms);
+  assert.equal(restored.reserveZecAtoms, pool.reserveZecAtoms);
   assert.equal(restored.reserveQuoteAtoms, pool.reserveQuoteAtoms);
   assert.equal(
     lpResetNoticeCopy(markets["ZEC/USDT"].settlementPair),
@@ -201,8 +207,8 @@ test("LP burn notice names the settlement pair from a real mint then burn", () =
   const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
   const minted = mintShares(pool, 10_00000000n);
   const burned = burnShares(minted.pool, minted.shares);
-  assert.equal(burned.pzecAtoms, 10_00000000n);
-  const pzecLabel = formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS);
+  assert.equal(burned.zecAtoms, 10_00000000n);
+  const pzecLabel = formatAtomicUnits(burned.zecAtoms, PZEC_DECIMALS);
   assert.equal(
     lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDC"].settlementPair),
     `Burned session shares for ${pzecLabel} ZEC. Local preview only. Settled as ZEC-USDC.`,
@@ -218,7 +224,7 @@ test("LP burn notice names ZEC-USDT from a real USDT mint then burn", () => {
   assert.ok(minted.shares > 0n);
   assert.equal(pools[1].quote, "USDT");
   assert.equal(markets["ZEC/USDT"].settlementPair, "ZEC-USDT");
-  const pzecLabel = formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS);
+  const pzecLabel = formatAtomicUnits(burned.zecAtoms, PZEC_DECIMALS);
   assert.equal(
     lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDT"].settlementPair),
     `Burned session shares for ${pzecLabel} ZEC. Local preview only. Settled as ZEC-USDT.`,
@@ -235,7 +241,7 @@ test("LP swap notice names the settlement pair from a real mint then swap", () =
   assert.ok(minted.shares > 0n);
   const swap = quoteConstantProductSwapAtoms(
     10_00000000n,
-    minted.pool.reservePzecAtoms,
+    minted.pool.reserveZecAtoms,
     minted.pool.reserveQuoteAtoms,
   );
   assert.ok(swap.amountOut > 0n);
@@ -260,7 +266,7 @@ test("LP swap notice names ZEC-USDT from a real USDT mint then swap", () => {
   assert.ok(minted.shares > 0n);
   const swap = quoteConstantProductSwapAtoms(
     10_00000000n,
-    minted.pool.reservePzecAtoms,
+    minted.pool.reserveZecAtoms,
     minted.pool.reserveQuoteAtoms,
   );
   assert.ok(swap.amountOut > 0n);
@@ -313,12 +319,12 @@ test("realized IL is zero at the entry ratio and positive after a large swap", (
 
   const swap = quoteConstantProductSwapAtoms(
     40_00000000n,
-    minted.pool.reservePzecAtoms,
+    minted.pool.reserveZecAtoms,
     minted.pool.reserveQuoteAtoms,
   );
   const afterSwap = {
     ...minted.pool,
-    reservePzecAtoms: minted.pool.reservePzecAtoms + 40_00000000n,
+    reserveZecAtoms: minted.pool.reserveZecAtoms + 40_00000000n,
     reserveQuoteAtoms: minted.pool.reserveQuoteAtoms - swap.amountOut,
   };
   const after = realizedImpermanentLoss(10_00000000n, minted.quoteAtoms, minted.shares, afterSwap);

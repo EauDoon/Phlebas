@@ -102,7 +102,7 @@ export function TradeTicket({
   priceSelection,
   availableZecAtoms,
   availableQuoteAtoms,
-  reservePzecAtoms,
+  reserveZecAtoms,
   reserveQuoteAtoms,
   accountEpoch,
   feedStatus,
@@ -116,7 +116,7 @@ export function TradeTicket({
   priceSelection: { ticks: bigint; nonce: number } | null;
   availableZecAtoms: bigint;
   availableQuoteAtoms: bigint;
-  reservePzecAtoms: bigint;
+  reserveZecAtoms: bigint;
   reserveQuoteAtoms: bigint;
   accountEpoch: number;
   feedStatus: FeedStatus;
@@ -326,7 +326,7 @@ export function TradeTicket({
       side,
       sizeAtoms: prepared.sizeAtoms,
       limitTicks: prepared.priceTicks,
-      reservePzecAtoms,
+      reserveZecAtoms,
       reserveQuoteAtoms,
     });
     const clobPreview = submitOrder(book, {

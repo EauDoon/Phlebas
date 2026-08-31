@@ -421,7 +421,7 @@ export function TradingTerminal({
                 priceSelection={priceSelection}
                 availableZecAtoms={availableZec(account)}
                 availableQuoteAtoms={availableQuote(account)}
-                reservePzecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
+                reserveZecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
                 reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
                 accountEpoch={accountEpoch}
                 feedStatus={feedStatus}
@@ -440,7 +440,7 @@ export function TradingTerminal({
                 <table className={styles.dataTable}>
                   <caption className={styles.srOnly}>{tapeCaptionCopy(marketId, !statsSurface.showFixtures)}</caption>
                   <thead>
-                    <tr><th scope="col">Price {market.quote}</th><th scope="col">Size pZEC</th><th scope="col">Time</th></tr>
+                    <tr><th scope="col">Price {market.quote}</th><th scope="col">Size ZEC</th><th scope="col">Time</th></tr>
                   </thead>
                   <tbody>
                     {sessionTape.map((trade) => (

@@ -28,7 +28,7 @@ import { parseAtomicUnits, formatAtomicUnits, PZEC_DECIMALS, QUOTE_DECIMALS } fr
 import styles from "./terminal.module.css";
 
 type PoolId = (typeof pools)[number]["id"];
-type EntryDeposit = { pzecAtoms: bigint; quoteAtoms: bigint };
+type EntryDeposit = { zecAtoms: bigint; quoteAtoms: bigint };
 type LpReview = {
   kind: "mint" | "swap";
   zecAtoms: bigint;
@@ -51,8 +51,8 @@ function emptyShares(): Record<PoolId, bigint> {
 
 function emptyDeposits(): Record<PoolId, EntryDeposit> {
   return {
-    "ZEC/USDC": { pzecAtoms: 0n, quoteAtoms: 0n },
-    "ZEC/USDT": { pzecAtoms: 0n, quoteAtoms: 0n },
+    "ZEC/USDC": { zecAtoms: 0n, quoteAtoms: 0n },
+    "ZEC/USDT": { zecAtoms: 0n, quoteAtoms: 0n },
   };
 }
 
@@ -92,7 +92,7 @@ export function LiquidityPanel({
       try {
         const swap = quoteConstantProductSwapAtoms(
           zecAtoms,
-          poolReserves.reservePzecAtoms,
+          poolReserves.reserveZecAtoms,
           poolReserves.reserveQuoteAtoms,
         );
         swapOut = formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2);
@@ -134,7 +134,7 @@ export function LiquidityPanel({
   }, [amount, poolReserves]);
 
   const sessionIl = realizedImpermanentLoss(
-    sessionEntry.pzecAtoms,
+    sessionEntry.zecAtoms,
     sessionEntry.quoteAtoms,
     heldShares[selectedPool.id],
     poolReserves,
@@ -186,7 +186,7 @@ export function LiquidityPanel({
       setEntryDeposits((current) => ({
         ...current,
         [selectedPool.id]: {
-          pzecAtoms: current[selectedPool.id].pzecAtoms + amountPreview.zecAtoms,
+          zecAtoms: current[selectedPool.id].zecAtoms + amountPreview.zecAtoms,
           quoteAtoms: current[selectedPool.id].quoteAtoms + minted.quoteAtoms,
         },
       }));
@@ -207,8 +207,8 @@ export function LiquidityPanel({
       const burned = burnShares(poolReserves, shares);
       setPoolState((current) => ({ ...current, [selectedPool.id]: burned.pool }));
       setHeldShares((current) => ({ ...current, [selectedPool.id]: 0n }));
-      setEntryDeposits((current) => ({ ...current, [selectedPool.id]: { pzecAtoms: 0n, quoteAtoms: 0n } }));
-      setNotice(lpBurnNoticeCopy(formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS), markets[marketId].settlementPair));
+      setEntryDeposits((current) => ({ ...current, [selectedPool.id]: { zecAtoms: 0n, quoteAtoms: 0n } }));
+      setNotice(lpBurnNoticeCopy(formatAtomicUnits(burned.zecAtoms, PZEC_DECIMALS), markets[marketId].settlementPair));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Share amount is outside the preview range");
     }
@@ -245,14 +245,14 @@ export function LiquidityPanel({
     try {
       const swap = quoteConstantProductSwapAtoms(
         amountPreview.zecAtoms,
-        poolReserves.reservePzecAtoms,
+        poolReserves.reserveZecAtoms,
         poolReserves.reserveQuoteAtoms,
       );
       setPoolState((current) => ({
         ...current,
         [selectedPool.id]: {
           ...current[selectedPool.id],
-          reservePzecAtoms: current[selectedPool.id].reservePzecAtoms + amountPreview.zecAtoms,
+          reserveZecAtoms: current[selectedPool.id].reserveZecAtoms + amountPreview.zecAtoms,
           reserveQuoteAtoms: current[selectedPool.id].reserveQuoteAtoms - swap.amountOut,
         },
       }));
@@ -340,7 +340,7 @@ export function LiquidityPanel({
 
         <dl className={styles.statGrid} role="group" aria-label="Pool stats and impermanent loss versus hold">
           <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
-          <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reservePzecAtoms, PZEC_DECIMALS, 2)}</dd></div>
+          <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveZecAtoms, PZEC_DECIMALS, 2)}</dd></div>
           <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
           <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
           <div>
@@ -454,7 +454,7 @@ export function LiquidityPanel({
         <span className={styles.eyebrow}>LP risk</span>
         <h2 id="lp-risk-title">Simple does not mean low risk</h2>
         <p>
-          LPs would face pZEC reserve and redemption risk, stablecoin risk, smart-contract risk,
+          LPs would face ZEC reserve and redemption risk, stablecoin risk, smart-contract risk,
           impermanent loss, and adverse selection from the order book.
         </p>
         <ul className={styles.cleanList}>
