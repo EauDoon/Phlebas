@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the desktop-44px controls, 404-skip, and architecture-skip slice.
+Last updated: 31-08-2026 after the order-type, view, blotter, liquidity-skip, and bridge-skip slice.
 
 ## Branch
 
@@ -139,15 +139,20 @@ Last updated: 31-08-2026 after the desktop-44px controls, 404-skip, and architec
 - 404 page skips to the missing-route copy
 - Architecture skips to the incident demonstration
 - Playwright covers desktop 44px market/feed tabs, connect, chart range, ticket side, 404 skip, and architecture skip
+- Ticket order-type buttons stay 44px on desktop
+- Terminal view tabs stay 44px on desktop
+- Blotter tabs stay 44px on desktop
+- Liquidity skips to the pool tabs
+- Destination inspector stays on both gateway journeys; bridge skips to it
+- Playwright covers desktop 44px order-type, view, and blotter tabs, liquidity skip, and bridge skip
 
 ## Next
 
-- Ticket order-type buttons should stay 44px on desktop
-- Terminal view tabs should stay 44px on desktop
-- Blotter tabs should stay 44px on desktop
-- Liquidity should skip to the pool tabs
-- Bridge should skip to the destination inspector
-- Playwright: desktop 44px order-type and view tabs, blotter tabs, liquidity skip, bridge skip
+- Error page should skip to the retry copy
+- Global error Retry should stay 44px
+- Order book price rows should stay 44px on desktop
+- Ticket time-in-force already shares the 44px order-type rule; cover it in Playwright
+- Playwright: error skip, global-error Retry, 44px book rows, 44px GTC
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
