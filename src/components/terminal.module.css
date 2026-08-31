@@ -233,9 +233,9 @@
 .marketBar {
   display: grid;
   min-height: 78px;
-  grid-template-columns: minmax(275px, 0.9fr) minmax(580px, 2fr);
-  align-items: center;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: 16px 20px;
   padding: 12px 20px;
   border-bottom: 1px solid var(--border);
   background: rgba(14, 18, 23, 0.76);
@@ -244,6 +244,7 @@
 .marketSelectorWrap {
   display: flex;
   min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
@@ -251,6 +252,8 @@
 .marketSelectorWrap label,
 .marketSelectorWrap > div {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   gap: 2px;
 }
 
@@ -283,6 +286,7 @@
 
 .selectorTabs {
   display: flex;
+  max-width: 100%;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
