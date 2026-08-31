@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { markets } from "./market-data.ts";
+import { chartSeries, markets } from "./market-data.ts";
 import { emptyBook } from "./matcher.ts";
 import {
   depthEmptyCopy,
@@ -12,6 +12,7 @@ import {
   chartPanelEyebrowCopy,
   chartPanelHeadingCopy,
   chartRangeTabLabel,
+  priceChartLabelCopy,
   isFeedStatus,
   loadingGateCopy,
   orderBookCaptionCopy,
@@ -125,6 +126,23 @@ test("depth and tape empty copy names the settlement pair", () => {
   assert.equal(chartPanelHeadingCopy("ZEC/USDT"), "ZEC/USDT · pZEC-USDT0");
   assert.equal(chartPanelEyebrowCopy(markets["ZEC/USDC"].settlementPair), "Illustrative market data · pZEC-USDC");
   assert.doesNotMatch(chartPanelHeadingCopy("ZEC/USDC"), /native ZEC/);
+});
+
+test("price chart label names the settlement pair from real market state", () => {
+  const marketId = "ZEC/USDC" as const;
+  const range = "4H" as const;
+  assert.ok(chartSeries[marketId][range].length > 0);
+  assert.equal(markets[marketId].settlementPair, "pZEC-USDC");
+  assert.equal(
+    priceChartLabelCopy(marketId, range),
+    "Illustrative 4H price chart for ZEC/USDC, settled as pZEC-USDC",
+  );
+  assert.equal(
+    priceChartLabelCopy("ZEC/USDT", "1D"),
+    "Illustrative 1D price chart for ZEC/USDT, settled as pZEC-USDT0",
+  );
+  assert.doesNotMatch(priceChartLabelCopy(marketId, range), /native ZEC/);
+  assert.doesNotMatch(priceChartLabelCopy(marketId, range), /live/);
 });
 
 test("allowlists only documented feed states", () => {
