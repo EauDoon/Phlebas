@@ -1859,3 +1859,31 @@ test("architecture liquidity and bridge skip links stay 44px on desktop", async 
   expect((await skipPrivacy.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("trade skip links and incident skip stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const tradeSkips = [
+    "Skip to order ticket",
+    "Skip to price chart",
+    "Skip to order book",
+    "Skip to blotter",
+    "Skip to recent trades",
+  ];
+  await page.keyboard.press("Tab");
+  for (const label of tradeSkips) {
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: label });
+    await expect(skip).toBeFocused();
+    expect((await skip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  }
+
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipIncident = page.getByRole("link", { name: "Skip to incident demonstration" });
+  await expect(skipIncident).toBeFocused();
+  expect((await skipIncident.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
