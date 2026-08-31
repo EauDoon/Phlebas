@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the honesty-bar, incident-copy, and review-custody slice.
+Last updated: 31-08-2026 after the privacy-callouts, evidence-rows, and layer-cards slice.
 
 ## Branch
 
@@ -178,13 +178,19 @@ Last updated: 31-08-2026 after the honesty-bar, incident-copy, and review-custod
 - Selected incident demonstration copy stays 44px on desktop
 - Ticket and LP review custody notices are named 44px regions
 - Playwright covers 44px honesty bar, incident copy, review custody, and honesty-bar skip
+- Bridge privacy callouts stay 44px on desktop and are a named skip target
+- Landing evidence rows stay 44px on desktop and are a named list
+- Architecture layer cards stay 44px on desktop and are a named skip target
+- Playwright covers 44px privacy callouts, evidence rows, layer cards, privacy skip, and layers skip
 
 ## Next
 
-- Bridge privacy callouts should stay 44px on desktop
-- Landing evidence rows should stay 44px on desktop
-- Architecture layer cards should stay 44px on desktop
-- Playwright: 44px privacy callouts, evidence rows, and layer cards
+- Status, legal, and security ledger rows should stay 44px on desktop
+- Landing skip links should follow on-page order: markets, evidence, pZEC, terminal preview, journeys, launch gates
+- Landing skip links should reach markets, pZEC, and launch gates
+- Landing market cards and launch gates should be named lists
+- Landing mobile menu links should stay 44px
+- Playwright: 44px status ledgers, landing skips in page order, and menu links
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
