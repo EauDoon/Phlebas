@@ -100,6 +100,10 @@ The local state machine enforces strict deadline ordering and a configurable min
 
 The hashlock is SHA-256 with a 32-byte preimage. The canonical terms digest, swap identifier, event chain, and snapshot root also use SHA-256. A successful canonical EVM claim observation records the public preimage, but it becomes claim authority only after the exact chain fact satisfies the signed observer and finality policies. Failed calls and conflicting observations do not create claim authority. Once publicly revealed, the secret remains known even if the reveal transaction reorganizes.
 
+Every finality quorum must agree on one exact observer tip height and block hash. Reports for the same fact that disagree on that view remain auditable but force the swap into dispute. The reference engine also requires `protocolFeeQuoteAtoms` to be zero until the exact-token EVM escrow proves a separate fee transfer without reducing or redirecting either signed principal amount.
+
+Authorization times and funding-artifact preparation times are persisted in the state root. Funding cannot predate both authorizations or its prepared artifact, EVM funding cannot predate policy-confirmed ZEC funding, and a spend cannot predate its own funded and confirmed leg. Replacement resolutions retain the leg, evidence kind, fact, old observer, and new observer so a state root cannot redirect recovery provenance to an unrelated active report.
+
 ## Zcash leg
 
 The candidate Zcash leg uses transparent P2SH. The [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf) states that transparent addresses include P2SH and that BIP 16 and BIP 65 apply from genesis. [ZIP 300](https://zips.z.cash/zip-0300) gives a candidate transparent atomic-swap construction with a hash-protected claim branch and a lock-time refund branch. [BIP 65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki) defines `OP_CHECKLOCKTIMEVERIFY` lock-time semantics.

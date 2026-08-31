@@ -120,7 +120,10 @@ Acceptance:
 
 * one fill creates one swap identifier;
 * duplicate or conflicting evidence fails closed;
+* observer quorum agrees on one exact tip height and block hash;
+* authorization, artifact preparation, funding, confirmation, and spend times remain causally ordered;
 * claim and refund are mutually exclusive;
+* protocol fees remain exactly zero until escrow routing and accounting pass separate review;
 * every incomplete swap retains a wallet-controlled refund path;
 * stale or disagreeing observations move the workflow to a disputed state;
 * browser tests cover every user action and unsafe state.

@@ -173,11 +173,12 @@ Required invariants:
 * every incomplete funded swap retains a wallet-controlled refund path;
 * a swap expires only after its active signed deadline and only when no chain evidence exists;
 * an unconfirmed retracted observer report can be replaced only for the same canonical fact, with the full audit history retained;
+* authorization, preparation, funding, confirmation, and spend facts preserve causal timestamp order;
 * deterministic replay yields the same state and next safe action.
 
-Both parties separately authorize the exact per-fill terms digest. Signed terms include the deterministically derived fill identity, order identities, party roles, chains, assets, amounts, execution price, exact quote relation, fee amount, fee recipient, fee cap, Zcash script identities, EVM addresses and escrow identity, shared hash, all cutoffs and refund times, and the market, timeout, observer, and finality policy identifiers. Terms cannot change after authorization.
+Both parties separately authorize the exact per-fill terms digest. Signed terms include the deterministically derived fill identity, order identities, party roles, chains, assets, amounts, execution price, exact quote relation, fee amount, fee recipient, fee cap, Zcash script identities, EVM addresses and escrow identity, shared hash, all cutoffs and refund times, and the market, timeout, observer, and finality policy identifiers. Terms cannot change after authorization. The current native-swap reference accepts only a zero fee. A positive protocol fee remains invalid until the exact EVM escrow settlement route and its accounting are implemented and independently reviewed.
 
-The append-only journal binds every event to the swap and prior state root. It accepts only known event kinds with exact runtime fields. Exact duplicate events are idempotent. A different event in an occupied semantic slot is a conflict. Restart accepts only a complete semantically replayable journal and matching snapshot root, including dispute, retraction, resolution, and terminal state. It never silently initializes over malformed persistence.
+The append-only journal binds every event to the swap and prior state root. It accepts only known event kinds with exact runtime fields. Exact duplicate events are idempotent only when the caller supplies the exact journal-head state. A different event in an occupied semantic slot is a conflict, while an abandoned funding generation may be represented by a newly hashed artifact. Restart accepts only a complete semantically replayable journal from the pristine created state and a matching snapshot root, including dispute, retraction, resolution, and terminal state. It never silently initializes over malformed persistence.
 
 ## 9. Liquidity
 

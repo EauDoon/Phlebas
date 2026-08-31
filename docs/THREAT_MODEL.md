@@ -6,11 +6,14 @@ The active target is [ADR 0002](adr/0002-native-zec-atomic-settlement.md): nativ
 
 > Status as of 01-09-2026: design document and key-independent reference domain for a no-value simulation with undeployed Sepolia contract sources and optional local textest services. No production contract, native transaction path, wallet execution, matching, routing, monitoring, or incident control is deployed or audited.
 
+The active native-swap reference accepts only a zero protocol fee. Fee recipient and cap fields remain digest-bound, but a positive fee is rejected until the exact EVM escrow route can prove principal delivery and fee accounting separately. Fee proposals in the superseded pZEC design below are not active native-settlement behavior.
+
 ## Active native-settlement threats
 
 | Threat | Failure | Required control |
 | --- | --- | --- |
 | Terms substitution | A party funds different assets, amounts, recipients, hashes, deadlines, or contracts | Both parties authorize one canonical per-fill terms digest; wallets independently review exact transaction bytes |
+| Noncausal history | Forged persistence claims funding or spending before its required authorization, artifact, or confirmed predecessor | Root authorization and preparation times; reject every chain fact that predates its causal prerequisite |
 | Funding-order violation | Stablecoin is locked before the ZEC leg has approved confidence | EVM funding is disabled until exact ZEC funding evidence is confirmed under the signed policy |
 | Unsafe timeout margin | One party lacks enough time to claim or refund across chains | Strictly ordered cutoffs, a versioned minimum safety window, chain-time checks, and Testnet approval of production durations |
 | False secret evidence | Mempool calldata, a failed EVM call, or one observer report is treated as claim authority | A successful canonical claim fact may record the observed preimage, but only signed-policy quorum and finality create confirmed claim authority; the preimage must match SHA-256 |

@@ -53,13 +53,16 @@ The terminal takes structural cues from Hyperliquid, Lighter, and Nado while usi
 
 * Canonical order encoding, SHA-256 digests, and keccak EIP-712 typed-data hashes
 * Exact chain and asset identities, deterministic fill IDs, and one swap ID per fill
-* Immutable terms binding price, amounts, fee recipient, market policy, timing policy, observer policy, and chain-specific finality policies
-* Two-leg state machine with ZEC-first funding, staggered refunds, mutually exclusive claim and refund outcomes, and policy-confirmed secret release
+* Immutable terms binding price, amounts, a zero-fee invariant, fee recipient, market policy, timing policy, observer policy, and chain-specific finality policies
+* Two-leg state machine with timestamped authorizations, artifact preparation, ZEC-first funding, causal chain-time checks, staggered refunds, mutually exclusive claim and refund outcomes, and policy-confirmed secret release
 * Content-addressed funding and spend facts separated from observer attestations
 * Quorum, confirmation-depth, execution-age, staleness, and source allowlist checks
+* One canonical observer tip per quorum, with same-height hash disagreement forced into dispute
 * Hash-chained event receipts, deterministic replay, snapshot roots, corruption detection, and idempotency
-* Fail-closed dispute handling, unbroadcast artifact abandonment, no-evidence expiry, and same-fact attestation replacement with retained audit history
+* Fail-closed dispute handling, unbroadcast artifact abandonment, no-evidence expiry, and same-fact attestation replacement with leg, evidence-kind, fact, and observer provenance retained
 * Deterministic, adversarial, replay, state-machine, and browser tests
+
+The native-swap reference engine accepts only a zero protocol fee. The fee fields remain signed for schema stability, but any positive amount fails closed until the EVM escrow can prove an exact recipient split without weakening principal settlement.
 
 ### Local and legacy surfaces
 

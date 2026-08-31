@@ -16,7 +16,7 @@ The current public application remains a no-value simulation. It has no wallet c
 
 Each matched fill will become one two-chain atomic-swap workflow:
 
-1. The matcher creates immutable terms for one fill. The terms bind both parties, both assets, both networks, integer amounts, recipients, the shared hash, refund deadlines, fee limits, and the protocol version.
+1. The matcher creates immutable terms for one fill. The terms bind both parties, both assets, both networks, integer amounts, recipients, the shared hash, refund deadlines, a zero protocol fee, fee limits, and the protocol version.
 2. The native-ZEC leg uses a transparent Zcash P2SH conditional lock. The claim path requires the matching preimage and recipient signature. The refund path returns control to the funder after its lock time.
 3. The stablecoin leg uses a non-upgradeable EVM conditional-lock contract for the exact approved token. Its claim and refund paths use the same hash and a shorter deadline.
 4. Independent read-only observers report funding, confirmation, claim, refund, replacement, and reorganization evidence. They never sign or control funds.
@@ -61,7 +61,9 @@ The local domain and later contracts must enforce these rules:
 * claim and refund are mutually exclusive terminal outcomes for each leg;
 * a refund cannot occur before its chain-specific deadline;
 * duplicate or conflicting transaction evidence fails closed;
+* finality quorum requires one exact observer tip height and block hash;
 * stale observers, observer disagreement, reorganization, wrong-chain evidence, or wrong-asset evidence moves the workflow to a disputed state;
+* the protocol fee remains zero until an exact reviewed escrow split settles principal and fee independently;
 * every incomplete swap retains a wallet-controlled refund path;
 * no environment variable can enable mainnet or real assets by itself.
 
