@@ -334,3 +334,26 @@ test("remaining docs no longer list pZEC as the candidate ERC-20 form", async ()
   assert.doesNotMatch(wallet, /mint redeemable `pZEC`/);
   assert.match(wallet, /which remains historical/);
 });
+
+test("source identifiers no longer use listed pZEC leftovers", async () => {
+  const lp = await readFile(join(root, "src/lib/lp.ts"), "utf8");
+  const lpTest = await readFile(join(root, "src/lib/lp.test.ts"), "utf8");
+  const order = await readFile(join(root, "src/lib/order.ts"), "utf8");
+  const ticket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
+  const foundry = await readFile(join(root, "contracts/test/Phlebas.t.sol"), "utf8");
+  assert.match(lp, /zecLabel: string/);
+  assert.doesNotMatch(lp, /pzecLabel/);
+  assert.doesNotMatch(lp, /lpPzecAtoms/);
+  assert.doesNotMatch(lpTest, /pzecLabel/);
+  assert.doesNotMatch(lpTest, /entryPzec/);
+  assert.match(order, /ZEC_ATOMIC_RULE/);
+  assert.match(order, /formatZecPreviewAmount/);
+  assert.doesNotMatch(order, /PZEC_ATOMIC_RULE/);
+  assert.doesNotMatch(order, /formatPzecPreviewAmount/);
+  assert.doesNotMatch(order, /PZEC_ATOM/);
+  assert.match(ticket, /ZEC_ATOMIC_RULE/);
+  assert.doesNotMatch(ticket, /PZEC_ATOMIC_RULE/);
+  assert.match(foundry, /reserveZec/);
+  assert.doesNotMatch(foundry, /reservePzec/);
+  assert.doesNotMatch(foundry, /backPzec/);
+});
