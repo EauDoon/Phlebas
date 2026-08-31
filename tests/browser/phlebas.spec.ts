@@ -944,6 +944,19 @@ test("past unix expiry rejects before review and names the rejected panel", asyn
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
 });
 
+test("ticket reject copy names pZEC-USDT0 if market switches while rejected panel is open", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
+  await expect(page.getByText("Rejected. Order expiry has passed. Settled as pZEC-USDC.", { exact: true })).toBeVisible();
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
+  await expect(page.getByText("Rejected. Order expiry has passed. Settled as pZEC-USDT0.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+});
+
 test("confirmed ticket writes expiry onto the blotter event log", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
