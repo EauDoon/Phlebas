@@ -1923,3 +1923,28 @@ test("status legal and security skips stay 44px and skip targets keep scroll-mar
   expect(await security.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
 });
 
+test("trade and landing skip targets keep scroll-margin and landing skip links keep a focus ring", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipTicket = page.getByRole("link", { name: "Skip to order ticket" });
+  await expect(skipTicket).toBeFocused();
+  await page.keyboard.press("Enter");
+  const ticket = page.locator("#order-ticket");
+  await expect(ticket).toBeFocused();
+  expect(await ticket.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
+
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skipMain = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skipMain);
+  await page.keyboard.press("Tab");
+  const skipMarkets = page.getByRole("link", { name: "Skip to markets" });
+  await expectVisibleFocus(skipMarkets);
+  await page.keyboard.press("Enter");
+  const markets = page.locator("#markets");
+  await expect(markets).toBeFocused();
+  expect(await markets.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
+});
+
