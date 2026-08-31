@@ -1,4 +1,4 @@
-import type { TypedOrderIntent } from "./eip712-order.ts";
+import { hashTypedOrder, type OrderDomain, type TypedOrderIntent } from "./eip712-order.ts";
 import { keccak256Text } from "./keccak.ts";
 import {
   UINT64_MAX,
@@ -41,9 +41,12 @@ export type AtomicSwapParty = Readonly<{
   orderHash: Hex32;
   order: TypedOrderIntent;
   accounts: WalletSettlementAccounts;
+  authorizationKind?: "order" | "solver-quote";
+  verifiedAuthorizationHash?: Hex32;
 }>;
 
 export type AtomicSwapPolicy = Readonly<{
+  orderDomain: OrderDomain;
   pair: AtomicSwapPair;
   settlementProtocolVersion: string;
   stablecoinRefundDelaySeconds: bigint;
@@ -149,6 +152,25 @@ function assertPolicy(policy: AtomicSwapPolicy): void {
 }
 
 function planPayload(plan: Omit<AtomicSwapPlan, "planId">): string {
+  const leg = (value: AtomicSwapLeg) => [
+    value.assetRole,
+    value.network,
+    value.asset,
+    value.decimals,
+    value.amountAtoms,
+    value.funder,
+    value.claimant,
+    value.refundAccount,
+    value.hashAlgorithm,
+    value.hashlockDigest,
+    value.refundLock.mode,
+    value.refundLock.valueSeconds,
+    value.requiredConfirmations,
+    value.finalityRequirement,
+    value.transactionTemplate,
+    value.walletAuthorization,
+    value.broadcast,
+  ].join(":");
   return [
     "PhlebasAtomicSwapPlan",
     `version=${plan.version}`,
@@ -160,8 +182,12 @@ function planPayload(plan: Omit<AtomicSwapPlan, "planId">): string {
     `baseAmountAtoms=${plan.baseAmountAtoms}`,
     `quoteTransferAtoms=${plan.quoteTransferAtoms}`,
     `hashlockDigest=${plan.hashlockDigest}`,
-    `stablecoin=${plan.stablecoinLeg.network}:${plan.stablecoinLeg.asset}:${plan.stablecoinLeg.amountAtoms}:${plan.stablecoinLeg.funder}:${plan.stablecoinLeg.claimant}:${plan.stablecoinLeg.refundLock.valueSeconds}:${plan.stablecoinLeg.requiredConfirmations}`,
-    `zcash=${plan.zcashLeg.network}:${plan.zcashLeg.asset}:${plan.zcashLeg.amountAtoms}:${plan.zcashLeg.funder}:${plan.zcashLeg.claimant}:${plan.zcashLeg.refundLock.valueSeconds}:${plan.zcashLeg.requiredConfirmations}`,
+    `stablecoin=${leg(plan.stablecoinLeg)}`,
+    `zcash=${leg(plan.zcashLeg)}`,
+    `deadlineOrdering=${plan.deadlineOrdering}`,
+    `platformRetainedBaseAtoms=${plan.platformRetainedBaseAtoms}`,
+    `platformRetainedQuoteAtoms=${plan.platformRetainedQuoteAtoms}`,
+    `unilateralSpendingAuthority=${plan.unilateralSpendingAuthority}`,
     `execution=${plan.execution.mode}:${plan.execution.status}:${plan.execution.blockingGates.join(",")}`,
   ].join("\n");
 }
@@ -198,6 +224,28 @@ export function createAtomicSwapPlan(input: {
   const takerOrderHash = normalizeHex32(input.taker.orderHash, "Taker order hash");
   const counterpartyOrderHash = normalizeHex32(input.counterparty.orderHash, "Counterparty order hash");
   if (takerOrderHash === counterpartyOrderHash) throw new Error("Atomic-swap parties must use distinct orders");
+  if ((input.taker.authorizationKind ?? "order") !== "order"
+    || hashTypedOrder(input.policy.orderDomain, input.taker.order) !== takerOrderHash) {
+    throw new Error("Taker order hash does not bind its signed order body");
+  }
+  const counterpartyAuthorizationMatches = input.counterparty.authorizationKind === "solver-quote"
+    ? normalizeHex32(input.counterparty.verifiedAuthorizationHash ?? "", "Verified solver quote hash") === counterpartyOrderHash
+    : hashTypedOrder(input.policy.orderDomain, input.counterparty.order) === counterpartyOrderHash;
+  if (!counterpartyAuthorizationMatches) {
+    throw new Error("Counterparty order hash does not bind its signed order body");
+  }
+  if (input.taker.order.expiry <= input.acceptedAtSeconds || input.counterparty.order.expiry <= input.acceptedAtSeconds) {
+    throw new Error("Atomic-swap party order is expired");
+  }
+  if (input.baseAmountAtoms > input.taker.order.baseAmountAtoms || input.baseAmountAtoms > input.counterparty.order.baseAmountAtoms) {
+    throw new Error("Atomic-swap fill exceeds a signed order amount");
+  }
+  if ((input.taker.order.side === 0 && input.executionPriceTicks > input.taker.order.limitPriceTicks)
+    || (input.taker.order.side === 1 && input.executionPriceTicks < input.taker.order.limitPriceTicks)
+    || (input.counterparty.order.side === 0 && input.executionPriceTicks > input.counterparty.order.limitPriceTicks)
+    || (input.counterparty.order.side === 1 && input.executionPriceTicks < input.counterparty.order.limitPriceTicks)) {
+    throw new Error("Atomic-swap execution price violates a signed limit");
+  }
   const hashlockDigest = normalizeHex32(input.taker.order.salt, "Swap hashlock digest");
   if (hashlockDigest === `0x${"00".repeat(32)}`) throw new Error("Swap hashlock digest cannot be zero");
 

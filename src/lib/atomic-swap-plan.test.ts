@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { TypedOrderIntent } from "./eip712-order.ts";
+import { createOrderDomain, hashTypedOrder, type TypedOrderIntent } from "./eip712-order.ts";
 import { createAtomicSwapPlan, type AtomicSwapParty, type AtomicSwapPolicy } from "./atomic-swap-plan.ts";
 import { keccak256Text } from "./keccak.ts";
 import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier } from "./order-domain.ts";
 
 const policy: AtomicSwapPolicy = {
+  orderDomain: createOrderDomain(42161n, "0x1111111111111111111111111111111111111111"),
   pair: {
     base: {
       network: "bip122:00040fe8ec8471911baa1db1266ea15d",
@@ -51,7 +52,7 @@ function party(name: string, side: 0 | 1): AtomicSwapParty {
     allowedVenues: 3,
     settlementAdapterId: adapterIdentifier(policy.settlementProtocolVersion),
   };
-  return { orderHash: keccak256Text(`order:${name}`), order, accounts: { sourceAccount, recipientAccount } };
+  return { orderHash: hashTypedOrder(policy.orderDomain, order), order, accounts: { sourceAccount, recipientAccount } };
 }
 
 test("maps a fill deterministically to direct wallet legs with ordered deadlines", () => {

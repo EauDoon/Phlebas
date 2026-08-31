@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { AtomicSwapPolicy, WalletSettlementAccounts } from "./atomic-swap-plan.ts";
-import type { TypedOrderIntent } from "./eip712-order.ts";
+import { createOrderDomain, hashTypedOrder, type TypedOrderIntent } from "./eip712-order.ts";
 import { keccak256Text } from "./keccak.ts";
 import { compareExecutableRoutes, type RestingRouteOrder } from "./matcher-routing.ts";
 import type { MatcherSignatureVerifier } from "./matcher-auth.ts";
@@ -17,7 +17,9 @@ const baseAsset = `${baseNetwork}/slip44:133`;
 const quoteNetwork = "eip155:42161";
 const quoteAsset = `${quoteNetwork}/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831`;
 const protocol = "transparent-htlc-v1";
+const orderDomain = createOrderDomain(42161n, "0x1111111111111111111111111111111111111111");
 const atomicSwapPolicy: AtomicSwapPolicy = {
+  orderDomain,
   pair: {
     base: { network: baseNetwork, asset: baseAsset, environment: "mainnet", decimals: 8 },
     quote: { network: quoteNetwork, asset: quoteAsset, environment: "mainnet", decimals: 6 },
@@ -67,7 +69,7 @@ function order(name: string, side: 0 | 1, price: bigint, amount: bigint, sequenc
     settlementAdapterId: adapterIdentifier(protocol),
   };
   const sequenced: SequencedOrder = {
-    orderHash: keccak256Text(`order:${name}`),
+    orderHash: hashTypedOrder(orderDomain, intent),
     sequence,
     order: intent,
     remainingBaseAtoms: amount,

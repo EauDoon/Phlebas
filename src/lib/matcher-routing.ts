@@ -11,6 +11,7 @@ import { VENUE_CLOB, VENUE_SOLVER } from "./order-policy.ts";
 import { planPriceTimeMatches, type SequencedOrder } from "./price-time.ts";
 import {
   activeSolverLevels,
+  hashSolverQuote,
   solverQuoteAsOrder,
   type AcceptedSolverQuote,
   type SolverMarginalLevel,
@@ -148,6 +149,8 @@ function segmentFromSolver(accepted: AcceptedSolverQuote, level: SolverMarginalL
         sourceAccount: accepted.quote.sourceAccount,
         recipientAccount: accepted.quote.recipientAccount,
       },
+      authorizationKind: "solver-quote",
+      verifiedAuthorizationHash: hashSolverQuote(accepted.quote),
     },
     solverQuote: accepted,
   };
