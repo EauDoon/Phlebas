@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after session order expiry, market-IOC Playwright, and IL-versus-hold on `/liquidity`.
+Last updated: 31-08-2026 after first-session education, country-block demo, deposit tour, legal/security pages, LP review, incident copy, and session expiry.
 
 ## Branch
 
-`feat/simulation-hardening` off `main` at `873e1cd` (PR #18). One multi-feature PR.
+`feat/simulation-hardening` off `main` at `873e1cd` (PR #19). One multi-feature PR.
 
 ## Done
 
@@ -74,11 +74,22 @@ Last updated: 31-08-2026 after session order expiry, market-IOC Playwright, and 
 - Session ticket expiry is unix time or 0 for none. It binds the SHA-256 canonical encoding and the keccak typed order.
 - Playwright covers market-IOC worst price, expiry on review, IL versus hold, and `/status` intent-cap `unset`.
 - Ticket shows the next session nonce beside epoch. Invalid expiry keeps review closed.
+- First-session education dialog on `/trade` and `/liquidity` (`phlebas.previewEducationVersion = 2026-08-30-1`). Education, not consent. Force with `?education=1`.
+- Country-blocked state demonstration via allowlisted `?access=blocked`. Never infers location.
+- Deposit state tour: Eligibility through Complete. Address request never shows a receivable address.
+- `/legal` and `/security` simulation pages. Landing and terminal footers: Architecture, Legal, Security, Status. No GitHub URL.
+- LP mint and swap use review-and-confirm. Burn stays available during a trading pause.
+- Architecture labeled incident demonstrations: blocked, review, reorg, planned and unplanned maintenance.
+- Ticket keyboard: G/I/F time in force, Escape back from review. Shortcuts ignore an open dialog.
 
 ## Next
 
-- Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
-- Redeploy the public Vercel UI after this PR merges (blocked on a Vercel deploy token in this session; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
+- Landing journey chooser as four manually activated tabs (Trader, LP, Deposit, Withdrawal)
+- Playwright: education Escape dismiss, ticket G/I/F, and country-block from `/liquidity`
+- Status page cross-links to `/legal` and `/security`
+- Touch-target pass on education dialog and incident select at 320px
+- Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
+- Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
 - Session blotter log line includes expiry when a ticket is confirmed
 

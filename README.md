@@ -21,6 +21,8 @@ This is a hybrid DEX design. The AMM and trade settlement can be onchain, but th
 - An in-browser price-time matcher (GTC, IOC, FOK) with session inventory, open orders, fills, and an append-only replay log
 - Canonical PRODUCT_SPEC order encoding with a SHA-256 simulation digest and a keccak EIP-712 typed-data hash
 - Integer CLOB vs AMM split-route comparison and LP share mint/burn previews, including IL versus hold at 4x and 1/4x
+- First-session education, country-blocked demonstration, deposit state tour, and labeled gateway incident copy
+- `/legal` and `/security` simulation pages; landing and terminal footers omit a GitHub URL
 - Integer seed books, empty/loading/stale/unavailable ticket gates, and a transparent-destination inspector
 - Click-to-price depth, local last/spread, and slippage-bounded market orders as IOC
 - Integer constant-product quotes and local add/swap previews for `pZEC/USDC` and `pZEC/USDT0`
