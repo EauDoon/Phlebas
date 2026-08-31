@@ -1,7 +1,7 @@
 # Phlebas Architecture
 
 Status: Simulation only
-As of: 31-08-2026
+As of: 01-09-2026
 
 Phlebas is a user interface and protocol design for ZEC markets. The public app does not accept live deposits, hold assets, or move mainnet funds. Optional loopback stubs exist for a textest gateway, matcher, and observer. They are never hosted on Vercel.
 
@@ -27,14 +27,16 @@ Phlebas would accept transparent Zcash deposits only. Transparent Zcash exposes 
 
 ## Architecture decision
 
-The candidate design uses custody-backed `pZEC` because both requested market structures need a common settlement environment:
+The product labels native ZEC against native USDC and native USDT. Both requested market structures still need a common Arbitrum settlement environment:
 
 * A central limit order book can match signed orders and settle ERC-20 transfers.
 * A Uniswap v2 style pool requires two ERC-20 reserves in one contract and issues fungible ERC-20 LP shares. The [Uniswap protocol description](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works) states these properties directly.
 
+The undeployed 8-decimal receipt symbol is `tZEC`. The Solidity type is `Zec`. Those names are simulation labels, not live native-ZEC execution.
+
 Native transparent ZEC can support bilateral hash time-locked swaps. [ZIP 300](https://zips.z.cash/zip-0300) specifies a proposed transparent P2SH atomic-swap protocol. It remains Proposed and says the approach had not achieved widespread adoption. A native ZEC atomic-swap lane could settle matched orders, but it cannot by itself create a single-state Uniswap v2 pool. Phlebas therefore treats atomic swaps as a possible later settlement route, not the base for the LP system.
 
-The chain and custody-backed ERC-20 form are recorded in [ADR 0001](adr/0001-arbitrum-and-pzec.md). Product settlement labels are recorded in [ADR 0002](adr/0002-native-zec-usdc-usdt.md).
+[ADR 0001](adr/0001-arbitrum-and-pzec.md) historically selected Arbitrum One and a custody-backed `pZEC` ERC-20. That name is not the current listed form. Product settlement labels and the `tZEC` receipt symbol are recorded in [ADR 0002](adr/0002-native-zec-usdc-usdt.md). ADR 0001 remains historical.
 
 ## Current system
 
@@ -48,7 +50,7 @@ The current repository contains a Next.js no-value simulation, undeployed Arbitr
 | LP pools | In-memory constant-product calculation | Audited `ZEC/USDC` and `ZEC/USDT` contracts |
 | Zcash deposits | Local textest gateway stub, off by default | Fresh per-intent TEX addresses with final-transaction transparency checks |
 | Zcash withdrawals | Tour-only payout stub; nothing is sent | Burn-authorized transparent withdrawals |
-| `pZEC` | Display label; undeployed contract source | Custody-backed ERC-20 with controlled mint and burn |
+| `tZEC` | Undeployed 8-decimal receipt symbol; display label is native ZEC | Custody-backed Arbitrum receipt with controlled mint and burn; not live native-ZEC execution |
 | Custody | None | Approved operator, threshold policy, reserve ledger, and recovery plan |
 | Wallets | Optional EIP-1193 on Arbitrum Sepolia, sign-only default | Production wallet path after launch gates |
 
@@ -61,7 +63,7 @@ flowchart LR
     ZW[Transparent Zcash wallet] --> TEX[Unique TEX deposit address]
     TEX --> ZN[Private Zebra observers]
     ZN --> BL[Bridge and reserve ledger]
-    BL --> MC[pZEC mint controller]
+    BL --> MC[tZEC mint controller]
     MC --> AR[Arbitrum settlement contracts]
 
     EW[EVM wallet] --> UI[Vercel web interface]
