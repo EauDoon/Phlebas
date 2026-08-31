@@ -208,6 +208,8 @@ function validateManifestShape(value: unknown): asserts value is UnsignedTranspa
   const expiryHeight = manifestUint32(manifest.expiryHeight, "Artifact expiry height");
   const lockTime = manifestUint32(manifest.lockTime, "Artifact locktime");
   if (targetHeight >= 500_000_000 || expiryHeight >= 500_000_000) throw new RangeError("Artifact heights exceed the block-height range");
+  const activationHeight = manifest.network === "mainnet" ? 3_428_143 : 4_134_000;
+  if (targetHeight < activationHeight) throw new RangeError("Artifact target height precedes its NU6.3 network profile");
   if (expiryHeight !== 0 && expiryHeight < targetHeight) throw new RangeError("Artifact expiry is earlier than its target height");
 
   if (!Array.isArray(manifest.inputs) || manifest.inputs.length === 0 || manifest.inputs.length > 1_000) {

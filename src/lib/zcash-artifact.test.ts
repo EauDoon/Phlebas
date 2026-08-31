@@ -97,6 +97,10 @@ test("validates every runtime manifest field before committing", () => {
     /sequence does not match/,
   );
   assert.throws(
+    () => commitZcashArtifact({ ...fixtureManifest(), targetHeight: 4_133_999, expiryHeight: 4_200_000 }),
+    /precedes its NU6.3/,
+  );
+  assert.throws(
     () => commitZcashArtifact({ ...fixtureManifest(), outputs: [{ ...fixtureManifest().outputs[0], valueZatoshis: "99999" }] }),
     /outputs plus fee/,
   );
