@@ -137,6 +137,9 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /lpEmptyBookCopy/);
   assert.doesNotMatch(liquidity, /adverse selection/);
   const ticket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
+  assert.match(ticket, /sideControlCopy/);
+  assert.match(ticket, /sideControlCopy\("buy"/);
+  assert.match(ticket, /sideControlCopy\("sell"/);
   assert.match(ticket, /Order rejected/);
   assert.match(ticket, /describeSubmit/);
   assert.match(ticket, /isTicketRejectCopy/);

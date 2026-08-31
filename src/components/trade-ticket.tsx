@@ -28,6 +28,7 @@ import {
   formatQuotePreviewAmount,
   marketOrderConstraintCopy,
   parseStrictDecimal,
+  sideControlCopy,
   ZEC_ATOMIC_RULE,
   QUOTE_PRICE_ATOMIC_RULE,
 } from "@/lib/order";
@@ -497,7 +498,7 @@ export function TradeTicket({
           aria-pressed={side === "buy"}
           onClick={() => setSide("buy")}
         >
-          Buy
+          {sideControlCopy("buy", side === "buy")}
         </button>
         <button
           type="button"
@@ -505,7 +506,7 @@ export function TradeTicket({
           aria-pressed={side === "sell"}
           onClick={() => setSide("sell")}
         >
-          Sell
+          {sideControlCopy("sell", side === "sell")}
         </button>
       </div>
 
