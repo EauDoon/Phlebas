@@ -46,8 +46,9 @@ test("landing and terminal banners stay simulation-only", async () => {
     await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"),
     /not native ZEC, shielded ZEC, or a trustless bridge asset/,
   );
-  assert.match(landing, /No shielded deposit or withdrawal is planned for v1/);
-  assert.match(landing, /zips\.z\.cash\/zip-0320/);
+  assert.match(landing, /LANDING_PZEC/);
+  assert.match(await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"), /No shielded deposit or withdrawal is planned for v1/);
+  assert.match(await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"), /zips\.z\.cash\/zip-0320/);
   assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(terminal), /trustless bridge/i);
   assert.match(terminal, /do not move mainnet funds/);

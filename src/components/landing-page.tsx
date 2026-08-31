@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { LANDING_HERO, LANDING_LEDGER, LANDING_LEDGER_HEADING } from "@/lib/landing-copy";
+import { LANDING_HERO, LANDING_LEDGER, LANDING_LEDGER_HEADING, LANDING_PZEC } from "@/lib/landing-copy";
 import { LANDING_EVIDENCE } from "@/lib/landing-evidence";
 import { LANDING_GATE_STATUS, LANDING_MAINNET_GATES } from "@/lib/landing-gates";
 
@@ -88,23 +88,23 @@ export function LandingPage() {
 
         <section className={styles.pzecSection} id="pzec" aria-labelledby="pzec-title">
           <div className={styles.pzecCopy}>
-            <span className={styles.eyebrow}>Why pZEC exists</span>
-            <h2 id="pzec-title">Native ZEC cannot sit inside an EVM pool.</h2>
+            <span className={styles.eyebrow}>{LANDING_PZEC.eyebrow}</span>
+            <h2 id="pzec-title">{LANDING_PZEC.heading}</h2>
+            <p>{LANDING_PZEC.body}</p>
+            <strong>{LANDING_PZEC.negation}</strong>
             <p>
-              Phlebas therefore specifies pZEC, an 8-decimal custody receipt intended to be backed one for one by eligible transparent native ZEC. That choice enables common settlement, but it introduces reserve, signer, redemption, legal, and operator risk.
-            </p>
-            <strong>pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.</strong>
-            <p>
-              No shielded deposit or withdrawal is planned for v1. Transparent Zcash and pZEC activity may be publicly linkable.
+              {LANDING_PZEC.disclosure}
               {" "}
-              <a href="https://zips.z.cash/zip-0320">Read the ZIP 320 TEX address specification</a>.
+              <a href={LANDING_PZEC.sourceHref}>{LANDING_PZEC.sourceLabel}</a>.
             </p>
           </div>
           <ol className={styles.assetFlow} aria-label="Proposed ZEC to market flow">
-            <li><span>01</span><div><strong>Transparent ZEC</strong><small>Unique TEX deposit intent</small></div></li>
-            <li><span>02</span><div><strong>Gateway controls</strong><small>Observation, screening, finality</small></div></li>
-            <li><span>03</span><div><strong>pZEC on Arbitrum</strong><small>Fully reserved custody receipt</small></div></li>
-            <li><span>04</span><div><strong>Trade or LP</strong><small>Offchain matcher, onchain settlement or pool swap</small></div></li>
+            {LANDING_PZEC.flow.map((step, index) => (
+              <li key={step.title}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <div><strong>{step.title}</strong><small>{step.detail}</small></div>
+              </li>
+            ))}
           </ol>
         </section>
 
