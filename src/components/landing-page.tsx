@@ -76,11 +76,13 @@ export function LandingPage() {
               ))}
             </dl>
             <p>Every displayed price, order, trade, pool reserve, and volume is synthetic.</p>
+            <Link href="/status" className={styles.secondaryCta}>Open status details</Link>
           </aside>
 
           <div className={styles.heroActions}>
             <Link href="/trade?view=trade" className={styles.primaryCta}>Enter simulation <span>↗</span></Link>
             <a href="#pzec" className={styles.secondaryCta}>Understand pZEC</a>
+            <p>Illustrative data only. Nothing here can be bought, sold, deposited, withdrawn, or redeemed.</p>
           </div>
         </section>
 
@@ -157,8 +159,14 @@ export function LandingPage() {
 
       <footer className={styles.footer}>
         <div className={styles.brand}><span className={styles.brandMark}>P</span><span>PHLEBAS</span></div>
-        <p>Protocol preview, not a live exchange or an offer of financial services.</p>
-        <span>30-08-2026</span>
+        <p>Phlebas is a protocol preview, not a live exchange or an offer of financial services.</p>
+        <nav aria-label="Footer">
+          <Link href="/trade?view=architecture">Architecture</Link>
+          <Link href="/legal">Legal and compliance</Link>
+          <a href="#launch-gates">Launch gates</a>
+          <Link href="/security">Security</Link>
+          <Link href="/status">Status</Link>
+        </nav>
       </footer>
     </div>
   );
