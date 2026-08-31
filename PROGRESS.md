@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the focused skip-nav in-flow, 44px brand, and clip-restore skip-link slice.
+Last updated: 01-09-2026 after the 320px skip-nav wrap, terminal brand, and hide-after-skip slice.
 
 ## Branch
 
@@ -256,13 +256,17 @@ Last updated: 31-08-2026 after the focused skip-nav in-flow, 44px brand, and cli
 - Header brand stays a 44px target at 320px under reduced motion
 - Skip-nav clip-path restore keeps skip links 44px tall
 - Playwright covers 320px focused skip-nav vs banner copy, 44px brand, and 44px skip links after clip restore
+- Focused skip-nav wraps skip links two-up at 320px so it does not consume the full viewport height
+- Terminal skip-nav in flow does not cover the topbar brand
+- Skip-nav returns to its clipped hidden state after skip-link activation
+- Playwright covers 320px skip-nav wrap, terminal brand below skip-nav, and hide after skip
 
 ## Next
 
-- Focused skip-nav should wrap skip links at 320px so it does not consume the full viewport height
-- Terminal skip-nav in flow should not cover the topbar brand
-- Skip-nav should return to its hidden state after skip-link activation
-- Playwright: 320px skip-nav wrap, terminal brand not covered, skip-nav hides after activation
+- Skip-link `:focus-visible` should keep the 2px focus ring for keyboard focus
+- Two-up skip links should stay 44px tall when the label wraps at 320px
+- Focused skip-nav should not overflow the 320px viewport horizontally
+- Skip-link focus ring should stay unclipped after two-up wrap
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
