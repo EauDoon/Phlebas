@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after tape Buy/Sell, expired-evidence tour, and 320px ticket feed gates.
+Last updated: 01-09-2026 after 320px unavailable ticket, deposit fail-closed tour, journeys expired/closed, and observer-disagreement demo.
 
 ## Branch
 
@@ -186,6 +186,10 @@ Last updated: 01-09-2026 after tape Buy/Sell, expired-evidence tour, and 320px t
 - Tape Buy/Sell is visible `tapeSideCopy` text in the price cell, not `.srOnly`. Playwright at 320px.
 - Withdrawal tour includes Expired evidence after burn submitted (`closed` without a finalized burn). 320px Playwright. Nothing is sent.
 - Ticket `feed=loading`, `feed=stale`, and `feed=empty` gates plus Retry illustrative are dedicated 320px specs.
+- Ticket `/trade?feed=unavailable` disables review at 320px and Retry illustrative re-enables it.
+- Deposit tour includes Unavailable, Rejected, and Stale fail-closed steps. Nothing is minted. 320px Playwright.
+- LANDING_AND_USER_JOURNEYS withdrawal machine includes expired evidence and closed without a finalized burn.
+- Architecture incident demo includes observer disagreement. Copy is architecture-demonstration, not a live outage. 320px Playwright.
 
 ## Next
 
@@ -193,10 +197,9 @@ Last updated: 01-09-2026 after tape Buy/Sell, expired-evidence tour, and 320px t
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
 - ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
-- Ticket `/trade?feed=unavailable` is not yet a dedicated 320px spec (default-width coverage exists)
-- Deposit tour still has no rejected/stale/unavailable steps
-- LANDING_AND_USER_JOURNEYS withdrawal machine table still omits expired/closed
-- Architecture incident demos still do not surface observer disagreement as a clickable gateway state
+- Withdrawal tour still has no dedicated tZEC-restored / refunded step from PRODUCT_SPEC 9.3
+- Deposit-tour PR2 list in LANDING_AND_USER_JOURNEYS still describes the seven-step happy path only
+- Ticket 320px unavailable on ZEC/USDT after Retry is covered; LP `/liquidity?feed=loading` 320px already exists — remaining density: more 320px rejected panels on USDT markets
 
 ## Blockers
 
