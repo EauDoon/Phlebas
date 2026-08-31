@@ -83,3 +83,19 @@ forge script script/DeployConditionalLock.s.sol:DeployConditionalLock --root con
 
 The contract has no custody, fee, or admin-transfer path. The constructor is non-upgradeable. Pause halts new deposits only; every in-flight lock retains a wallet-controlled refund path.
 
+## Zcash lab
+
+The ZEC half of the atomic swap lives in `src/lib/zcash-*` and `src/app/zcash/`. The address encoder, the P2SH script builder, and the wallet adapter are all key-independent. No signing or broadcast happens in the Zcash surface in this PR. The hash function is `ripemd160`, which Node 24 exposes natively; the browser path is a follow-up because Web Crypto does not expose `ripemd160`.
+
+| File | Role |
+| --- | --- |
+| `src/lib/ripemd160.ts` | Thin Node-native `ripemd160` wrapper. |
+| `src/lib/sha256d.ts` | Double SHA-256 for Base58Check. |
+| `src/lib/base58check.ts` | Base58Check encoder and decoder. |
+| `src/lib/zcash-script.ts` | Zcash op-code table, push encoders, concat helper. |
+| `src/lib/zcash-pubkey.ts` | Compressed secp256k1 pubkey parser and encoder. |
+| `src/lib/zcash-atomic-swap.ts` | Claim branch, refund branch, full atomic-swap script, round-trip parser. |
+| `src/lib/zcash-address.ts` | Transparent address encoder and decoder plus the existing `inspectTransparentDestination` classifier. |
+| `src/lib/zcash-wallet-adapter.ts` | `buildFundTransaction`, `buildClaimTransaction`, `buildRefundTransaction`, `hashAtomicSwapParams`. |
+| `src/app/zcash/page.tsx` | Server route at `/zcash`. Read-only. Derives the script, address, and unsigned transactions from URL params. |
+
