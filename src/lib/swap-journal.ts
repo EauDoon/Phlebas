@@ -1,0 +1,206 @@
+import { UINT64_MAX, normalizeHex32, type Hex32 } from "./order-domain.ts";
+import { sha256Hex } from "./sha256.ts";
+import {
+  authorizeSwapTerms,
+  confirmSwapFunding,
+  confirmSwapSpend,
+  flagSwapDispute,
+  observeSwapFunding,
+  observeSwapSpend,
+  prepareSwapFunding,
+  retractSwapEvidence,
+  type FundingEvidence,
+  type SpendEvidence,
+  type SwapDisputeReason,
+  type SwapLeg,
+  type SwapState,
+} from "./swap-state.ts";
+
+export const SWAP_EVENT_VERSION = 1 as const;
+export const SWAP_EVENT_GENESIS = `0x${"00".repeat(32)}` as Hex32;
+
+export type SwapEventPayload =
+  | Readonly<{ kind: "authorize-terms"; partyId: Hex32; termsHash: Hex32; occurredAtSeconds: bigint }>
+  | Readonly<{ kind: "prepare-funding"; leg: SwapLeg; artifactHash: Hex32; occurredAtSeconds: bigint }>
+  | Readonly<{ kind: "observe-funding"; evidence: FundingEvidence }>
+  | Readonly<{ kind: "confirm-funding"; leg: SwapLeg; evidenceId: Hex32 }>
+  | Readonly<{ kind: "observe-spend"; evidence: SpendEvidence }>
+  | Readonly<{ kind: "confirm-spend"; leg: SwapLeg; evidenceId: Hex32 }>
+  | Readonly<{ kind: "flag-dispute"; reason: SwapDisputeReason; detail: string; evidenceId?: Hex32 }>
+  | Readonly<{ kind: "retract-evidence"; evidenceId: Hex32; detail: string }>;
+
+export type SwapEventReceipt = Readonly<{
+  version: typeof SWAP_EVENT_VERSION;
+  sequence: bigint;
+  swapId: Hex32;
+  termsHash: Hex32;
+  previousEventHash: Hex32;
+  payload: SwapEventPayload;
+  payloadHash: Hex32;
+  semanticSlot: string;
+  eventHash: Hex32;
+}>;
+
+export type SwapJournal = Readonly<{
+  swapId: Hex32;
+  termsHash: Hex32;
+  receipts: readonly SwapEventReceipt[];
+  head: Hex32;
+  nextSequence: bigint;
+}>;
+
+function canonicalHex32(value: string, label: string): Hex32 {
+  const normalized = normalizeHex32(value, label);
+  if (normalized !== value) throw new TypeError(`${label} must be canonical`);
+  return normalized;
+}
+
+function canonicalValue(value: unknown): string {
+  if (typeof value === "bigint") return `{"$bigint":"${value}"}`;
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "boolean" || value === null) return JSON.stringify(value);
+  if (typeof value === "number") throw new TypeError("Journal payload numbers are forbidden; use bigint");
+  if (Array.isArray(value)) return `[${value.map(canonicalValue).join(",")}]`;
+  if (typeof value === "object" && value !== null) {
+    return `{${Object.entries(value)
+      .filter(([, entry]) => entry !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalValue(entry)}`)
+      .join(",")}}`;
+  }
+  throw new TypeError("Journal payload contains an unsupported value");
+}
+
+export function hashSwapEventPayload(payload: SwapEventPayload): Hex32 {
+  return sha256Hex(`PhlebasSwapEventPayload\nversion=${SWAP_EVENT_VERSION}\npayload=${canonicalValue(payload)}`);
+}
+
+export function swapEventSemanticSlot(payload: SwapEventPayload): string {
+  if (payload.kind === "authorize-terms") return `${payload.kind}:${payload.partyId}`;
+  if (payload.kind === "prepare-funding") return `${payload.kind}:${payload.leg}`;
+  if (payload.kind === "observe-funding") {
+    const evidence = payload.evidence;
+    return `${payload.kind}:${evidence.leg}:${evidence.transactionId}:${evidence.outputIndex}`;
+  }
+  if (payload.kind === "confirm-funding" || payload.kind === "confirm-spend") {
+    return `${payload.kind}:${payload.leg}:${payload.evidenceId}`;
+  }
+  if (payload.kind === "observe-spend") {
+    const evidence = payload.evidence;
+    return `${payload.kind}:${evidence.leg}:${evidence.action}:${evidence.transactionId}:${evidence.inputOrLogIndex}`;
+  }
+  if (payload.kind === "retract-evidence") return `${payload.kind}:${payload.evidenceId}`;
+  return `${payload.kind}:${payload.reason}:${payload.evidenceId ?? "none"}:${payload.detail}`;
+}
+
+export function hashSwapEvent(receipt: Omit<SwapEventReceipt, "eventHash">): Hex32 {
+  if (typeof receipt.sequence !== "bigint" || receipt.sequence <= 0n || receipt.sequence > UINT64_MAX) {
+    throw new RangeError("Swap event sequence must be a positive uint64");
+  }
+  return sha256Hex([
+    "PhlebasSwapEvent",
+    `version=${receipt.version}`,
+    `sequence=${receipt.sequence}`,
+    `swapId=${canonicalHex32(receipt.swapId, "Swap ID")}`,
+    `termsHash=${canonicalHex32(receipt.termsHash, "Terms hash")}`,
+    `previousEventHash=${canonicalHex32(receipt.previousEventHash, "Previous event hash")}`,
+    `payloadHash=${canonicalHex32(receipt.payloadHash, "Payload hash")}`,
+    `semanticSlot=${receipt.semanticSlot}`,
+  ].join("\n"));
+}
+
+export function emptySwapJournal(state: SwapState): SwapJournal {
+  return Object.freeze({
+    swapId: state.swapId,
+    termsHash: state.termsHash,
+    receipts: Object.freeze([]),
+    head: SWAP_EVENT_GENESIS,
+    nextSequence: 1n,
+  });
+}
+
+export function applySwapEvent(state: SwapState, payload: SwapEventPayload): SwapState {
+  if (payload.kind === "authorize-terms") {
+    return authorizeSwapTerms(state, payload.partyId, payload.termsHash, payload.occurredAtSeconds);
+  }
+  if (payload.kind === "prepare-funding") {
+    return prepareSwapFunding(state, payload.leg, payload.artifactHash, payload.occurredAtSeconds);
+  }
+  if (payload.kind === "observe-funding") return observeSwapFunding(state, payload.evidence);
+  if (payload.kind === "confirm-funding") return confirmSwapFunding(state, payload.leg, payload.evidenceId);
+  if (payload.kind === "observe-spend") return observeSwapSpend(state, payload.evidence);
+  if (payload.kind === "confirm-spend") return confirmSwapSpend(state, payload.leg, payload.evidenceId);
+  if (payload.kind === "retract-evidence") return retractSwapEvidence(state, payload.evidenceId, payload.detail);
+  if (payload.kind === "flag-dispute") {
+    return flagSwapDispute(state, payload.reason, payload.detail, payload.evidenceId);
+  }
+  throw new TypeError("Unknown swap event kind");
+}
+
+export function appendSwapEvent(
+  journal: SwapJournal,
+  state: SwapState,
+  payload: SwapEventPayload,
+): Readonly<{ journal: SwapJournal; state: SwapState; receipt: SwapEventReceipt; appended: boolean }> {
+  if (!verifySwapJournal(journal)) throw new Error("Cannot append to an invalid swap journal");
+  if (journal.swapId !== state.swapId || journal.termsHash !== state.termsHash) {
+    throw new Error("Swap journal does not bind the supplied state");
+  }
+  const payloadHash = hashSwapEventPayload(payload);
+  const duplicate = journal.receipts.find((receipt) => receipt.payloadHash === payloadHash);
+  if (duplicate) return { journal, state, receipt: duplicate, appended: false };
+  const semanticSlot = swapEventSemanticSlot(payload);
+  const conflict = journal.receipts.find((receipt) => receipt.semanticSlot === semanticSlot);
+  if (conflict) throw new Error("Conflicting event occupies the same semantic slot");
+
+  const nextState = applySwapEvent(state, payload);
+  const unsigned: Omit<SwapEventReceipt, "eventHash"> = Object.freeze({
+    version: SWAP_EVENT_VERSION,
+    sequence: journal.nextSequence,
+    swapId: state.swapId,
+    termsHash: state.termsHash,
+    previousEventHash: journal.head,
+    payload,
+    payloadHash,
+    semanticSlot,
+  });
+  const receipt: SwapEventReceipt = Object.freeze({ ...unsigned, eventHash: hashSwapEvent(unsigned) });
+  return {
+    state: nextState,
+    receipt,
+    appended: true,
+    journal: Object.freeze({
+      ...journal,
+      receipts: Object.freeze([...journal.receipts, receipt]),
+      head: receipt.eventHash,
+      nextSequence: journal.nextSequence + 1n,
+    }),
+  };
+}
+
+export function verifySwapJournal(journal: SwapJournal): boolean {
+  try {
+    const swapId = canonicalHex32(journal.swapId, "Journal swap ID");
+    const termsHash = canonicalHex32(journal.termsHash, "Journal terms hash");
+    let previous = SWAP_EVENT_GENESIS;
+    let sequence = 1n;
+    const payloads = new Set<string>();
+    const slots = new Set<string>();
+    for (const receipt of journal.receipts) {
+      if (receipt.version !== SWAP_EVENT_VERSION || receipt.sequence !== sequence) return false;
+      if (receipt.swapId !== swapId || receipt.termsHash !== termsHash || receipt.previousEventHash !== previous) return false;
+      if (receipt.payloadHash !== hashSwapEventPayload(receipt.payload)) return false;
+      if (receipt.semanticSlot !== swapEventSemanticSlot(receipt.payload)) return false;
+      if (payloads.has(receipt.payloadHash) || slots.has(receipt.semanticSlot)) return false;
+      const { eventHash: _eventHash, ...unsigned } = receipt;
+      if (receipt.eventHash !== hashSwapEvent(unsigned)) return false;
+      payloads.add(receipt.payloadHash);
+      slots.add(receipt.semanticSlot);
+      previous = receipt.eventHash;
+      sequence += 1n;
+    }
+    return journal.head === previous && journal.nextSequence === sequence;
+  } catch {
+    return false;
+  }
+}
