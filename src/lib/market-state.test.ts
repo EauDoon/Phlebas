@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { markets } from "./market-data.ts";
+import { emptyBook } from "./matcher.ts";
 import {
   depthEmptyCopy,
+  depthSessionLastCopy,
+  emptyBookGateCopy,
   feedSurface,
   feedWithheldCopy,
   isFeedStatus,
@@ -16,10 +20,26 @@ test("illustrative data with a book can move from preview to confirm", () => {
   assert.equal(gate.status, "illustrative");
 });
 
-test("an empty book disables preview-to-sign", () => {
-  const gate = ticketGate("illustrative", true);
+test("an empty book disables preview-to-sign and names the settlement pair", () => {
+  const market = markets["ZEC/USDC"];
+  const book = emptyBook(market.lastTicks);
+  const bookEmpty = book.bids.length === 0 && book.asks.length === 0;
+  const gate = ticketGate("illustrative", bookEmpty, market.settlementPair);
+  assert.equal(bookEmpty, true);
   assert.equal(gate.status, "empty");
   assert.equal(gate.canReview, false);
+  assert.equal(gate.message, emptyBookGateCopy("pZEC-USDC"));
+  assert.match(gate.message, /Settled as pZEC-USDC/);
+  assert.match(depthEmptyCopy("pZEC-USDC"), /Settled as pZEC-USDC/);
+  assert.equal(
+    emptyBookGateCopy("pZEC-USDT0"),
+    "No resting depth. Review is disabled until the local book has size. Settled as pZEC-USDT0.",
+  );
+  assert.equal(
+    ticketGate("empty", false, "pZEC-USDT0").message,
+    emptyBookGateCopy("pZEC-USDT0"),
+  );
+  assert.doesNotMatch(emptyBookGateCopy("pZEC-USDC"), /native ZEC/);
 });
 
 test("stale and unavailable feeds disable preview-to-sign", () => {
@@ -55,6 +75,11 @@ test("depth and tape empty copy names the settlement pair", () => {
   assert.match(orderBookCaptionCopy("ZEC/USDT"), /settled as pZEC-USDT0/);
   assert.doesNotMatch(depthEmptyCopy("pZEC-USDC"), /native ZEC/);
   assert.doesNotMatch(feedWithheldCopy("loading", "pZEC-USDC"), /live feed/);
+  assert.equal(depthSessionLastCopy("pZEC-USDC", null), "session last · pZEC-USDC");
+  assert.equal(
+    depthSessionLastCopy("pZEC-USDT0", "0.13"),
+    "session last · pZEC-USDT0 · spread 0.13",
+  );
 });
 
 test("allowlists only documented feed states", () => {
