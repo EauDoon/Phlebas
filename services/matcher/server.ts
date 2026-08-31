@@ -196,6 +196,10 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
         send(response, 200, m);
         return;
       }
+      if (request.method === "GET" && url.pathname === "/version") {
+        send(response, 200, { ok: true, service: "matcher", version: "0.1.0" });
+        return;
+      }
       if (request.method === "POST" && url.pathname === "/orders") {
         if (request.headers["content-type"]?.split(";", 1)[0] !== "application/json") {
           send(response, 415, { ok: false, reason: "content-type-must-be-application-json" });
