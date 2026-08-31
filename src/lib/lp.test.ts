@@ -208,13 +208,13 @@ test("LP burn notice names the settlement pair from a real mint then burn", () =
   const minted = mintShares(pool, 10_00000000n);
   const burned = burnShares(minted.pool, minted.shares);
   assert.equal(burned.zecAtoms, 10_00000000n);
-  const pzecLabel = formatAtomicUnits(burned.zecAtoms, ZEC_DECIMALS);
+  const zecLabel = formatAtomicUnits(burned.zecAtoms, ZEC_DECIMALS);
   assert.equal(
-    lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDC"].settlementPair),
-    `Burned session shares for ${pzecLabel} ZEC. Local preview only. Settled as ZEC-USDC.`,
+    lpBurnNoticeCopy(zecLabel, markets["ZEC/USDC"].settlementPair),
+    `Burned session shares for ${zecLabel} ZEC. Local preview only. Settled as ZEC-USDC.`,
   );
-  assert.match(lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDT"].settlementPair), /ZEC-USDT/);
-  assert.doesNotMatch(lpBurnNoticeCopy(pzecLabel, "ZEC-USDC"), /native ZEC/);
+  assert.match(lpBurnNoticeCopy(zecLabel, markets["ZEC/USDT"].settlementPair), /ZEC-USDT/);
+  assert.doesNotMatch(lpBurnNoticeCopy(zecLabel, "ZEC-USDC"), /native ZEC/);
 });
 
 test("LP burn notice names ZEC-USDT from a real USDT mint then burn", () => {
@@ -224,13 +224,13 @@ test("LP burn notice names ZEC-USDT from a real USDT mint then burn", () => {
   assert.ok(minted.shares > 0n);
   assert.equal(pools[1].quote, "USDT");
   assert.equal(markets["ZEC/USDT"].settlementPair, "ZEC-USDT");
-  const pzecLabel = formatAtomicUnits(burned.zecAtoms, ZEC_DECIMALS);
+  const zecLabel = formatAtomicUnits(burned.zecAtoms, ZEC_DECIMALS);
   assert.equal(
-    lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDT"].settlementPair),
-    `Burned session shares for ${pzecLabel} ZEC. Local preview only. Settled as ZEC-USDT.`,
+    lpBurnNoticeCopy(zecLabel, markets["ZEC/USDT"].settlementPair),
+    `Burned session shares for ${zecLabel} ZEC. Local preview only. Settled as ZEC-USDT.`,
   );
   assert.doesNotMatch(
-    lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDT"].settlementPair),
+    lpBurnNoticeCopy(zecLabel, markets["ZEC/USDT"].settlementPair),
     /native ZEC/,
   );
 });

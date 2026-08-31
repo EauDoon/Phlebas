@@ -41,10 +41,10 @@ export function lpMintNoticeCopy(
 }
 
 export function lpBurnNoticeCopy(
-  pzecLabel: string,
+  zecLabel: string,
   settlementPair: Market["settlementPair"],
 ): string {
-  return `Burned session shares for ${pzecLabel} ZEC. Local preview only. Settled as ${settlementPair}.`;
+  return `Burned session shares for ${zecLabel} ZEC. Local preview only. Settled as ${settlementPair}.`;
 }
 
 export function lpSwapNoticeCopy(
