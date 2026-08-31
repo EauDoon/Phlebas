@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the ticket-group, gateway-journey, preview-fixture, and status-skip slice.
+Last updated: 31-08-2026 after the market-feed, 44px review, legal-skip, and incident-region slice.
 
 ## Branch
 
-`feat/product-ui` off `origin/main` at `a2569b3`. Origin `feat/simulation-hardening` has diverged; do not force-push it. Push this product UI as a new PR.
+`feat/product-ui` off `origin/main` at `a2569b3`. PR #22: https://github.com/EauDoon/Phlebas/pull/22. Origin `feat/simulation-hardening` has diverged; do not force-push it.
 
 ## Done
 
@@ -125,15 +125,23 @@ Last updated: 31-08-2026 after the ticket-group, gateway-journey, preview-fixtur
 - Landing terminal preview depth names last, price, and size as Fixture
 - Status skip link reaches the status ledger
 - Playwright covers ticket-group arrows, 44px size shortcuts, gateway journey arrows, preview fixture labels, and status skip
+- Market and feed-state selectors move with arrows, Home/End, and Enter/Space the way blotter tabs do
+- Review Back and ticket primary actions stay 44px at desktop, not only under 820px
+- LP mint, swap, and burn tour buttons stay 44px on desktop
+- `/legal` and `/security` skip to the article the way status skips to the ledger
+- Architecture incident demonstrations keep the selected copy in a named region
+- Market bar keeps market and feed selectors inside the panel when USDT listing-gate copy appears
+- Playwright covers market/feed arrows, desktop 44px review Back, LP tour targets, legal and security skip, and the incident region
 
 ## Next
 
-- Feed-state and market selectors should move with arrows the way blotter tabs do
-- Review Back and ticket primary actions should stay 44px at desktop, not only under 820px
-- LP mint/swap/burn tour buttons should be 44px on desktop
-- Legal and security pages should skip to the article the way status skips to the ledger
-- Architecture incident demonstrations should keep the selected copy in a named region
-- Playwright: market/feed arrows, desktop 44px review Back, LP tour targets, legal skip, incident region
+- Market and feed selector tabs should stay 44px on desktop, not only under 820px
+- Ticket side segmented buttons should stay 44px on desktop
+- Wallet connect should stay 44px on desktop
+- Chart range buttons should stay 44px on desktop
+- 404 page should skip to the missing-route copy the way legal skips to the article
+- Architecture should skip to the incident demonstration
+- Playwright: desktop 44px market/feed tabs, connect, chart range, 404 skip, architecture skip
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
