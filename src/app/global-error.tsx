@@ -10,6 +10,26 @@ export default function GlobalError({
   return (
     <html lang="en">
       <body style={{ margin: 0, background: "#090b0f", color: "#eef1eb", fontFamily: "Segoe UI, sans-serif" }}>
+        <style>{`
+          nav[aria-label="Skip links"] {
+            display: flex;
+            flex-wrap: wrap;
+            column-gap: 8px;
+            row-gap: 8px;
+            box-sizing: border-box;
+            max-width: 100%;
+            padding: 6px;
+          }
+          nav[aria-label="Skip links"] a {
+            box-sizing: border-box;
+            flex: 1 1 calc(50% - 4px);
+            max-width: min(100%, calc(50% - 4px));
+          }
+          nav[aria-label="Skip links"] a:focus-visible {
+            outline: 2px solid #15140d;
+            outline-offset: 2px;
+          }
+        `}</style>
         <nav aria-label="Skip links">
           <a
             href="#main-content"
