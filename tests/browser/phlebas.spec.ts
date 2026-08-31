@@ -708,7 +708,7 @@ test("320px market buy at zero slippage does not fill beyond the signed worst pr
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByText("Worst acceptable price")).toBeVisible();
-  await expect(page.getByText("52.84 USDC", { exact: true })).toBeVisible();
+  await expect(page.getByText("Worst acceptable price").locator("xpath=following-sibling::dd")).toHaveText("52.84 USDC");
   await expect(page.getByText("IOC", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText("Immediate-or-cancel finished with no fills")).toBeVisible();
