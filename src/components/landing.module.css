@@ -518,6 +518,31 @@
   grid-template-columns: minmax(260px, 0.55fr) minmax(0, 1.45fr);
 }
 
+.journeyTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.journeyTabs button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 4px 4px 0 0;
+  color: var(--text-muted);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.journeyTabs button:hover,
+.journeyTabActive {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .journeyList {
   display: grid;
   border-top: 1px solid var(--border-strong);

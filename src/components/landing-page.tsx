@@ -3,6 +3,7 @@ import Link from "next/link";
 import { COUNTRY_ACCESS } from "@/lib/country-access";
 
 import { LandingHeader } from "./landing-header";
+import { LandingJourneys } from "./landing-journeys";
 import styles from "./landing.module.css";
 
 const statusRows = [
@@ -15,33 +16,6 @@ const statusRows = [
   ["Country access", COUNTRY_ACCESS.default === "deny" && COUNTRY_ACCESS.enabled.length === 0
     ? "Deny by default"
     : "Misconfigured"],
-] as const;
-
-const journeys = [
-  {
-    number: "01",
-    label: "Order-book trading",
-    title: "Signed limits, visible bounds",
-    body: "Submit GTC, IOC, and FOK orders to an in-browser matcher. Market orders are IOC with a user-set worst price. The proposed production matcher remains offchain and is not this simulation.",
-    href: "/trade?view=trade",
-    link: "Open trade preview",
-  },
-  {
-    number: "02",
-    label: "Simple liquidity",
-    title: "Two pools, no incentive maze",
-    body: "Explore fixed-fee constant product pools for pZEC/USDC and pZEC/USDT0. No farms, leverage, callbacks, token rewards, or projected returns.",
-    href: "/liquidity",
-    link: "Open LP preview",
-  },
-  {
-    number: "03",
-    label: "Transparent ZEC gateway",
-    title: "The custody boundary stays visible",
-    body: "Issue a local testnet TEX intent when the gateway is running. The public app still mints no pZEC and never shows a mainnet address.",
-    href: "/trade?view=bridge",
-    link: "See gateway design",
-  },
 ] as const;
 
 export function LandingPage() {
@@ -121,22 +95,7 @@ export function LandingPage() {
           </ol>
         </section>
 
-        <section className={styles.journeySection} id="journeys" aria-labelledby="journeys-title">
-          <div className={styles.sectionIntro}>
-            <span className={styles.eyebrow}>One product, three journeys</span>
-            <h2 id="journeys-title">A narrow surface<br />for each decision.</h2>
-          </div>
-          <div className={styles.journeyList}>
-            {journeys.map((journey) => (
-              <article key={journey.number}>
-                <span className={styles.journeyNumber}>{journey.number}</span>
-                <div><span className={styles.eyebrow}>{journey.label}</span><h3>{journey.title}</h3></div>
-                <p>{journey.body}</p>
-                <Link href={journey.href}>{journey.link} <span>↗</span></Link>
-              </article>
-            ))}
-          </div>
-        </section>
+        <LandingJourneys />
 
         <section className={styles.gatesSection} id="launch-gates" aria-labelledby="gates-title">
           <div>

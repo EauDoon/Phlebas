@@ -7,10 +7,9 @@ import styles from "./landing.module.css";
 
 const navigation = [
   { href: "#markets", label: "Markets" },
-  { href: "#journeys", label: "Journeys" },
-  { href: "#pzec", label: "Why pZEC" },
-  { href: "#launch-gates", label: "Launch gates" },
-  { href: "/status", label: "Status" },
+  { href: "#journey-lp", label: "Liquidity" },
+  { href: "#journey-deposit", label: "Gateway" },
+  { href: "/trade?view=architecture", label: "Architecture" },
 ];
 
 export function LandingHeader() {
