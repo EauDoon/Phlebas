@@ -135,6 +135,29 @@ test("LP swap notice names the settlement pair from a real mint then swap", () =
   );
 });
 
+test("LP swap notice names pZEC-USDT0 from a real USDT0 mint then swap", () => {
+  const pool = seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms);
+  const minted = mintShares(pool, 10_00000000n);
+  assert.ok(minted.shares > 0n);
+  const swap = quoteConstantProductSwapAtoms(
+    10_00000000n,
+    minted.pool.reservePzecAtoms,
+    minted.pool.reserveQuoteAtoms,
+  );
+  assert.ok(swap.amountOut > 0n);
+  assert.equal(pools[1].quote, "USDT0");
+  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  const outputLabel = formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2);
+  assert.equal(
+    lpSwapNoticeCopy(outputLabel, pools[1].quote, markets["ZEC/USDT"].settlementPair),
+    `Simulated pZEC→USDT0 swap. Output ${outputLabel} USDT0. Local preview only. Settled as pZEC-USDT0.`,
+  );
+  assert.doesNotMatch(
+    lpSwapNoticeCopy(outputLabel, pools[1].quote, markets["ZEC/USDT"].settlementPair),
+    /native ZEC/,
+  );
+});
+
 test("hypothetical 4x IL equals the deposited quote on an even size", () => {
   const entryPzec = 10_00000000n;
   const entryQuote = 5_284000n;
