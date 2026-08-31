@@ -151,8 +151,14 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /left: 12px/);
   assert.match(terminalCss, /clip-path: inset\(50%\)/);
   assert.match(terminalCss, /max-width: calc\(100vw - 24px\)/);
+  assert.match(terminalCss, /flex-wrap: wrap/);
+  assert.match(terminalCss, /flex: 1 1 calc\(50% - 2px\)/);
+  assert.match(terminalCss, /max-height: min\(40vh, 17.5rem\)/);
   assert.match(landingCss, /clip-path: inset\(50%\)/);
   assert.match(landingCss, /max-width: calc\(100vw - 24px\)/);
+  assert.match(landingCss, /flex-wrap: wrap/);
+  assert.match(landingCss, /flex: 1 1 calc\(50% - 2px\)/);
+  assert.match(landingCss, /max-height: min\(40vh, 17.5rem\)/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /id="status-ledger"/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /role="list" aria-label="Simulation status ledger"/);
   assert.match(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /Nothing was sent/);
