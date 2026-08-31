@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import type { AccessDemo } from "@/lib/access-demo";
 import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
@@ -31,9 +32,11 @@ import { PZEC_DECIMALS, PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import { ArchitecturePanel } from "./architecture-panel";
 import { BridgePanel } from "./bridge-panel";
+import { CountryBlock } from "./country-block";
 import { LiquidityPanel } from "./liquidity-panel";
 import { OrderBlotter } from "./order-blotter";
 import { OrderBook } from "./order-book";
+import { PreviewEducation } from "./preview-education";
 import { PriceChart } from "./price-chart";
 import { TradeTicket } from "./trade-ticket";
 import { WalletBar } from "./wallet-bar";
@@ -74,16 +77,22 @@ function seedAccounts(): Record<MarketId, PaperAccount> {
   };
 }
 
+const CHART_RANGES: ChartRange[] = ["1H", "4H", "1D"];
+
 export function TradingTerminal({
   initialView = "trade",
   initialMarket = "ZEC/USDC",
   initialFeed = "illustrative",
   initialBridgeJourney = "deposit",
+  initialAccess = "open",
+  forceEducation = false,
 }: {
   initialView?: View;
   initialMarket?: MarketId;
   initialFeed?: FeedStatus;
   initialBridgeJourney?: "deposit" | "withdrawal";
+  initialAccess?: AccessDemo;
+  forceEducation?: boolean;
 }) {
   const router = useRouter();
   const [view, setView] = useState<View>(initialView);
@@ -263,9 +272,12 @@ export function TradingTerminal({
         <WalletBar wallet={wallet} onChange={setWallet} />
       </header>
 
+      {initialAccess === "open" && <PreviewEducation force={forceEducation} />}
+
       <main id="main-content" tabIndex={-1}>
         <h1 className={styles.srOnly}>Phlebas ZEC trading terminal</h1>
-        {view === "trade" && (
+        {initialAccess === "blocked" && <CountryBlock />}
+        {initialAccess === "open" && view === "trade" && (
           <>
             <section className={styles.marketBar} aria-label="Selected market summary">
               <div className={styles.marketSelectorWrap}>
@@ -324,18 +336,48 @@ export function TradingTerminal({
               <section className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
                 <div className={styles.panelHeader}>
                   <div><span className={styles.eyebrow}>Illustrative market data</span><h2 id="chart-title">{marketId}</h2></div>
-                  <div className={styles.rangeTabs} role="group" aria-label="Chart range">
-                    {(["1H", "4H", "1D"] as ChartRange[]).map((item) => (
-                      <button type="button" key={item} aria-pressed={range === item} className={range === item ? styles.textActive : undefined} onClick={() => setRange(item)}>{item}</button>
+                  <div
+                    className={styles.rangeTabs}
+                    role="tablist"
+                    aria-label="Chart range"
+                    onKeyDown={(event) => {
+                      const index = CHART_RANGES.indexOf(range);
+                      let next = index;
+                      if (event.key === "ArrowRight") next = (index + 1) % CHART_RANGES.length;
+                      else if (event.key === "ArrowLeft") next = (index - 1 + CHART_RANGES.length) % CHART_RANGES.length;
+                      else if (event.key === "Home") next = 0;
+                      else if (event.key === "End") next = CHART_RANGES.length - 1;
+                      else return;
+                      event.preventDefault();
+                      setRange(CHART_RANGES[next] ?? range);
+                    }}
+                  >
+                    {CHART_RANGES.map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        id={`chart-tab-${item}`}
+                        role="tab"
+                        aria-selected={range === item}
+                        aria-controls="chart-panel"
+                        tabIndex={range === item ? 0 : -1}
+                        className={range === item ? styles.textActive : undefined}
+                        onClick={() => setRange(item)}
+                      >
+                        {item}
+                      </button>
                     ))}
                   </div>
                 </div>
-                <PriceChart marketId={marketId} range={range} feedStatus={feedStatus} />
+                <div role="tabpanel" id="chart-panel" aria-labelledby={`chart-tab-${range}`}>
+                  <PriceChart marketId={marketId} range={range} feedStatus={feedStatus} />
+                </div>
               </section>
 
               <OrderBook
                 marketId={marketId}
                 book={displayedBook}
+                feedStatus={feedStatus}
                 onPriceSelect={(ticks) => {
                   setPriceSelection({ ticks, nonce: nextPriceNonce.current });
                   nextPriceNonce.current += 1;
@@ -379,16 +421,26 @@ export function TradingTerminal({
                         <td>{trade.time}</td>
                       </tr>
                     ))}
-                    {recentTrades[marketId].map((trade) => (
-                      <tr key={`fixture-${trade.time}-${trade.priceTicks.toString()}`}>
-                        <th scope="row" className={trade.side === "buy" ? styles.buyText : styles.sellText}>
-                          <span className={styles.srOnly}>{trade.side === "buy" ? "Buy" : "Sell"} </span>
-                          {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
-                        </th>
-                        <td>{formatAtomicUnits(trade.sizeAtoms, PZEC_DECIMALS, 2)}</td>
-                        <td>{trade.time}</td>
-                      </tr>
-                    ))}
+                    {statsSurface.showFixtures
+                      ? recentTrades[marketId].map((trade) => (
+                        <tr key={`fixture-${trade.time}-${trade.priceTicks.toString()}`}>
+                          <th scope="row" className={trade.side === "buy" ? styles.buyText : styles.sellText}>
+                            <span className={styles.srOnly}>{trade.side === "buy" ? "Buy" : "Sell"} </span>
+                            {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
+                          </th>
+                          <td>{formatAtomicUnits(trade.sizeAtoms, PZEC_DECIMALS, 2)}</td>
+                          <td>{trade.time}</td>
+                        </tr>
+                      ))
+                      : sessionTape.length === 0
+                        ? (
+                          <tr>
+                            <td colSpan={3}>
+                              <p className={styles.emptyState}>{statsSurface.heading}. {statsSurface.message}</p>
+                            </td>
+                          </tr>
+                        )
+                        : null}
                   </tbody>
                 </table>
               </section>
@@ -409,7 +461,7 @@ export function TradingTerminal({
           </>
         )}
 
-        {view === "liquidity" && (
+        {initialAccess === "open" && view === "liquidity" && (
           <LiquidityPanel
             marketId={marketId}
             onMarketChange={selectMarket}
@@ -417,8 +469,8 @@ export function TradingTerminal({
             onRetryFeed={() => selectFeed("illustrative")}
           />
         )}
-        {view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
-        {view === "architecture" && <ArchitecturePanel />}
+        {initialAccess === "open" && view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
+        {initialAccess === "open" && view === "architecture" && <ArchitecturePanel />}
       </main>
 
       <footer className={styles.footer}>
