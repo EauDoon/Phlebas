@@ -1901,6 +1901,8 @@ a.skipLink:focus-visible {
   .educationDialog h2 {
     position: relative;
     z-index: 2;
+    display: flex;
+    align-items: center;
     flex-shrink: 0;
     overflow: visible;
     min-width: 44px;
