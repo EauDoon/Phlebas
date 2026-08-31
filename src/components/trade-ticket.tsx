@@ -26,6 +26,7 @@ import {
   calculatePreviewNotional,
   calculateWorstPrice,
   formatQuotePreviewAmount,
+  marketOrderConstraintCopy,
   parseStrictDecimal,
   ZEC_ATOMIC_RULE,
   QUOTE_PRICE_ATOMIC_RULE,
@@ -558,6 +559,10 @@ export function TradeTicket({
           <span>{market.quote}</span>
         </div>
       </label>
+
+      {orderType === "market" && (
+        <p className={styles.inlineNotice}>{marketOrderConstraintCopy()}</p>
+      )}
 
       {orderType === "market" && (
         <label className={styles.inputLabel}>
