@@ -210,6 +210,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /not a live exchange/);
   assert.match(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /Skip to legal article/);
   assert.match(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /id="legal-article"/);
+  assert.match(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /aria-label="Legal and compliance ledger"/);
   assert.match(await readFile(join(root, "src/app/security/page.tsx"), "utf8"), /no production support commitment/);
   assert.match(await readFile(join(root, "src/app/security/page.tsx"), "utf8"), /Skip to security article/);
   assert.match(await readFile(join(root, "src/app/security/page.tsx"), "utf8"), /id="security-article"/);

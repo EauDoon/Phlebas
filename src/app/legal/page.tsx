@@ -25,12 +25,12 @@ export default function LegalPage() {
           No licensed entity is operating this interface. Nothing here can be bought, sold,
           deposited, withdrawn, or redeemed.
         </p>
-        <dl>
-          <div><dt>Offer</dt><dd>none</dd></div>
-          <div><dt>Licensed operator</dt><dd>none</dd></div>
-          <div><dt>Country access</dt><dd>{access}</dd></div>
-          <div><dt>Custody</dt><dd>not operating</dd></div>
-          <div><dt>Advice</dt><dd>product copy, not legal advice</dd></div>
+        <dl role="list" aria-label="Legal and compliance ledger">
+          <div role="listitem"><dt>Offer</dt><dd>none</dd></div>
+          <div role="listitem"><dt>Licensed operator</dt><dd>none</dd></div>
+          <div role="listitem"><dt>Country access</dt><dd>{access}</dd></div>
+          <div role="listitem"><dt>Custody</dt><dd>not operating</dd></div>
+          <div role="listitem"><dt>Advice</dt><dd>product copy, not legal advice</dd></div>
         </dl>
         <p>
           Mainnet and real assets stay blocked until entity, licensing, custody, reserve,
