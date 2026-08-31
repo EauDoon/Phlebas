@@ -1744,3 +1744,22 @@ test("landing skip links Menu and Close stay 44px", async ({ page }) => {
   expect((await close.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("terminal skip education Continue and error Retry stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expect(skip).toBeFocused();
+  expect((await skip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const cont = page.getByRole("button", { name: "Continue" });
+  await expect(cont).toBeVisible();
+  expect((await cont.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade?error=1", { waitUntil: "networkidle" });
+  const retry = page.getByRole("button", { name: "Retry" });
+  await expect(retry).toBeVisible();
+  expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
