@@ -1886,6 +1886,7 @@ a.skipLink:focus-visible {
     scroll-padding-top: 8px;
     scroll-padding-bottom: 8px;
     padding-top: 24px;
+    padding-bottom: 8px;
   }
 }
 
