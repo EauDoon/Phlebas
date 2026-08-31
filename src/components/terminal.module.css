@@ -2040,6 +2040,9 @@ a.skipLink:focus-visible {
     left: auto;
     width: 100%;
     max-width: 100%;
+    box-sizing: border-box;
+    flex-direction: row;
+    flex-wrap: wrap;
     overflow-y: auto;
     padding: 6px;
     scrollbar-gutter: stable;
