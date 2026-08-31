@@ -58,7 +58,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className={styles.marketSection} id="markets" aria-labelledby="markets-title">
+        <section className={styles.marketSection} id="markets" tabIndex={-1} aria-labelledby="markets-title">
           <div className={styles.sectionIntro}>
             <span className={styles.eyebrow}>Two focused markets</span>
             <h2 id="markets-title">Familiar labels.<br />Exact settlement.</h2>

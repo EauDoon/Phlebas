@@ -37,7 +37,9 @@
 .evidenceSection,
 .journeySection,
 .terminalPreviewSection,
-.pzecSection {
+.pzecSection,
+.marketSection,
+.gatesSection {
   scroll-margin-top: 12px;
 }
 

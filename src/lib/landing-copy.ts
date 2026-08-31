@@ -38,7 +38,8 @@ export const LANDING_PZEC = {
 
 export const LANDING_SKIP_LINKS = [
   { href: "#main-content", label: "Skip to main content" },
-  { href: "#journeys", label: "Skip to journeys" },
+  { href: "#markets", label: "Skip to markets" },
   { href: "#exists-today", label: "Skip to evidence" },
   { href: "#terminal-preview", label: "Skip to terminal preview" },
+  { href: "#journeys", label: "Skip to journeys" },
 ] as const;
