@@ -1,0 +1,959 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": "1.0.0",
+  "title": "ConditionalLock deployment manifest",
+  "description": "Versioned, fail-closed manifest for one non-upgradeable exact-token ConditionalLock deployment.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "manifestType",
+    "deployed",
+    "networkActionEnabled",
+    "contract",
+    "compiler",
+    "terms",
+    "build",
+    "deployment"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "manifestType": {
+      "const": "conditional-lock-deployment"
+    },
+    "deployed": {
+      "type": "boolean"
+    },
+    "networkActionEnabled": {
+      "const": false
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "sourcePath",
+        "upgradeability",
+        "exactToken"
+      ],
+      "properties": {
+        "name": {
+          "const": "ConditionalLock"
+        },
+        "sourcePath": {
+          "const": "contracts/src/swap/ConditionalLock.sol"
+        },
+        "upgradeability": {
+          "const": "non-upgradeable"
+        },
+        "exactToken": {
+          "const": true
+        }
+      }
+    },
+    "compiler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "solidity",
+        "solidityLongVersion",
+        "foundry",
+        "optimizer",
+        "viaIR",
+        "evmVersion",
+        "openZeppelinContracts"
+      ],
+      "properties": {
+        "solidity": {
+          "const": "0.8.28"
+        },
+        "solidityLongVersion": {
+          "const": "0.8.28+commit.7893614a"
+        },
+        "foundry": {
+          "const": "1.8.1"
+        },
+        "optimizer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "runs"
+          ],
+          "properties": {
+            "enabled": {
+              "const": true
+            },
+            "runs": {
+              "const": 200
+            }
+          }
+        },
+        "viaIR": {
+          "const": true
+        },
+        "evmVersion": {
+          "const": "cancun"
+        },
+        "openZeppelinContracts": {
+          "const": "5.6.1"
+        }
+      }
+    },
+    "terms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "argumentOrder",
+        "argumentTypes",
+        "values"
+      ],
+      "properties": {
+        "argumentOrder": {
+          "const": [
+            "swapId",
+            "termsHash",
+            "token",
+            "funder",
+            "claimRecipient",
+            "refundRecipient",
+            "amount",
+            "hashlock",
+            "fundingCutoff",
+            "claimCutoff",
+            "refundTime"
+          ]
+        },
+        "argumentTypes": {
+          "const": [
+            {
+              "name": "swapId",
+              "type": "bytes32"
+            },
+            {
+              "name": "termsHash",
+              "type": "bytes32"
+            },
+            {
+              "name": "token",
+              "type": "address"
+            },
+            {
+              "name": "funder",
+              "type": "address"
+            },
+            {
+              "name": "claimRecipient",
+              "type": "address"
+            },
+            {
+              "name": "refundRecipient",
+              "type": "address"
+            },
+            {
+              "name": "amount",
+              "type": "uint256"
+            },
+            {
+              "name": "hashlock",
+              "type": "bytes32"
+            },
+            {
+              "name": "fundingCutoff",
+              "type": "uint64"
+            },
+            {
+              "name": "claimCutoff",
+              "type": "uint64"
+            },
+            {
+              "name": "refundTime",
+              "type": "uint64"
+            }
+          ]
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "swapId",
+            "termsHash",
+            "token",
+            "funder",
+            "claimRecipient",
+            "refundRecipient",
+            "amount",
+            "hashlock",
+            "fundingCutoff",
+            "claimCutoff",
+            "refundTime"
+          ],
+          "properties": {
+            "swapId": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/bytes32"
+                }
+              ]
+            },
+            "termsHash": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/bytes32"
+                }
+              ]
+            },
+            "token": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/address"
+                }
+              ]
+            },
+            "funder": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/address"
+                }
+              ]
+            },
+            "claimRecipient": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/address"
+                }
+              ]
+            },
+            "refundRecipient": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/address"
+                }
+              ]
+            },
+            "amount": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/decimal"
+                }
+              ]
+            },
+            "hashlock": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/bytes32"
+                }
+              ]
+            },
+            "fundingCutoff": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/decimal"
+                }
+              ]
+            },
+            "claimCutoff": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/decimal"
+                }
+              ]
+            },
+            "refundTime": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/decimal"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourcePath",
+        "sourceName",
+        "standardJsonInputPath",
+        "hashAlgorithm",
+        "sourceSha256",
+        "standardJsonInputSha256",
+        "dependencyLockSha256",
+        "compilerSettingsSha256"
+      ],
+      "properties": {
+        "sourcePath": {
+          "const": "contracts/src/swap/ConditionalLock.sol"
+        },
+        "sourceName": {
+          "const": "ConditionalLock.sol"
+        },
+        "standardJsonInputPath": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/safeRelativePath"
+            }
+          ]
+        },
+        "hashAlgorithm": {
+          "const": "sha256"
+        },
+        "sourceSha256": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "standardJsonInputSha256": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "dependencyLockSha256": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "compilerSettingsSha256": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "network",
+        "chainId",
+        "address",
+        "transactionHash",
+        "blockNumber",
+        "blockHash",
+        "deployer",
+        "receiptStatus",
+        "sourceCommit",
+        "constructorArguments",
+        "artifactPath",
+        "artifactSha256",
+        "creationBytecode",
+        "creationBytecodeSha256",
+        "runtimeBytecode",
+        "runtimeBytecodeSha256",
+        "constructorArgumentsSha256",
+        "initCodeSha256",
+        "receiptVerified",
+        "sourceVerified",
+        "constructorArgumentsVerified",
+        "runtimeBytecodeVerified"
+      ],
+      "properties": {
+        "network": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/networkSlug"
+            }
+          ]
+        },
+        "chainId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/positiveDecimal"
+            }
+          ]
+        },
+        "address": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/address"
+            }
+          ]
+        },
+        "transactionHash": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/bytes32"
+            }
+          ]
+        },
+        "blockNumber": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/decimal"
+            }
+          ]
+        },
+        "blockHash": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/bytes32"
+            }
+          ]
+        },
+        "deployer": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/address"
+            }
+          ]
+        },
+        "receiptStatus": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "const": "0x1"
+            }
+          ]
+        },
+        "sourceCommit": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            }
+          ]
+        },
+        "constructorArguments": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/hexBytes"
+            }
+          ]
+        },
+        "artifactPath": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+            }
+          ]
+        },
+        "artifactSha256": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "creationBytecode": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/hexBytes"
+            }
+          ]
+        },
+        "creationBytecodeSha256": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "runtimeBytecode": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/hexBytes"
+            }
+          ]
+        },
+        "runtimeBytecodeSha256": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "constructorArgumentsSha256": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "initCodeSha256": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "receiptVerified": {
+          "type": "boolean"
+        },
+        "sourceVerified": {
+          "type": "boolean"
+        },
+        "constructorArgumentsVerified": {
+          "type": "boolean"
+        },
+        "runtimeBytecodeVerified": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "deployed": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "networkActionEnabled": {
+            "const": false
+          },
+          "terms": {
+            "properties": {
+              "values": {
+                "properties": {
+                  "swapId": {
+                    "const": null
+                  },
+                  "termsHash": {
+                    "const": null
+                  },
+                  "token": {
+                    "const": null
+                  },
+                  "funder": {
+                    "const": null
+                  },
+                  "claimRecipient": {
+                    "const": null
+                  },
+                  "refundRecipient": {
+                    "const": null
+                  },
+                  "amount": {
+                    "const": null
+                  },
+                  "hashlock": {
+                    "const": null
+                  },
+                  "fundingCutoff": {
+                    "const": null
+                  },
+                  "claimCutoff": {
+                    "const": null
+                  },
+                  "refundTime": {
+                    "const": null
+                  }
+                }
+              }
+            }
+          },
+          "deployment": {
+            "properties": {
+              "network": {
+                "const": null
+              },
+              "chainId": {
+                "const": null
+              },
+              "address": {
+                "const": null
+              },
+              "transactionHash": {
+                "const": null
+              },
+              "blockNumber": {
+                "const": null
+              },
+              "blockHash": {
+                "const": null
+              },
+              "deployer": {
+                "const": null
+              },
+              "receiptStatus": {
+                "const": null
+              },
+              "sourceCommit": {
+                "const": null
+              },
+              "constructorArguments": {
+                "const": null
+              },
+              "artifactPath": {
+                "const": null
+              },
+              "artifactSha256": {
+                "const": null
+              },
+              "creationBytecode": {
+                "const": null
+              },
+              "creationBytecodeSha256": {
+                "const": null
+              },
+              "runtimeBytecode": {
+                "const": null
+              },
+              "runtimeBytecodeSha256": {
+                "const": null
+              },
+              "constructorArgumentsSha256": {
+                "const": null
+              },
+              "initCodeSha256": {
+                "const": null
+              },
+              "receiptVerified": {
+                "const": false
+              },
+              "sourceVerified": {
+                "const": false
+              },
+              "constructorArgumentsVerified": {
+                "const": false
+              },
+              "runtimeBytecodeVerified": {
+                "const": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "deployed": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "networkActionEnabled": {
+            "const": false
+          },
+          "terms": {
+            "properties": {
+              "values": {
+                "properties": {
+                  "swapId": {
+                    "$ref": "#/$defs/bytes32"
+                  },
+                  "termsHash": {
+                    "$ref": "#/$defs/bytes32"
+                  },
+                  "token": {
+                    "$ref": "#/$defs/address"
+                  },
+                  "funder": {
+                    "$ref": "#/$defs/address"
+                  },
+                  "claimRecipient": {
+                    "$ref": "#/$defs/address"
+                  },
+                  "refundRecipient": {
+                    "$ref": "#/$defs/address"
+                  },
+                  "amount": {
+                    "$ref": "#/$defs/positiveDecimal"
+                  },
+                  "hashlock": {
+                    "$ref": "#/$defs/bytes32"
+                  },
+                  "fundingCutoff": {
+                    "$ref": "#/$defs/decimal"
+                  },
+                  "claimCutoff": {
+                    "$ref": "#/$defs/decimal"
+                  },
+                  "refundTime": {
+                    "$ref": "#/$defs/decimal"
+                  }
+                }
+              }
+            }
+          },
+          "build": {
+            "required": [
+              "standardJsonInputPath",
+              "standardJsonInputSha256"
+            ],
+            "properties": {
+              "standardJsonInputPath": {
+                "$ref": "#/$defs/safeRelativePath"
+              },
+              "sourceSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "standardJsonInputSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "dependencyLockSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "compilerSettingsSha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          },
+          "deployment": {
+            "required": [
+              "network",
+              "chainId",
+              "address",
+              "transactionHash",
+              "blockNumber",
+              "blockHash",
+              "deployer",
+              "receiptStatus",
+              "sourceCommit",
+              "constructorArguments",
+              "creationBytecode",
+              "runtimeBytecode",
+              "artifactPath",
+              "artifactSha256",
+              "creationBytecodeSha256",
+              "runtimeBytecodeSha256",
+              "constructorArgumentsSha256",
+              "initCodeSha256",
+              "receiptVerified",
+              "sourceVerified",
+              "constructorArgumentsVerified",
+              "runtimeBytecodeVerified"
+            ],
+            "properties": {
+              "network": {
+                "$ref": "#/$defs/networkSlug"
+              },
+              "chainId": {
+                "$ref": "#/$defs/positiveDecimal"
+              },
+              "address": {
+                "$ref": "#/$defs/address"
+              },
+              "transactionHash": {
+                "$ref": "#/$defs/bytes32"
+              },
+              "blockNumber": {
+                "$ref": "#/$defs/positiveDecimal"
+              },
+              "blockHash": {
+                "$ref": "#/$defs/bytes32"
+              },
+              "deployer": {
+                "$ref": "#/$defs/address"
+              },
+              "receiptStatus": {
+                "const": "0x1"
+              },
+              "sourceCommit": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              },
+              "constructorArguments": {
+                "$ref": "#/$defs/hexBytes"
+              },
+              "creationBytecode": {
+                "$ref": "#/$defs/hexBytes"
+              },
+              "runtimeBytecode": {
+                "$ref": "#/$defs/hexBytes"
+              },
+              "artifactPath": {
+                "$ref": "#/$defs/safeRelativePath"
+              },
+              "artifactSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "creationBytecodeSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "runtimeBytecodeSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "constructorArgumentsSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "initCodeSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "receiptVerified": {
+                "const": true
+              },
+              "sourceVerified": {
+                "const": true
+              },
+              "constructorArgumentsVerified": {
+                "const": true
+              },
+              "runtimeBytecodeVerified": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{40}$",
+      "not": {
+        "const": "0x0000000000000000000000000000000000000000"
+      }
+    },
+    "bytes32": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$",
+      "not": {
+        "const": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$",
+      "not": {
+        "const": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "hexBytes": {
+      "type": "string",
+      "pattern": "^0x(?:[0-9a-f]{2})+$"
+    },
+    "networkSlug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "safeRelativePath": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$"
+    },
+    "decimal": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "positiveDecimal": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$"
+    }
+  }
+}
