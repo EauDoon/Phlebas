@@ -879,3 +879,51 @@ ull for an unknown service or
 * A PagerDuty / Slack adapter. The alert router returns the
   routing decision; the operator is responsible for the actual
   delivery.
+
+## 23. Final integration and audit prep surface
+
+The final integration surface is the set of pure-function
+libraries and documents that gate the project's readiness for
+the production deployment. The surface is the single source of
+truth for the release verdict.
+
+### 23.1 Trust boundary
+
+The final integration surface trusts the project's automated
+gates (lint, typecheck, tests, secret-scan, build) and the
+audit checklist. The surface does not trust the network: every
+gate is reproducible from the project root.
+
+### 23.2 Threat matrix
+
+| Adversary | Goal | Required control |
+| --- | --- | --- |
+| Operator | Ship a release that fails the gates | The release verdict is the only gate; the on-call engineer must read the verdict before signing off |
+| Attacker | Inject a malicious commit that bypasses the gates | The gates run on every PR; the audit checklist is reviewed by the security team |
+| Auditor | Misread the audit checklist | The checklist is the single source of truth; the release verdict references the checklist |
+
+### 23.3 Invariants and stop conditions
+
+1. The release verdict is reproducible from the project root.
+2. The audit checklist is the canonical record of the audit
+   surface.
+3. The release verdict is eady only when all required gates
+   pass.
+4. The on-call engineer's sign-off is the only manual gate.
+5. The release verdict is regenerated on every release.
+
+### 23.4 Test coverage
+
+| Invariant | Test |
+| --- | --- |
+| 1 | elease-readiness.test.ts::evaluateReadiness returns ready when no gates fail |
+| 2 | udit-checklist.test.ts::incompleteRequiredItems returns required items that are not done |
+| 3 | elease-readiness.test.ts::evaluateReadiness returns not-ready when any gate fails |
+| 4 | elease-readiness-evidence.md documents the sign-off requirement |
+| 5 | scripts/release-readiness.mjs regenerates the verdict on every run |
+
+### 23.5 Out of scope
+
+* The production deployment.
+* The audit team's review.
+* The release notes for the production deploy.
