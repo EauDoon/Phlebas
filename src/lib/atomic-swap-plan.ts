@@ -82,6 +82,7 @@ export type AtomicSwapPlan = Readonly<{
   planId: Hex32;
   settlementProtocolVersion: string;
   venue: "order-book" | "solver";
+  fillIndex: number;
   takerOrderHash: Hex32;
   counterpartyOrderHash: Hex32;
   executionPriceTicks: string;
@@ -176,6 +177,7 @@ function planPayload(plan: Omit<AtomicSwapPlan, "planId">): string {
     `version=${plan.version}`,
     `protocol=${plan.settlementProtocolVersion}`,
     `venue=${plan.venue}`,
+    `fillIndex=${plan.fillIndex}`,
     `takerOrderHash=${plan.takerOrderHash}`,
     `counterpartyOrderHash=${plan.counterpartyOrderHash}`,
     `executionPriceTicks=${plan.executionPriceTicks}`,
@@ -194,6 +196,7 @@ function planPayload(plan: Omit<AtomicSwapPlan, "planId">): string {
 
 export function createAtomicSwapPlan(input: {
   venue: AtomicSwapPlan["venue"];
+  fillIndex: number;
   taker: AtomicSwapParty;
   counterparty: AtomicSwapParty;
   acceptedAtSeconds: bigint;
@@ -203,6 +206,9 @@ export function createAtomicSwapPlan(input: {
   policy: AtomicSwapPolicy;
 }): AtomicSwapPlan {
   assertPolicy(input.policy);
+  if (!Number.isSafeInteger(input.fillIndex) || input.fillIndex < 0 || input.fillIndex > 127) {
+    throw new RangeError("Fill index must be an integer from 0 to 127");
+  }
   if (typeof input.acceptedAtSeconds !== "bigint" || input.acceptedAtSeconds < 500_000_000n || input.acceptedAtSeconds > UINT64_MAX) {
     throw new RangeError("Accepted time must be a timestamp-style uint64 for absolute CLTV planning");
   }
@@ -294,6 +300,7 @@ export function createAtomicSwapPlan(input: {
     version: ATOMIC_SWAP_PLAN_VERSION,
     settlementProtocolVersion: input.policy.settlementProtocolVersion,
     venue: input.venue,
+    fillIndex: input.fillIndex,
     takerOrderHash,
     counterpartyOrderHash,
     executionPriceTicks: input.executionPriceTicks.toString(),

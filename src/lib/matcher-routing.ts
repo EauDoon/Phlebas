@@ -224,7 +224,7 @@ function materializeCandidate(input: {
     accounts: input.takerAccounts,
   };
   const fills: RouteFill[] = [];
-  for (const segment of allocated) {
+  for (const [fillIndex, segment] of allocated.entries()) {
     const grossQuoteAtoms = quoteAtomsForFill(
       segment.baseAmountAtoms,
       segment.executionPriceTicks,
@@ -237,6 +237,7 @@ function materializeCandidate(input: {
     if (quoteTransferAtoms <= 0n) continue;
     const swapPlan = createAtomicSwapPlan({
       venue: segment.venue,
+      fillIndex,
       taker: takerParty,
       counterparty: segment.counterparty,
       acceptedAtSeconds: input.acceptedAtSeconds,

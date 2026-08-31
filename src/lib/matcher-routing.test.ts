@@ -182,6 +182,26 @@ test("tie-breaking is deterministic and prefers fewer fills before route rank", 
   assert.equal(first.selected?.kind, "order-book");
 });
 
+test("assigns a unique deterministic plan ID to equal-price solver curve fills", () => {
+  const taker = order("curve-taker", 0, 5_200n, 20n, 10n, 1, VENUE_SOLVER);
+  const template = solver("curve-solver", 1, 5_000n, 20n, 2n);
+  const quote: SolverQuote = {
+    ...template.quote,
+    pricePolicy: {
+      kind: "curve",
+      levels: [
+        { cumulativeBaseAtoms: 10n, priceTicks: 5_000n },
+        { cumulativeBaseAtoms: 20n, priceTicks: 5_000n },
+      ],
+    },
+  };
+  const accepted = acceptSolverQuote(quote, "signature", 2n, now, solverPolicy, verifier);
+  const result = compare(taker, [], [accepted]);
+  assert.equal(result.selected?.fills.length, 2);
+  assert.deepEqual(result.selected?.fills.map((fill) => fill.swapPlan.fillIndex), [0, 1]);
+  assert.notEqual(result.selected?.fills[0]?.swapPlan.planId, result.selected?.fills[1]?.swapPlan.planId);
+});
+
 test("route and solver fill caps fail closed without residual plans", () => {
   const taker = order("taker", 0, 5_200n, 200_000_000n, 10n, 2);
   const result = compareExecutableRoutes({

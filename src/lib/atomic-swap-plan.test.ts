@@ -58,6 +58,7 @@ function party(name: string, side: 0 | 1): AtomicSwapParty {
 test("maps a fill deterministically to direct wallet legs with ordered deadlines", () => {
   const input = {
     venue: "solver" as const,
+    fillIndex: 0,
     taker: party("buyer", 0),
     counterparty: party("seller", 1),
     acceptedAtSeconds: 1_800_000_000n,
@@ -79,6 +80,7 @@ test("maps a fill deterministically to direct wallet legs with ordered deadlines
 test("keeps every plan no-value with no platform residual or unilateral authority", () => {
   const plan = createAtomicSwapPlan({
     venue: "order-book",
+    fillIndex: 0,
     taker: party("seller", 1),
     counterparty: party("buyer", 0),
     acceptedAtSeconds: 1_800_000_000n,
@@ -102,6 +104,7 @@ test("rejects account substitution, same-side fills, and pair confusion", () => 
   const counterparty = party("seller", 1);
   const base = {
     venue: "solver" as const,
+    fillIndex: 0,
     taker,
     counterparty,
     acceptedAtSeconds: 1_800_000_000n,
@@ -127,6 +130,7 @@ test("rejects account substitution, same-side fills, and pair confusion", () => 
 test("requires positive confirmations and a timestamp-style absolute CLTV plan", () => {
   const input = {
     venue: "solver" as const,
+    fillIndex: 0,
     taker: party("buyer", 0),
     counterparty: party("seller", 1),
     acceptedAtSeconds: 1_800_000_000n,
@@ -136,6 +140,7 @@ test("requires positive confirmations and a timestamp-style absolute CLTV plan",
     policy,
   };
   assert.throws(() => createAtomicSwapPlan({ ...input, acceptedAtSeconds: 499_999_999n }), /timestamp-style/);
+  assert.throws(() => createAtomicSwapPlan({ ...input, fillIndex: 128 }), /Fill index/);
   assert.throws(() => createAtomicSwapPlan({ ...input, policy: { ...policy, zcashRequiredConfirmations: 0 } }), /positive bounded/);
   assert.throws(() => createAtomicSwapPlan({
     ...input,
