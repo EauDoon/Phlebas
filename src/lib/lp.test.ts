@@ -19,7 +19,7 @@ import {
   seedPool,
 } from "./lp.ts";
 import { markets, pools } from "./market-data.ts";
-import { PZEC_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "./units.ts";
+import { ZEC_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "./units.ts";
 
 test("LP pool shares use reserveZecAtoms", () => {
   const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
@@ -208,7 +208,7 @@ test("LP burn notice names the settlement pair from a real mint then burn", () =
   const minted = mintShares(pool, 10_00000000n);
   const burned = burnShares(minted.pool, minted.shares);
   assert.equal(burned.zecAtoms, 10_00000000n);
-  const pzecLabel = formatAtomicUnits(burned.zecAtoms, PZEC_DECIMALS);
+  const pzecLabel = formatAtomicUnits(burned.zecAtoms, ZEC_DECIMALS);
   assert.equal(
     lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDC"].settlementPair),
     `Burned session shares for ${pzecLabel} ZEC. Local preview only. Settled as ZEC-USDC.`,
@@ -224,7 +224,7 @@ test("LP burn notice names ZEC-USDT from a real USDT mint then burn", () => {
   assert.ok(minted.shares > 0n);
   assert.equal(pools[1].quote, "USDT");
   assert.equal(markets["ZEC/USDT"].settlementPair, "ZEC-USDT");
-  const pzecLabel = formatAtomicUnits(burned.zecAtoms, PZEC_DECIMALS);
+  const pzecLabel = formatAtomicUnits(burned.zecAtoms, ZEC_DECIMALS);
   assert.equal(
     lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDT"].settlementPair),
     `Burned session shares for ${pzecLabel} ZEC. Local preview only. Settled as ZEC-USDT.`,

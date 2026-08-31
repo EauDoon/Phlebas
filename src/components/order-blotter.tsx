@@ -15,7 +15,7 @@ import type { RestingOrder } from "@/lib/matcher";
 import type { SessionLogEvent } from "@/lib/replay";
 import type { PaperAccount, UserFill } from "@/lib/session";
 import { availableZec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
-import { PZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
+import { ZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
@@ -131,7 +131,7 @@ export function OrderBlotter({
                     {order.side === "buy" ? "Buy" : "Sell"}
                   </th>
                   <td>{formatAtomicUnits(order.priceTicks, PRICE_DECIMALS, 2)}</td>
-                  <td>{formatAtomicUnits(order.remainingAtoms, PZEC_DECIMALS)}</td>
+                  <td>{formatAtomicUnits(order.remainingAtoms, ZEC_DECIMALS)}</td>
                   <td>{market.settlementPair}</td>
                   <td>
                     <button type="button" className={styles.textButton} onClick={() => onCancel(order.id)}>
@@ -181,7 +181,7 @@ export function OrderBlotter({
                     {fill.takerSide === "buy" ? "Buy" : "Sell"}
                   </td>
                   <td>{formatAtomicUnits(fill.priceTicks, PRICE_DECIMALS, 2)}</td>
-                  <td>{formatAtomicUnits(fill.sizeAtoms, PZEC_DECIMALS)}</td>
+                  <td>{formatAtomicUnits(fill.sizeAtoms, ZEC_DECIMALS)}</td>
                   <td>{market.settlementPair}</td>
                 </tr>
               ))}
@@ -197,11 +197,11 @@ export function OrderBlotter({
         <dl className={styles.statGrid}>
           <div>
             <dt>Available ZEC</dt>
-            <dd>{formatAtomicUnits(availableZec(account), PZEC_DECIMALS)}</dd>
+            <dd>{formatAtomicUnits(availableZec(account), ZEC_DECIMALS)}</dd>
           </div>
           <div>
             <dt>Reserved ZEC</dt>
-            <dd>{formatAtomicUnits(account.reservedZecAtoms, PZEC_DECIMALS)}</dd>
+            <dd>{formatAtomicUnits(account.reservedZecAtoms, ZEC_DECIMALS)}</dd>
           </div>
           <div>
             <dt>Available {market.quote}</dt>

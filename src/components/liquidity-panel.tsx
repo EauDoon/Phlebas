@@ -23,7 +23,7 @@ import {
 } from "@/lib/lp";
 import { markets, pools, type MarketId } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
-import { parseAtomicUnits, formatAtomicUnits, PZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
+import { parseAtomicUnits, formatAtomicUnits, ZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
@@ -83,7 +83,7 @@ export function LiquidityPanel({
 
   const amountPreview = useMemo(() => {
     try {
-      const zecAtoms = parseAtomicUnits(amount, PZEC_DECIMALS);
+      const zecAtoms = parseAtomicUnits(amount, ZEC_DECIMALS);
       const minted = mintShares(poolReserves, zecAtoms);
       const quoteAtoms = minted.quoteAtoms;
       let swapOut = "0.00";
@@ -96,7 +96,7 @@ export function LiquidityPanel({
           poolReserves.reserveQuoteAtoms,
         );
         swapOut = formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2);
-        swapFee = formatAtomicUnits(swap.feePaid, PZEC_DECIMALS);
+        swapFee = formatAtomicUnits(swap.feePaid, ZEC_DECIMALS);
         swapNote = "";
       } catch (error) {
         swapNote = error instanceof Error ? error.message : swapNote;
@@ -208,7 +208,7 @@ export function LiquidityPanel({
       setPoolState((current) => ({ ...current, [selectedPool.id]: burned.pool }));
       setHeldShares((current) => ({ ...current, [selectedPool.id]: 0n }));
       setEntryDeposits((current) => ({ ...current, [selectedPool.id]: { zecAtoms: 0n, quoteAtoms: 0n } }));
-      setNotice(lpBurnNoticeCopy(formatAtomicUnits(burned.zecAtoms, PZEC_DECIMALS), markets[marketId].settlementPair));
+      setNotice(lpBurnNoticeCopy(formatAtomicUnits(burned.zecAtoms, ZEC_DECIMALS), markets[marketId].settlementPair));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Share amount is outside the preview range");
     }
@@ -340,7 +340,7 @@ export function LiquidityPanel({
 
         <dl className={styles.statGrid} role="group" aria-label="Pool stats and impermanent loss versus hold">
           <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
-          <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveZecAtoms, PZEC_DECIMALS, 2)}</dd></div>
+          <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveZecAtoms, ZEC_DECIMALS, 2)}</dd></div>
           <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
           <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
           <div>
@@ -382,8 +382,8 @@ export function LiquidityPanel({
                 <dt>Leaves the session</dt>
                 <dd>
                   {review.kind === "mint"
-                    ? `${formatAtomicUnits(review.zecAtoms, PZEC_DECIMALS)} ZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} on Arbitrum Sepolia`
-                    : `${formatAtomicUnits(review.zecAtoms, PZEC_DECIMALS)} ZEC on Arbitrum Sepolia`}
+                    ? `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} on Arbitrum Sepolia`
+                    : `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC on Arbitrum Sepolia`}
                 </dd>
               </div>
               <div>

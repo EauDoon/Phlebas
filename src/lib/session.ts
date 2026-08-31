@@ -10,7 +10,7 @@ import {
   type TimeInForce,
 } from "./matcher.ts";
 import {
-  PZEC_DECIMALS,
+  ZEC_DECIMALS,
   PRICE_DECIMALS,
   formatAtomicUnits,
   meetsMinimumQuoteSettlement,
@@ -215,7 +215,7 @@ export function describeSubmit(result: SubmitResult, marketId: MarketId): string
   const fillSummary = result.fills.length === 0
     ? "no fills"
     : result.fills
-      .map((fill) => `${formatAtomicUnits(fill.sizeAtoms, PZEC_DECIMALS)} ZEC at ${formatAtomicUnits(fill.priceTicks, PRICE_DECIMALS, 2)}`)
+      .map((fill) => `${formatAtomicUnits(fill.sizeAtoms, ZEC_DECIMALS)} ZEC at ${formatAtomicUnits(fill.priceTicks, PRICE_DECIMALS, 2)}`)
       .join("; ");
 
   if (result.status === "rejected") {
@@ -228,7 +228,7 @@ export function describeSubmit(result: SubmitResult, marketId: MarketId): string
     const prefix = result.reason ?? "Immediate-or-cancel finished";
     return `${prefix} with ${fillSummary}. Unfilled size was cancelled.`;
   }
-  return `Resting on the local ${marketId} book with ${formatAtomicUnits(result.remainingAtoms, PZEC_DECIMALS)} ZEC remaining. Fills: ${fillSummary}.`;
+  return `Resting on the local ${marketId} book with ${formatAtomicUnits(result.remainingAtoms, ZEC_DECIMALS)} ZEC remaining. Fills: ${fillSummary}.`;
 }
 
 export function userOrders(book: Book): RestingOrder[] {

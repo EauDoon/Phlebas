@@ -9,7 +9,7 @@ import {
   type FeedStatus,
 } from "@/lib/market-state";
 import { levelsFromBook, type Book } from "@/lib/matcher";
-import { PRICE_DECIMALS, PZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
+import { PRICE_DECIMALS, ZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
@@ -136,8 +136,8 @@ function BookRow({
           {formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}
         </button>
       </th>
-      <td>{formatAtomicUnits(level.sizeAtoms, PZEC_DECIMALS, 2)}</td>
-      <td>{formatAtomicUnits(level.totalAtoms, PZEC_DECIMALS, 2)}</td>
+      <td>{formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS, 2)}</td>
+      <td>{formatAtomicUnits(level.totalAtoms, ZEC_DECIMALS, 2)}</td>
     </tr>
   );
 }

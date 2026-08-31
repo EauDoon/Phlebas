@@ -49,7 +49,7 @@ import {
   type PaperAccount,
   type UserFill,
 } from "@/lib/session";
-import { PZEC_DECIMALS, PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
+import { ZEC_DECIMALS, PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import { ArchitecturePanel } from "./architecture-panel";
 import { BridgePanel } from "./bridge-panel";
@@ -449,7 +449,7 @@ export function TradingTerminal({
                           <span className={styles.srOnly}>{trade.takerSide === "buy" ? "Buy" : "Sell"} </span>
                           {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
                         </th>
-                        <td>{formatAtomicUnits(trade.sizeAtoms, PZEC_DECIMALS, 2)}</td>
+                        <td>{formatAtomicUnits(trade.sizeAtoms, ZEC_DECIMALS, 2)}</td>
                         <td>{trade.time}</td>
                       </tr>
                     ))}
@@ -460,7 +460,7 @@ export function TradingTerminal({
                             <span className={styles.srOnly}>{trade.side === "buy" ? "Buy" : "Sell"} </span>
                             {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
                           </th>
-                          <td>{formatAtomicUnits(trade.sizeAtoms, PZEC_DECIMALS, 2)}</td>
+                          <td>{formatAtomicUnits(trade.sizeAtoms, ZEC_DECIMALS, 2)}</td>
                           <td>{trade.time}</td>
                         </tr>
                       ))

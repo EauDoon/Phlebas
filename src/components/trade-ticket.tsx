@@ -30,7 +30,7 @@ import {
   QUOTE_PRICE_ATOMIC_RULE,
 } from "@/lib/order";
 import {
-  PZEC_DECIMALS,
+  ZEC_DECIMALS,
   PRICE_DECIMALS,
   QUOTE_DECIMALS,
   formatAtomicUnits,
@@ -73,7 +73,7 @@ function parseTicks(value: string): { ticks: bigint; error: string | null } {
 
 function parseSizeAtoms(value: string): { atoms: bigint; error: string | null } {
   try {
-    return { atoms: parseAtomicUnits(value, PZEC_DECIMALS), error: null };
+    return { atoms: parseAtomicUnits(value, ZEC_DECIMALS), error: null };
   } catch (error) {
     return {
       atoms: 0n,
@@ -84,7 +84,7 @@ function parseSizeAtoms(value: string): { atoms: bigint; error: string | null } 
 
 function describeRoute(comparison: RouteComparison, quote: string): string {
   if (comparison.better === "split") {
-    return `Split: CLOB ${formatAtomicUnits(comparison.split.clobFilledAtoms, PZEC_DECIMALS)} ZEC and AMM ${formatAtomicUnits(comparison.split.ammFilledAtoms, PZEC_DECIMALS)} ZEC for ${formatAtomicUnits(comparison.split.quoteAtoms, QUOTE_DECIMALS, 2)} ${quote}`;
+    return `Split: CLOB ${formatAtomicUnits(comparison.split.clobFilledAtoms, ZEC_DECIMALS)} ZEC and AMM ${formatAtomicUnits(comparison.split.ammFilledAtoms, ZEC_DECIMALS)} ZEC for ${formatAtomicUnits(comparison.split.quoteAtoms, QUOTE_DECIMALS, 2)} ${quote}`;
   }
   if (comparison.better === "none") {
     return "neither venue fills in full inside the signed bound";
@@ -250,7 +250,7 @@ export function TradeTicket({
         setNotice("Session ZEC inventory is empty.");
         return;
       }
-      setSize(formatAtomicUnits(nextSize, PZEC_DECIMALS));
+      setSize(formatAtomicUnits(nextSize, ZEC_DECIMALS));
       return;
     }
 
@@ -269,7 +269,7 @@ export function TradeTicket({
       setNotice("Session quote inventory cannot fund this size.");
       return;
     }
-    setSize(formatAtomicUnits(nextSize, PZEC_DECIMALS));
+    setSize(formatAtomicUnits(nextSize, ZEC_DECIMALS));
   }
 
   function preparedOrder(): { priceTicks: bigint; sizeAtoms: bigint; tif: TimeInForce; expiryUnix: bigint } | string {
@@ -618,7 +618,7 @@ export function TradeTicket({
         ))}
       </div>
       <p id={shortcutsReasonId} className={styles.inlineNotice}>
-        Shortcuts use session inventory ({formatAtomicUnits(availableZecAtoms, PZEC_DECIMALS)} ZEC, {formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} {market.quote}). Not a wallet.
+        Shortcuts use session inventory ({formatAtomicUnits(availableZecAtoms, ZEC_DECIMALS)} ZEC, {formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} {market.quote}). Not a wallet.
       </p>
 
       <dl className={styles.ticketSummary}>
@@ -667,7 +667,7 @@ export function TradeTicket({
               <dd>
                 {review.side === "buy"
                   ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote} on Arbitrum Sepolia`
-                  : `${formatAtomicUnits(review.clobDebitAtoms, PZEC_DECIMALS)} ZEC on Arbitrum Sepolia`}
+                  : `${formatAtomicUnits(review.clobDebitAtoms, ZEC_DECIMALS)} ZEC on Arbitrum Sepolia`}
               </dd>
             </div>
             <div>
@@ -683,7 +683,7 @@ export function TradeTicket({
               <dd>
                 {review.side === "buy"
                   ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`
-                  : `${formatAtomicUnits(review.clobDebitAtoms, PZEC_DECIMALS)} ZEC`}
+                  : `${formatAtomicUnits(review.clobDebitAtoms, ZEC_DECIMALS)} ZEC`}
               </dd>
             </div>
             <div>
@@ -693,7 +693,7 @@ export function TradeTicket({
                   ? "none"
                   : review.side === "buy"
                     ? `${formatAtomicUnits(review.clobReservationAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`
-                    : `${formatAtomicUnits(review.clobReservationAtoms, PZEC_DECIMALS)} ZEC`}
+                    : `${formatAtomicUnits(review.clobReservationAtoms, ZEC_DECIMALS)} ZEC`}
               </dd>
             </div>
             <div>
