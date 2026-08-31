@@ -786,7 +786,11 @@ export function TradeTicket({
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
         {inputError ?? notionalError ?? notice}
       </p>
-      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type, G/I/F time in force, Escape back from review. G/I/F stay idle while review is open. Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
+      <div className={styles.shortcutRegion} role="region" aria-labelledby="ticket-keyboard-heading">
+        <h3 id="ticket-keyboard-heading">Ticket keyboard</h3>
+        <p>B/S side, L/M type, G/I/F time in force, Escape back from review. G/I/F stay idle while review is open.</p>
+      </div>
+      <p className={styles.inlineNotice}>Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
     </section>
   );
 }
