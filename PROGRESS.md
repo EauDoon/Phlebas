@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after chart range tabs, wallet connect-failure copy, and LP pause notice name the settlement pair.
+Last updated: 31-08-2026 after chart panel heading, wrong-chain wallet wrap, and LP reset notice name the settlement pair.
 
 ## Branch
 
@@ -111,15 +111,18 @@ Last updated: 31-08-2026 after chart range tabs, wallet connect-failure copy, an
 - Chart range tab accessible names include the settlement pair (`4H · pZEC-USDC`). Visible labels stay 1H/4H/1D so 320px does not overflow.
 - Wallet connect-failure copy (`missingProviderCopy` / `walletConnectFailureCopy`) names the settlement pair. Still Arbitrum Sepolia only. Nothing is sent.
 - LP pause and resume notices name the selected market settlement pair. Burn stays available while paused.
+- Chart panel heading accessible name is `ZEC/USDC · pZEC-USDC`. The eyebrow names the settlement pair. Visible h2 stays the market id so 320px does not overflow.
+- Wrong-chain wallet state from `connectTestnetWallet` is wrapped with `walletStateWithSettlement` before it reaches the bar.
+- LP reset-pool notice names the selected market settlement pair.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Chart panel heading should name the settlement pair next to the market id
-- Wallet wrong-chain copy should stay wrapped with settlement when the provider returns an error object
-- LP reset-pool notice should name the selected pool settlement pair
+- Price chart aria-label should name the settlement pair
+- Wallet disconnect control should name the settlement pair
+- LP mint success notice should name the selected pool settlement pair
 
 ## Blockers
 
