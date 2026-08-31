@@ -34,7 +34,7 @@ contract Pair is ERC20 {
         locked = false;
     }
 
-    constructor(address zec_, address quote_) ERC20("Phlebas Testnet LP", "tpLP", 18) {
+    constructor(address zec_, address quote_) ERC20("Phlebas Testnet LP", "tLP", 18) {
         factory = msg.sender;
         zec = zec_;
         quote = quote_;
