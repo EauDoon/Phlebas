@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the named-status-ledgers, header-CTA, journey-tabs, pZEC-source, and sim-frame-nav slice.
+Last updated: 31-08-2026 after the hero-CTAs, Open-status-details, launch-gates, and brand-home slice.
 
 ## Branch
 
@@ -200,14 +200,19 @@ Last updated: 31-08-2026 after the named-status-ledgers, header-CTA, journey-tab
 - Landing journey tabs stay 44px on desktop
 - Landing pZEC ZIP 320 source link stays 44px on desktop
 - Playwright covers 44px header CTA, journey tabs, pZEC source, simulation-frame nav, and named status ledgers
+- Landing hero Enter simulation and Understand pZEC stay 44px on desktop
+- Landing Open status details stays 44px on desktop
+- Landing Read the launch gates stays 44px on desktop
+- Simulation-frame and terminal brand home links stay 44px on desktop
+- Playwright covers 44px hero CTAs, Open status details, launch-gates link, and brand home links
 
 ## Next
 
-- Landing hero Enter simulation and Understand pZEC should stay 44px on desktop
-- Landing Open status details should stay 44px on desktop
-- Landing Read the launch gates should stay 44px on desktop
-- Simulation-frame and terminal brand home links should stay 44px on desktop
-- Playwright: 44px hero CTAs, Open status details, launch-gates link, and brand home links
+- Landing market Preview market links should stay 44px on desktop
+- Landing journey panel actions should stay 44px on desktop
+- Landing no-JS journey card actions should stay 44px on desktop
+- Landing header brand home should stay 44px on desktop
+- Playwright: 44px market preview links, journey actions, no-JS journey actions, and landing brand
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
