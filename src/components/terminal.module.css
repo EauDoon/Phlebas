@@ -453,6 +453,11 @@
   font-size: 11px;
 }
 
+.rangeTabs button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
 .rangeTabs button:hover,
 .orderTypes button:hover {
   color: var(--text);
