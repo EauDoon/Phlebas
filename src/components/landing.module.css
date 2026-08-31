@@ -45,6 +45,10 @@
   scroll-margin-top: 12px;
 }
 
+:global(#main-content) {
+  scroll-margin-top: 12px;
+}
+
 .simulationBanner {
   display: flex;
   min-height: 44px;
