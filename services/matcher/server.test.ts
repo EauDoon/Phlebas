@@ -252,3 +252,50 @@ test("fails closed on a second writer and missing initialized journal", async ()
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("enforces mutation rate and queue admission before sequencing", async () => {
+  const rateDirectory = await mkdtemp(join(tmpdir(), "phlebas-matcher-rate-"));
+  const rateServer = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: rateDirectory,
+    configuration,
+    verifier,
+    mutationRateLimit: 1,
+  });
+  const rateOrigin = await listen(rateServer);
+  try {
+    assert.equal((await fetch(`${rateOrigin}/v1/orders`, { method: "POST" })).status, 415);
+    const limited = await fetch(`${rateOrigin}/v1/orders`, { method: "POST" });
+    assert.equal(limited.status, 429);
+    assert.equal((await json(limited)).reason, "mutation-rate-limit-exceeded");
+  } finally {
+    await close(rateServer);
+    await rm(rateDirectory, { recursive: true, force: true });
+  }
+
+  const queueDirectory = await mkdtemp(join(tmpdir(), "phlebas-matcher-queue-"));
+  const queueServer = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: queueDirectory,
+    configuration,
+    verifier,
+    maximumPendingMutations: 1,
+  });
+  const queueOrigin = await listen(queueServer);
+  try {
+    const requests = Array.from({ length: 8 }, () => fetch(`${queueOrigin}/v1/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      body: JSON.stringify(payload(event())),
+    }));
+    const responses = await Promise.all(requests);
+    assert.equal(responses.some((response) => response.status === 201), true);
+    assert.equal(responses.some((response) => response.status === 503), true);
+    assert.equal((await json(await fetch(`${queueOrigin}/health`))).sequence, "1");
+  } finally {
+    await close(queueServer);
+    await rm(queueDirectory, { recursive: true, force: true });
+  }
+});

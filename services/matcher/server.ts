@@ -290,19 +290,19 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
       if (expectedKind) {
         checkRate(request);
         if (pendingMutations >= maximumPending) throw new HttpError(503, "mutation-queue-capacity-reached");
-        const body = await readJson(request, maximumBodyBytes);
-        const event = deserializePersistentMatcherEvent(store.state.configuration, {
-          type: "persistent-matcher-event",
-          configurationHash: matcherConfigurationHash(store.state.configuration),
-          payload: body,
-        });
-        if (event.kind !== expectedKind) throw new HttpError(400, "matcher-event-kind-does-not-match-endpoint");
-        const idempotencyKey = request.headers["idempotency-key"];
-        if (typeof idempotencyKey !== "string" || idempotencyKey !== event.requestId) {
-          throw new HttpError(400, "idempotency-key-must-match-request-id");
-        }
         pendingMutations += 1;
         try {
+          const body = await readJson(request, maximumBodyBytes);
+          const event = deserializePersistentMatcherEvent(store.state.configuration, {
+            type: "persistent-matcher-event",
+            configurationHash: matcherConfigurationHash(store.state.configuration),
+            payload: body,
+          });
+          if (event.kind !== expectedKind) throw new HttpError(400, "matcher-event-kind-does-not-match-endpoint");
+          const idempotencyKey = request.headers["idempotency-key"];
+          if (typeof idempotencyKey !== "string" || idempotencyKey !== event.requestId) {
+            throw new HttpError(400, "idempotency-key-must-match-request-id");
+          }
           const result = await store.mutate(event);
           send(response, result.replayed ? 200 : 201, { ok: true, ...result });
         } finally {
