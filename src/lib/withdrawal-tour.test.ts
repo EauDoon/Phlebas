@@ -8,15 +8,19 @@ import {
   withdrawalTourStep,
 } from "./withdrawal-tour.ts";
 
-test("withdrawal tour list includes rejected, expired, and unresolved ids", () => {
+test("withdrawal tour list includes rejected, expired, refunded, and unresolved ids", () => {
   const ids = withdrawalTourIds();
   assert.equal(ids.includes("rejected"), true);
   assert.equal(ids.includes("expired"), true);
+  assert.equal(ids.includes("refunded"), true);
   assert.equal(ids.includes("unresolved"), true);
   assert.ok(ids.indexOf("rejected") > ids.indexOf("screened"));
   assert.ok(ids.indexOf("rejected") < ids.indexOf("burn submitted"));
   assert.ok(ids.indexOf("expired") > ids.indexOf("burn submitted"));
   assert.ok(ids.indexOf("expired") < ids.indexOf("burn finalized"));
+  assert.ok(ids.indexOf("refunded") > ids.indexOf("payable"));
+  assert.ok(ids.indexOf("refunded") < ids.indexOf("signed"));
+  assert.ok(ids.indexOf("refunded") < ids.indexOf("transaction_prepared"));
   assert.ok(ids.indexOf("unresolved") > ids.indexOf("mined"));
   assert.ok(ids.indexOf("unresolved") < ids.indexOf("confirmed"));
 });
@@ -37,6 +41,20 @@ test("rejected and unresolved tour copy stays a simulation that sends nothing", 
   assert.doesNotMatch(joined, /tex1/i);
   assert.doesNotMatch(joined, /\blive payout/i);
   assert.doesNotMatch(joined, /pZEC/);
+});
+
+test("refunded tour copy restores tZEC before signature and sends nothing", () => {
+  const refunded = withdrawalTourById("refunded");
+  assert.ok(refunded);
+  assert.equal(refunded.title, "Refunded");
+  assert.match(refunded.body, /Unrecoverable pre-signature failure/);
+  assert.match(refunded.body, /single-use refund restores tZEC/i);
+  assert.match(refunded.body, /permanently cancels the unpaid claim/);
+  assert.match(refunded.body, /Nothing is sent/);
+  assert.match(refunded.body, /not live settlement/);
+  assert.doesNotMatch(refunded.body, /tex1/i);
+  assert.doesNotMatch(refunded.body, /\blive payout/i);
+  assert.doesNotMatch(refunded.body, /pZEC/);
 });
 
 test("expired evidence tour copy closes without a finalized burn and sends nothing", () => {

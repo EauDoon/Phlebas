@@ -9,10 +9,12 @@ import {
   markPayoutPayable,
   markPayoutUnresolved,
   payoutClaimForTourStep,
+  refundPayoutBeforeSignature,
   rejectPayoutBeforeBurn,
   requestPayout,
   screenPayout,
   screenPayoutClaim,
+  signPayoutClaim,
   submitPayoutBurn,
 } from "./payout.ts";
 import { withdrawalTourIds } from "./withdrawal-tour.ts";
@@ -83,6 +85,7 @@ test("tour step walker reaches payable only after a screened transparent destina
   assert.equal(payoutClaimForTourStep("expired", DEST).state, "closed");
   assert.equal(payoutClaimForTourStep("burn finalized", DEST).state, "burn-finalized");
   assert.equal(payoutClaimForTourStep("payable", DEST).state, "payable");
+  assert.equal(payoutClaimForTourStep("refunded", DEST).state, "refunded");
   assert.equal(payoutClaimForTourStep("confirmed", DEST).state, "payable");
   assert.equal(payoutClaimForTourStep("screened", "zs1notreal").state, "rejected");
   assert.equal(payoutClaimForTourStep("payable", "").state, "rejected");
@@ -126,6 +129,32 @@ test("tour walker maps expired evidence through close without a finalized burn",
   assert.equal(finalizePayoutBurn(closed).state, "rejected");
 });
 
+test("tour walker maps refunded through the pre-signature refund helper", () => {
+  const payable = payoutClaimForTourStep("payable", DEST);
+  const refunded = refundPayoutBeforeSignature(payable);
+  assert.equal(refunded.state, "refunded");
+  assert.match(refunded.reason ?? "", /Unrecoverable pre-signature failure/);
+  assert.match(refunded.reason ?? "", /cancelled the unpaid claim/);
+  assert.match(refunded.reason ?? "", /restored tZEC/);
+  assert.match(refunded.reason ?? "", /Nothing is sent/);
+  assert.equal(payoutClaimForTourStep("refunded", DEST).state, refunded.state);
+  assert.equal(payoutClaimForTourStep("refunded", DEST).reason, refunded.reason);
+
+  const finalized = payoutClaimForTourStep("burn finalized", DEST);
+  assert.equal(refundPayoutBeforeSignature(finalized).state, "refunded");
+  assert.equal(refundPayoutBeforeSignature(refunded).state, "refunded");
+  assert.equal(signPayoutClaim(refunded).state, "rejected");
+  assert.equal(refundPayoutBeforeSignature(payoutClaimForTourStep("screened", DEST)).state, "rejected");
+  assert.equal(refundPayoutBeforeSignature(payoutClaimForTourStep("expired", DEST)).state, "rejected");
+
+  const signed = signPayoutClaim(payable);
+  assert.equal(signed.state, "signed");
+  const afterSigned = refundPayoutBeforeSignature(signed);
+  assert.equal(afterSigned.state, "rejected");
+  assert.match(afterSigned.reason ?? "", /cannot be refunded/);
+  assert.notEqual(afterSigned.state, "refunded");
+});
+
 test("every withdrawal tour id walks through payoutClaimForTourStep without sending", () => {
   for (const id of withdrawalTourIds()) {
     const claim = payoutClaimForTourStep(id, DEST);
@@ -137,6 +166,11 @@ test("every withdrawal tour id walks through payoutClaimForTourStep without send
     if (id === "expired") {
       assert.equal(claim.state, "closed");
       assert.match(claim.reason ?? "", /Closed without a finalized burn/);
+      continue;
+    }
+    if (id === "refunded") {
+      assert.equal(claim.state, "refunded");
+      assert.match(claim.reason ?? "", /Nothing is sent/);
       continue;
     }
     if (id === "unresolved") {
