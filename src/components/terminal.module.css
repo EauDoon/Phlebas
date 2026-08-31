@@ -39,7 +39,8 @@
 #order-ticket,
 #price-chart,
 #order-book,
-#session-blotter {
+#session-blotter,
+#status-ledger {
   scroll-margin-top: 12px;
 }
 

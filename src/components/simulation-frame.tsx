@@ -8,14 +8,17 @@ import styles from "./terminal.module.css";
 export function SimulationFrame({
   title,
   children,
+  skipTo,
 }: {
   title: string;
   children: ReactNode;
+  skipTo?: { href: string; label: string };
 }) {
   return (
     <div className={styles.shell}>
       <nav className={styles.skipNav} aria-label="Skip links">
         <a className={styles.skipLink} href="#main-content">Skip to main content</a>
+        {skipTo ? <a className={styles.skipLink} href={skipTo.href}>{skipTo.label}</a> : null}
       </nav>
       <div className={styles.simulationBanner} role="status">
         <strong>Simulation only</strong>

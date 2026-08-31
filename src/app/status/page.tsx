@@ -13,9 +13,12 @@ export default function StatusPage() {
   const status = simulationStatus();
 
   return (
-    <SimulationFrame title="Simulation status">
+    <SimulationFrame
+      title="Simulation status"
+      skipTo={{ href: "#status-ledger", label: "Skip to status ledger" }}
+    >
       <p>This deployment is a no-value interface. It does not accept funds.</p>
-      <dl>
+      <dl id="status-ledger" tabIndex={-1} aria-label="Simulation status ledger">
         <div><dt>Mode</dt><dd>{status.mode}</dd></div>
         <div><dt>Live funds</dt><dd>{status.liveFunds ? "yes" : "no"}</dd></div>
         <div><dt>Matcher</dt><dd>{status.matcher}</dd></div>
