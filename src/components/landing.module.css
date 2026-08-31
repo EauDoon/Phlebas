@@ -298,7 +298,8 @@
   padding: 0 18px;
 }
 
-.heroActions .primaryCta {
+.heroActions .primaryCta,
+.heroActions .secondaryCta {
   flex-shrink: 0;
 }
 
