@@ -148,6 +148,24 @@ test("LP burn notice names the settlement pair from a real mint then burn", () =
   assert.doesNotMatch(lpBurnNoticeCopy(pzecLabel, "pZEC-USDC"), /native ZEC/);
 });
 
+test("LP burn notice names pZEC-USDT0 from a real USDT0 mint then burn", () => {
+  const pool = seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms);
+  const minted = mintShares(pool, 10_00000000n);
+  const burned = burnShares(minted.pool, minted.shares);
+  assert.ok(minted.shares > 0n);
+  assert.equal(pools[1].quote, "USDT0");
+  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  const pzecLabel = formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS);
+  assert.equal(
+    lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDT"].settlementPair),
+    `Burned session shares for ${pzecLabel} pZEC. Local preview only. Settled as pZEC-USDT0.`,
+  );
+  assert.doesNotMatch(
+    lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDT"].settlementPair),
+    /native ZEC/,
+  );
+});
+
 test("LP swap notice names the settlement pair from a real mint then swap", () => {
   const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
   const minted = mintShares(pool, 10_00000000n);
