@@ -12,7 +12,7 @@ import {
 } from "./gateway-incidents.ts";
 
 test("incident demonstrations stay labeled copy, not live incidents", () => {
-  assert.equal(GATEWAY_INCIDENTS.length, 9);
+  assert.equal(GATEWAY_INCIDENTS.length, 10);
   assert.equal(gatewayIncidentById("missing"), null);
   const afterBurn = gatewayIncidentById("withdrawal-review-after-burn");
   assert.ok(afterBurn);
@@ -55,6 +55,15 @@ test("incident copy does not promise credit, loss, or a live outage", () => {
   assert.doesNotMatch(joined, /will be credited/i);
   assert.doesNotMatch(joined, /\blive outage\b/i);
   assert.doesNotMatch(joined, /VPN/i);
+});
+
+test("observer disagreement demo pauses minting and is not a live outage", () => {
+  const disagreement = gatewayIncidentById("observer-disagreement");
+  assert.ok(disagreement);
+  assert.match(disagreement.title, /Observers disagree/);
+  assert.match(disagreement.body, /Minting is paused/);
+  assert.doesNotMatch(`${disagreement.title} ${disagreement.body}`, /live outage/);
+  assert.doesNotMatch(`${disagreement.title} ${disagreement.body}`, /pZEC/);
 });
 
 test("incident mint copy does not name pZEC", () => {
