@@ -72,6 +72,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /chartRangeTabLabel/);
   assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /missingProviderCopy/);
   assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletConnectFailureCopy/);
+  assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /retargetSettlementCopy/);
   assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /lpPauseNoticeCopy/);
   assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /lpResetNoticeCopy/);
   assert.match(await readFile(join(root, "src/lib/market-state.ts"), "utf8"), /chartPanelHeadingCopy/);
@@ -91,6 +92,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /lpMintNoticeCopy/);
   assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /lpSwapNoticeCopy/);
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /missingProviderCopy/);
+  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /retargetSettlementCopy/);
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletDisconnectLabel/);
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletConnectTitle/);
   assert.match(await readFile(join(root, "src/components/price-chart.tsx"), "utf8"), /priceChartLabelCopy/);
