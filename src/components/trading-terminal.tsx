@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 
 import type { AccessDemo } from "@/lib/access-demo";
 import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
+import { INCIDENT_DEMO_QUERY } from "@/lib/gateway-incidents";
+import { terminalUrl } from "@/lib/terminal-url";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
@@ -51,16 +53,8 @@ const views: { id: View; label: string }[] = [
   { id: "architecture", label: "Architecture" },
 ];
 
-function viewUrl(view: View, market: MarketId, feed: FeedStatus) {
-  const params = new URLSearchParams({ market });
-  if (feed !== "illustrative") {
-    params.set("feed", feed);
-  }
-  if (view === "liquidity") {
-    return `/liquidity?${params.toString()}`;
-  }
-  params.set("view", view);
-  return `/trade?${params.toString()}`;
+function viewUrl(view: View, market: MarketId, feed: FeedStatus, demo?: string) {
+  return terminalUrl({ view, market, feed, demo });
 }
 
 function seedBooks() {
@@ -116,19 +110,21 @@ export function TradingTerminal({
   const displayedBook = feedStatus === "empty" ? emptyBook(book.lastTicks) : book;
   const account = accounts[marketId];
 
+  const demoQuery = highlightIncidents ? INCIDENT_DEMO_QUERY : undefined;
+
   function selectView(nextView: View) {
     setView(nextView);
-    router.replace(viewUrl(nextView, marketId, feedStatus), { scroll: false });
+    router.replace(viewUrl(nextView, marketId, feedStatus, demoQuery), { scroll: false });
   }
 
   function selectMarket(nextMarket: MarketId) {
     setMarketId(nextMarket);
-    router.replace(viewUrl(view, nextMarket, feedStatus), { scroll: false });
+    router.replace(viewUrl(view, nextMarket, feedStatus, demoQuery), { scroll: false });
   }
 
   function selectFeed(nextFeed: FeedStatus) {
     setFeedStatus(nextFeed);
-    router.replace(viewUrl(view, marketId, nextFeed), { scroll: false });
+    router.replace(viewUrl(view, marketId, nextFeed, demoQuery), { scroll: false });
   }
 
   function sweepExpired(sourceBook = book, sourceAccount = account) {
@@ -473,7 +469,25 @@ export function TradingTerminal({
         )}
         {initialAccess === "open" && view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
         {initialAccess === "open" && view === "architecture" && (
-          <ArchitecturePanel highlightIncidents={highlightIncidents} />
+          <>
+            <section className={styles.marketBar} aria-label="Selected market">
+              <div className={styles.marketSelectorWrap}>
+                <label>
+                  <span>Market</span>
+                  <select
+                    value={marketId}
+                    aria-label="Selected market"
+                    onChange={(event) => selectMarket(event.target.value as MarketId)}
+                  >
+                    <option value="ZEC/USDC">ZEC / USDC</option>
+                    <option value="ZEC/USDT">ZEC / USDT</option>
+                  </select>
+                </label>
+                <span className={styles.settlementBadge}>settles {market.settlementPair}</span>
+              </div>
+            </section>
+            <ArchitecturePanel highlightIncidents={highlightIncidents} />
+          </>
         )}
       </main>
 
