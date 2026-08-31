@@ -3,11 +3,11 @@
 Status: Simulation only
 As of: 30-08-2026
 
-Phlebas has no live Zcash wallet integration, deposit address service, chain observer, custody wallet, or withdrawal signer. No wallet has completed the Phlebas acceptance suite. The application does not accept ZEC or mint redeemable `pZEC` today.
+Phlebas has no live Zcash wallet integration, deposit address service, chain observer, custody wallet, or withdrawal signer. No wallet has completed the Phlebas acceptance suite. The application does not accept ZEC or mint redeemable `tZEC` today.
 
 The target flow is wallet-neutral. It uses a standard Zcash address, a ZIP 321 payment-request URI, QR or copy and paste, and public-chain observation. It does not assume a browser extension, WalletConnect session, injected provider, or direct wallet callback. Phlebas must never ask for a seed phrase, spending key, viewing key, wallet database, or signed arbitrary message.
 
-This document refines the transparent ZEC gateway in [Architecture](ARCHITECTURE.md) and preserves the lifecycle and confirmation rules in [Asset and Accounting](ASSET_AND_ACCOUNTING.md). It does not alter the gated Arbitrum and custody-backed `pZEC` decision in [ADR 0001](adr/0001-arbitrum-and-pzec.md).
+This document refines the transparent ZEC gateway in [Architecture](ARCHITECTURE.md) and preserves the lifecycle and confirmation rules in [Asset and Accounting](ASSET_AND_ACCOUNTING.md). It does not rewrite [ADR 0001](adr/0001-arbitrum-and-pzec.md), which remains historical. Product labels and the undeployed `tZEC` receipt follow [ADR 0002](adr/0002-native-zec-usdc-usdt.md).
 
 ## Status vocabulary
 
@@ -40,7 +40,7 @@ When a supporting wallet starts from shielded funds, ZIP 320 requires two transa
 1. The wallet moves the required value to a fresh ephemeral transparent receiver.
 2. The wallet spends that transparent output to the TEX destination.
 
-The wallet must recognize returned funds sent to the ephemeral receiver and must be able to spend them. Phlebas watches only the final TEX payment. The first transaction is not a deposit and cannot create `pZEC` credit.
+The wallet must recognize returned funds sent to the ephemeral receiver and must be able to spend them. Phlebas watches only the final TEX payment. The first transaction is not a deposit and cannot create `tZEC` credit.
 
 ### ZIP 321 payment requests
 
@@ -103,7 +103,7 @@ This is a gated target flow. No step is active today.
 7. Independent Zebra-backed observers locate the final output to the stored underlying P2PKH script. A transaction ID submitted by the user is only a search hint.
 8. The deposit validator verifies the best-chain block, output index, exact script, integer zatoshi amount, unique outpoint, and final-transaction transparency. It rejects any final transaction containing a shielded bundle or a nontransparent output.
 9. A mempool sighting is informational. The lifecycle and minimum confirmation policy remain those in [Asset and Accounting](ASSET_AND_ACCOUNTING.md#deposit-lifecycle). Development and Testnet require at least 10 confirmations. No zero-confirmation output becomes spendable.
-10. Only the confirmed reserve-ledger entitlement can enter the separately authorized `pZEC` mint flow.
+10. Only the confirmed reserve-ledger entitlement can enter the separately authorized `tZEC` mint flow.
 
 A payment-intent expiry does not erase an address or make a late on-chain output disappear. A late payment is quarantined and requires reconciliation. It is not auto-credited to a reused intent. Deposit receivers are never reassigned to another user.
 
@@ -150,7 +150,7 @@ Unified, Sapling, Orchard, Ironwood, and Sprout destinations are rejected by thi
 
 1. The user opens the wallet's receive screen and explicitly selects a transparent receive address. A default shielded or Unified Address is not acceptable.
 2. The user pastes the raw address or scans a single-payment request from the wallet. Phlebas identifies the decoded type and network.
-3. Before any `pZEC` burn, Phlebas shows the full destination, native ZEC amount, Zcash network fee, service fee if approved, total `pZEC` debit, and a notice that the transfer is public.
+3. Before any `tZEC` burn, Phlebas shows the full destination, native ZEC amount, Zcash network fee, service fee if approved, total `tZEC` debit, and a notice that the transfer is public.
 4. The user confirms the exact summary. The destination and amount are then immutable for that withdrawal identifier.
 5. After the Arbitrum burn reaches the configured finality condition, the approved custody signer creates a transparent Zcash payment. Phlebas never asks the user's Zcash wallet to sign the withdrawal.
 6. The interface reports `Burn finalizing`, `Approved`, `Signed`, `Broadcast`, `Mined`, `Confirmed`, or a specific failure state. The payable closes only under the policy in [Asset and Accounting](ASSET_AND_ACCOUNTING.md#withdrawal-lifecycle).
@@ -185,14 +185,14 @@ Phlebas cannot reliably detect whether another app completed a send. Chain obser
 | Wallet ignores or changes the URI amount | `Amount does not match the request` | User cancels before send. If a different amount arrives at a fixed intent, quarantine it with no partial or automatic credit. |
 | Wallet is on the wrong network | `Network mismatch` | Block the handoff or withdrawal before any transaction or burn. |
 | Shielded-to-TEX first transaction mines but the second is absent | `Waiting for final payment` | Create no deposit. Let the wallet recover or spend the ephemeral output. Escalate only after the wallet's expiry window. |
-| Final transaction has a shielded component or nontransparent output | `Deposit requires review` | Quarantine the outpoint. Do not mint `pZEC`. |
+| Final transaction has a shielded component or nontransparent output | `Deposit requires review` | Quarantine the outpoint. Do not mint `tZEC`. |
 | Output script or amount does not match the intent | `Deposit does not match request` | Quarantine it. An open-amount intent accepts only one positive output within the immutable caps published for that intent. |
 | Transaction is only in the mempool | `Detected, awaiting confirmation` | Create no spendable entitlement. |
 | Transaction expires, conflicts, or leaves the best chain | `Payment not confirmed` or `Reorganization detected` | Remove provisional credit, re-scan, and follow the reorganization controls in Architecture. |
 | Payment arrives after intent expiry | `Late payment under review` | Preserve the outpoint, block automatic credit, and reconcile ownership. |
 | Outpoint was already processed | `Duplicate deposit detected` | Reject the second transition and alert reconciliation. |
 | Returned ephemeral funds are not visible after sync or restore | `Wallet refund recovery failed` | Stop the wallet's qualification. Do not repeat a return to that wallet. |
-| Withdrawal destination is shielded, Unified, malformed, or for another network | `Transparent Zcash address required` | Reject before quote acceptance or `pZEC` burn. |
+| Withdrawal destination is shielded, Unified, malformed, or for another network | `Transparent Zcash address required` | Reject before quote acceptance or `tZEC` burn. |
 | Signer, observer, or reserve ledger is unavailable or disagrees | `Withdrawals temporarily paused` | Create no new signature and preserve the payable state. |
 
 ## Testnet vectors
@@ -245,7 +245,7 @@ The evidence record contains wallet name, platform, app version and build, packa
 | WA-07 | Restore the WA-04 wallet from its Testnet recovery material into a clean profile and rescan from the correct birthday. | The wallet recovers the relevant transparent history and any unspent ephemeral return without device-only metadata. |
 | WA-08 | Ask the wallet for a fresh transparent receive address. Import it into the Phlebas withdrawal form and send a controlled Testnet withdrawal after the simulated burn gate. | Phlebas accepts only a network-correct transparent address, the signer creates a transparent payment, and the wallet detects the exact amount. |
 | WA-09 | Repeat WA-08 with a wallet-generated single-payment ZIP 321 request, first without an amount and then with one. | Phlebas extracts one transparent destination. A supplied amount is preserved exactly and any conflicting form amount is rejected. |
-| WA-10 | Exercise malformed checksum, wrong-network, transparent memo, multi-recipient, duplicate outpoint, and late-intent cases. | Every failure produces the specified state and no `pZEC` mint or native withdrawal occurs. |
+| WA-10 | Exercise malformed checksum, wrong-network, transparent memo, multi-recipient, duplicate outpoint, and late-intent cases. | Every failure produces the specified state and no `tZEC` mint or native withdrawal occurs. |
 | WA-11 | On a controlled regression network, mine a deposit, then reorganize it out before the threshold and after provisional observation. | Provisional state is removed or reattached only to the new best-chain inclusion. No confirmed entitlement survives an orphaned outpoint. |
 | WA-12 | Update or reinstall the wallet, then repeat TV-04, WA-01, WA-04, WA-06, and WA-08. | The release retains parser, TEX, refund-recovery, and transparent-receive behavior. |
 
@@ -278,4 +278,4 @@ The remaining project dependencies are concrete:
 * Zkool needs explicit maintainer evidence or an executed TEX and ZIP 321 test. Zingo Mobile needs the same.
 * Wallet qualification must be repeated after material wallet releases, Zcash network upgrades, address-library changes, or changes to Phlebas confirmation and refund policy.
 
-Until those dependencies close and the mainnet gate in [Architecture](ARCHITECTURE.md#mainnet-gate) passes, wallet compatibility remains a Testnet plan and `pZEC` remains a simulation label.
+Until those dependencies close and the mainnet gate in [Architecture](ARCHITECTURE.md#mainnet-gate) passes, wallet compatibility remains a Testnet plan and `tZEC` remains a simulation label.

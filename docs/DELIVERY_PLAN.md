@@ -82,7 +82,7 @@ Baseline already present locally:
 
 Remaining PR deliverables:
 
-- Complete the pZEC education and launch-gate copy against final reviewed terminology.
+- Complete the tZEC education and launch-gate copy against final reviewed terminology.
 - Close keyboard, focus, semantic-table, touch-target, reduced-motion, and small-screen findings.
 - Add repeatable route and browser acceptance evidence for the existing surfaces.
 - Preserve the no-value simulation boundary through the published preview.
@@ -90,7 +90,7 @@ Remaining PR deliverables:
 Acceptance:
 
 - 320, 390, 768, and 1440 pixel browser checks pass without page overflow.
-- A first-time visitor can identify what Phlebas does, what is simulated, and what pZEC means without opening documentation.
+- A first-time visitor can identify what Phlebas does, what is simulated, and what native ZEC labels mean without opening documentation.
 - No comparison-site asset, copy, or layout is reproduced.
 
 ### PR 2: ZEC wallet journeys
@@ -153,7 +153,7 @@ Branch: `feat/testnet-contracts`
 
 Deliverables:
 
-- Test-only pZEC, settlement, cancellation, pair, factory, and stateless router contracts
+- Test-only tZEC, settlement, cancellation, pair, factory, and stateless router contracts
 - Deployment manifest for an approved Arbitrum test network
 - Unit, invariant, fuzz, and role-boundary tests
 - Source and bytecode verification procedure
