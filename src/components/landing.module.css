@@ -996,6 +996,7 @@ a.skipLink:focus-visible {
     min-height: 44px;
     height: auto;
     white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .simulationBanner {
