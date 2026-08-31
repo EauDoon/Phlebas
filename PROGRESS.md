@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after 320px unavailable ticket, deposit fail-closed tour, journeys expired/closed, and observer-disagreement demo.
+Last updated: 01-09-2026 after refunded tZEC-restored withdrawal tour and 320px USDT reject panel.
 
 ## Branch
 
@@ -190,6 +190,9 @@ Last updated: 01-09-2026 after 320px unavailable ticket, deposit fail-closed tou
 - Deposit tour includes Unavailable, Rejected, and Stale fail-closed steps. Nothing is minted. 320px Playwright.
 - LANDING_AND_USER_JOURNEYS withdrawal machine includes expired evidence and closed without a finalized burn.
 - Architecture incident demo includes observer disagreement. Copy is architecture-demonstration, not a live outage. 320px Playwright.
+- Withdrawal tour includes Refunded (tZEC restored on unrecoverable pre-signature failure). `refundPayoutBeforeSignature` refuses after signed. 320px Playwright. Nothing is sent.
+- LANDING_AND_USER_JOURNEYS withdrawal machine includes tZEC restored / refunded.
+- 320px USDT ticket reject panel (FOK miss and past expiry) names ZEC-USDT.
 
 ## Next
 
@@ -197,9 +200,9 @@ Last updated: 01-09-2026 after 320px unavailable ticket, deposit fail-closed tou
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
 - ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
-- Withdrawal tour still has no dedicated tZEC-restored / refunded step from PRODUCT_SPEC 9.3
 - Deposit-tour PR2 list in LANDING_AND_USER_JOURNEYS still describes the seven-step happy path only
-- Ticket 320px unavailable on ZEC/USDT after Retry is covered; LP `/liquidity?feed=loading` 320px already exists — remaining density: more 320px rejected panels on USDT markets
+- Payout walker still collapses signed/broadcast/mined/confirmed tour ids to payable
+- Unresolved recovery (observe exact tx / restore inputs) is not a dedicated tour step
 
 ## Blockers
 
