@@ -6,7 +6,7 @@ import { digestCanonicalOrder, encodeCanonicalOrder, type CanonicalOrder } from 
 const sample: CanonicalOrder = {
   maker: "session",
   side: "buy",
-  baseAsset: "pZEC",
+  baseAsset: "ZEC",
   quoteAsset: "USDC",
   baseAmountAtoms: "100000000",
   limitPriceTicks: "5291",
@@ -24,6 +24,8 @@ const sample: CanonicalOrder = {
 test("canonical encoding is field-order stable", () => {
   const encoded = encodeCanonicalOrder(sample);
   assert.match(encoded, /^maker=session\nside=buy\n/);
+  assert.match(encoded, /\nbaseAsset=ZEC\n/);
+  assert.doesNotMatch(encoded, /pZEC/);
   assert.match(encoded, /\nverifyingContract=not-deployed$/);
   assert.equal(encodeCanonicalOrder(sample), encoded);
 });

@@ -1,7 +1,7 @@
 export type CanonicalOrder = {
   maker: "session";
   side: "buy" | "sell";
-  baseAsset: "pZEC";
+  baseAsset: "ZEC";
   quoteAsset: "USDC" | "USDT";
   baseAmountAtoms: string;
   limitPriceTicks: string;
