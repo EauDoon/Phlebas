@@ -184,6 +184,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(globalError, /Nothing was submitted to a chain, matcher, or custody system/);
   assert.match(globalError, /minHeight: 44/);
   assert.match(globalError, /minWidth: 44/);
+  assert.match(globalError, /Skip to retry copy/);
+  assert.match(globalError, /id="retry-copy"/);
   assert.doesNotMatch(globalError, /is a live exchange/);
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
 });
