@@ -147,7 +147,7 @@ export type StartServiceOptions = Readonly<{
 export function startService(options: StartServiceOptions): Server {
   const host = listenHost(options.host);
   const port = options.port ?? DEFAULT_PORT;
-  const controller = buildController(options.config, options.initial, options.clock);
+  const controller = buildController(options.config, options.initial);
   const server = createServer((request: IncomingMessage, response: ServerResponse) => {
     void (async () => {
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
