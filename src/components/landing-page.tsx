@@ -9,9 +9,9 @@ const statusRows = [
   ["Application", "No-value simulation"],
   ["Matcher", "In-browser; local operator optional"],
   ["Market data", "Fixtures plus local fills"],
-  ["Wallets", "Optional Arbitrum Sepolia"],
+  ["Wallets", "Optional Sepolia; legacy only"],
   ["Contracts", "Source in repo, undeployed"],
-  ["ZEC custody", "Not operating"],
+  ["Asset custody", "Never connected"],
   ["Country access", COUNTRY_ACCESS.default === "deny" && COUNTRY_ACCESS.enabled.length === 0
     ? "Deny by default"
     : "Misconfigured"],
@@ -28,17 +28,17 @@ const journeys = [
   },
   {
     number: "02",
-    label: "Simple liquidity",
-    title: "Two pools, no incentive maze",
-    body: "Explore fixed-fee constant product pools for pZEC/USDC and pZEC/USDT0. No farms, leverage, callbacks, token rewards, or projected returns.",
+    label: "Legacy liquidity simulator",
+    title: "A historical pool model",
+    body: "Explore the superseded pZEC pool fixture. The native-ZEC target uses wallet-held maker and solver quotes, not passive cross-chain LP shares.",
     href: "/liquidity",
     link: "Open LP preview",
   },
   {
     number: "03",
-    label: "Transparent ZEC gateway",
-    title: "The custody boundary stays visible",
-    body: "Issue a local testnet TEX intent when the gateway is running. The public app still mints no pZEC and never shows a mainnet address.",
+    label: "Legacy custody simulator",
+    title: "A superseded gateway tour",
+    body: "Inspect local testnet TEX issuance and the withdrawal fixture. The public app receives no ZEC, mints no pZEC, and this is not the native-settlement target.",
     href: "/trade?view=bridge",
     link: "See gateway design",
   },
@@ -58,10 +58,10 @@ export function LandingPage() {
         <section className={styles.hero} aria-labelledby="hero-title">
           <div className={styles.heroStatement}>
             <span className={styles.eyebrow}>Transparent ZEC markets</span>
-            <h1 id="hero-title">The custody line,<br />{" "}drawn in public.</h1>
+            <h1 id="hero-title">Native ZEC,<br />{" "}wallet controlled.</h1>
             <p>
               Phlebas is a production-minded design for ZEC/USDC and ZEC/USDT spot markets,
-              an order book designed for auditable sequencing, and restrained onchain liquidity.
+              an order book designed for auditable sequencing, and two-chain atomic settlement.
             </p>
           </div>
 
@@ -80,7 +80,7 @@ export function LandingPage() {
 
           <div className={styles.heroActions}>
             <Link href="/trade?view=trade" className={styles.primaryCta}>Enter simulation <span>↗</span></Link>
-            <a href="#pzec" className={styles.secondaryCta}>Understand pZEC</a>
+            <a href="#pzec" className={styles.secondaryCta}>Understand settlement</a>
           </div>
         </section>
 
@@ -88,17 +88,17 @@ export function LandingPage() {
           <div className={styles.sectionIntro}>
             <span className={styles.eyebrow}>Two focused markets</span>
             <h2 id="markets-title">Familiar labels.<br />Exact settlement.</h2>
-            <p>Phlebas keeps the requested market names while disclosing the receipt and quote token used by the proposed Arbitrum settlement layer.</p>
+            <p>Each target fill exchanges native transparent ZEC for the exact approved stablecoin through wallet-signed conditional locks.</p>
           </div>
           <div className={styles.marketCards}>
             <article>
               <span className={styles.marketIndex}>01</span>
-              <div><span>Primary design</span><h3>ZEC / USDC</h3><p>Settles pZEC / USDC</p></div>
+              <div><span>Primary target</span><h3>ZEC / USDC</h3><p>Native ZEC atomic settlement</p></div>
               <Link href={{ pathname: "/trade", query: { view: "trade", market: "ZEC/USDC" } }}>Preview market <span>→</span></Link>
             </article>
             <article>
               <span className={styles.marketIndex}>02</span>
-              <div><span>Later listing gate</span><h3>ZEC / USDT</h3><p>Settles pZEC / USDT0</p></div>
+              <div><span>Later listing gate</span><h3>ZEC / USDT</h3><p>Native ZEC atomic settlement</p></div>
               <Link href={{ pathname: "/trade", query: { view: "trade", market: "ZEC/USDT" } }}>Preview market <span>→</span></Link>
             </article>
           </div>
@@ -106,18 +106,18 @@ export function LandingPage() {
 
         <section className={styles.pzecSection} id="pzec" aria-labelledby="pzec-title">
           <div className={styles.pzecCopy}>
-            <span className={styles.eyebrow}>Why pZEC exists</span>
-            <h2 id="pzec-title">Native ZEC cannot sit inside an EVM pool.</h2>
+            <span className={styles.eyebrow}>Native settlement target</span>
+            <h2 id="pzec-title">Each wallet keeps its own keys.</h2>
             <p>
-              Phlebas therefore specifies pZEC, an 8-decimal custody receipt intended to be backed one for one by eligible transparent native ZEC. That choice enables common settlement, but it introduces reserve, signer, redemption, legal, and operator risk.
+              Each fill targets one transparent Zcash conditional lock and one exact-token EVM conditional lock. The matcher can coordinate terms, but it cannot spend either asset.
             </p>
-            <strong>pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.</strong>
+            <strong>The pZEC pool and gateway screens remain only as a clearly labeled legacy simulation while the native flow is built.</strong>
           </div>
-          <ol className={styles.assetFlow} aria-label="Proposed ZEC to market flow">
-            <li><span>01</span><div><strong>Transparent ZEC</strong><small>Unique TEX deposit intent</small></div></li>
-            <li><span>02</span><div><strong>Gateway controls</strong><small>Observation, screening, finality</small></div></li>
-            <li><span>03</span><div><strong>pZEC on Arbitrum</strong><small>Fully reserved custody receipt</small></div></li>
-            <li><span>04</span><div><strong>Trade or LP</strong><small>Offchain matcher, onchain settlement or pool swap</small></div></li>
+          <ol className={styles.assetFlow} aria-label="Target native ZEC settlement flow">
+            <li><span>01</span><div><strong>Signed order</strong><small>Exact assets, limits, and recipients</small></div></li>
+            <li><span>02</span><div><strong>Matched fill</strong><small>Immutable two-chain swap terms</small></div></li>
+            <li><span>03</span><div><strong>Wallet funding</strong><small>One conditional lock on each chain</small></div></li>
+            <li><span>04</span><div><strong>Claim or refund</strong><small>User-signed terminal action</small></div></li>
           </ol>
         </section>
 

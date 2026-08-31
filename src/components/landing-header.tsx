@@ -8,7 +8,7 @@ import styles from "./landing.module.css";
 const navigation = [
   { href: "#markets", label: "Markets" },
   { href: "#journeys", label: "Journeys" },
-  { href: "#pzec", label: "Why pZEC" },
+  { href: "#pzec", label: "Native settlement" },
   { href: "#launch-gates", label: "Launch gates" },
   { href: "/status", label: "Status" },
 ];

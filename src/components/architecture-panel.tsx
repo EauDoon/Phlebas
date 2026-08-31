@@ -7,14 +7,14 @@ const layers = [
     items: ["Read-only fixture market data", "In-browser matcher; optional Sepolia signing", "Loopback gateway and matcher never hosted on Vercel", "No custody keys or Zcash node"],
   },
   {
-    label: "Trading network",
-    title: "Matcher and Arbitrum contracts",
-    items: ["Offchain matcher, not trustless", "Onchain atomic settlement", "Constrained constant product pools", "USDT0 is a later listing gate"],
+    label: "Trading coordination",
+    title: "Order intake and matcher",
+    items: ["Signed, replay-protected intents", "Auditable intake receipts", "Deterministic price-time matching", "Cannot spend user assets"],
   },
   {
-    label: "Zcash gateway",
-    title: "Dedicated custody environment",
-    items: ["Independent Zebra observers", "Threshold mint and withdrawal authorization", "Transparent ZEC UTXO accounting", "Public reserve and liability proofs"],
+    label: "Two-chain settlement",
+    title: "Wallet-controlled conditional locks",
+    items: ["Native transparent ZEC leg", "Exact stablecoin EVM leg", "Independent read-only observers", "Wallet-held claim and refund paths"],
   },
 ];
 
@@ -24,13 +24,13 @@ export function ArchitecturePanel() {
       <div className={styles.panelHeader}>
         <div>
           <span className={styles.eyebrow}>Reference architecture</span>
-          <h2 id="architecture-title">Three separated trust zones</h2>
+          <h2 id="architecture-title">Three bounded trust zones</h2>
         </div>
         <span className={styles.statusDot}>Design only</span>
       </div>
       <p className={styles.featureLead}>
-        The public UI must never become the custody backend. Each layer receives only the
-        authority it needs. Any implemented cross-layer message must be replay-protected and auditable.
+        The public UI, matcher, observers, and coordinator cannot spend user assets. Each layer receives only
+        the authority it needs. Any implemented cross-layer message must be replay-protected and auditable.
       </p>
       <div className={styles.layerGrid}>
         {layers.map((layer, index) => (
@@ -45,8 +45,8 @@ export function ArchitecturePanel() {
         ))}
       </div>
       <div className={styles.honestyBar}>
-        <strong>Proposed product label</strong>
-        <span>Designed as a hybrid DEX with an offchain matcher, onchain settlement, constrained AMM contracts, and a custody-backed ZEC gateway. The matcher is not trustless. Mainnet access policy remains unresolved.</span>
+        <strong>Target product boundary</strong>
+        <span>Designed as a non-custodial exchange with an offchain matcher and wallet-signed native-ZEC atomic settlement. The matcher can censor or delay orders, so it is not trustless. Mainnet access policy remains unresolved.</span>
       </div>
     </section>
   );

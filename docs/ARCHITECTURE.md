@@ -100,7 +100,7 @@ The exact funding order and deadline margin require current protocol analysis an
 
 ## Zcash leg
 
-The candidate Zcash leg uses transparent P2SH. The [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf) states that transparent addresses include P2SH and that BIP 16 and BIP 65 apply from genesis. [BIP 65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki) defines a claim path protected by a hash and a refund path protected by `OP_CHECKLOCKTIMEVERIFY`.
+The candidate Zcash leg uses transparent P2SH. The [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf) states that transparent addresses include P2SH and that BIP 16 and BIP 65 apply from genesis. [ZIP 300](https://zips.z.cash/zip-0300) gives a candidate transparent atomic-swap construction with a hash-protected claim branch and a lock-time refund branch. [BIP 65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki) defines `OP_CHECKLOCKTIMEVERIFY` lock-time semantics.
 
 The final implementation must verify:
 

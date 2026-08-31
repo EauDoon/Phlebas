@@ -85,15 +85,14 @@ export function BridgePanel() {
       <section className={`${styles.panel} ${styles.featurePrimary}`} aria-labelledby="bridge-title">
         <div className={styles.panelHeader}>
           <div>
-            <span className={styles.eyebrow}>Transparent Zcash gateway</span>
+          <span className={styles.eyebrow}>Legacy custody simulation</span>
             <h2 id="bridge-title">ZEC to pZEC</h2>
           </div>
           <span className={styles.warningPill}>Not operational</span>
         </div>
         <p className={styles.featureLead}>
-          Native ZEC cannot live inside an EVM liquidity pool. Phlebas therefore specifies a
-          fully reserved pZEC receipt for trading and LP settlement. That gateway introduces
-          custody, operator, and regulatory risk.
+          This historical screen explains the superseded pZEC gateway fixture. The native-settlement
+          target uses wallet-controlled conditional locks and does not mint a Phlebas ZEC receipt.
         </p>
 
         <div className={styles.poolTabs} role="group" aria-label="Gateway journey">
