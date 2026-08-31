@@ -8,7 +8,7 @@ import { sepoliaDomain, typedData, type TypedOrder } from "@/lib/eip712";
 import { getInjectedProvider, signTypedData } from "@/lib/evm-wallet";
 import { planTestnetSubmit, sendSettlement, sepoliaSubmitEnabled } from "@/lib/sepolia-submit";
 import { TESTNET } from "@/lib/testnet";
-import { settlementDigest, typedOrderFromTicket } from "@/lib/ticket-order";
+import { parseExpiryUnix, settlementDigest, typedOrderFromTicket } from "@/lib/ticket-order";
 import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
@@ -129,6 +129,7 @@ export function TradeTicket({
   const [price, setPrice] = useState(() => formatAtomicUnits(lastTicks, PRICE_DECIMALS, 2));
   const [size, setSize] = useState("10");
   const [slippagePercent, setSlippagePercent] = useState("0.50");
+  const [expiry, setExpiry] = useState("0");
   const [notice, setNotice] = useState("Local matcher only. Session inventory is not a wallet.");
   const [appliedPriceNonce, setAppliedPriceNonce] = useState(0);
   const nonceRef = useRef(1);
@@ -143,6 +144,7 @@ export function TradeTicket({
     comparison: RouteComparison;
     clobDebitAtoms: bigint;
     clobReservationAtoms: bigint;
+    expiryUnix: bigint;
   } | null>(null);
 
   if (priceSelection && priceSelection.nonce !== appliedPriceNonce) {
@@ -250,7 +252,7 @@ export function TradeTicket({
     setSize(formatAtomicUnits(nextSize, PZEC_DECIMALS));
   }
 
-  function preparedOrder(): { priceTicks: bigint; sizeAtoms: bigint; tif: TimeInForce } | string {
+  function preparedOrder(): { priceTicks: bigint; sizeAtoms: bigint; tif: TimeInForce; expiryUnix: bigint } | string {
     if (inputError) {
       return inputError;
     }
@@ -273,10 +275,17 @@ export function TradeTicket({
     if (priceTicks <= 0n) {
       return "Price and size must be positive.";
     }
+    let expiryUnix = 0n;
+    try {
+      expiryUnix = parseExpiryUnix(expiry);
+    } catch (error) {
+      return error instanceof Error ? error.message : "Expiry must be a whole unix time, or 0 for none.";
+    }
     return {
       priceTicks,
       sizeAtoms: sizeAtoms.atoms,
       tif: orderType === "market" ? "IOC" : tif,
+      expiryUnix,
     };
   }
 
@@ -325,7 +334,7 @@ export function TradeTicket({
       limitPriceTicks: prepared.priceTicks.toString(),
       nonce: String(nonceRef.current),
       accountEpoch: String(accountEpoch),
-      expiry: "0",
+      expiry: prepared.expiryUnix.toString(),
       salt: prepared.tif,
       recipient: "session",
       maximumFeeBps: "30",
@@ -346,6 +355,7 @@ export function TradeTicket({
         nonce: BigInt(canonical.nonce),
         accountEpoch: BigInt(accountEpoch),
         tif: prepared.tif,
+        expiry: prepared.expiryUnix,
       });
       eip712 = settlementDigest(typed);
     }
@@ -545,6 +555,21 @@ export function TradeTicket({
         </div>
       </label>
 
+      <label className={styles.inputLabel}>
+        <span>Expiry</span>
+        <div className={styles.inputShell}>
+          <input
+            inputMode="numeric"
+            value={expiry}
+            onChange={(event) => setExpiry(event.target.value)}
+            aria-label="Order expiry unix time"
+            aria-describedby={noticeId}
+          />
+          <span>unix</span>
+        </div>
+      </label>
+      <p className={styles.inlineNotice}>0 means no expiry. This session never sends a live order.</p>
+
       <div
         className={styles.percentRow}
         role="group"
@@ -585,6 +610,10 @@ export function TradeTicket({
         <div>
           <dt>Account epoch</dt>
           <dd>{accountEpoch}</dd>
+        </div>
+        <div>
+          <dt>Expiry</dt>
+          <dd>{expiry.trim() === "" || expiry.trim() === "0" ? "none" : expiry.trim()}</dd>
         </div>
       </dl>
 
@@ -631,6 +660,10 @@ export function TradeTicket({
             <div>
               <dt>Worst acceptable price</dt>
               <dd>{formatAtomicUnits(review.priceTicks, PRICE_DECIMALS, 2)} {market.quote}</dd>
+            </div>
+            <div>
+              <dt>Expiry</dt>
+              <dd>{review.expiryUnix === 0n ? "none" : review.expiryUnix.toString()}</dd>
             </div>
             <div>
               <dt>Fees</dt>
