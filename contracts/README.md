@@ -148,3 +148,34 @@ open.
 - PHLEBAS_OBSERVER_POLL_INTERVAL_SECONDS — poll cadence.
 - PHLEBAS_OUTPOINT_FILL_MAP — comma-separated 	xid:vout=fillId
   pairs for ZEC event reduction.
+
+## Public market data (PR 5)
+
+The public market data surface is four read-only HTTP endpoints
+on the matcher service. The surface is the public read-only view
+of the matcher operator's in-memory state.
+
+### Files
+
+- src/lib/market-data.ts (additions at the end of the file) —
+  	ickerFromOperator, 	radesFromReceipts, depthFromBook,
+  marketsFromOperator, 	opFills. The pure functions take the
+  operator state and a clock and return a typed snapshot.
+- src/lib/market-data.test.ts — covers the pure functions.
+- services/matcher/market-data.test.ts — covers the HTTP
+  endpoints on the matcher service.
+- services/matcher/server.ts — adds /ticker, /trades,
+  /depth, /markets alongside the existing /health,
+  /sequence, /book, /orders.
+
+### Endpoints
+
+- GET /ticker — 24-hour ticker: best bid, best ask, mid,
+  spread, last price, 24h high, 24h low, 24h volume (base and
+  quote), trade count, sequence.
+- GET /trades?limit=N — most recent N fills. Default 50,
+  maximum 1000.
+- GET /depth?levels=N — top N aggregated price levels for
+  bids and asks. Default 20, maximum 200.
+- GET /markets — configured base asset, supported quote
+  assets, current lastTicks, sequence.
