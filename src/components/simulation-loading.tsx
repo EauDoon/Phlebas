@@ -1,6 +1,6 @@
-import styles from "@/components/terminal.module.css";
+import styles from "./terminal.module.css";
 
-export default function Loading() {
+export function SimulationLoading() {
   return (
     <div className={styles.shell}>
       <div className={styles.simulationBanner} role="status">
