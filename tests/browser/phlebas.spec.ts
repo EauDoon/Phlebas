@@ -696,6 +696,25 @@ test("market orders are IOC with a visible worst price", async ({ page }) => {
   await expect(page.getByText("IOC", { exact: true })).toBeVisible();
 });
 
+test("320px market buy at zero slippage does not fill beyond the signed worst price", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Market" }).click();
+  await expect(
+    page.getByText("Market orders are IOC with a signed worst price. There is no unbounded market instruction. This preview is not live settlement."),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "GTC" })).toHaveCount(0);
+  await page.getByRole("textbox", { name: "Maximum slippage percent" }).fill("0");
+  await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByText("Worst acceptable price")).toBeVisible();
+  await expect(page.getByText("52.84 USDC", { exact: true })).toBeVisible();
+  await expect(page.getByText("IOC", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await expect(page.getByText("Immediate-or-cancel finished with no fills")).toBeVisible();
+  await expect(page.getByText("No session fills yet. Settled as ZEC-USDC.")).toBeVisible();
+});
+
 test("invalid expiry stays on the ticket and does not open review", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1.5");
