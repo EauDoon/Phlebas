@@ -1074,6 +1074,7 @@ a.skipLink:focus-visible {
   display: inline-flex;
   min-width: 44px;
   min-height: 44px;
+  flex-shrink: 0;
   align-items: center;
 }
 
