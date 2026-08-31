@@ -358,6 +358,10 @@ test("remaining docs no longer list pZEC as the candidate ERC-20 form", async ()
   assert.match(wallet, /mint redeemable `tZEC`/);
   assert.doesNotMatch(wallet, /mint redeemable `pZEC`/);
   assert.match(wallet, /which remains historical/);
+  const spec = await readFile(join(root, "docs/PRODUCT_SPEC.md"), "utf8");
+  assert.match(spec, /tZEC restored/);
+  assert.match(spec, /refund authorization/);
+  assert.doesNotMatch(spec, /pZEC/);
 });
 
 test("source identifiers no longer use listed pZEC leftovers", async () => {
