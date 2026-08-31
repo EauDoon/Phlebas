@@ -18,6 +18,8 @@ import {
   userOrders,
   wouldSelfTrade,
 } from "./session.ts";
+import { retargetSettlementCopy } from "./evm-wallet.ts";
+import { markets } from "./market-data.ts";
 import { quoteAtomsForFill } from "./units.ts";
 
 test("seeds the USDC book from fixture levels with integer ticks", () => {
@@ -198,6 +200,32 @@ test("describeSubmit names settlement on a real FOK miss", () => {
     "Rejected. Fill-or-kill could not fill in full. Settled as pZEC-USDT0.",
   );
   assert.equal(isTicketRejectCopy(describeSubmit(result, "ZEC/USDC")), true);
+});
+
+test("ticket reject copy follows the selected market after a switch", () => {
+  const book = seedBook("ZEC/USDC");
+  const result = submitOrder(book, {
+    id: "taker",
+    side: "buy",
+    tif: "FOK",
+    priceTicks: 5291n,
+    sizeAtoms: 100_00000000n,
+  });
+  assert.equal(result.status, "rejected");
+  const usdc = describeSubmit(result, "ZEC/USDC");
+  const usdt = describeSubmit(result, "ZEC/USDT");
+  assert.equal(usdc, "Rejected. Fill-or-kill could not fill in full. Settled as pZEC-USDC.");
+  assert.equal(usdt, "Rejected. Fill-or-kill could not fill in full. Settled as pZEC-USDT0.");
+  assert.equal(isTicketRejectCopy(usdc), true);
+  assert.equal(
+    retargetSettlementCopy(usdc, markets["ZEC/USDT"].settlementPair),
+    usdt,
+  );
+  assert.equal(
+    retargetSettlementCopy(ticketRejectCopy("Order expiry has passed", "ZEC/USDC"), markets["ZEC/USDT"].settlementPair),
+    ticketRejectCopy("Order expiry has passed", "ZEC/USDT"),
+  );
+  assert.doesNotMatch(retargetSettlementCopy(usdc, markets["ZEC/USDT"].settlementPair), /native ZEC/);
 });
 
 test("inventory reject copy starts from session seed inventory", () => {
