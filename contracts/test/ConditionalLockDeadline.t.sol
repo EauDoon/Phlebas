@@ -8,26 +8,62 @@ contract ConditionalLockDeadlineTest is ConditionalLockTestBase {
     function testConstructorRequiresStrictlyOrderedFutureTimeline() public {
         vm.expectRevert(IConditionalLock.InvalidTimeline.selector);
         _deploy(
-            SWAP_ID, TERMS_HASH, address(quoteToken), funder, claimRecipient, funder, AMOUNT, HASHLOCK,
-            uint64(block.timestamp), claimCutoff, refundTime
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            uint64(block.timestamp),
+            claimCutoff,
+            refundTime
         );
 
         vm.expectRevert(IConditionalLock.InvalidTimeline.selector);
         _deploy(
-            SWAP_ID, TERMS_HASH, address(quoteToken), funder, claimRecipient, funder, AMOUNT, HASHLOCK,
-            claimCutoff, claimCutoff, refundTime
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            claimCutoff,
+            claimCutoff,
+            refundTime
         );
 
         vm.expectRevert(IConditionalLock.InvalidTimeline.selector);
         _deploy(
-            SWAP_ID, TERMS_HASH, address(quoteToken), funder, claimRecipient, funder, AMOUNT, HASHLOCK,
-            fundingCutoff, refundTime, refundTime
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            refundTime,
+            refundTime
         );
 
         vm.expectRevert(IConditionalLock.InvalidTimeline.selector);
         _deploy(
-            SWAP_ID, TERMS_HASH, address(quoteToken), funder, claimRecipient, funder, AMOUNT, HASHLOCK,
-            fundingCutoff, refundTime, claimCutoff
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            refundTime,
+            claimCutoff
         );
     }
 
@@ -46,9 +82,7 @@ contract ConditionalLockDeadlineTest is ConditionalLockTestBase {
 
         vm.prank(funder);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IConditionalLock.FundingClosed.selector, fundingCutoff, uint256(fundingCutoff) + 1
-            )
+            abi.encodeWithSelector(IConditionalLock.FundingClosed.selector, fundingCutoff, uint256(fundingCutoff) + 1)
         );
         conditionalLock.fund();
 
@@ -86,9 +120,7 @@ contract ConditionalLockDeadlineTest is ConditionalLockTestBase {
 
         vm.prank(funder);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IConditionalLock.RefundNotAvailable.selector, refundTime, uint256(refundTime) - 1
-            )
+            abi.encodeWithSelector(IConditionalLock.RefundNotAvailable.selector, refundTime, uint256(refundTime) - 1)
         );
         conditionalLock.refund();
 
@@ -112,15 +144,11 @@ contract ConditionalLockDeadlineTest is ConditionalLockTestBase {
         vm.warp(gapTime);
 
         vm.prank(claimRecipient);
-        vm.expectRevert(
-            abi.encodeWithSelector(IConditionalLock.ClaimClosed.selector, claimCutoff, gapTime)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IConditionalLock.ClaimClosed.selector, claimCutoff, gapTime));
         conditionalLock.claim(PREIMAGE);
 
         vm.prank(funder);
-        vm.expectRevert(
-            abi.encodeWithSelector(IConditionalLock.RefundNotAvailable.selector, refundTime, gapTime)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IConditionalLock.RefundNotAvailable.selector, refundTime, gapTime));
         conditionalLock.refund();
 
         assertEq(uint256(conditionalLock.state()), uint256(IConditionalLock.State.Funded));

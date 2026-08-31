@@ -43,9 +43,7 @@ contract ConditionalLockTest is ConditionalLockTestBase {
         vm.prank(claimRecipient);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IConditionalLock.InvalidState.selector,
-                IConditionalLock.State.Funded,
-                IConditionalLock.State.Claimed
+                IConditionalLock.InvalidState.selector, IConditionalLock.State.Funded, IConditionalLock.State.Claimed
             )
         );
         conditionalLock.claim(PREIMAGE);
@@ -54,9 +52,7 @@ contract ConditionalLockTest is ConditionalLockTestBase {
         vm.prank(funder);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IConditionalLock.InvalidState.selector,
-                IConditionalLock.State.Funded,
-                IConditionalLock.State.Claimed
+                IConditionalLock.InvalidState.selector, IConditionalLock.State.Funded, IConditionalLock.State.Claimed
             )
         );
         conditionalLock.refund();
@@ -77,9 +73,7 @@ contract ConditionalLockTest is ConditionalLockTestBase {
         vm.prank(claimRecipient);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IConditionalLock.InvalidState.selector,
-                IConditionalLock.State.Funded,
-                IConditionalLock.State.Refunded
+                IConditionalLock.InvalidState.selector, IConditionalLock.State.Funded, IConditionalLock.State.Refunded
             )
         );
         conditionalLock.claim(PREIMAGE);
@@ -115,9 +109,7 @@ contract ConditionalLockTest is ConditionalLockTestBase {
         vm.prank(funder);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IConditionalLock.InvalidState.selector,
-                IConditionalLock.State.Unfunded,
-                IConditionalLock.State.Funded
+                IConditionalLock.InvalidState.selector, IConditionalLock.State.Unfunded, IConditionalLock.State.Funded
             )
         );
         conditionalLock.fund();
@@ -126,44 +118,107 @@ contract ConditionalLockTest is ConditionalLockTestBase {
     function testConstructorRejectsUnboundIdentityValueAndRoles() public {
         vm.expectRevert(IConditionalLock.InvalidSwapId.selector);
         _deploy(
-            bytes32(0), TERMS_HASH, address(quoteToken), funder, claimRecipient, funder, AMOUNT, HASHLOCK,
-            fundingCutoff, claimCutoff, refundTime
+            bytes32(0),
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
         );
 
         vm.expectRevert(IConditionalLock.InvalidTermsHash.selector);
         _deploy(
-            SWAP_ID, bytes32(0), address(quoteToken), funder, claimRecipient, funder, AMOUNT, HASHLOCK,
-            fundingCutoff, claimCutoff, refundTime
+            SWAP_ID,
+            bytes32(0),
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
         );
 
         vm.expectRevert(IConditionalLock.InvalidToken.selector);
         _deploy(
-            SWAP_ID, TERMS_HASH, address(0x1234), funder, claimRecipient, funder, AMOUNT, HASHLOCK,
-            fundingCutoff, claimCutoff, refundTime
+            SWAP_ID,
+            TERMS_HASH,
+            address(0x1234),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
         );
 
         vm.expectRevert(IConditionalLock.InvalidAmount.selector);
         _deploy(
-            SWAP_ID, TERMS_HASH, address(quoteToken), funder, claimRecipient, funder, 0, HASHLOCK,
-            fundingCutoff, claimCutoff, refundTime
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            0,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
         );
 
         vm.expectRevert(IConditionalLock.InvalidHashlock.selector);
         _deploy(
-            SWAP_ID, TERMS_HASH, address(quoteToken), funder, claimRecipient, funder, AMOUNT, bytes32(0),
-            fundingCutoff, claimCutoff, refundTime
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            bytes32(0),
+            fundingCutoff,
+            claimCutoff,
+            refundTime
         );
 
         vm.expectRevert(IConditionalLock.InvalidRole.selector);
         _deploy(
-            SWAP_ID, TERMS_HASH, address(quoteToken), funder, funder, funder, AMOUNT, HASHLOCK,
-            fundingCutoff, claimCutoff, refundTime
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            funder,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
         );
 
         vm.expectRevert(IConditionalLock.RefundRecipientNotFunder.selector);
         _deploy(
-            SWAP_ID, TERMS_HASH, address(quoteToken), funder, claimRecipient, bystander, AMOUNT, HASHLOCK,
-            fundingCutoff, claimCutoff, refundTime
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            bystander,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
         );
     }
 }

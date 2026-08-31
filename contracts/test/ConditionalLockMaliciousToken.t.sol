@@ -57,9 +57,7 @@ contract ConditionalLockMaliciousTokenTest is ConditionalLockTestBase {
         badToken.setBehavior(0, false, true, false);
 
         vm.prank(funder);
-        vm.expectRevert(
-            abi.encodeWithSelector(IConditionalLock.InexactTransferIn.selector, AMOUNT, 0, 0)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IConditionalLock.InexactTransferIn.selector, AMOUNT, 0, 0));
         lock_.fund();
 
         assertEq(uint256(lock_.state()), uint256(IConditionalLock.State.Unfunded));
@@ -72,9 +70,7 @@ contract ConditionalLockMaliciousTokenTest is ConditionalLockTestBase {
         badToken.setBehavior(100, false, false, false);
 
         vm.prank(funder);
-        vm.expectRevert(
-            abi.encodeWithSelector(IConditionalLock.InexactTransferIn.selector, AMOUNT, 0, 99e6)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IConditionalLock.InexactTransferIn.selector, AMOUNT, 0, 99e6));
         lock_.fund();
 
         assertEq(uint256(lock_.state()), uint256(IConditionalLock.State.Unfunded));
@@ -110,12 +106,7 @@ contract ConditionalLockMaliciousTokenTest is ConditionalLockTestBase {
         vm.prank(funder);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IConditionalLock.InexactTransferOut.selector,
-                AMOUNT,
-                AMOUNT,
-                0,
-                AMOUNT - AMOUNT,
-                AMOUNT - AMOUNT + 99e6
+                IConditionalLock.InexactTransferOut.selector, AMOUNT, AMOUNT, 0, AMOUNT - AMOUNT, AMOUNT - AMOUNT + 99e6
             )
         );
         lock_.refund();

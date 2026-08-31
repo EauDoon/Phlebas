@@ -152,11 +152,7 @@ contract ConditionalLock is IConditionalLock, ReentrancyGuard {
                 || recipientBalanceAfter - recipientBalanceBefore != amount
         ) {
             revert InexactTransferOut(
-                amount,
-                contractBalanceBefore,
-                contractBalanceAfter,
-                recipientBalanceBefore,
-                recipientBalanceAfter
+                amount, contractBalanceBefore, contractBalanceAfter, recipientBalanceBefore, recipientBalanceAfter
             );
         }
     }

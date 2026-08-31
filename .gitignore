@@ -36,6 +36,7 @@ yarn-error.log*
 .env*
 
 # foundry
+/cache
 /contracts/out
 /contracts/cache
 /contracts/broadcast

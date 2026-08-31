@@ -9,8 +9,7 @@ abstract contract ConditionalLockTestBase is TestBase {
     bytes32 internal constant SWAP_ID = keccak256("phlebas-swap-0001");
     bytes32 internal constant TERMS_HASH = keccak256("phlebas-terms-0001");
     bytes32 internal constant PREIMAGE = bytes32(uint256(0xC0FFEE));
-    bytes32 internal constant HASHLOCK =
-        bytes32(0x5b20697604703c31c910b528899cfcd8fc4b623c0582032d0fa8fb854ed48017);
+    bytes32 internal constant HASHLOCK = bytes32(0x5b20697604703c31c910b528899cfcd8fc4b623c0582032d0fa8fb854ed48017);
     uint256 internal constant AMOUNT = 100e6;
 
     address internal funder = address(0xF00D);
