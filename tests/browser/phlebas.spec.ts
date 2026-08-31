@@ -720,34 +720,33 @@ test("blotter tabs expose a selected tabpanel", async ({ page }) => {
   await expect(page.getByRole("tabpanel")).toContainText("Account epoch");
 });
 
-test("landing skip links reach journeys, evidence, and the terminal preview", async ({ page }) => {
-  await page.goto("/", { waitUntil: "networkidle" });
-  await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
-  await page.keyboard.press("Tab");
-  const skipJourneys = page.getByRole("link", { name: "Skip to journeys" });
-  await expect(skipJourneys).toBeFocused();
-  await page.keyboard.press("Enter");
-  await expect(page.locator("#journeys")).toBeFocused();
-  await expect(page.locator("#journeys")).toBeInViewport();
+test("landing skip links follow on-page order", async ({ page }) => {
+  const skipOrder = [
+    { label: "Skip to main content", href: "#main-content" },
+    { label: "Skip to markets", href: "#markets" },
+    { label: "Skip to evidence", href: "#exists-today" },
+    { label: "Skip to pZEC", href: "#pzec" },
+    { label: "Skip to terminal preview", href: "#terminal-preview" },
+    { label: "Skip to journeys", href: "#journeys" },
+    { label: "Skip to launch gates", href: "#launch-gates" },
+  ] as const;
 
   await page.goto("/", { waitUntil: "networkidle" });
-  await page.keyboard.press("Tab");
-  await page.keyboard.press("Tab");
-  await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Skip to evidence" })).toBeFocused();
-  await page.keyboard.press("Enter");
-  await expect(page.locator("#exists-today")).toBeFocused();
+  for (const skip of skipOrder) {
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("link", { name: skip.label })).toBeFocused();
+  }
 
-  await page.goto("/", { waitUntil: "networkidle" });
-  await page.keyboard.press("Tab");
-  await page.keyboard.press("Tab");
-  await page.keyboard.press("Tab");
-  await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Skip to terminal preview" })).toBeFocused();
-  await page.keyboard.press("Enter");
-  await expect(page.locator("#terminal-preview")).toBeFocused();
-  await expect(page.locator("#terminal-preview")).toBeInViewport();
+  for (const skip of skipOrder.slice(1)) {
+    await page.goto("/", { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+    const skipLink = page.getByRole("link", { name: skip.label });
+    await tabTo(page, skipLink);
+    await page.keyboard.press("Enter");
+    await expect(page.locator(skip.href)).toBeFocused();
+    await expect(page.locator(skip.href)).toBeInViewport();
+  }
 });
 
 test("landing Menu Markets opens the terminal preview at 320px", async ({ page }) => {
@@ -1552,5 +1551,45 @@ test("architecture skip link reaches the layer cards", async ({ page }) => {
   await expect(skipLayers).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#architecture-layers")).toBeFocused();
+});
+
+test("status legal and security ledger rows stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/status", { waitUntil: "networkidle" });
+  const statusRow = page.locator("#status-ledger > div").first();
+  await expect(statusRow).toBeVisible();
+  expect((await statusRow.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/legal", { waitUntil: "networkidle" });
+  const legalRow = page.locator("#legal-article dl > div").first();
+  await expect(legalRow).toBeVisible();
+  expect((await legalRow.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/security", { waitUntil: "networkidle" });
+  const securityRow = page.locator("#security-article dl > div").first();
+  await expect(securityRow).toBeVisible();
+  expect((await securityRow.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/", { waitUntil: "networkidle" });
+  const market = page.getByRole("list", { name: "Focused markets" }).getByRole("listitem").first();
+  await expect(market).toBeVisible();
+  expect((await market.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const gate = page.getByRole("list", { name: "Mainnet launch gates" }).getByRole("listitem").first();
+  await expect(gate).toBeVisible();
+  expect((await gate.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("landing mobile menu links stay 44px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Menu" }).click();
+  const dialog = page.getByRole("dialog", { name: "Navigate Phlebas" });
+  await expect(dialog).toBeVisible();
+  const markets = dialog.getByRole("link", { name: "Markets" });
+  await expect(markets).toBeVisible();
+  expect((await markets.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const enter = dialog.getByRole("link", { name: "Enter simulation" });
+  await expect(enter).toBeVisible();
+  expect((await enter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
