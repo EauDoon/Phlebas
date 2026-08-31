@@ -80,6 +80,13 @@ export function walletConnectTitle(
   return busy ? walletConnectBusyTitle(settlementPair) : walletConnectIdleTitle(settlementPair);
 }
 
+export function walletConnectBarTitle(
+  settlementPair: Market["settlementPair"],
+  { busy, error }: { busy: boolean; error: string | null },
+): string {
+  return busy ? walletConnectTitle(settlementPair, true) : (error ?? walletConnectTitle(settlementPair, false));
+}
+
 export function getInjectedProvider(): Eip1193Provider | null {
   if (typeof window === "undefined") return null;
   const provider = (window as Window & { ethereum?: Eip1193Provider }).ethereum;

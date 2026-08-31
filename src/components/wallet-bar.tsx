@@ -77,7 +77,7 @@ export function WalletBar({
         onClick={() => void connect()}
         disabled={busy}
         aria-label="Connect Arbitrum Sepolia wallet"
-        title={errorCopy ?? walletConnectTitle(settlementPair, busy)}
+        title={busy ? walletConnectTitle(settlementPair, true) : (errorCopy ?? walletConnectTitle(settlementPair, false))}
       >
         {busy ? "Connecting" : "Connect wallet"}
       </button>
