@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { GATEWAY_INCIDENTS, gatewayIncidentById } from "./gateway-incidents.ts";
+import { GATEWAY_INCIDENTS, INCIDENT_DEMO_QUERY, gatewayIncidentById, isIncidentDemoQuery } from "./gateway-incidents.ts";
 
 test("incident demonstrations stay labeled copy, not live incidents", () => {
   assert.equal(GATEWAY_INCIDENTS.length, 9);
@@ -13,6 +13,13 @@ test("incident demonstrations stay labeled copy, not live incidents", () => {
   assert.ok(planned);
   assert.match(planned.body, /UTC/);
   assert.doesNotMatch(planned.body, /\btomorrow\b/i);
+});
+
+test("incident demo query is allowlisted to incidents", () => {
+  assert.equal(INCIDENT_DEMO_QUERY, "incidents");
+  assert.equal(isIncidentDemoQuery("incidents"), true);
+  assert.equal(isIncidentDemoQuery("live"), false);
+  assert.equal(isIncidentDemoQuery(undefined), false);
 });
 
 test("incident copy does not promise credit, loss, or a live outage", () => {

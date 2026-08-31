@@ -51,3 +51,9 @@ export type GatewayIncidentId = (typeof GATEWAY_INCIDENTS)[number]["id"];
 export function gatewayIncidentById(id: string): (typeof GATEWAY_INCIDENTS)[number] | null {
   return GATEWAY_INCIDENTS.find((incident) => incident.id === id) ?? null;
 }
+
+export const INCIDENT_DEMO_QUERY = "incidents";
+
+export function isIncidentDemoQuery(value: string | undefined): boolean {
+  return value === INCIDENT_DEMO_QUERY;
+}
