@@ -349,7 +349,13 @@ export function LiquidityPanel({
           <span className={styles.statusDot}>Preview only</span>
         </div>
 
-        <div className={styles.poolTabs} role="radiogroup" aria-label="Liquidity pool">
+        <div
+          id="liquidity-pools"
+          className={styles.poolTabs}
+          role="radiogroup"
+          aria-label="Liquidity pool"
+          tabIndex={-1}
+        >
           {pools.map((pool) => (
             <button
               type="button"

@@ -116,6 +116,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /Review simulated mint/);
   assert.match(liquidity, /nextFeedStatus/);
   assert.match(liquidity, /interpretRovingKey/);
+  assert.match(liquidity, /id="liquidity-pools"/);
   assert.match(
     await readFile(join(root, "src/lib/preview-education.ts"), "utf8"),
     /not native ZEC, shielded ZEC, or a trustless bridge asset/,
