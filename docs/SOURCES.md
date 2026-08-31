@@ -95,3 +95,10 @@ These interface references inform hierarchy and density only. Phlebas uses its o
 - [Google SRE workbook, chapter on SLO engineering](https://sre.google/workbook/alerting-on-slos/)
 - [PagerDuty incident response reference](https://response.pagerduty.com/)
 - [Atlassian incident response handbook](https://www.atlassian.com/incident-management/handbook)
+
+## Final integration and audit prep references
+
+- [OWASP Application Security Verification Standard (ASVS)](https://owasp.org/www-project-application-security-verification-standard/)
+- [NIST SP 800-53 security and privacy controls](https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final)
+- [CIS Critical Security Controls](https://www.cisecurity.org/controls)
+- [Google SRE release engineering chapter](https://sre.google/sre-book/release-engineering/)
