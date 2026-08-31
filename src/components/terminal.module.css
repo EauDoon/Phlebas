@@ -68,6 +68,10 @@
   min-height: 44px;
 }
 
+#withheld-price {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
