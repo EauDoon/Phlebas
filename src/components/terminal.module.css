@@ -458,7 +458,8 @@
 }
 
 .rangeTabs button,
-.ticket .orderTypes button {
+.ticket .orderTypes button,
+.blotter .orderTypes button {
   min-width: 44px;
   min-height: 44px;
 }
