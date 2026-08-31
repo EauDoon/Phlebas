@@ -1755,6 +1755,7 @@
     flex-direction: row;
     flex-wrap: wrap;
     max-height: min(40vh, 17.5rem);
+    overflow-y: auto;
   }
 
   .skipLink {
