@@ -136,6 +136,10 @@
   min-height: 44px;
 }
 
+:global(#legal-article) {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
