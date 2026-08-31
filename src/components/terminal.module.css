@@ -1891,7 +1891,7 @@ a.skipLink:focus-visible {
     display: flex;
     flex-direction: column;
     margin-top: min(40vh, 17.5rem);
-    max-height: calc(100vh - min(40vh, 17.5rem) - 12px);
+    max-height: calc(100vh - min(40vh, 17.5rem) - 16px);
     box-sizing: border-box;
     overflow-y: auto;
     scroll-padding-top: 12px;
