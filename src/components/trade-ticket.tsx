@@ -689,6 +689,9 @@ export function TradeTicket({
 
       {review ? (
         <div className={styles.reviewBlock}>
+          {market.id === "ZEC/USDT" && (
+            <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
+          )}
           <p className={styles.gateNotice}>
             pZEC is a custody receipt, not native ZEC. This fill is public in the simulation. The matcher is not trustless.
           </p>
