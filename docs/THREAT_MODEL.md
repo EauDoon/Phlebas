@@ -1,4 +1,4 @@
-# Phlebas Threat Model
+﻿# Phlebas Threat Model
 
 Status: custody threat model superseded for the target product
 
@@ -472,3 +472,98 @@ No such review or deployment is claimed here.
 - [Uniswap v2 pair reference](https://github.com/Uniswap/v2-core/blob/master/contracts/UniswapV2Pair.sol)
 - [OpenZeppelin TimelockController documentation](https://docs.openzeppelin.com/contracts/5.x/api/governance)
 - [OpenZeppelin security utilities](https://docs.openzeppelin.com/contracts/5.x/api/utils)
+- [EIP-712 typed structured data hashing and signing](https://eips.ethereum.org/EIPS/eip-712)
+- [ZIP 300 transparent P2SH atomic-swap protocol](https://zips.z.cash/zip-0300)
+- [BIP 65 OP_CHECKLOCKTIMEVERIFY specification](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)
+
+## 18. EVM conditional lock (native-ZEC atomic-swap path)
+
+The EVM conditional lock under `contracts/src/swap/ConditionalLock.sol` is the
+EVM half of the native-ZEC atomic swap. It holds exactly one ERC-20 stablecoin
+deposit per lock and releases the deposit to a fixed counterparty on a correct
+SHA-256 preimage, or returns the deposit to the funder after a chain-local
+refund deadline. The design is set in [ADR 0003](adr/0003-evm-conditional-lock.md).
+
+### 18.1 Contract guarantees
+
+The contract is non-upgradeable, has no proxy surface, no admin transfer, no
+fee, no callback, no flash-loan path, and no oracle. The pauser role can halt
+new deposits; the governor role can resume. In-flight locks always retain a
+wallet-controlled refund path. The pauser and governor cannot move a locked
+balance.
+
+The contract holds no token balance outside an active lock. There is no
+`withdraw`, `sweep`, or `rescue` path. The minimum refund delay is set as
+`MIN_REFUND_DELAY` at construction and cannot be changed by any role.
+
+### 18.2 Adversaries and required controls
+
+| Adversary | Goal | Required control |
+| --- | --- | --- |
+| MEV searcher | Steal the stablecoin leg on a revealed preimage | `claimTo` is set at deposit; only that address can call `claim` |
+| Counterparty | Take the stablecoin and keep the ZEC | The preimage must be revealed on the ZEC leg first; the EVM leg is paid out only after the preimage is in the EVM mempool |
+| Frontend attacker | Trick the buyer into funding an attacker-controlled lock | The matcher and the coordinator must verify `claimTo` matches the agreed counterparty before the user signs the deposit |
+| Pauser abuse | Pause and trap user funds in a non-refundable state | In-flight locks are unaffected by pause; the refund path is independent |
+| Reorg or chain split | Reverse a claim or refund | The offchain coordinator and the watchtower must surface reorganizations and freeze the swap |
+| ERC-20 anomaly (fee-on-transfer, rebasing, blacklist) | Steal or freeze the deposit | Only `usdc` and `usdt0` are accepted; both are 6-decimal, non-rebasing, and pre-validated at construction |
+| Wrong chain or wrong asset | Misroute a fill | The contract reverts on any token other than the two immutables; the matcher validates the chain before submitting the deposit |
+| Reentrancy | Drain the lock | A single boolean guard wraps every state-changing call; checks precede effects precede interactions |
+
+### 18.3 Invariants and stop conditions
+
+The EVM leg of every fill must satisfy the following invariants. A violation
+moves the fill to a disputed state and triggers a watcher alert.
+
+1. The lock is the only state. There is no proxy, admin transfer, or fee path.
+2. Every lock has a `refundAfter` strictly greater than
+   `block.timestamp + MIN_REFUND_DELAY` at deposit.
+3. The EVM `refundAfter` is strictly earlier than the ZEC `refundAfter` for
+   the same fill. The matcher enforces this offchain; the contract trusts the
+   depositor's value.
+4. The `preimage` is never emitted by any onchain event. Observers reconstruct
+   it from the ZEC claim.
+5. The matcher and observers never hold a wallet key, never call `claim` or
+   `refund` on the user's behalf, and never see the preimage before the user
+   reveals it on Zcash.
+6. The contract holds no balance outside an active lock.
+7. `claim` and `refund` are mutually exclusive terminal outcomes for one lock.
+8. A `claim` by an address other than `claimTo` reverts.
+9. A `refund` by an address other than the depositor reverts.
+10. A `refund` before `refundAfter` reverts.
+
+Stop conditions that must halt the leg and surface to the user:
+
+* a successful `claim` is followed by a `refund` attempt on the same lock;
+* a `refund` is followed by a `claim` attempt on the same lock;
+* the contract enters a paused state with any in-flight locks (the watchtower
+  verifies the refund path is still available for each);
+* the depositor, `claimTo`, or `refundTo` addresses are zero, in the deny
+  list of the stablecoin, or otherwise non-functional;
+* the EVM chain reorganizes above the configured confirmation depth after a
+  `claim` or `refund` event;
+* the underlying stablecoin contract is paused, upgraded, or blacklisted.
+
+### 18.4 Test coverage
+
+| Invariant | Test |
+| --- | --- |
+| 1 | `ConditionalLock.testConstructorRejectsBrokenConfiguration` |
+| 2 | `ConditionalLock.testDepositRejectsRefundDelayBelowMinimum`, `testDepositRejectsAtExactMinimumPlusOne` |
+| 3 | covered by matcher and order-policy tests in `src/lib/order-policy.test.ts` |
+| 4 | contract source review, no `preimage` in any event |
+| 5 | `src/lib/matcher.test.ts`, `src/lib/observer.test.ts` |
+| 6 | `ConditionalLock.testDepositStoresAllFieldsAndPullsTokens` |
+| 7 | `testClaimRejectsAfterRefund`, `testRefundRejectsAfterClaim` |
+| 8 | `testClaimRejectsBystander` |
+| 9 | `testRefundRejectsNonDepositor` |
+| 10 | `testRefundRejectsBeforeDeadline` |
+
+### 18.5 Out of scope for the EVM leg
+
+* ZEC transaction construction. The ZEC P2SH leg is the subject of a
+  separate PR and a future ADR.
+* Shielded ZEC. The current lock surface uses the transparent pool.
+* Custodial or wrapped representations of ZEC. ADR 0001 is superseded.
+* Cross-chain generalized message passing. The swap is a strict
+  hash-and-deadline protocol.
+
