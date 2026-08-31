@@ -263,3 +263,26 @@ test("design docs do not claim the repo has no matcher or wallet stubs", async (
   assert.match(architecture, /loopback operator stubs/);
   assert.doesNotMatch(architecture, /It has no database, wallet connection/);
 });
+
+test("architecture and accounting no longer list pZEC as the candidate ERC-20 form", async () => {
+  const architecture = await readFile(join(root, "docs/ARCHITECTURE.md"), "utf8");
+  const accounting = await readFile(join(root, "docs/ASSET_AND_ACCOUNTING.md"), "utf8");
+  assert.match(architecture, /undeployed 8-decimal receipt symbol is `tZEC`/);
+  assert.match(architecture, /That name is not the current listed form/);
+  assert.match(architecture, /ADR 0001 remains historical/);
+  assert.match(architecture, /tZEC mint controller/);
+  assert.match(architecture, /\| `tZEC` \|/);
+  assert.match(architecture, /Each pool holds `tZEC`/);
+  assert.doesNotMatch(architecture, /The candidate design uses custody-backed `pZEC`/);
+  assert.doesNotMatch(architecture, /\| `pZEC` \|/);
+  assert.doesNotMatch(architecture, /pZEC mint controller/);
+  assert.doesNotMatch(architecture, /Each pool holds `pZEC`/);
+  assert.match(accounting, /### Settlement ZEC \(`tZEC`\)/);
+  assert.match(accounting, /that name is not the current listed form/);
+  assert.match(accounting, /Outstanding tZEC/);
+  assert.doesNotMatch(accounting, /### pZEC/);
+  assert.doesNotMatch(accounting, /`pZEC` means Phlebas ZEC/);
+  assert.doesNotMatch(accounting, /Outstanding pZEC/);
+  assert.doesNotMatch(accounting, /pzatoshi/);
+  assert.doesNotMatch(accounting, /`pZEC` is custody-backed and is not native ZEC/);
+});
