@@ -1779,6 +1779,7 @@ a.skipLink:focus-visible {
     padding: 8px;
     white-space: normal;
     overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .brand,
