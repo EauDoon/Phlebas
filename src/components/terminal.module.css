@@ -1872,6 +1872,7 @@ a.skipLink:focus-visible {
 .educationDialog {
   box-sizing: border-box;
   width: min(calc(100vw - 16px), 460px);
+  max-height: calc(100vh - 32px);
   margin: auto;
   overflow: visible;
   padding: 24px 18px 16px;
