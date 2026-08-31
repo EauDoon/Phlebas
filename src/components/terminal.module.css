@@ -1902,6 +1902,8 @@ a.skipLink:focus-visible {
     z-index: 2;
     flex-shrink: 0;
     overflow: visible;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
