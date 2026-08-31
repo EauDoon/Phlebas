@@ -10,23 +10,41 @@ export default function GlobalError({
   return (
     <html lang="en">
       <body style={{ margin: 0, background: "#090b0f", color: "#eef1eb", fontFamily: "Segoe UI, sans-serif" }}>
-        <a
-          href="#retry-copy"
-          style={{
-            display: "inline-flex",
-            minWidth: 44,
-            minHeight: 44,
-            alignItems: "center",
-            padding: "9px 12px",
-            color: "#15140d",
-            background: "#f4c95d",
-            fontSize: 12,
-            fontWeight: 700,
-          }}
-        >
-          Skip to retry copy
-        </a>
-        <main style={{ maxWidth: 720, padding: 28 }}>
+        <nav aria-label="Skip links">
+          <a
+            href="#main-content"
+            style={{
+              display: "inline-flex",
+              minWidth: 44,
+              minHeight: 44,
+              alignItems: "center",
+              padding: "9px 12px",
+              color: "#15140d",
+              background: "#f4c95d",
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            Skip to main content
+          </a>
+          <a
+            href="#retry-copy"
+            style={{
+              display: "inline-flex",
+              minWidth: 44,
+              minHeight: 44,
+              alignItems: "center",
+              padding: "9px 12px",
+              color: "#15140d",
+              background: "#f4c95d",
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            Skip to retry copy
+          </a>
+        </nav>
+        <main id="main-content" tabIndex={-1} style={{ maxWidth: 720, padding: 28 }}>
           <p style={{ color: "#f4c95d", letterSpacing: "0.08em", textTransform: "uppercase", fontSize: 11 }}>Simulation only</p>
           <h1>The simulation failed to start</h1>
           <p>Nothing was submitted to a chain, matcher, or custody system.</p>
