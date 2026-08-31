@@ -515,6 +515,7 @@ test("LP burn stays available after a trading pause", async ({ page }) => {
   await page.getByRole("button", { name: "Confirm simulated mint" }).click();
   await expect(page.getByText(/Minted .* local LP shares/)).toBeVisible();
   await page.getByRole("button", { name: "Pause trading preview" }).click();
+  await expect(page.getByText("Trading paused. LP withdrawal remains available. Settled as pZEC-USDC.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
@@ -599,7 +600,7 @@ test("architecture view keeps Vercel off the matcher", async ({ page }) => {
 test("connect wallet without a provider shows a visible rejection", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
-  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only.")).toBeVisible();
+  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDC.")).toBeVisible();
 });
 
 test("past unix expiry rejects before review and names the rejected panel", async ({ page }) => {
@@ -729,9 +730,11 @@ test("country-blocked demonstration hides trading and liquidity controls", async
 test("chart range uses a tablist and unavailable tape names the feed", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByRole("tablist", { name: "Chart range" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "4H" })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("tab", { name: "1D" }).click();
-  await expect(page.getByRole("tabpanel", { name: "1D" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "4H · pZEC-USDC" })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "1D · pZEC-USDC" }).click();
+  await expect(page.getByRole("tabpanel", { name: "1D · pZEC-USDC" })).toBeVisible();
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(page.getByRole("tab", { name: "1D · pZEC-USDT0" })).toHaveAttribute("aria-selected", "true");
   await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByLabel("Asks")).toContainText("Market data unavailable");
   await expect(page.getByLabel("Asks")).toContainText("Settled as pZEC-USDC");
