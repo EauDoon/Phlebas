@@ -12,6 +12,7 @@ contract AdversarialERC20 {
     address public callbackTarget;
     bytes public callbackData;
     bool public callbackSucceeded;
+    bytes public callbackReturnData;
 
     error TransferReverted();
     error InsufficientBalance();
@@ -33,6 +34,7 @@ contract AdversarialERC20 {
         callbackTarget = target;
         callbackData = data;
         callbackSucceeded = false;
+        delete callbackReturnData;
     }
 
     function approve(address spender, uint256 value) external returns (bool) {
@@ -54,7 +56,7 @@ contract AdversarialERC20 {
 
     function _callback() private {
         if (callbackTarget == address(0)) return;
-        (callbackSucceeded,) = callbackTarget.call(callbackData);
+        (callbackSucceeded, callbackReturnData) = callbackTarget.call(callbackData);
     }
 
     function _transfer(address sender, address recipient, uint256 value) private returns (bool) {

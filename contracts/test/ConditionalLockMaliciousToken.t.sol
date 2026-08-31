@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {IConditionalLock} from "../src/swap/IConditionalLock.sol";
 import {ConditionalLock} from "../src/swap/ConditionalLock.sol";
@@ -115,6 +116,24 @@ contract ConditionalLockMaliciousTokenTest is ConditionalLockTestBase {
         assertEq(badToken.balanceOf(address(lock_)), AMOUNT);
     }
 
+    function testSuccessfulNoOpClaimIsRejectedByOutgoingDeltas() public {
+        AdversarialERC20 badToken = new AdversarialERC20();
+        ConditionalLock lock_ = _prepared(badToken);
+        vm.prank(funder);
+        lock_.fund();
+        badToken.setBehavior(0, false, true, false);
+
+        vm.prank(claimRecipient);
+        vm.expectRevert(
+            abi.encodeWithSelector(IConditionalLock.InexactTransferOut.selector, AMOUNT, AMOUNT, AMOUNT, 0, 0)
+        );
+        lock_.claim(PREIMAGE);
+
+        assertEq(uint256(lock_.state()), uint256(IConditionalLock.State.Funded));
+        assertEq(badToken.balanceOf(address(lock_)), AMOUNT);
+        assertEq(badToken.balanceOf(claimRecipient), 0);
+    }
+
     function testMalformedReturnDataIsRejectedBySafeERC20() public {
         MalformedReturnERC20 badToken = new MalformedReturnERC20();
         ConditionalLock lock_ = _lockFor(address(badToken), AMOUNT);
@@ -135,6 +154,10 @@ contract ConditionalLockMaliciousTokenTest is ConditionalLockTestBase {
         vm.prank(funder);
         lock_.fund();
         assertFalse(reentrant.callbackSucceeded());
+        assertEq(
+            keccak256(reentrant.callbackReturnData()),
+            keccak256(abi.encodeWithSelector(ReentrancyGuard.ReentrancyGuardReentrantCall.selector))
+        );
         assertEq(uint256(lock_.state()), uint256(IConditionalLock.State.Funded));
 
         reentrant.setCallback(address(lock_), abi.encodeCall(ConditionalLock.claim, (PREIMAGE)));
@@ -142,8 +165,32 @@ contract ConditionalLockMaliciousTokenTest is ConditionalLockTestBase {
         lock_.claim(PREIMAGE);
 
         assertFalse(reentrant.callbackSucceeded());
+        assertEq(
+            keccak256(reentrant.callbackReturnData()),
+            keccak256(abi.encodeWithSelector(ReentrancyGuard.ReentrancyGuardReentrantCall.selector))
+        );
         assertEq(uint256(lock_.state()), uint256(IConditionalLock.State.Claimed));
         assertEq(reentrant.balanceOf(claimRecipient), AMOUNT);
+    }
+
+    function testTokenCannotReenterRefund() public {
+        AdversarialERC20 reentrant = new AdversarialERC20();
+        ConditionalLock lock_ = _prepared(reentrant);
+        vm.prank(funder);
+        lock_.fund();
+        vm.warp(refundTime);
+        reentrant.setCallback(address(lock_), abi.encodeCall(ConditionalLock.refund, ()));
+
+        vm.prank(funder);
+        lock_.refund();
+
+        assertFalse(reentrant.callbackSucceeded());
+        assertEq(
+            keccak256(reentrant.callbackReturnData()),
+            keccak256(abi.encodeWithSelector(ReentrancyGuard.ReentrancyGuardReentrantCall.selector))
+        );
+        assertEq(uint256(lock_.state()), uint256(IConditionalLock.State.Refunded));
+        assertEq(reentrant.balanceOf(funder), AMOUNT);
     }
 
     function testUnsolicitedDonationCannotChangeExactPayoutOrBeSwept() public {

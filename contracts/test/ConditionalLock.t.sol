@@ -221,4 +221,81 @@ contract ConditionalLockTest is ConditionalLockTestBase {
             refundTime
         );
     }
+
+    function testConstructorRejectsZeroAndTokenRoles() public {
+        vm.expectRevert(IConditionalLock.InvalidRole.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            address(0),
+            claimRecipient,
+            address(0),
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidRole.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            address(0),
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidRole.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            address(0),
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidRole.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            address(quoteToken),
+            claimRecipient,
+            address(quoteToken),
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidRole.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            address(quoteToken),
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+    }
 }
