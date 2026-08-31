@@ -56,7 +56,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(ticket, /Order rejected/);
   const blotter = await readFile(join(root, "src/components/order-blotter.tsx"), "utf8");
   assert.match(blotter, /role="tabpanel"/);
-  assert.match(blotter, /expiry \$\{!event\.expiryUnix/);
+  assert.match(blotter, /blotterLogEventCopy/);
+  assert.match(blotter, /blotterLogCaptionCopy/);
   assert.match(blotter, /blotterEmptyLogCopy/);
   assert.match(await readFile(join(root, "src/lib/landing-journeys.ts"), "utf8"), /Preview trading/);
   assert.match(await readFile(join(root, "src/lib/landing-journeys.ts"), "utf8"), /Preview withdrawal states/);
@@ -86,6 +87,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /emptyShareCopy/);
   assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /Settled as \$\{settlementPair\}/);
   assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /blotterEmptyLogCopy/);
+  assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /blotterLogEventCopy/);
+  assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /expiry \$\{expiry\}/);
   assert.match(await readFile(join(root, "src/lib/terminal-url.ts"), "utf8"), /demo/);
   assert.match(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /rememberIncidentDemo/);
   assert.match(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /phlebas\.incidentDemo/);
