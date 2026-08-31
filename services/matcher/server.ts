@@ -20,6 +20,15 @@ import {
   tradesFromReceipts,
 } from "../../src/lib/market-data.ts";
 import { buildPublicSnapshot } from "../../src/lib/market-data-snapshot.ts";
+import { emptyMetricsState, defineCounter, incCounter, renderPrometheusText, type MetricsState } from "../../src/lib/metrics.ts";
+import {
+  emptySloState,
+  recordSample,
+  sloVerdict,
+  type SloSample,
+  type SloState,
+  type SloTarget,
+} from "../../src/lib/slo-tracker.ts";
 import { TESTNET } from "../../src/lib/testnet.ts";
 import { atomicWriteFile } from "../durable-file.ts";
 import { readOperator, writeOperator } from "./persist.ts";
@@ -85,6 +94,15 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
   const host = listenHost(options.host);
   const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8788);
   const persistPath = options.persistPath ?? dataPath;
+  let metricsState: MetricsState = defineCounter(emptyMetricsState(), "requests_total", "Total HTTP requests");
+  let sloState: SloState = emptySloState();
+  const availabilityTarget: SloTarget = {
+    service: "matcher",
+    metric: "availability",
+    windowSeconds: 86_400n,
+    threshold: 0.995,
+    comparison: "ge",
+  };
   const initializedPath = `${persistPath}.initialized`;
   const startedAt = Date.now();
   let lastSequenceAt = startedAt;
@@ -199,6 +217,26 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
       }
       if (request.method === "GET" && url.pathname === "/version") {
         send(response, 200, { ok: true, service: "matcher", version: "0.1.0" });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/metrics") {
+        metricsState = incCounter(metricsState, "requests_total", { route: "/metrics" });
+        response.writeHead(200, { "content-type": "text/plain; version=0.0.4" });
+        response.end(renderPrometheusText(metricsState));
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/slo") {
+        const now = BigInt(Math.floor(Date.now() / 1000));
+        const sample: SloSample = {
+          service: "matcher",
+          metric: "availability",
+          observedAt: now,
+          value: 1,
+          success: response.statusCode === 200,
+        };
+        sloState = recordSample(sloState, sample);
+        const verdict = sloVerdict(sloState, availabilityTarget, now);
+        send(response, 200, { ok: true, verdict });
         return;
       }
       if (request.method === "GET" && url.pathname === "/snapshot") {
