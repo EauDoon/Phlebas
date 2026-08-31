@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after PR #15 merged.
+Last updated: 31-08-2026 after simulation-hardening checks (92 unit tests, 27 Playwright, production build).
 
 ## Branch
 
-`main` at `bf7d7f5` (PR #15). No open feature branch. Next work starts a new branch off `main`.
+`feat/simulation-hardening` off `main` at `6984290` (PR #16). One multi-feature PR.
 
 ## Done
 
@@ -17,14 +17,15 @@ Last updated: 31-08-2026 after PR #15 merged.
 - `/status`, `/api/status`, branded 404/error, ZIP 321 copy (placeholder, not payable)
 - CI: `npm run check` (includes secret scan) plus Playwright Chromium
 - Public production: https://phlebas.vercel.app (noindex). Still a no-value simulation.
+- Integer seed books, chart ticks, and 24h stats without float `toFixed` conversion
+- Split-route (CLOB + AMM) comparison with a signed worst-price bound; confirm still executes CLOB only
+- Empty, stale, and unavailable ticket gates from PRODUCT_SPEC §10, with retry to illustrative
+- Playwright fixture binds `127.0.0.1` on an OS-assigned free port
+- Transparent destination inspector: shielded, TEX, and payment-request inputs are rejected; nothing is sent
 
 ## Next
 
-- Keep building the simulation terminal, not live funds
-- Integer seed books without float `toFixed` conversion
-- Split-route (CLOB + AMM) instead of winner-take-all comparison
-- Empty / stale / unavailable ticket states from PRODUCT_SPEC §10
-- Fixture Playwright so port 3108 leftovers do not fail the first worker
+- None on the in-scope simulation slice
 
 ## Blockers
 

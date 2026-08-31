@@ -1,6 +1,6 @@
 # Phlebas Landing and User Journeys
 
-Status: the landing page, terminal shell, market preview, LP preview, bridge explanation, and architecture explanation are implemented locally as no-value fixtures. PR 1 refinement and acceptance work remains. PR 2 wallet state tours, review sheets, ZIP 321 generation, and validation remain proposed and unimplemented.
+Status: the landing page, terminal shell, local matcher, LP preview, ZIP 321 deposit-shape preview, withdrawal state tour, destination inspector, and architecture explanation are implemented locally as no-value fixtures. Receivable TEX addresses, live wallets, and keccak signatures remain unimplemented.
 
 Phlebas currently has no wallet connection, contracts, live market data, deposits, withdrawals, orders, stablecoins, pZEC token, custody service, identity system, or matching service. Every value and state in the interface is illustrative. This specification does not authorize mainnet, custody, publication, or financial services.
 
@@ -42,10 +42,9 @@ Planning dials:
 | `/` | Landing page | Implemented locally, no wallet or asset action |
 | `/trade` | Terminal shell, defaults to trade | Implemented locally, simulation only |
 | `/trade?view=trade` | Trade preview | Implemented locally with illustrative order entry |
+| `/trade?view=trade&feed=stale` | Ticket gate | Allowlisted feed states: `illustrative`, `empty`, `stale`, `unavailable`. Invalid values return to illustrative. |
 | `/trade?view=liquidity` | LP preview | Implemented locally with illustrative pool calculations |
-| `/trade?view=bridge` | Gateway boundary | Implemented locally as a read-only explanation |
-| `/trade?view=bridge&direction=deposit` | Deposit journey | PR 2 target, state demonstration with no real address |
-| `/trade?view=bridge&direction=withdraw` | Withdrawal journey | PR 2 target, state demonstration with no real address |
+| `/trade?view=bridge` | Gateway boundary | Implemented locally as a deposit ZIP 321 preview and withdrawal state tour |
 | `/trade?view=architecture` | Product boundary | Implemented locally as a read-only explanation |
 
 Only allowlisted query values may affect rendering. Invalid values return to the default trade preview without an error loop. Never place a wallet address, Zcash address, transaction hash, order identifier, amount, screening result, account state, or review reference in a URL.

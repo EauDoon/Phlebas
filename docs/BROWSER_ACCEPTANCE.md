@@ -12,13 +12,13 @@ npx playwright install chromium
 npm run check:browser
 ```
 
-`check:browser` runs lint, TypeScript checks, unit tests, the production build, and the Chromium acceptance suite. The test fixture starts the production Next.js application on `127.0.0.1:3108` and stops it after the run. It uses an explicit temporary browser profile under `test-results/` and removes the profile when the worker closes.
+`check:browser` runs lint, TypeScript checks, unit tests, the production build, and the Chromium acceptance suite. The test fixture starts the production Next.js application on `127.0.0.1` with an OS-assigned free port and stops it after the run. It uses an explicit temporary browser profile under `test-results/` and removes the profile when the worker closes.
 
 Linux CI installs the required system packages with `npx playwright install --with-deps chromium` before running the same command.
 
 ## Covered behavior
 
-The suite checks `/`, `/trade`, and `/liquidity` at 320, 390, 768, and 1440 CSS pixels, plus `/status`, a 404 route, local matcher fills with a review-and-confirm step, and ZIP 321 copy. Each width covers:
+The suite checks `/`, `/trade`, and `/liquidity` at 320, 390, 768, and 1440 CSS pixels, plus `/status`, a 404 route, local matcher fills with a review-and-confirm step, stale-feed review gating, venue comparison copy, ZIP 321 copy, and destination inspection. Each width covers:
 
 - Successful production-route responses and the expected simulation disclosure.
 - Landing-to-liquidity navigation and terminal view navigation.
