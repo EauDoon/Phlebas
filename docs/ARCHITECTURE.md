@@ -1,13 +1,13 @@
 # Phlebas Architecture
 
 Status: native-settlement target, simulation implementation
-Updated: 31-08-2026
+Updated: 01-09-2026
 
-Phlebas is being built as a non-custodial exchange for native transparent ZEC against USDC and USDT. The current public application is a no-value browser simulation. Optional loopback stubs exist for a textest gateway, matcher, and observer, and an optional wallet connector is limited to undeployed Arbitrum Sepolia terms. Those services are never hosted on Vercel and do not move mainnet funds.
+Phlebas is being built as a non-custodial exchange for native transparent ZEC against USDC and a separately approved USDT-family asset. The current public application is a no-value browser simulation. A persistent loopback matcher domain is implemented, while the textest gateway and observer remain legacy stubs. Those services are never hosted on Vercel and do not move mainnet funds.
 
 No Phlebas contract is deployed. No Zcash node, production signer, reserve account, custody process, transaction, or real asset is connected. Every balance, order, trade, pool, price, and transaction shown by the public application is simulated.
 
-[ADR 0002](adr/0002-native-zec-atomic-settlement.md) supersedes the custody-backed pZEC design in ADR 0001.
+[ADR 0002](adr/0002-native-zec-atomic-settlement.md) supersedes the custody-backed pZEC design in ADR 0001. [ADR 0003](adr/0003-persistent-native-matcher.md) defines the implemented no-value matcher, solver, journal, API, and recovery boundary.
 
 ## Product boundary
 
@@ -30,11 +30,11 @@ The current repository contains a Next.js no-value simulation, undeployed Arbitr
 | --- | --- | --- |
 | Web application | Vercel-hosted no-value simulation | Public interface and unsigned transaction preparation |
 | Market data | Illustrative fixtures plus session fills | Signed and independently monitored public feeds |
-| Order book | In-browser matcher and optional loopback operator | Persistent signed-order matcher with receipts |
-| Settlement | Local inventory updates and undeployed legacy Sepolia contracts | One two-chain atomic swap per fill |
+| Order book | In-browser public simulation plus a persistent loopback signed-order matcher | Independently operated, monitored matcher after release gates |
+| Settlement | Immutable blocked no-value plan per persistent matcher fill, plus legacy simulation paths | One independently reviewed two-chain atomic swap per fill |
 | Zcash path | Local textest gateway, ZIP 321, TEX, and payout-tour stubs | Transparent P2SH fund, claim, and refund transactions |
 | EVM path | Optional Sepolia wallet flow against an undeployed legacy manifest | Exact-token conditional-lock contract |
-| Liquidity | Superseded pZEC AMM and LP previews | Wallet-held maker and solver quotes |
+| Liquidity | Signed wallet-held solver quotes in the persistent matcher, plus superseded pZEC AMM previews | Wallet-held maker and solver quotes |
 | Wallets | Optional EIP-1193 testnet flow; no native swap adapter | Explicit adapters that keep every key in the wallet |
 | Observers | Optional loopback textest stub | Independent read-only Zcash and EVM evidence |
 | Coordinator | None | Persistent state, recovery, and safe-action policy |
@@ -149,11 +149,11 @@ The matcher accepts versioned signed orders that bind:
 
 EVM authorization uses [EIP-712](https://eips.ethereum.org/EIPS/eip-712). Zcash wallet authorization requires a separate, wallet-supported format. The matcher cannot treat an EVM signature as authority over ZEC.
 
-Price-time matching, GTC, IOC, FOK, partial fills, cancellation, fee caps, and side-aware integer rounding are deterministic. Sequence receipts and checkpoints make omission or reordering visible. They do not make the matcher trustless.
+Price-time matching, GTC, IOC, FOK, partial fills, cancellation, account epochs, fee caps, bounded solver routing, and side-aware integer rounding are deterministic. One fsynced hash-chained journal is authoritative. Atomic checkpoints bind its head to the exact configuration and replayed state root. Sequence receipts and checkpoints make gaps or reordering inside the published chain visible. They do not prove complete or timely intake and do not make the matcher trustless.
 
 ## Solver liquidity
 
-Makers and solvers keep assets in their own wallets. They publish signed quotes that bind capacity, price, fee, expiry, networks, assets, and recipients. The quote may be calculated from a constant-product curve or inventory-skew strategy.
+Makers and solvers keep assets in their own wallets. They publish signed quotes that bind the matcher domain, capacity, minimum fill, fixed or bounded curve prices, slippage, fee, expiry, networks, assets, protocol, and exact source and recipient accounts.
 
 Accepting a quote creates one atomic-swap workflow. It does not transfer inventory into Phlebas.
 

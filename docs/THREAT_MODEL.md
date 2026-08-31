@@ -2,26 +2,42 @@
 
 Status: custody threat model superseded for the target product
 
-The pZEC gateway, reserve, mint, burn, and passive AMM sections below describe ADR 0001. [ADR 0002](adr/0002-native-zec-atomic-settlement.md) replaces that target with native-ZEC atomic settlement and wallet-held solver liquidity. The next implementation milestone must add the corresponding two-chain timeout, claim, refund, observer, coordinator, and wallet threats before Testnet.
+The pZEC gateway, reserve, mint, burn, and passive AMM sections below describe ADR 0001. [ADR 0002](adr/0002-native-zec-atomic-settlement.md) replaces that target with native-ZEC atomic settlement and wallet-held solver liquidity. [ADR 0003](adr/0003-persistent-native-matcher.md) implements the key-independent matcher and solver domain. Transaction, observer, coordinator, wallet, timeout, replacement, and reorganization threats still require separate closure before Testnet.
 
-> Status as of 31-08-2026: design document for a no-value simulation with undeployed Sepolia contract sources and optional local textest services. No production bridge, custody, contract, matching, routing, monitoring, or incident control is deployed or audited.
+> Status as of 01-09-2026: no-value simulation with a local persistent matcher, signed solver quotes, bounded routing, durable replay, and blocked per-fill swap plans. No transaction builder, chain client, deployed settlement contract, observer quorum, coordinator, production monitor, live funds, or audited production service exists.
+
+## Native matcher threat delta
+
+The local persistent matcher now addresses a bounded part of the target threat model:
+
+| Threat | Implemented control | Residual risk |
+| --- | --- | --- |
+| Journal change, omission inside the chain, gap, or reordering | Canonical hash-chained records, exact sequence, fsync, checkpoint prefix verification | The operator can still omit an order before journal acceptance or delay publication. |
+| Silent reset or configuration drift | Initialization marker, configuration hash, state root, and fail-closed missing-file behavior | Backup, restore, host identity, and disaster recovery are not production-qualified. |
+| Concurrent writers or double capacity consumption | Exclusive writer lock and one serialized mutation queue | Distributed failover and fencing tokens are not implemented. A stale lock needs manual evidence-based recovery. |
+| Signature replay across matcher instances | Order domain, solver matcher-domain hash, exact pair, protocol, nonce, epoch, expiry, and request conflict checks | Contract-wallet support and production signer rotation are not implemented. Order authorization never authorizes either chain transaction. |
+| Malformed or abusive API input | Exact versioned schemas, duplicate and prototype-key rejection, depth, node, body, rate, queue, state, and feed bounds | Authentication, network ACLs, distributed denial-of-service protection, and production load evidence remain unresolved. |
+| Overfill or nondeterministic routing | Integer arithmetic, price-time priority, fill caps, solver capacity accounting, deterministic tie-breaking, and property tests | Private information leakage, censorship, and receipt publication latency remain operator trust risks. |
+| Matcher custody or unauthorized chain action | No balances, keys, transaction bytes, signing, broadcast, deployment, or chain connections. Every plan is blocked and reports zero platform retention. | Exact wallet, transaction, contract, observer, and refund implementations do not yet exist. |
+
+P0 or P1 findings in the independent matcher review block merge. Passing local tests does not clear Testnet or Mainnet release gates.
 
 ## 1. Purpose and decision
 
-Phlebas is intended to become a hybrid exchange for two markets:
+The active target is a non-custodial exchange for two display markets:
 
-- `pZEC-USDC`
-- `pZEC-USDT0`
+- `ZEC/USDC`
+- `ZEC/USDT`, only after one exact USDT-family asset is approved
 
-The design combines an offchain central limit order book, onchain atomic settlement, and two constrained Uniswap v2-style liquidity pools. Transparent ZEC enters through a federated gateway and is represented on Arbitrum One as pZEC.
+The target combines an offchain central limit order book with one transparent-Zcash and exact-token EVM atomic-swap workflow per fill. Liquidity remains in maker and solver wallets.
 
-The design is acceptable only for simulation, testnet, and a later strictly capped beta. The pZEC gateway is the dominant risk. Phlebas must not be described as fully decentralized, trustless, shielded, private, or native-ZEC trading.
+The current implementation is acceptable only as a no-value local and public simulation. Phlebas must not be described as fully decentralized, trustless, shielded, private, Testnet-ready, Mainnet-ready, or live.
 
 ## 2. Current repository reality
 
 The public Vercel app is a no-value simulation. Local optional stubs exist and are not production:
 
-- In-browser session matcher, plus a loopback matcher operator that is never hosted on Vercel.
+- In-browser session matcher, plus a persistent loopback native matcher that is never hosted on Vercel and is unconfigured by default.
 - Undeployed Arbitrum Sepolia contract sources. The manifest stays `deployed: false` until a real Sepolia transaction is recorded.
 - Optional EIP-1193 wallet connection on Arbitrum Sepolia only. Signing stays disabled while the verified deployment manifest is undeployed.
 - Local `textest` gateway and observer stubs on `127.0.0.1`. No Zebra RPC, no mainnet TEX.

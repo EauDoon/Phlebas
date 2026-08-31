@@ -19,6 +19,11 @@ test("status payload never claims live funds or custody", async () => {
   assert.equal(status.wallets, "eip-1193-sepolia");
   assert.equal(status.sepoliaSubmit, "flag-off");
   assert.equal(status.matcher, "in-browser");
+  assert.equal(status.matcherService, "off");
+  assert.equal(status.matcherTarget, "persistent-signed-order-v1");
+  assert.equal(status.matcherExecution, "blocked-no-value-swap-plans");
+  assert.equal(status.solverLiquidity, "wallet-held-signed-quotes");
+  assert.equal(status.authoritativeJournal, "off-vercel");
   assert.equal(status.contracts, "source-undeployed");
   assert.equal(status.mode, "simulation");
   assert.equal(status.marketData, "illustrative");
@@ -45,7 +50,7 @@ test("status exposes operator fields only for loopback operator URLs", () => {
   });
   assert.equal(remote.sequenceRoot, null);
   assert.equal(remote.intentCap, null);
-  assert.equal(remote.matcherService, "local-optional");
+  assert.equal(remote.matcherService, "off");
 
   const loopback = simulationStatus({
     PHLEBAS_MATCHER_URL: "http://127.0.0.1:8788",
@@ -53,5 +58,5 @@ test("status exposes operator fields only for loopback operator URLs", () => {
   });
   assert.equal(loopback.sequenceRoot, null);
   assert.equal(loopback.intentCap, 64);
-  assert.equal(loopback.matcherService, "loopback-optional");
+  assert.equal(loopback.matcherService, "persistent-native-v1-loopback");
 });
