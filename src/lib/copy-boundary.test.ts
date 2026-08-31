@@ -32,6 +32,8 @@ test("status page links to legal and security without a live-funds claim", async
   assert.match(statusPage, /href="\/#launch-gates"/);
   assert.match(statusPage, /from "next\/link"/);
   assert.match(statusPage, /No live funds or custody/);
+  assert.match(statusPage, /labeled incident demonstrations/);
+  assert.match(statusPage, /not an incident feed/);
   assert.doesNotMatch(statusPage, /is audited/);
 });
 
@@ -70,7 +72,18 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(bridge, /Preview deposit states, not Deposit ZEC/);
   assert.match(bridge, /payoutClaimForTourStep/);
   assert.match(bridge, /Nothing is sent/);
+  assert.match(bridge, /Not a payable QR/);
+  assert.match(bridge, /copyUri/);
+  assert.match(bridge, /Not payable/);
+  assert.match(terminal, /feedSurface/);
+  assert.match(terminal, /Skip to order ticket/);
+  assert.match(terminal, /Launch gates/);
+  assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Launch gates/);
+  assert.match(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /Nothing was sent/);
+  assert.match(await readFile(join(root, "src/lib/ticket-shortcuts.ts"), "utf8"), /reviewOpen/);
   const liquidity = await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8");
+  assert.match(liquidity, /Retry illustrative feed/);
+  assert.match(liquidity, /No session LP shares/);
   assert.match(liquidity, /not a return or profit projection/i);
   assert.match(liquidity, /feeEnvelopeCopy/);
   assert.match(liquidity, /Confirm simulated \{review\.kind\}/);
@@ -106,6 +119,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(preview, /APY|profit/i);
   const ticket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
   assert.match(ticket, /Order rejected/);
+  assert.match(ticket, /interpretTicketKey/);
   const blotter = await readFile(join(root, "src/components/order-blotter.tsx"), "utf8");
   assert.match(blotter, /role="tabpanel"/);
   assert.match(blotter, /describeSessionLogEvent/);

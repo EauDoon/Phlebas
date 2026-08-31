@@ -790,3 +790,127 @@ test("blotter arrows move focus and Enter selects", async ({ page }) => {
   await page.keyboard.press(" ");
   await expect(fills).toHaveAttribute("aria-selected", "true");
 });
+
+test("chart and 24h stats name stale and unavailable feeds", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await expect(page.getByText("Illustrative market data", { exact: true })).toBeVisible();
+  await expect(page.getByText("24h figures are repository fixtures. Not a live, delayed, or production feed.")).toBeVisible();
+  await page.getByRole("combobox", { name: "Market data state" }).selectOption("stale");
+  await expect(page.getByText("Market data stale", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("24h figures stay fixture labels while market data is stale as of 2026-08-30T16:32:08Z.")).toBeVisible();
+  await expect(page.getByRole("img", { name: /Delayed illustrative/ })).toBeVisible();
+  await page.getByRole("combobox", { name: "Market data state" }).selectOption("unavailable");
+  await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("24h figures stay withheld.")).toBeVisible();
+  await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
+});
+
+test("LP mint and swap wait on the same feed gate as the ticket", async ({ page }) => {
+  await page.goto("/liquidity?feed=stale", { waitUntil: "networkidle" });
+  await expect(page.getByText("Market data stale", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
+  await page.getByRole("button", { name: "Retry illustrative feed" }).click();
+  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeEnabled();
+});
+
+test("gateway shows a non-payable placeholder QR and honest clipboard failure", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: () => Promise.reject(new Error("denied")),
+      },
+    });
+  });
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await expect(page.getByRole("img", { name: "Not a payable QR. Placeholder ZIP 321 only." })).toBeVisible();
+  await expect(page.getByText("Not payable. No receivable address is encoded.")).toBeVisible();
+  await page.getByRole("button", { name: "Copy placeholder URI" }).click();
+  await expect(page.getByText("Clipboard copy failed. The URI was not copied. Nothing was sent.")).toBeVisible();
+  await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
+});
+
+test("clipboard unavailable stays honest without writeText", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Copy placeholder URI" }).click();
+  await expect(page.getByText("Clipboard is unavailable. The URI was not copied.")).toBeVisible();
+});
+
+test("G I F do not change time in force while review is open", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.keyboard.press("i");
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "IOC" })).toHaveAttribute("aria-pressed", "false");
+});
+
+test("education dialog on liquidity ignores G I F and stays open", async ({ page }) => {
+  await page.goto("/liquidity?education=1", { waitUntil: "networkidle" });
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("i");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
+});
+
+test("status names architecture incident demonstrations", async ({ page }) => {
+  await page.goto("/status", { waitUntil: "networkidle" });
+  await expect(page.getByText("labeled incident demonstrations", { exact: false })).toBeVisible();
+  await expect(page.getByText("not an incident feed", { exact: false })).toBeVisible();
+  await expect(page.getByRole("contentinfo").getByRole("link", { name: "Launch gates" })).toBeVisible();
+});
+
+test("terminal skip links reach the ticket and blotter", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipTicket = page.getByRole("link", { name: "Skip to order ticket" });
+  await expect(skipTicket).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#order-ticket")).toBeFocused();
+});
+
+test("placeholder QR stays inside 320px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  const qr = page.getByRole("img", { name: "Not a payable QR. Placeholder ZIP 321 only." });
+  await expect(qr).toBeVisible();
+  const box = await qr.boundingBox();
+  expect(box?.width ?? 0).toBeLessThanOrEqual(320);
+  const overflow = await page.evaluate(() => ({
+    body: document.body.scrollWidth - document.body.clientWidth,
+    document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  }));
+  expect(overflow).toEqual({ body: 0, document: 0 });
+});
+
+test("LP empty-share copy is visible before a mint", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await expect(page.getByText("No session LP shares. Burn stays available when shares exist. Mint is a local preview.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
+});
+
+test("incident select is a 44px target at 320px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  const select = page.getByLabel("Gateway incident demonstration");
+  await select.focus();
+  await expect(select).toBeFocused();
+  const box = await select.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("ArrowDown");
+  await expect(select).toBeFocused();
+});
