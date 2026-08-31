@@ -5,7 +5,13 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import { sepoliaDomain, typedData, type TypedOrder } from "@/lib/eip712";
-import { getInjectedProvider, isMissingProviderCopy, missingProviderCopy, signTypedData } from "@/lib/evm-wallet";
+import {
+  getInjectedProvider,
+  isMissingProviderCopy,
+  missingProviderCopy,
+  retargetSettlementCopy,
+  signTypedData,
+} from "@/lib/evm-wallet";
 import { planTestnetSubmit, sendSettlement, sepoliaSubmitEnabled } from "@/lib/sepolia-submit";
 import { TESTNET } from "@/lib/testnet";
 import { parseExpiryUnix, settlementDigest, typedOrderFromTicket } from "@/lib/ticket-order";
@@ -482,7 +488,7 @@ export function TradeTicket({
       {rejected && gate.canReview && (
         <div className={styles.ticketBlocked} role="alert">
           <strong>Order rejected</strong>
-          <p>{rejected} Retry is safe; nothing was submitted.</p>
+          <p>{retargetSettlementCopy(rejected, market.settlementPair)} Retry is safe; nothing was submitted.</p>
         </div>
       )}
 
@@ -748,9 +754,11 @@ export function TradeTicket({
         </button>
       )}
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
-        {inputError ?? notionalError ?? (isMissingProviderCopy(notice)
-          ? missingProviderCopy(market.settlementPair)
-          : notice)}
+        {inputError ?? notionalError ?? (isTicketRejectCopy(notice)
+          ? retargetSettlementCopy(notice, market.settlementPair)
+          : isMissingProviderCopy(notice)
+            ? missingProviderCopy(market.settlementPair)
+            : notice)}
       </p>
       <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type, G/I/F time in force. Escape leaves review. Shortcuts ignore an open dialog and review-and-confirm. Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
     </section>
