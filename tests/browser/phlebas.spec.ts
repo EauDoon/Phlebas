@@ -340,6 +340,12 @@ test("/api/status publishes incidents as architecture-demonstration", async ({ p
   expect(body.mode).toBe("simulation");
 });
 
+test("invalid demo query does not highlight incidents", async ({ page }) => {
+  await page.goto("/trade?view=architecture&demo=live", { waitUntil: "networkidle" });
+  await expect(page.getByRole("combobox", { name: "Gateway incident demonstration" })).toBeVisible();
+  await expect(page.getByText("Status field architecture-demonstration.")).toHaveCount(0);
+});
+
 test("status Architecture link keeps the demonstration label", async ({ page }) => {
   await page.goto("/status", { waitUntil: "networkidle" });
   await page.getByRole("link", { name: "Architecture incident demonstrations" }).click();
