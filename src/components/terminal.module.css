@@ -120,6 +120,10 @@
   min-height: 44px;
 }
 
+:global(#session-blotter) {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
