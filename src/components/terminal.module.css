@@ -1593,6 +1593,7 @@ a.skipLink:focus-visible {
   margin: 8px 0 12px;
   font-size: 20px;
   letter-spacing: -0.03em;
+  scroll-margin-top: 8px;
 }
 
 .educationDialog h2:focus {
