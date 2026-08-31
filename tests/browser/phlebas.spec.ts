@@ -387,7 +387,7 @@ test("GTC remainder can be cancelled and epoch invalidation is visible", async (
 test("USDT market names USDT0 settlement and empty feed shows no depth", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
-  await expect(page.getByText("settles pZEC-USDT0")).toBeVisible();
+  await expect(page.getByText("legacy simulation: pZEC-USDT0")).toBeVisible();
   await page.getByRole("combobox", { name: "Market data state" }).selectOption("empty");
   await expect(page.getByText("No resting depth. The local book is empty.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
@@ -492,7 +492,7 @@ test("order expiry unix time appears on review", async ({ page }) => {
 test("architecture view keeps Vercel off the matcher", async ({ page }) => {
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
   await expect(page.getByText("Loopback gateway and matcher never hosted on Vercel")).toBeVisible();
-  await expect(page.getByText("The matcher is not trustless.")).toBeVisible();
+  await expect(page.getByText(/matcher can censor or delay orders, so it is not trustless/)).toBeVisible();
 });
 
 test("connect wallet without a provider shows a visible rejection", async ({ page }) => {

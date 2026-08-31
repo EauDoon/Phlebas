@@ -60,6 +60,10 @@ function concatBytes(...values: Uint8Array[]): Uint8Array {
   return output;
 }
 
+function bytesToHex32(bytes: Uint8Array): Hex32 {
+  return `0x${bytesToHex(bytes)}`;
+}
+
 function encodeUint(value: bigint, bits: 8 | 16 | 64 | 256, label: string): Uint8Array {
   if (typeof value !== "bigint") throw new TypeError(`${label} must be a bigint`);
   const maximum = (1n << BigInt(bits)) - 1n;
@@ -114,7 +118,7 @@ export function hashOrderDomain(domain: OrderDomain): Hex32 {
     encodeUint(domain.chainId, 256, "EIP-712 chain ID"),
     encodeAddress(domain.verifyingContract, "Verifying contract"),
   );
-  return bytesToHex(keccak256(encoded));
+  return bytesToHex32(keccak256(encoded));
 }
 
 export function hashOrderStruct(order: TypedOrderIntent): Hex32 {
@@ -140,11 +144,11 @@ export function hashOrderStruct(order: TypedOrderIntent): Hex32 {
     encodeUint(BigInt(order.allowedVenues), 8, "Allowed venues"),
     encodeBytes32(order.settlementAdapterId, "Settlement adapter ID"),
   );
-  return bytesToHex(keccak256(encoded));
+  return bytesToHex32(keccak256(encoded));
 }
 
 export function hashTypedOrder(domain: OrderDomain, order: TypedOrderIntent): Hex32 {
-  return bytesToHex(keccak256(concatBytes(
+  return bytesToHex32(keccak256(concatBytes(
     new Uint8Array([0x19, 0x01]),
     hexToBytes(hashOrderDomain(domain)),
     hexToBytes(hashOrderStruct(order)),
