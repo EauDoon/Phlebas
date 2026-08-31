@@ -23,6 +23,13 @@ export default function GlobalError({
             box-sizing: border-box;
             flex: 1 1 calc(50% - 4px);
             max-width: min(100%, calc(50% - 4px));
+            min-width: 44px;
+            min-height: 44px;
+          }
+          nav[aria-label="Skip links"] a:last-child {
+            min-width: 44px;
+            min-height: 44px;
+            flex-shrink: 0;
           }
           nav[aria-label="Skip links"] a:focus-visible {
             outline: 2px solid #15140d;
