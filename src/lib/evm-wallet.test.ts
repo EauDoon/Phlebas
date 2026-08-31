@@ -9,6 +9,7 @@ import {
   missingProviderCopy,
   retargetSettlementCopy,
   walletConnectFailureCopy,
+  walletConnectBarTitle,
   walletConnectBusyTitle,
   walletConnectIdleTitle,
   walletConnectTitle,
@@ -174,4 +175,24 @@ test("connecting title keeps settlement after the market pair changes", () => {
     walletConnectIdleTitle(markets["ZEC/USDT"].settlementPair),
   );
   assert.doesNotMatch(walletConnectTitle("pZEC-USDT0", true), /native ZEC/);
+});
+
+test("connecting bar title wins over a prior reject after the market pair changes", () => {
+  const reject = walletConnectFailureCopy("User rejected the request.", markets["ZEC/USDC"].settlementPair);
+  const usdt0 = markets["ZEC/USDT"].settlementPair;
+  assert.equal(usdt0, "pZEC-USDT0");
+  assert.equal(
+    walletConnectBarTitle(usdt0, { busy: true, error: reject }),
+    walletConnectBusyTitle(usdt0),
+  );
+  assert.equal(
+    walletConnectBarTitle(usdt0, { busy: true, error: reject }),
+    "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDT0.",
+  );
+  assert.doesNotMatch(walletConnectBarTitle(usdt0, { busy: true, error: reject }), /User rejected/);
+  assert.equal(
+    walletConnectBarTitle(usdt0, { busy: false, error: retargetSettlementCopy(reject, usdt0) }),
+    "User rejected the request. Settled as pZEC-USDT0.",
+  );
+  assert.doesNotMatch(walletConnectBarTitle(usdt0, { busy: true, error: reject }), /native ZEC/);
 });
