@@ -6,6 +6,7 @@ import {
   ARBITRUM_SEPOLIA_HEX,
   connectTestnetWallet,
   missingProviderCopy,
+  retargetSettlementCopy,
   walletConnectFailureCopy,
   walletConnectBusyTitle,
   walletConnectIdleTitle,
@@ -83,6 +84,18 @@ test("ticket sign missing-provider copy names the selected market settlement pai
     "No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDT0.",
   );
   assert.doesNotMatch(missingProviderCopy(usdc.settlementPair), /native ZEC/);
+});
+
+test("missing provider copy keeps settlement after the market pair changes", () => {
+  const usdc = missingProviderCopy(markets["ZEC/USDC"].settlementPair);
+  const usdt = missingProviderCopy(markets["ZEC/USDT"].settlementPair);
+  assert.equal(retargetSettlementCopy(usdc, markets["ZEC/USDT"].settlementPair), usdt);
+  assert.equal(retargetSettlementCopy(usdt, markets["ZEC/USDC"].settlementPair), usdc);
+  assert.equal(
+    retargetSettlementCopy("No injected EVM wallet. Arbitrum Sepolia only.", markets["ZEC/USDT"].settlementPair),
+    usdt,
+  );
+  assert.doesNotMatch(retargetSettlementCopy(usdc, markets["ZEC/USDT"].settlementPair), /native ZEC/);
 });
 
 test("disconnect label names the settlement pair from a connected address", () => {
