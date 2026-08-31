@@ -87,7 +87,12 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /Settled as \$\{settlementPair\}/);
   assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /blotterEmptyLogCopy/);
   assert.match(await readFile(join(root, "src/lib/terminal-url.ts"), "utf8"), /demo/);
-  assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /demoQuery = highlightIncidents/);
+  assert.match(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /rememberIncidentDemo/);
+  assert.match(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /phlebas\.incidentDemo/);
+  assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /useSyncExternalStore/);
+  assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /rememberIncidentDemo\(true\)/);
+  assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /demoQuery = incidentDemo/);
+  assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /highlightIncidents=\{incidentDemo\}/);
 });
 
 test("vercel.json does not assign operator URLs", async () => {
