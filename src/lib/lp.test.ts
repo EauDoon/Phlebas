@@ -4,6 +4,7 @@ import test from "node:test";
 import { quoteConstantProductSwapAtoms } from "./amm.ts";
 import {
   burnShares,
+  emptyShareCopy,
   hypotheticalImpermanentLoss,
   lpOperationAllowed,
   mintShares,
@@ -28,6 +29,13 @@ test("mint then burn returns the added reserves on a fresh pool ratio", () => {
 test("rejects a zero mint", () => {
   const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
   assert.throws(() => mintShares(pool, 0n), /positive/);
+});
+
+test("empty share copy names the selected pool and is not a book-empty notice", () => {
+  assert.equal(emptyShareCopy("pZEC/USDC"), "No session LP shares in pZEC/USDC. Burn stays idle until a local mint.");
+  assert.equal(emptyShareCopy("pZEC/USDT0"), "No session LP shares in pZEC/USDT0. Burn stays idle until a local mint.");
+  assert.doesNotMatch(emptyShareCopy("pZEC/USDC"), /order book empty/i);
+  assert.doesNotMatch(emptyShareCopy("pZEC/USDT0"), /resting depth/i);
 });
 
 test("LP burn stays available when trading is paused", () => {

@@ -11,6 +11,10 @@ export function lpOperationAllowed(operation: "mint" | "swap" | "burn", tradingP
   return !tradingPaused;
 }
 
+export function emptyShareCopy(poolId: "pZEC/USDC" | "pZEC/USDT0"): string {
+  return `No session LP shares in ${poolId}. Burn stays idle until a local mint.`;
+}
+
 export function seedPool(reservePzecAtoms: bigint, reserveQuoteAtoms: bigint): PoolShares {
   if (reservePzecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
     throw new Error("Pool reserves must be positive");
