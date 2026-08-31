@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the mid-price, inventory, loading-skip slice.
+Last updated: 31-08-2026 after the event-log, LP-stats, chart-empty, and pool-stats skip slice.
 
 ## Branch
 
@@ -160,13 +160,19 @@ Last updated: 31-08-2026 after the mid-price, inventory, loading-skip slice.
 - Allowlisted `?loading=1` shows the simulation loading copy with prices withheld
 - Loading copy skips to the withheld-price notice
 - Playwright covers 44px mid-price, fills, inventory rows, and loading skip
+- Blotter event-log rows stay 44px on desktop
+- LP pool-stats rows stay 44px on desktop
+- Chart empty state is a named 44px region
+- Order-book empty state stays 44px on desktop
+- Liquidity skips to pool stats
+- Playwright covers 44px event-log, LP stats, chart empty, and pool-stats skip
 
 ## Next
 
-- Blotter event-log rows should stay 44px on desktop
-- LP pool-stats rows should stay 44px on desktop
-- Chart empty state should stay a 44px region
-- Playwright: 44px log rows, LP stats, and chart empty state
+- Ticket inline notices should stay 44px on desktop
+- Wallet-provider rejection notice should stay 44px on desktop
+- Simulation banner should stay 44px on desktop
+- Playwright: 44px ticket notice, wallet rejection, and simulation banner
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
