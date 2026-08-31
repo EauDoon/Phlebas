@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the Reset, Cancel, Retry, tape-row, and recent-trades skip slice.
+Last updated: 31-08-2026 after the mid-price, inventory, loading-skip slice.
 
 ## Branch
 
@@ -155,13 +155,18 @@ Last updated: 31-08-2026 after the Reset, Cancel, Retry, tape-row, and recent-tr
 - Recent-trade tape rows stay 44px on desktop
 - Trade skip links reach recent trades
 - Playwright covers 44px Reset, Cancel, Retry illustrative, tape rows, and recent-trades skip
+- Session-last / mid-price row stays 44px on desktop
+- Blotter fills and inventory rows stay 44px on desktop
+- Allowlisted `?loading=1` shows the simulation loading copy with prices withheld
+- Loading copy skips to the withheld-price notice
+- Playwright covers 44px mid-price, fills, inventory rows, and loading skip
 
 ## Next
 
-- Session-last / mid-price row should stay 44px on desktop
-- Blotter fills and inventory table rows should stay 44px on desktop
-- Simulation loading copy should skip to the withheld-price notice
-- Playwright: 44px mid-price, fills rows, inventory rows, and loading skip
+- Blotter event-log rows should stay 44px on desktop
+- LP pool-stats rows should stay 44px on desktop
+- Chart empty state should stay a 44px region
+- Playwright: 44px log rows, LP stats, and chart empty state
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
