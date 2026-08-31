@@ -1,4 +1,5 @@
 import { ARBITRUM_SEPOLIA_CHAIN_ID } from "./eip712.ts";
+import type { Market } from "./market-data.ts";
 
 export const ARBITRUM_SEPOLIA_HEX = `0x${ARBITRUM_SEPOLIA_CHAIN_ID.toString(16)}`;
 
@@ -17,6 +18,18 @@ export const disconnectedWallet: WalletState = {
   chainId: null,
   error: null,
 };
+
+export function walletConnectFailureCopy(
+  reason: string,
+  settlementPair: Market["settlementPair"],
+): string {
+  const punctuated = reason.endsWith(".") ? reason : `${reason}.`;
+  return `${punctuated} Settled as ${settlementPair}.`;
+}
+
+export function missingProviderCopy(settlementPair: Market["settlementPair"]): string {
+  return walletConnectFailureCopy("No injected EVM wallet. Arbitrum Sepolia only.", settlementPair);
+}
 
 export function getInjectedProvider(): Eip1193Provider | null {
   if (typeof window === "undefined") return null;
