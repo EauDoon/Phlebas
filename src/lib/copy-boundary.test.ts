@@ -154,6 +154,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education copy/);
   assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education, not consent/);
   assert.match(landing, /Open status details/);
+  assert.match(landing, /aria-label="Current system"/);
   assert.match(landing, /Legal and compliance/);
   assert.match(landing, /Choose what to inspect/);
   assert.match(landing, /A working preview, bounded on purpose/);

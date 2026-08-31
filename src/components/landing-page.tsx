@@ -42,9 +42,9 @@ export function LandingPage() {
               <div><h2 id="system-ledger-title">{LANDING_LEDGER_HEADING}</h2></div>
               <span className={styles.designPill}>Design only</span>
             </div>
-            <dl>
+            <dl role="list" aria-label="Current system">
               {LANDING_LEDGER.map((row) => (
-                <div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>
+                <div key={row.label} role="listitem"><dt>{row.label}</dt><dd>{row.value}</dd></div>
               ))}
             </dl>
             <p>Every displayed price, order, trade, pool reserve, and volume is synthetic.</p>
