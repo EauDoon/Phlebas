@@ -6,7 +6,12 @@ import styles from "./terminal.module.css";
 
 export function CountryBlock() {
   return (
-    <section className={`${styles.panel} ${styles.blockedPanel}`} aria-labelledby="country-block-title">
+    <section
+      id="country-block"
+      className={`${styles.panel} ${styles.blockedPanel}`}
+      aria-labelledby="country-block-title"
+      tabIndex={-1}
+    >
       <div className={styles.panelHeader}>
         <div>
           <span className={styles.eyebrow}>{COUNTRY_BLOCKED_COPY.label}</span>

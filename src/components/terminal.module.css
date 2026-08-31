@@ -50,7 +50,8 @@
 #retry-copy,
 #recent-trades,
 #withheld-price,
-#pool-stats {
+#pool-stats,
+#country-block {
   scroll-margin-top: 12px;
 }
 
@@ -1474,6 +1475,10 @@
 .blockedPanel {
   margin: 16px;
   max-width: 720px;
+}
+
+.blockedPanel .featureLead {
+  min-height: 44px;
 }
 
 .incidentDemo {
