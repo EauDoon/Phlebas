@@ -155,11 +155,11 @@ for (const width of viewports) {
       await expect(page.getByText("settles ZEC-USDC", { exact: true })).toBeVisible();
 
       await page.goto("/", { waitUntil: "networkidle" });
-      const understandPzec = page.getByRole("link", { name: "Understand pZEC" });
-      await tabTo(page, understandPzec);
-      await expectVisibleFocus(understandPzec);
+      const understandPairs = page.getByRole("link", { name: "Understand native pairs" });
+      await tabTo(page, understandPairs);
+      await expectVisibleFocus(understandPairs);
       await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(/\/#pzec$/);
+      await expect(page).toHaveURL(/\/#pairs$/);
       await expect(page.getByText(
         "The simulation now labels settlement as ZEC-USDC and ZEC-USDT. It does not wrap ZEC as pZEC and it does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.",
         { exact: true },
@@ -1264,7 +1264,7 @@ test("deposit tour walks Eligibility through Complete without a receivable addre
   await page.getByRole("button", { name: "Next state" }).click();
   await page.getByRole("button", { name: "Next state" }).click();
   await expect(page.getByRole("heading", { name: "Complete", exact: true })).toBeVisible();
-  await expect(page.getByText("No native ZEC was received and no pZEC was minted.")).toBeVisible();
+  await expect(page.getByText("No native ZEC was received and nothing was minted.")).toBeVisible();
 });
 
 test("architecture incident demonstrations stay labeled copy", async ({ page }) => {
