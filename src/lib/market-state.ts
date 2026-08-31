@@ -17,7 +17,15 @@ export function isFeedStatus(value: string | undefined): value is FeedStatus {
   return FEED_STATUSES.includes(value as FeedStatus);
 }
 
-export function ticketGate(status: FeedStatus, bookEmpty: boolean): TicketGate {
+export function emptyBookGateCopy(settlementPair: Market["settlementPair"]): string {
+  return `No resting depth. Review is disabled until the local book has size. Settled as ${settlementPair}.`;
+}
+
+export function ticketGate(
+  status: FeedStatus,
+  bookEmpty: boolean,
+  settlementPair?: Market["settlementPair"],
+): TicketGate {
   if (status === "loading") {
     return {
       status: "loading",
@@ -53,7 +61,9 @@ export function ticketGate(status: FeedStatus, bookEmpty: boolean): TicketGate {
       status: "empty",
       canReview: false,
       heading: "Order book empty",
-      message: "No resting depth. Review is disabled until the local book has size.",
+      message: settlementPair
+        ? emptyBookGateCopy(settlementPair)
+        : "No resting depth. Review is disabled until the local book has size.",
       asOf: null,
     };
   }
@@ -119,4 +129,13 @@ export function feedWithheldCopy(status: FeedStatus, settlementPair: Market["set
 export function orderBookCaptionCopy(marketId: MarketId): string {
   const market = markets[marketId];
   return `Local ${marketId} order book, settled as ${market.settlementPair}. Totals are cumulative pZEC depth from the best price. Click a price to copy it into the ticket.`;
+}
+
+export function depthSessionLastCopy(
+  settlementPair: Market["settlementPair"],
+  spreadLabel: string | null,
+): string {
+  return spreadLabel
+    ? `session last · ${settlementPair} · spread ${spreadLabel}`
+    : `session last · ${settlementPair}`;
 }
