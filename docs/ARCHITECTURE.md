@@ -101,7 +101,7 @@ No part of this flow is active today.
 5. The validator checks that the deposit transaction contains only transparent inputs and transparent outputs. A nonconforming transaction is quarantined for manual review and is not auto-credited.
 6. The deposit remains provisional until the confirmation policy is met.
 7. The reserve ledger creates a confirmed deposit entitlement.
-8. A separate mint policy may authorize the same integer amount of `pZEC` after all mainnet controls pass.
+8. A separate mint policy may authorize the same integer amount of `tZEC` after all mainnet controls pass.
 
 [ZIP 320](https://zips.z.cash/zip-0320), Active since 12-01-2024, defines TEX as a Bech32m re-encoding of a transparent P2PKH address. Sending wallets must use only transparent UTXOs when paying a TEX address. This rule is not enforced by Zcash consensus. Phlebas must inspect the final deposit transaction instead of trusting the address prefix alone.
 
@@ -128,16 +128,16 @@ Ten confirmations are a risk policy, not absolute finality. Confirmation policy 
 No part of this flow is active today.
 
 1. The user requests a transparent Zcash withdrawal and sees the gross amount, network fee, service fee, and net amount.
-2. After destination and amount validation, the user burns the required `pZEC`. The first implementation does not create a native payout liability from escrowed tokens.
+2. After destination and amount validation, the user burns the required `tZEC`. The first implementation does not create a native payout liability from escrowed tokens.
 3. The bridge waits for the configured Arbitrum finality condition, consumes the burn event once, and records the native payout liability.
-4. The reserve ledger moves the amount from outstanding `pZEC` liability to native withdrawal payable.
+4. The reserve ledger moves the amount from outstanding `tZEC` liability to native withdrawal payable.
 5. The policy service validates the destination, amount, limits, available UTXOs, fee, and change output.
 6. A threshold signer signs the approved transaction without exposing keys to the application, matching service, or Zebra node. Before release, the coordinator durably records its exact bytes, canonical transaction ID, and selected-input reservation.
 7. Zebra broadcasts the signed transaction with `sendrawtransaction`.
 8. The observer tracks mined, confirmed, expired, replaced, and reorganized states.
 9. The ledger closes the payable only after the configured confirmation rule is met.
 
-An unrecoverable failure before signature commitment may restore pZEC only through a single-use refund authorization that permanently cancels the unpaid claim. Once a native transaction is signed, the claim cannot be refunded and remains payable. An unresolved transaction may regain in-transit accounting only after independent observation of the exact committed transaction ID. A failed signed transaction reverses its input accounting only after independent proof that the exact inputs are spendable again and the signed transaction cannot confirm under the custody policy.
+An unrecoverable failure before signature commitment may restore `tZEC` only through a single-use refund authorization that permanently cancels the unpaid claim. Once a native transaction is signed, the claim cannot be refunded and remains payable. An unresolved transaction may regain in-transit accounting only after independent observation of the exact committed transaction ID. A failed signed transaction reverses its input accounting only after independent proof that the exact inputs are spendable again and the signed transaction cannot confirm under the custody policy.
 
 Zcash transaction fees must use integer zatoshis. [ZIP 317](https://zips.z.cash/zip-0317), last updated 26-06-2026, defines the conventional fee as `5,000 zatoshis * max(2, logical_actions)`. The transaction builder should also query current node policy and must not hard-code a permanent flat fee.
 
@@ -166,13 +166,13 @@ The candidate CLOB separates matching from settlement:
 * Cancellations invalidate unused order quantity.
 * Partial fills update filled quantity atomically.
 
-The candidate LP layer has one constant-product pool per quote asset. Each pool holds `pZEC` and one approved quote token, applies its configured fee, and issues fungible LP shares. The current interface's `0.30%` fee and sample reserves are simulation values, not approved mainnet parameters.
+The candidate LP layer has one constant-product pool per quote asset. Each pool holds `tZEC` and one approved quote token, applies its configured fee, and issues fungible LP shares. The current interface's `0.30%` fee and sample reserves are simulation values, not approved mainnet parameters.
 
 The router may compare executable CLOB liquidity with pool output. It must never present a simulated quote as executable or combine paths whose settlement cannot complete atomically.
 
 ## Trust and security model
 
-`pZEC` introduces custody. Token holders depend on the custody operator to keep native ZEC reserves, protect signing authority, honor burns, and prevent unauthorized minting. Smart-contract self-custody on Arbitrum does not remove the native reserve dependency.
+`tZEC` introduces custody. Token holders depend on the custody operator to keep native ZEC reserves, protect signing authority, honor burns, and prevent unauthorized minting. Smart-contract self-custody on Arbitrum does not remove the native reserve dependency. Product copy still labels this native ZEC. It is not live native-ZEC execution.
 
 The bridge enforces the accounting rules in [Asset and Accounting](ASSET_AND_ACCOUNTING.md). The minimum controls are:
 
@@ -183,7 +183,7 @@ The bridge enforces the accounting rules in [Asset and Accounting](ASSET_AND_ACC
 * daily supply and reserve reconciliation, plus reconciliation after every reorganization;
 * immediate mint and withdrawal halt on reserve, node, signer, or chain disagreement;
 * tested backup, restore, key rotation, and disaster recovery procedures;
-* public disclosure that `pZEC` is custody-backed and transparent-only.
+* public disclosure that `tZEC` is a custody-backed receipt, transparent-only, and not live native ZEC.
 
 ## Failure policy
 
@@ -214,7 +214,7 @@ The interface must label simulation and test environments. It must not display f
 Mainnet remains blocked until all of the following have named owners, evidence, and explicit approval:
 
 * legal analysis for custody, exchange operation, sanctions, money transmission, customer disclosures, and supported jurisdictions;
-* independent audits of `pZEC`, mint and burn controls, settlement contracts, order handling, router, and LP contracts;
+* independent audits of `tZEC`, mint and burn controls, settlement contracts, order handling, router, and LP contracts;
 * a reviewed custody policy with exact signer technology, quorum, key generation, backups, rotation, and recovery;
 * live Zebra redundancy, private RPC controls, upgrade monitoring, and tested reorganization recovery;
 * stable Zcash wallet or independently audited transparent transaction builder and signer, without relying on beta Zallet as the production boundary;
