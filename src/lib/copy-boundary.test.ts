@@ -133,6 +133,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /feeEnvelopeCopy/);
   assert.match(liquidity, /Confirm simulated \{review\.kind\}/);
   assert.match(liquidity, /publicly linkable/);
+  assert.match(liquidity, /Review custody notice/);
   assert.match(liquidity, /Review simulated mint/);
   assert.match(liquidity, /nextFeedStatus/);
   assert.match(liquidity, /interpretRovingKey/);

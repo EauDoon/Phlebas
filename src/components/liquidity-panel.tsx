@@ -491,7 +491,7 @@ export function LiquidityPanel({
             {selectedPool.id === "pZEC/USDT0" && (
               <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
             )}
-            <p className={styles.gateNotice}>
+            <p className={styles.gateNotice} aria-label="Review custody notice">
               pZEC is a custody receipt, not native ZEC. This LP preview is public in the simulation. The matcher is not trustless.
             </p>
             <dl className={styles.ticketSummary}>
