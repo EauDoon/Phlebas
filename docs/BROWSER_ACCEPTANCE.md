@@ -18,10 +18,10 @@ Linux CI installs the required system packages with `npx playwright install --wi
 
 ## Covered behavior
 
-The suite checks `/`, `/trade`, `/liquidity`, `/legal`, and `/security` at 320, 390, 768, and 1440 CSS pixels, plus `/status`, a 404 route, first-session education, country-blocked demonstration, deposit and payout tours, local matcher fills with a review-and-confirm step, GTC cancel and epoch invalidation, IOC/FOK and market-IOC outcomes, session expiry on review, LP review-and-confirm, LP pause-and-burn, LP IL-versus-hold preview, empty, loading, stale, and unavailable feed gates, venue comparison copy, testnet TEX issuance without a gateway, destination inspection, architecture incident demonstrations, and a visible wallet-provider rejection. Each width covers:
+The suite checks `/`, `/trade`, `/liquidity`, `/legal`, and `/security` at 320, 390, 768, and 1440 CSS pixels, plus `/status`, a 404 route, first-session education (including Escape dismiss and a 320px dialog), country-blocked demonstration on trade and liquidity, landing journey tabs, evidence rows, a labeled Simulation terminal preview, six Not cleared mainnet gates, a JavaScript-disabled landing journey list, deposit and payout tours, local matcher fills with a review-and-confirm step, Escape back from review, GTC cancel and epoch invalidation, IOC/FOK, G/I/F shortcuts, and market-IOC outcomes, session expiry on review and the blotter log, LP review-and-confirm, LP pause-and-burn, LP IL-versus-hold preview, empty, loading, stale, and unavailable feed gates, venue comparison copy, testnet TEX issuance without a gateway, destination inspection, architecture incident demonstrations, and a visible wallet-provider rejection. Each width covers:
 
 - Successful production-route responses and the expected simulation disclosure.
-- Landing-to-liquidity navigation and terminal view navigation.
+- Landing-to-liquidity navigation through the LP journey tab, and terminal view navigation.
 - Keyboard activation of responsive navigation, terminal tabs, pool tabs, and the LP amount field.
 - Skip-link visibility, focus styling, and focus transfer to the main landmark.
 - Reduced-motion media handling with all required content still visible.
