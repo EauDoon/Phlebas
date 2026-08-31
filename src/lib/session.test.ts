@@ -49,7 +49,7 @@ test("credits pZEC and debits quote on a buy fill", () => {
   });
   const applied = applySubmit(account, { side: "buy", sizeAtoms: 10_00000000n, priceTicks: 5291n, tif: "IOC" }, result);
   assert.equal(result.status, "filled");
-  assert.equal(applied.account.pzecAtoms, account.pzecAtoms + 10_00000000n);
+  assert.equal(applied.account.zecAtoms, account.zecAtoms + 10_00000000n);
   assert.equal(applied.account.quoteAtoms, account.quoteAtoms - quoteAtomsForFill(10_00000000n, 5291n, "up"));
   assert.equal(applied.account.reservedQuoteAtoms, 0n);
 });
@@ -117,7 +117,7 @@ test("rounds a defensive one-base-atom buy settlement up to one quote atom", () 
   }, result);
 
   assert.equal(applied.blockedReason, undefined);
-  assert.equal(applied.account.pzecAtoms, account.pzecAtoms + 1n);
+  assert.equal(applied.account.zecAtoms, account.zecAtoms + 1n);
   assert.equal(applied.account.quoteAtoms, account.quoteAtoms - 1n);
 });
 
@@ -128,11 +128,11 @@ test("aggregates mixed-price fragments before side-aware settlement", () => {
     { makerId: "venue-b", takerSide: "buy" as const, priceTicks: 5297n, sizeAtoms: 1n },
   ];
   const bought = applyUserFills(account, "buy", fills);
-  assert.equal(bought.pzecAtoms, account.pzecAtoms + 2n);
+  assert.equal(bought.zecAtoms, account.zecAtoms + 2n);
   assert.equal(bought.quoteAtoms, account.quoteAtoms - 2n);
 
   const sold = applyUserFills(account, "sell", fills);
-  assert.equal(sold.pzecAtoms, account.pzecAtoms - 2n);
+  assert.equal(sold.zecAtoms, account.zecAtoms - 2n);
   assert.equal(sold.quoteAtoms, account.quoteAtoms + 1n);
 });
 
@@ -157,9 +157,9 @@ test("blocks a zero-quote sell settlement without mutating inventory", () => {
 
 test("checks exact fill debit plus rounded remainder reservation", () => {
   const account = {
-    pzecAtoms: 0n,
+    zecAtoms: 0n,
     quoteAtoms: 2n,
-    reservedPzecAtoms: 0n,
+    reservedZecAtoms: 0n,
     reservedQuoteAtoms: 0n,
   };
   const result = {

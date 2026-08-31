@@ -18,14 +18,14 @@ import {
   quoteAtomsForFills,
 } from "./units.ts";
 
-export const SESSION_PZEC_ATOMS = 100_00000000n;
+export const SESSION_ZEC_ATOMS = 100_00000000n;
 export const SESSION_QUOTE_ATOMS = 10_000_000000n;
 export const USER_ORDER_PREFIX = "user-";
 
 export type PaperAccount = {
-  pzecAtoms: bigint;
+  zecAtoms: bigint;
   quoteAtoms: bigint;
-  reservedPzecAtoms: bigint;
+  reservedZecAtoms: bigint;
   reservedQuoteAtoms: bigint;
 };
 
@@ -38,15 +38,15 @@ export type UserFill = Fill & {
 
 export function seedPaperAccount(): PaperAccount {
   return {
-    pzecAtoms: SESSION_PZEC_ATOMS,
+    zecAtoms: SESSION_ZEC_ATOMS,
     quoteAtoms: SESSION_QUOTE_ATOMS,
-    reservedPzecAtoms: 0n,
+    reservedZecAtoms: 0n,
     reservedQuoteAtoms: 0n,
   };
 }
 
-export function availablePzec(account: PaperAccount): bigint {
-  return account.pzecAtoms - account.reservedPzecAtoms;
+export function availableZec(account: PaperAccount): bigint {
+  return account.zecAtoms - account.reservedZecAtoms;
 }
 
 export function availableQuote(account: PaperAccount): bigint {
@@ -88,7 +88,7 @@ export function canCover(account: PaperAccount, side: OrderSide, sizeAtoms: bigi
     return false;
   }
   const required = collateralRequired(side, sizeAtoms, priceTicks);
-  return side === "buy" ? availableQuote(account) >= required : availablePzec(account) >= required;
+  return side === "buy" ? availableQuote(account) >= required : availableZec(account) >= required;
 }
 
 export function wouldSelfTrade(fills: readonly Fill[]): boolean {
@@ -104,10 +104,10 @@ export function applyUserFills(
   const quoteAtoms = quoteAtomsForFills(fills, side === "buy" ? "up" : "down");
   const next = { ...account };
   if (side === "buy") {
-    next.pzecAtoms += filledAtoms;
+    next.zecAtoms += filledAtoms;
     next.quoteAtoms -= quoteAtoms;
   } else {
-    next.pzecAtoms -= filledAtoms;
+    next.zecAtoms -= filledAtoms;
     next.quoteAtoms += quoteAtoms;
   }
   return next;
@@ -128,7 +128,7 @@ export function reserveRemainder(
       reservedQuoteAtoms: account.reservedQuoteAtoms + quoteAtomsForFill(remainingAtoms, priceTicks, "up"),
     };
   }
-  return { ...account, reservedPzecAtoms: account.reservedPzecAtoms + remainingAtoms };
+  return { ...account, reservedZecAtoms: account.reservedZecAtoms + remainingAtoms };
 }
 
 export function releaseRestingOrder(account: PaperAccount, order: RestingOrder): PaperAccount {
@@ -138,7 +138,7 @@ export function releaseRestingOrder(account: PaperAccount, order: RestingOrder):
       reservedQuoteAtoms: account.reservedQuoteAtoms - quoteAtomsForFill(order.remainingAtoms, order.priceTicks, "up"),
     };
   }
-  return { ...account, reservedPzecAtoms: account.reservedPzecAtoms - order.remainingAtoms };
+  return { ...account, reservedZecAtoms: account.reservedZecAtoms - order.remainingAtoms };
 }
 
 export function applySubmit(
@@ -165,7 +165,7 @@ export function applySubmit(
   const required = order.side === "buy"
     ? fillQuoteAtoms + restingQuoteAtoms
     : filledPzecAtoms + restingPzecAtoms;
-  const available = order.side === "buy" ? availableQuote(account) : availablePzec(account);
+  const available = order.side === "buy" ? availableQuote(account) : availableZec(account);
   if (available < required) {
     return {
       account,
@@ -215,7 +215,7 @@ export function describeSubmit(result: SubmitResult, marketId: MarketId): string
   const fillSummary = result.fills.length === 0
     ? "no fills"
     : result.fills
-      .map((fill) => `${formatAtomicUnits(fill.sizeAtoms, PZEC_DECIMALS)} pZEC at ${formatAtomicUnits(fill.priceTicks, PRICE_DECIMALS, 2)}`)
+      .map((fill) => `${formatAtomicUnits(fill.sizeAtoms, PZEC_DECIMALS)} ZEC at ${formatAtomicUnits(fill.priceTicks, PRICE_DECIMALS, 2)}`)
       .join("; ");
 
   if (result.status === "rejected") {
@@ -228,7 +228,7 @@ export function describeSubmit(result: SubmitResult, marketId: MarketId): string
     const prefix = result.reason ?? "Immediate-or-cancel finished";
     return `${prefix} with ${fillSummary}. Unfilled size was cancelled.`;
   }
-  return `Resting on the local ${marketId} book with ${formatAtomicUnits(result.remainingAtoms, PZEC_DECIMALS)} pZEC remaining. Fills: ${fillSummary}.`;
+  return `Resting on the local ${marketId} book with ${formatAtomicUnits(result.remainingAtoms, PZEC_DECIMALS)} ZEC remaining. Fills: ${fillSummary}.`;
 }
 
 export function userOrders(book: Book): RestingOrder[] {
@@ -236,9 +236,9 @@ export function userOrders(book: Book): RestingOrder[] {
 }
 
 export function markToMarketQuote(account: PaperAccount, lastTicks: bigint): bigint {
-  return account.quoteAtoms + quoteAtomsForFill(account.pzecAtoms, lastTicks, "down");
+  return account.quoteAtoms + quoteAtomsForFill(account.zecAtoms, lastTicks, "down");
 }
 
 export function startingMarkQuote(lastTicks: bigint): bigint {
-  return SESSION_QUOTE_ATOMS + quoteAtomsForFill(SESSION_PZEC_ATOMS, lastTicks, "down");
+  return SESSION_QUOTE_ATOMS + quoteAtomsForFill(SESSION_ZEC_ATOMS, lastTicks, "down");
 }
