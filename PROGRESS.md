@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after tLP, credits-ZEC test title, and matcher sizeAtoms docs.
+Last updated: 01-09-2026 after architecture and accounting dropped listed pZEC.
 
 ## Branch
 
@@ -165,15 +165,22 @@ Last updated: 31-08-2026 after tLP, credits-ZEC test title, and matcher sizeAtom
 - Units helper is `ZEC_DECIMALS`. Market-data helper is `zecAtomsFromHundredths`. TESTNET key is `zec`.
 - Pair LP token symbol is `tLP`. Session buy-fill test title credits ZEC.
 - Matcher `sizeAtoms` stay generic and mean 8-decimal ZEC atoms.
+- ARCHITECTURE and ASSET_AND_ACCOUNTING list `tZEC` as the undeployed receipt, not custody-backed pZEC as the candidate ERC-20 form. ADR 0001 stays historical.
+- Copy-boundary tests fail if those docs revert to listed pZEC.
+- PRODUCT_SPEC roles, LP warnings, gateway, and §10 confirmations name tZEC / ZEC custody, not pZEC.
+- Ticket and LP high-risk review surface `custodyRedemptionCopy` and `publicLinkabilityCopy`.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- ARCHITECTURE and ASSET_AND_ACCOUNTING still describe custody-backed pZEC as the candidate ERC-20 form
 - Landing honest negation still says it does not wrap ZEC as pZEC
 - ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
+- ADR 0002 still says custody-backed pZEC remains the candidate ERC-20 claim for a future gateway
+- LANDING_AND_USER_JOURNEYS, THREAT_MODEL, LAUNCH_PLAN, LEGAL, OPERATIONS, and DELIVERY_PLAN still name pZEC as the listed form
+- README still describes ASSET_AND_ACCOUNTING as pZEC accounting
+- Landing CSS classes remain `pzecSection` / `pzecCopy`
 
 ## Blockers
 
