@@ -7,6 +7,7 @@ import {
   connectTestnetWallet,
   missingProviderCopy,
   walletConnectFailureCopy,
+  walletStateWithSettlement,
   type Eip1193Provider,
 } from "./evm-wallet.ts";
 
@@ -41,9 +42,14 @@ test("blocks a wallet that remains on the wrong chain", async () => {
   const state = await connectTestnetWallet(provider);
   assert.match(state.error ?? "", /Arbitrum Sepolia/);
   assert.equal(state.chainId, "0x1");
-  const wrapped = walletConnectFailureCopy(state.error ?? "", markets["ZEC/USDC"].settlementPair);
-  assert.match(wrapped, /Settled as pZEC-USDC/);
-  assert.match(wrapped, /Arbitrum Sepolia/);
+  const wrapped = walletStateWithSettlement(state, markets["ZEC/USDC"].settlementPair);
+  assert.match(wrapped.error ?? "", /Settled as pZEC-USDC/);
+  assert.match(wrapped.error ?? "", /Arbitrum Sepolia/);
+  assert.equal(wrapped.chainId, "0x1");
+  assert.equal(
+    walletStateWithSettlement({ address: "0xabc", chainId: ARBITRUM_SEPOLIA_HEX, error: null }, "pZEC-USDC").error,
+    null,
+  );
 });
 
 test("missing provider copy names the settlement pair", () => {
