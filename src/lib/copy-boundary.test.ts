@@ -143,7 +143,12 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landingCss, /:global\(#launch-gates\)/);
   assert.match(landingCss, /outline: 2px solid #15140d/);
   assert.match(landingCss, /outline-offset: 2px/);
+  assert.match(landingCss, /top: 12px/);
+  assert.match(landingCss, /left: 12px/);
   assert.match(terminalCss, /:global\(#order-ticket\)/);
+  assert.match(terminalCss, /\.skipLink:focus \{/);
+  assert.match(terminalCss, /top: 12px/);
+  assert.match(terminalCss, /left: 12px/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /id="status-ledger"/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /role="list" aria-label="Simulation status ledger"/);
   assert.match(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /Nothing was sent/);
