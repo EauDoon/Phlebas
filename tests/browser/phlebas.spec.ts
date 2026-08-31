@@ -470,6 +470,10 @@ test("review names the cheaper venue before confirm", async ({ page }) => {
   await expect(page.getByText("Leaves the session")).toBeVisible();
   await expect(page.getByText("publicly linkable", { exact: false })).toBeVisible();
   await expect(page.getByText("Proposed taker 15 bps", { exact: false })).toBeVisible();
+  await expect(
+    page.getByText("ZEC custody and redemption, if ever offered, would depend on a gateway. This preview is not live settlement."),
+  ).toBeVisible();
+  await expect(page.getByText("Custody and redemption", { exact: true })).toBeVisible();
 });
 
 test("GTC remainder can be cancelled and epoch invalidation is visible", async ({ page }) => {
@@ -509,6 +513,9 @@ test("LP preview shows integer IL versus hold", async ({ page }) => {
   await expect(page.getByText("Not a return or profit projection.")).toBeVisible();
   await page.getByRole("button", { name: "Review simulated mint" }).click();
   await expect(page.getByText("Leaves the session")).toBeVisible();
+  await expect(
+    page.getByText("ZEC custody and redemption, if ever offered, would depend on a gateway. This preview is not live settlement."),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated mint" }).click();
   await expect(page.getByText(/Minted .* local LP shares\. Wallet actions stay disabled\. Settled as ZEC-USDC\./)).toBeVisible();
   await expect(stats.getByText("Session IL vs hold")).toBeVisible();

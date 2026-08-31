@@ -100,7 +100,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(withoutHonestBridgeNegation(terminal), /trustless bridge/i);
   assert.match(terminal, /do not move mainnet funds/);
   assert.match(terminal, /not trustless/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicly linkable/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /custodyRedemptionCopy/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicLinkabilityCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /feeEnvelopeCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /parseExpiryUnix/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /Order expiry unix time/);
@@ -115,7 +116,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /not a return or profit projection/i);
   assert.match(liquidity, /feeEnvelopeCopy/);
   assert.match(liquidity, /Confirm simulated \{review\.kind\}/);
-  assert.match(liquidity, /publicly linkable/);
+  assert.match(liquidity, /custodyRedemptionCopy/);
+  assert.match(liquidity, /publicLinkabilityCopy/);
   const ticket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
   assert.match(ticket, /Order rejected/);
   assert.match(ticket, /describeSubmit/);
@@ -285,4 +287,11 @@ test("architecture and accounting no longer list pZEC as the candidate ERC-20 fo
   assert.doesNotMatch(accounting, /Outstanding pZEC/);
   assert.doesNotMatch(accounting, /pzatoshi/);
   assert.doesNotMatch(accounting, /`pZEC` is custody-backed and is not native ZEC/);
+  const spec = await readFile(join(root, "docs/PRODUCT_SPEC.md"), "utf8");
+  assert.match(spec, /Cannot mint tZEC without a valid deposit attestation/);
+  assert.match(spec, /The ZEC custody and redemption dependency/);
+  assert.match(spec, /One tZEC burn can produce at most one native payout/);
+  assert.doesNotMatch(spec, /pZEC/);
+  assert.match(await readFile(join(root, "src/lib/review-copy.ts"), "utf8"), /ZEC custody and redemption/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/review-copy.ts"), "utf8"), /pZEC/);
 });
