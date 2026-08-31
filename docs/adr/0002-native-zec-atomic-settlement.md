@@ -109,3 +109,10 @@ Mainnet and real assets require a separate decision after testnet evidence, inde
 Phlebas can pursue native-ZEC settlement without custody-backed `pZEC`. Trading has cross-chain latency and one workflow per fill. Solver liquidity replaces passive pooled LP shares. Shielded ZEC atomic swaps are outside version 1 because the selected conditional-lock path uses the transparent pool.
 
 ADR 0001 remains useful as a historical simulation record. Its mint, reserve, burn, deposit, withdrawal, and custody design is no longer the active target.
+
+## Implementation cross-references
+
+- [ADR 0003](0003-evm-conditional-lock.md) — the EVM half of the swap.
+- [ADR 0004](0004-atomic-swap-state-machine.md) — the offchain state machine and the read-only `/swap` view.
+- [ADR 0005](0005-zcash-p2sh-atomic-swap.md) — the ZEC half of the swap.
+- [ADR 0005 implementation notes](0005-impl-notes.md) — the operational cross-references for the ZEC half.
