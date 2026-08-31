@@ -2,7 +2,7 @@
 
 import { useRef, useState, type KeyboardEvent } from "react";
 
-import { blotterEmptyFillsCopy, blotterEmptyOrdersCopy } from "@/lib/blotter-copy";
+import { blotterEmptyFillsCopy, blotterEmptyLogCopy, blotterEmptyOrdersCopy } from "@/lib/blotter-copy";
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
 import type { RestingOrder } from "@/lib/matcher";
@@ -229,7 +229,7 @@ export function OrderBlotter({
       {tab === "log" && (
         <div role="tabpanel" id="blotter-panel-log" aria-labelledby="blotter-tab-log">
         {events.length === 0 ? (
-          <p className={styles.emptyState}>No session events yet. Replaying this log reconstructs the book and balances.</p>
+          <p className={styles.emptyState}>{blotterEmptyLogCopy(market.settlementPair)}</p>
         ) : (
           <table className={styles.dataTable}>
             <caption className={styles.srOnly}>Append-only session event log</caption>
