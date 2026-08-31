@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ARBITRUM_SEPOLIA_HEX, connectTestnetWallet, type Eip1193Provider } from "./evm-wallet.ts";
+import { markets } from "./market-data.ts";
+import {
+  ARBITRUM_SEPOLIA_HEX,
+  connectTestnetWallet,
+  missingProviderCopy,
+  walletConnectFailureCopy,
+  type Eip1193Provider,
+} from "./evm-wallet.ts";
 
 test("connects only after switching to Arbitrum Sepolia", async () => {
   const calls: string[] = [];
@@ -34,4 +41,20 @@ test("blocks a wallet that remains on the wrong chain", async () => {
   const state = await connectTestnetWallet(provider);
   assert.match(state.error ?? "", /Arbitrum Sepolia/);
   assert.equal(state.chainId, "0x1");
+  const wrapped = walletConnectFailureCopy(state.error ?? "", markets["ZEC/USDC"].settlementPair);
+  assert.match(wrapped, /Settled as pZEC-USDC/);
+  assert.match(wrapped, /Arbitrum Sepolia/);
+});
+
+test("missing provider copy names the settlement pair", () => {
+  assert.equal(
+    missingProviderCopy(markets["ZEC/USDC"].settlementPair),
+    "No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDC.",
+  );
+  assert.equal(
+    missingProviderCopy(markets["ZEC/USDT"].settlementPair),
+    "No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDT0.",
+  );
+  assert.doesNotMatch(missingProviderCopy("pZEC-USDC"), /native ZEC/);
+  assert.doesNotMatch(walletConnectFailureCopy("Wallet connection failed", "pZEC-USDT0"), /live funds/);
 });
