@@ -2142,3 +2142,63 @@ test("focused skip-nav wraps at 320px, leaves the terminal brand clear, and hide
   expect(tradeHidden.height).toBeLessThan(8);
 });
 
+test("skip-link focus-visible wrap stays 44px and the 320px skip-nav does not clip the ring", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+
+  const skipStyle = await skip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      outlineWidth: style.outlineWidth,
+      outlineStyle: style.outlineStyle,
+      outlineOffset: style.outlineOffset,
+      minHeight: style.minHeight,
+      whiteSpace: style.whiteSpace,
+    };
+  });
+  expect(skipStyle.outlineWidth).toBe("2px");
+  expect(skipStyle.outlineStyle).toBe("solid");
+  expect(skipStyle.outlineOffset).toBe("2px");
+  expect(Number.parseFloat(skipStyle.minHeight)).toBeGreaterThanOrEqual(44);
+  expect(skipStyle.whiteSpace).toBe("normal");
+
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  const navBox = await nav.boundingBox();
+  expect(navBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect((navBox?.x ?? 0) + (navBox?.width ?? 0)).toBeLessThanOrEqual(320);
+
+  await tabTo(page, page.getByRole("link", { name: "Skip to terminal preview" }));
+  const longSkip = page.getByRole("link", { name: "Skip to terminal preview" });
+  await expectVisibleFocus(longSkip);
+  expect((await longSkip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  const ring = await longSkip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.parentElement;
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      left: rect.left - extent,
+      right: rect.right + extent,
+      parentLeft: parentRect?.left ?? 0,
+      parentRight: parentRect?.right ?? 0,
+    };
+  });
+  expect(ring.left).toBeGreaterThanOrEqual(ring.parentLeft - 0.5);
+  expect(ring.right).toBeLessThanOrEqual(ring.parentRight + 0.5);
+
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const tradeSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(tradeSkip);
+  const tradeNavBox = await page.getByRole("navigation", { name: "Skip links" }).boundingBox();
+  expect(tradeNavBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect((tradeNavBox?.x ?? 0) + (tradeNavBox?.width ?? 0)).toBeLessThanOrEqual(320);
+  expect((await tradeSkip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
