@@ -1331,6 +1331,10 @@
   line-height: 1.55;
 }
 
+.incidentDemo .uriBlock p {
+  min-height: 44px;
+}
+
 .placeholderQr {
   display: grid;
   width: min(100%, 168px);
