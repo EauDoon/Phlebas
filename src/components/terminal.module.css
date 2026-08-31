@@ -1647,6 +1647,7 @@ a.skipLink:focus-visible {
   min-height: 44px;
 }
 
+.educationDialog .tourNav button:focus,
 .educationDialog .tourNav button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
