@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after landing journey tabs, ZIP 321 placeholder QR, honest clipboard failure, and feed-gated chart/LP.
+Last updated: 31-08-2026 after first-session education, country-block demo, chart range tablist, and feed-named depth/tape.
 
 ## Branch
 
@@ -84,17 +84,21 @@ Last updated: 31-08-2026 after landing journey tabs, ZIP 321 placeholder QR, hon
 - ZIP 321 deposit shows a non-payable placeholder QR. Clipboard failure copy does not claim a copy succeeded. Nothing is sent.
 - Chart and 24h stats withhold fixtures on empty, loading, and unavailable feeds, and name a delayed series when stale.
 - LP mint and swap stay off for loading, stale, and unavailable feeds. Burn stays available. Empty-book feed does not drain the pool.
+- First-session education dialog on `/trade` and `/liquidity` (`phlebas.previewEducationVersion = 2026-08-30-1`). Education, not consent. Force with `?education=1`.
+- Country-blocked state demonstration via allowlisted `?access=blocked`. Never infers location.
+- Chart range is a tablist. Depth and tape name loading and unavailable feeds, not only empty.
+- Landing Liquidity nav selects `#journey-lp`. Journey tabs use manual activation: arrows move focus, Enter selects.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- First-session education dialog still missing on `/trade` and `/liquidity`
-- Country-blocked demonstration via allowlisted `?access=blocked` still missing
-- Chart range tabs should use tablist/tabpanel like the blotter
-- Depth chart / tape should name unavailable and loading feeds, not only empty
-- Playwright: landing journey arrow keys and hash `#journey-lp` from the Liquidity nav
+- Ticket keyboard G/I/F time in force, with shortcuts ignored while a dialog is open
+- Architecture labeled incident demonstrations (blocked, review, reorg, planned and unplanned maintenance)
+- Deposit state tour: Eligibility through Complete, and the address request never shows a receivable address
+- Touch-target pass on the education dialog and incident select at 320px
+- Status page already cross-links `/legal` and `/security`; keep those current when incident copy lands
 
 ## Blockers
 
