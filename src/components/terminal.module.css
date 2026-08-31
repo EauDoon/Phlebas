@@ -7,7 +7,7 @@
   position: fixed;
   z-index: 50;
   top: 12px;
-  left: 8px;
+  left: 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
