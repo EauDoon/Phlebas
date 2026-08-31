@@ -289,3 +289,14 @@ PR 1 added the EVM half of the native-ZEC atomic swap. The contract is key-indep
 - `contracts/README.md` — contract table and standalone deploy section
 - 273 node tests pass, secret-pattern scan clean over 190 files, production build clean
 - Foundry tests will run on GitHub Verify
+
+## Done this batch (PR 23 + atomic swap state machine)
+
+PR 2 added the deterministic state machine and the read-only `/swap` view. Both are key-independent. No signing surface ships in this PR.
+
+- `docs/adr/0004-atomic-swap-state-machine.md` — leg-state model, transition rules, preimage primitive, read-only `/swap` route, signing boundary
+- `src/lib/swap-state.ts` and `.test.ts` — pure state machine: `proposed`, `awaiting-zec-fund`, `awaiting-zec-claim`, `awaiting-evm-claim`, `settled`, `evm-refundable`, `zec-refundable`, `evm-refunded`, `zec-refunded`, `fully-refunded`, `disputed`. 24 unit tests cover happy path, claim after refund, refund after claim, double fund, deadline enforcement, and per-role `nextAction` dispatch
+- `src/lib/preimage.ts` and `.test.ts` — browser preimage primitive: 32 random bytes from `crypto.getRandomValues`, SHA-256 hash via `crypto.subtle` (Node `node:crypto` fallback), `verifyPreimage` round-trip, malformed-input rejection. Pinned test vector covers a real SHA-256 of a known preimage
+- `src/components/swap-state-panel.tsx` — client island: generate, display, paste-and-verify. No signing, no broadcast
+- `src/app/swap/page.tsx` — server route at `/swap`, derives state from `fill`, `evm`, `zec`, `evmRefund`, `zecRefund`, `state`, `now`, `role` URL params. Noindex, simulation-frame layout, replay query
+- 361 node tests pass, secret-pattern scan clean over 250 files, production build clean
