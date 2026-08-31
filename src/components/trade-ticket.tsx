@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
+import { AMM_FEE_BPS, MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import { sepoliaDomain, typedData, type TypedOrder } from "@/lib/eip712";
 import { getInjectedProvider, signTypedData } from "@/lib/evm-wallet";
 import { planTestnetSubmit, sendSettlement, sepoliaSubmitEnabled } from "@/lib/sepolia-submit";
@@ -579,7 +580,7 @@ export function TradeTicket({
         </div>
         <div>
           <dt>Trading fee</dt>
-          <dd>Proposed 5 / 15 bps; not deducted here</dd>
+          <dd>Proposed {MAKER_FEE_BPS} / {TAKER_FEE_BPS} bps; not deducted here</dd>
         </div>
         <div>
           <dt>Account epoch</dt>
@@ -633,7 +634,7 @@ export function TradeTicket({
             </div>
             <div>
               <dt>Fees</dt>
-              <dd>Proposed taker 15 bps, maker 5 bps, AMM 30 bps. Not deducted in this simulation.</dd>
+              <dd>{feeEnvelopeCopy()}</dd>
             </div>
             <div>
               <dt>CLOB vs AMM</dt>

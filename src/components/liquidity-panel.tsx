@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from "react";
 
 import { quoteConstantProductSwapAtoms } from "@/lib/amm";
+import { AMM_FEE_BPS } from "@/lib/fees";
 import { burnShares, lpOperationAllowed, mintShares, seedPool, type PoolShares } from "@/lib/lp";
 import { pools, type MarketId } from "@/lib/market-data";
 import { parseAtomicUnits, formatAtomicUnits, PZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
@@ -254,7 +255,7 @@ export function LiquidityPanel({
           impermanent loss, and adverse selection from the order book.
         </p>
         <ul className={styles.cleanList}>
-          <li>Fixed 30 bps swap fee, paid entirely to LPs</li>
+          <li>Fixed {AMM_FEE_BPS} bps swap fee, paid entirely to LPs</li>
           <li>No farming, leverage, flash callbacks, or arbitrary pair creation</li>
           <li>LP withdrawal remains available during a trading pause</li>
           <li>Public funds stay blocked until independent audits and custody gates pass</li>
