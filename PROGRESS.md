@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after native ZEC/USDC/USDT settlement labels. USDT0 abandoned.
+Last updated: 31-08-2026 after education, session encoding, tUSDT, and IL-versus-hold native labels.
 
 ## Branch
 
@@ -66,7 +66,7 @@ Last updated: 31-08-2026 after native ZEC/USDC/USDT settlement labels. USDT0 aba
 - Empty feed shows empty depth. Loading feed disables review.
 - `/api/status` never copies a remote operator URL. `intentCap` is 64 only when the gateway URL is loopback HTTP. `sequenceRoot` stays null without a fetched loopback matcher.
 - Blotter tables scroll inside the panel so the settlement column cannot blow the 320px page.
-- LP panel previews integer IL versus holding the same deposited assets at 4x and 1/4x pZEC/quote, plus session IL after mint. Not a return projection.
+- LP panel previews integer IL versus holding the same deposited assets at 4x and 1/4x ZEC/quote, plus session IL after mint. Not a return projection.
 - Gateway health publishes `issued` and `cap` from the shared `GATEWAY_DEFAULT_MAX_INTENTS` (64).
 - Ticket and LP copy bind to version-1 fee constants (5 / 15 / 30 bps, max 30).
 - Public `/status` shows intent cap `unset` when no loopback gateway URL is configured.
@@ -84,7 +84,7 @@ Last updated: 31-08-2026 after native ZEC/USDC/USDT settlement labels. USDT0 aba
 - ZIP 321 deposit shows a non-payable placeholder QR. Clipboard failure copy does not claim a copy succeeded. Nothing is sent.
 - Chart and 24h stats withhold fixtures on empty, loading, and unavailable feeds, and name a delayed series when stale.
 - LP mint and swap stay off for loading, stale, and unavailable feeds. Burn stays available. Empty-book feed does not drain the pool.
-- First-session education dialog on `/trade` and `/liquidity` (`phlebas.previewEducationVersion = 2026-08-30-1`). Education, not consent. Force with `?education=1`.
+- First-session education dialog on `/trade` and `/liquidity` (`phlebas.previewEducationVersion = 2026-08-31-1`). Education, not consent. Force with `?education=1`.
 - Country-blocked state demonstration via allowlisted `?access=blocked`. Never infers location.
 - Chart range is a tablist. Depth and tape name loading and unavailable feeds, not only empty.
 - Landing Liquidity nav selects `#journey-lp`. Journey tabs use manual activation: arrows move focus, Enter selects.
@@ -149,19 +149,23 @@ Last updated: 31-08-2026 after native ZEC/USDC/USDT settlement labels. USDT0 aba
 - ADR 0002 records the pair-label change. ADR 0001 keeps Arbitrum One and custody-backed pZEC as the ERC-20 form.
 - Session inventory reject copy names ZEC, not pZEC. LP burn and swap notices name ZEC.
 - Product spec, README, SECURITY, threat model, architecture, landing journeys, launch plan, legal, and accounting no longer list USDT0 as a quote.
+- First-session education version `2026-08-31-1` names native ZEC against USDC and USDT and says it is not live settlement.
+- Session canonical encoding uses `baseAsset: "ZEC"`.
+- Ticket, LP, and gateway review say the preview labels native ZEC and is not live settlement.
+- IL-versus-hold labels are `4x ZEC/quote` and `1/4x ZEC/quote`.
+- Undeployed quote faucet is `tUSDT`. Solidity `usdt0` storage is `usdt`. `tpZEC` remains the ERC-20 form.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Align first-session education with native pair labels without claiming live native-ZEC execution
-- Ticket and LP review still say "pZEC is a custody receipt"; keep that honest or retarget to native-ZEC simulation copy
-- Session encoding still uses `baseAsset: "pZEC"`; pin or retarget if the canonical order should name ZEC
-- Undeployed contract sources still name `tUSDT0`; no-key rename is leftover, not a listing
-- IL-versus-hold copy still says pZEC/quote
-- Pin journeys spec against a later-listing-gate requirement as a listed state
-- 320px landing native-pair cards: confirm no overflow after the USDT0 abandonment line
+- Landing CTA still says Understand pZEC; retarget or keep as a gateway-section label
+- Undeployed `PZec` / `tpZEC` contract names remain the ERC-20 form
+- Session blotter and matcher internals still use pZEC atom field names
+- Pin a frozen SHA-256 vector for `baseAsset=ZEC` if PRODUCT_SPEC wants a checked digest
+- Deposit-tour copy still names pZEC minting as a future receipt
+- Architecture `#pzec` section still uses the pZEC hash and Understand pZEC CTA
 
 ## Blockers
 
