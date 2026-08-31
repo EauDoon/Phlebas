@@ -124,6 +124,10 @@
   min-height: 44px;
 }
 
+:global(#recent-trades) {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
