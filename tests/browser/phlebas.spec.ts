@@ -434,6 +434,19 @@ test("IOC cancels an unfilled remainder and FOK rejects a full miss", async ({ p
   await expect(page.getByText("Fill-or-kill could not fill in full")).toBeVisible();
 });
 
+test("invalidate-epoch control is keyboard focusable", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const invalidate = page.getByRole("button", { name: "Invalidate older session orders" });
+  await invalidate.focus();
+  await expect(invalidate).toBeFocused();
+});
+
+test("architecture view keeps Vercel off the matcher", async ({ page }) => {
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  await expect(page.getByText("Loopback gateway and matcher never hosted on Vercel")).toBeVisible();
+  await expect(page.getByText("The matcher is not trustless.")).toBeVisible();
+});
+
 test("connect wallet without a provider shows a visible rejection", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
