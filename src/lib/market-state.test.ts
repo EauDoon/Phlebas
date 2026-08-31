@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isFeedStatus, ticketGate } from "./market-state.ts";
+import { feedSurface, feedSurfaceCopy, isFeedStatus, ticketGate } from "./market-state.ts";
 
 test("illustrative data with a book can move from preview to confirm", () => {
   const gate = ticketGate("illustrative", false);
@@ -20,6 +20,27 @@ test("stale and unavailable feeds disable preview-to-sign", () => {
   assert.equal(ticketGate("stale", false).asOf, "2026-08-30T16:32:08Z");
   assert.equal(ticketGate("unavailable", false).canReview, false);
   assert.equal(ticketGate("loading", false).canReview, false);
+});
+
+test("chart and 24h stats reuse ticket-gate names", () => {
+  assert.equal(feedSurfaceCopy("illustrative").eyebrow, "Illustrative market data");
+  assert.match(feedSurfaceCopy("illustrative").statsNote, /Not a live/);
+  assert.equal(feedSurfaceCopy("stale").eyebrow, "Market data stale");
+  assert.match(feedSurfaceCopy("stale").statsNote, /2026-08-30T16:32:08Z/);
+  assert.equal(feedSurfaceCopy("unavailable").eyebrow, "Market data unavailable");
+  assert.equal(feedSurfaceCopy("empty").eyebrow, "Order book empty");
+  assert.equal(feedSurfaceCopy("loading").eyebrow, "Loading market data");
+  assert.doesNotMatch(feedSurfaceCopy("stale").statsNote, /\blive feed\b/i);
+});
+
+test("empty loading and unavailable feeds withhold fixture series", () => {
+  assert.equal(feedSurface("illustrative").showFixtures, true);
+  assert.equal(feedSurface("stale").showFixtures, true);
+  assert.equal(feedSurface("empty").showFixtures, false);
+  assert.equal(feedSurface("loading").showFixtures, false);
+  assert.equal(feedSurface("unavailable").showFixtures, false);
+  assert.match(feedSurface("empty").statsNote, /withheld/);
+  assert.match(feedSurface("unavailable").message, /Integrity checks failed/);
 });
 
 test("allowlists only documented feed states", () => {

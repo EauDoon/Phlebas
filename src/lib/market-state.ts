@@ -63,3 +63,45 @@ export function ticketGate(status: FeedStatus, bookEmpty: boolean): TicketGate {
     asOf: null,
   };
 }
+
+export type FeedSurface = {
+  showFixtures: boolean;
+  eyebrow: string;
+  statsNote: string;
+  heading: string;
+  message: string;
+};
+
+export function feedSurface(status: FeedStatus): FeedSurface {
+  const gate = ticketGate(status, status === "empty");
+  if (status === "illustrative") {
+    return {
+      showFixtures: true,
+      eyebrow: "Illustrative market data",
+      statsNote: "24h figures are repository fixtures. Not a live, delayed, or production feed.",
+      heading: gate.heading,
+      message: gate.message,
+    };
+  }
+  if (status === "stale") {
+    return {
+      showFixtures: true,
+      eyebrow: gate.heading,
+      statsNote: `24h figures stay fixture labels while market data is stale as of ${gate.asOf}.`,
+      heading: gate.heading,
+      message: gate.message,
+    };
+  }
+  return {
+    showFixtures: false,
+    eyebrow: gate.heading,
+    statsNote: `24h figures stay withheld. ${gate.message}`,
+    heading: gate.heading,
+    message: gate.message,
+  };
+}
+
+export function feedSurfaceCopy(status: FeedStatus): { eyebrow: string; statsNote: string } {
+  const surface = feedSurface(status);
+  return { eyebrow: surface.eyebrow, statsNote: surface.statsNote };
+}
