@@ -2,6 +2,20 @@ export const FEED_STATUSES = ["illustrative", "loading", "empty", "stale", "unav
 
 export type FeedStatus = (typeof FEED_STATUSES)[number];
 
+export const FEED_STATUS_LABELS: Record<FeedStatus, string> = {
+  illustrative: "Illustrative",
+  loading: "Loading",
+  empty: "Empty",
+  stale: "Stale",
+  unavailable: "Unavailable",
+};
+
+export function nextFeedStatus(id: FeedStatus, delta: number): FeedStatus {
+  const count = FEED_STATUSES.length;
+  const index = (FEED_STATUSES.indexOf(id) + delta + count) % count;
+  return FEED_STATUSES[index];
+}
+
 export type TicketGate = {
   status: Exclude<FeedStatus, "loading"> | "loading" | "empty";
   canReview: boolean;

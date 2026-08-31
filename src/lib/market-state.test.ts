@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { feedSurface, feedSurfaceCopy, isFeedStatus, ticketGate } from "./market-state.ts";
+import {
+  FEED_STATUS_LABELS,
+  FEED_STATUSES,
+  feedSurface,
+  feedSurfaceCopy,
+  isFeedStatus,
+  nextFeedStatus,
+  ticketGate,
+} from "./market-state.ts";
 
 test("illustrative data with a book can move from preview to confirm", () => {
   const gate = ticketGate("illustrative", false);
@@ -51,4 +59,13 @@ test("allowlists only documented feed states", () => {
   assert.equal(isFeedStatus("unavailable"), true);
   assert.equal(isFeedStatus("live"), false);
   assert.equal(isFeedStatus(undefined), false);
+});
+
+test("feed statuses wrap under arrow deltas", () => {
+  assert.deepEqual([...FEED_STATUSES], ["illustrative", "loading", "empty", "stale", "unavailable"]);
+  assert.equal(FEED_STATUS_LABELS.illustrative, "Illustrative");
+  assert.equal(nextFeedStatus("illustrative", 1), "loading");
+  assert.equal(nextFeedStatus("unavailable", 1), "illustrative");
+  assert.equal(nextFeedStatus("illustrative", -1), "unavailable");
+  assert.equal(nextFeedStatus("stale", 2), "illustrative");
 });
