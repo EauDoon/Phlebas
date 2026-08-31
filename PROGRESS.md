@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after chart panel heading, wrong-chain wallet wrap, and LP reset notice name the settlement pair.
+Last updated: 31-08-2026 after price-chart aria-label, wallet disconnect label, and LP mint notice name the settlement pair.
 
 ## Branch
 
@@ -114,15 +114,18 @@ Last updated: 31-08-2026 after chart panel heading, wrong-chain wallet wrap, and
 - Chart panel heading accessible name is `ZEC/USDC · pZEC-USDC`. The eyebrow names the settlement pair. Visible h2 stays the market id so 320px does not overflow.
 - Wrong-chain wallet state from `connectTestnetWallet` is wrapped with `walletStateWithSettlement` before it reaches the bar.
 - LP reset-pool notice names the selected market settlement pair.
+- Price chart aria-label and SVG title use `priceChartLabelCopy` and name the settlement pair from real market state.
+- Wallet disconnect control accessible name uses `walletDisconnectLabel` and names the settlement pair.
+- LP mint success notice uses `lpMintNoticeCopy` and names the settlement pair.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Price chart aria-label should name the settlement pair
-- Wallet disconnect control should name the settlement pair
-- LP mint success notice should name the selected pool settlement pair
+- LP burn success notice should name the selected pool settlement pair
+- Wallet connect button title should name the settlement pair when idle
+- Chart withheld empty-state should keep using priceChartLabelCopy when fixtures return
 
 ## Blockers
 
