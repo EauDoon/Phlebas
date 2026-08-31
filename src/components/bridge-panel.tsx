@@ -2,34 +2,12 @@
 
 import { useState } from "react";
 
+import { DEPOSIT_TOUR, depositTourStep } from "@/lib/deposit-tour";
 import { inspectTransparentDestination } from "@/lib/zcash-address";
 import { payoutClaimForTourStep, screenPayout } from "@/lib/payout";
 import { isTestnetTex } from "@/lib/tex";
 
 import styles from "./terminal.module.css";
-
-const depositSteps = [
-  {
-    number: "01",
-    title: "Issue one TEX intent",
-    body: "The local testnet gateway issues one ZIP 320 textest address per intent and never reassigns it. Mainnet encodings are not generated.",
-  },
-  {
-    number: "02",
-    title: "Hand off a ZIP 321 request",
-    body: "The wallet-neutral payload is a zcash: URI and QR. There is no EVM connector, WalletConnect session, or seed prompt.",
-  },
-  {
-    number: "03",
-    title: "Observe the final transparent payment",
-    body: "Independent Zebra observers would bind the outpoint, amount, destination, and tip. Zero-confirmation credit is never allowed.",
-  },
-  {
-    number: "04",
-    title: "Mint pZEC after the risk-tier threshold",
-    body: "One outpoint would authorize at most one 8-decimal receipt. pZEC is a custody claim, not native ZEC.",
-  },
-] as const;
 
 const withdrawalTour = [
   { id: "requested", title: "Requested", body: "Amount, transparent destination, network fee, service fee, and net output would be reviewed before any burn." },
@@ -46,6 +24,7 @@ const withdrawalTour = [
 
 export function BridgePanel() {
   const [journey, setJourney] = useState<"deposit" | "withdrawal">("deposit");
+  const [depositIndex, setDepositIndex] = useState(0);
   const [tourIndex, setTourIndex] = useState(0);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const [destination, setDestination] = useState("");
@@ -53,6 +32,7 @@ export function BridgePanel() {
   const [gatewayNotice, setGatewayNotice] = useState("Local gateway off. No receivable address is displayed.");
   const [issuing, setIssuing] = useState(false);
   const tour = withdrawalTour[tourIndex];
+  const deposit = depositTourStep(depositIndex);
   const destinationCheck = inspectTransparentDestination(destination);
   const payoutPreview = destination.trim().length === 0
     ? null
@@ -142,14 +122,30 @@ export function BridgePanel() {
               )}
               {copyNotice && <p>{copyNotice}</p>}
             </div>
-            <ol className={styles.stepList}>
-              {depositSteps.map((step) => (
-                <li key={step.number}>
-                  <span>{step.number}</span>
-                  <div><h3>{step.title}</h3><p>{step.body}</p></div>
-                </li>
-              ))}
-            </ol>
+            <p className={styles.gateNotice}>
+              Preview deposit states, not Deposit ZEC. Address request never shows a receivable address.
+            </p>
+            <div className={styles.uriBlock} aria-live="polite">
+              <span className={styles.eyebrow}>{String(depositIndex + 1).padStart(2, "0")} / {String(DEPOSIT_TOUR.length).padStart(2, "0")}</span>
+              <h3>{deposit.title}</h3>
+              <p>{deposit.body}</p>
+            </div>
+            <div className={styles.tourNav}>
+              <button
+                type="button"
+                disabled={depositIndex === 0}
+                onClick={() => setDepositIndex((index) => index - 1)}
+              >
+                Previous state
+              </button>
+              <button
+                type="button"
+                disabled={depositIndex === DEPOSIT_TOUR.length - 1}
+                onClick={() => setDepositIndex((index) => index + 1)}
+              >
+                Next state
+              </button>
+            </div>
           </>
         ) : (
           <>
