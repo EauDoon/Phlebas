@@ -51,7 +51,8 @@
 #recent-trades,
 #withheld-price,
 #pool-stats,
-#country-block {
+#country-block,
+#honesty-bar {
   scroll-margin-top: 12px;
 }
 

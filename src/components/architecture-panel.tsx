@@ -45,7 +45,13 @@ export function ArchitecturePanel() {
           </article>
         ))}
       </div>
-      <div className={styles.honestyBar}>
+      <div
+        id="honesty-bar"
+        className={styles.honestyBar}
+        role="region"
+        aria-label="Architecture honesty bar"
+        tabIndex={-1}
+      >
         <strong>Proposed product label</strong>
         <span>Designed as a hybrid DEX with an offchain matcher, onchain settlement, constrained AMM contracts, and a custody-backed ZEC gateway. The matcher is not trustless. Mainnet access policy remains unresolved.</span>
       </div>
