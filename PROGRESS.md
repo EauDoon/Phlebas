@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after 320px B/S shortcuts, book Bid/Ask, gateway rejected/unresolved, and LP loading/stale.
+Last updated: 01-09-2026 after tape Buy/Sell, expired-evidence tour, and 320px ticket feed gates.
 
 ## Branch
 
@@ -183,6 +183,9 @@ Last updated: 01-09-2026 after 320px B/S shortcuts, book Bid/Ask, gateway reject
 - Book Bid/Ask buttons use visible `bookSideControlCopy` (`Ask 52.91` / `Bid 52.78`), not `.srOnly`.
 - Withdrawal tour includes Rejected (pre-burn) and Unresolved (after mined). 320px Playwright walks both. Nothing is sent.
 - LP `feed=loading` and `feed=stale` disable mint/swap, leave burn on, and Retry illustrative is covered at 320px.
+- Tape Buy/Sell is visible `tapeSideCopy` text in the price cell, not `.srOnly`. Playwright at 320px.
+- Withdrawal tour includes Expired evidence after burn submitted (`closed` without a finalized burn). 320px Playwright. Nothing is sent.
+- Ticket `feed=loading`, `feed=stale`, and `feed=empty` gates plus Retry illustrative are dedicated 320px specs.
 
 ## Next
 
@@ -190,9 +193,10 @@ Last updated: 01-09-2026 after 320px B/S shortcuts, book Bid/Ask, gateway reject
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
 - ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
-- Tape Buy/Sell labels are still `.srOnly` on non-control rows
-- Gateway tour still has no dedicated expired/reorganized-evidence (stale-proof) step between burn submitted and closed
-- Ticket loading/stale/empty gates are not yet re-run as dedicated 320px specs (default-width coverage exists)
+- Ticket `/trade?feed=unavailable` is not yet a dedicated 320px spec (default-width coverage exists)
+- Deposit tour still has no rejected/stale/unavailable steps
+- LANDING_AND_USER_JOURNEYS withdrawal machine table still omits expired/closed
+- Architecture incident demos still do not surface observer disagreement as a clickable gateway state
 
 ## Blockers
 
