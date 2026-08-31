@@ -1,12 +1,18 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { AccessDemo } from "@/lib/access-demo";
 import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
-import { INCIDENT_DEMO_QUERY } from "@/lib/gateway-incidents";
+import {
+  INCIDENT_DEMO_QUERY,
+  getIncidentDemoServerSnapshot,
+  getIncidentDemoSnapshot,
+  rememberIncidentDemo,
+  subscribeIncidentDemo,
+} from "@/lib/gateway-incidents";
 import { terminalUrl } from "@/lib/terminal-url";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
@@ -102,6 +108,12 @@ export function TradingTerminal({
   const [accountEpoch, setAccountEpoch] = useState(0);
   const [priceSelection, setPriceSelection] = useState<{ ticks: bigint; nonce: number } | null>(null);
   const [wallet, setWallet] = useState<WalletState>(disconnectedWallet);
+  const storedIncidentDemo = useSyncExternalStore(
+    subscribeIncidentDemo,
+    getIncidentDemoSnapshot,
+    getIncidentDemoServerSnapshot,
+  );
+  const incidentDemo = highlightIncidents || storedIncidentDemo;
   const nextOrderId = useRef(1);
   const nextPriceNonce = useRef(1);
   const nextFillId = useRef(1);
@@ -110,7 +122,13 @@ export function TradingTerminal({
   const displayedBook = feedStatus === "empty" ? emptyBook(book.lastTicks) : book;
   const account = accounts[marketId];
 
-  const demoQuery = highlightIncidents ? INCIDENT_DEMO_QUERY : undefined;
+  const demoQuery = incidentDemo ? INCIDENT_DEMO_QUERY : undefined;
+
+  useEffect(() => {
+    if (highlightIncidents) {
+      rememberIncidentDemo(true);
+    }
+  }, [highlightIncidents]);
 
   function selectView(nextView: View) {
     setView(nextView);
@@ -486,7 +504,7 @@ export function TradingTerminal({
                 <span className={styles.settlementBadge}>settles {market.settlementPair}</span>
               </div>
             </section>
-            <ArchitecturePanel highlightIncidents={highlightIncidents} />
+            <ArchitecturePanel highlightIncidents={incidentDemo} />
           </>
         )}
       </main>
