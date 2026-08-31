@@ -19,7 +19,7 @@ const layers = [
   },
 ];
 
-export function ArchitecturePanel() {
+export function ArchitecturePanel({ highlightIncidents = false }: { highlightIncidents?: boolean }) {
   return (
     <section className={`${styles.panel} ${styles.architecture}`} aria-labelledby="architecture-title">
       <div className={styles.panelHeader}>
@@ -61,7 +61,7 @@ export function ArchitecturePanel() {
         <strong>Target product boundary</strong>
         <span>Designed as a non-custodial exchange with an offchain matcher and wallet-signed native-ZEC atomic settlement. The matcher is not trustless. It can censor or delay orders. Mainnet access policy remains unresolved.</span>
       </div>
-      <IncidentDemo />
+      <IncidentDemo highlight={highlightIncidents} />
     </section>
   );
 }

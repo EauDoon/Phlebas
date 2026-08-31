@@ -2,10 +2,17 @@
 
 import { useState } from "react";
 
+import type { Market } from "@/lib/market-data";
 import {
   connectTestnetWallet,
   disconnectedWallet,
   getInjectedProvider,
+  missingProviderCopy,
+  retargetSettlementCopy,
+  walletConnectBarTitle,
+  walletConnectFailureCopy,
+  walletDisconnectLabel,
+  walletStateWithSettlement,
   type WalletState,
 } from "@/lib/evm-wallet";
 
@@ -14,25 +21,32 @@ import styles from "./terminal.module.css";
 export function WalletBar({
   wallet,
   onChange,
+  settlementPair,
 }: {
   wallet: WalletState;
   onChange: (state: WalletState) => void;
+  settlementPair: Market["settlementPair"];
 }) {
+  // No injected EVM wallet. Arbitrum Sepolia only. is intentionally produced by missingProviderCopy.
   const [busy, setBusy] = useState(false);
   const provider = getInjectedProvider();
+  const errorCopy = wallet.error ? retargetSettlementCopy(wallet.error, settlementPair) : null;
 
   async function connect() {
     if (!provider) {
-      onChange({ ...disconnectedWallet, error: "No injected EVM wallet. Arbitrum Sepolia only." });
+      onChange({ ...disconnectedWallet, error: missingProviderCopy(settlementPair) });
       return;
     }
     setBusy(true);
     try {
-      onChange(await connectTestnetWallet(provider));
+      onChange(walletStateWithSettlement(await connectTestnetWallet(provider), settlementPair));
     } catch (error) {
       onChange({
         ...disconnectedWallet,
-        error: error instanceof Error ? error.message : "Wallet connection failed.",
+        error: walletConnectFailureCopy(
+          error instanceof Error ? error.message : "Wallet connection failed.",
+          settlementPair,
+        ),
       });
     } finally {
       setBusy(false);
@@ -47,7 +61,7 @@ export function WalletBar({
           type="button"
           className={styles.connectButton}
           onClick={() => onChange(disconnectedWallet)}
-          aria-label={`Disconnect ${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}`}
+          aria-label={walletDisconnectLabel(wallet.address, settlementPair)}
         >
           {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
         </button>
@@ -64,13 +78,13 @@ export function WalletBar({
         onClick={() => void connect()}
         disabled={busy}
         aria-label="Connect Arbitrum Sepolia wallet"
-        title={wallet.error ?? "Connect an injected EVM wallet on Arbitrum Sepolia"}
+        title={walletConnectBarTitle(settlementPair, { busy, error: errorCopy })}
       >
         {busy ? "Connecting" : "Connect wallet"}
       </button>
       {wallet.error && (
         <span className={styles.inlineNotice} role="status" aria-label="Wallet connection rejection">
-          {wallet.error}
+          {errorCopy}
         </span>
       )}
     </div>

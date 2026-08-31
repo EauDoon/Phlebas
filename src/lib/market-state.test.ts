@@ -4,12 +4,29 @@ import test from "node:test";
 import {
   FEED_STATUS_LABELS,
   FEED_STATUSES,
+  chartPanelEyebrowCopy,
+  chartPanelHeadingCopy,
+  chartRangeTabLabel,
+  depthEmptyCopy,
+  depthSessionLastCopy,
+  emptyBookGateCopy,
   feedSurface,
   feedSurfaceCopy,
+  feedWithheldCopy,
   isFeedStatus,
   nextFeedStatus,
+  priceChartLabelCopy,
+  sessionLastStatLabel,
+  staleGateCopy,
+  loadingGateCopy,
+  unavailableGateCopy,
+  orderBookCaptionCopy,
+  tapeCaptionCopy,
+  tapeMiniLabel,
   ticketGate,
 } from "./market-state.ts";
+import { emptyBook } from "./matcher.ts";
+import { markets } from "./market-data.ts";
 
 test("illustrative data with a book can move from preview to confirm", () => {
   const gate = ticketGate("illustrative", false);
@@ -17,10 +34,26 @@ test("illustrative data with a book can move from preview to confirm", () => {
   assert.equal(gate.status, "illustrative");
 });
 
-test("an empty book disables preview-to-sign", () => {
-  const gate = ticketGate("illustrative", true);
+test("an empty book disables preview-to-sign and names the settlement pair", () => {
+  const market = markets["ZEC/USDC"];
+  const book = emptyBook(market.lastTicks);
+  const bookEmpty = book.bids.length === 0 && book.asks.length === 0;
+  const gate = ticketGate("illustrative", bookEmpty, market.settlementPair);
+  assert.equal(bookEmpty, true);
   assert.equal(gate.status, "empty");
   assert.equal(gate.canReview, false);
+  assert.equal(gate.message, emptyBookGateCopy("pZEC-USDC"));
+  assert.match(gate.message, /Settled as pZEC-USDC/);
+  assert.match(depthEmptyCopy("pZEC-USDC"), /Settled as pZEC-USDC/);
+  assert.equal(
+    emptyBookGateCopy("pZEC-USDT0"),
+    "No resting depth. Review is disabled until the local book has size. Settled as pZEC-USDT0.",
+  );
+  assert.equal(
+    ticketGate("empty", false, "pZEC-USDT0").message,
+    emptyBookGateCopy("pZEC-USDT0"),
+  );
+  assert.doesNotMatch(emptyBookGateCopy("pZEC-USDC"), /native ZEC/);
 });
 
 test("stale and unavailable feeds disable preview-to-sign", () => {
@@ -68,4 +101,23 @@ test("feed statuses wrap under arrow deltas", () => {
   assert.equal(nextFeedStatus("unavailable", 1), "illustrative");
   assert.equal(nextFeedStatus("illustrative", -1), "unavailable");
   assert.equal(nextFeedStatus("stale", 2), "illustrative");
+});
+
+test("settlement-aware market copy follows the selected pair", () => {
+  const usdc = markets["ZEC/USDC"].settlementPair;
+  const usdt = markets["ZEC/USDT"].settlementPair;
+  assert.equal(loadingGateCopy(usdc), "The ticket is waiting for a book snapshot. Retry is safe; nothing was submitted. Settled as pZEC-USDC.");
+  assert.equal(staleGateCopy(usdt), "The illustrative feed is marked delayed. Stale data cannot move from preview to confirm. Settled as pZEC-USDT0.");
+  assert.equal(unavailableGateCopy(usdc), "Integrity checks failed. Preview-to-sign is disabled. Retry is safe; nothing was submitted. Settled as pZEC-USDC.");
+  assert.equal(depthEmptyCopy(usdc), "No resting depth. The local book is empty. Settled as pZEC-USDC.");
+  assert.equal(feedWithheldCopy("unavailable", usdt), "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDT0.");
+  assert.equal(orderBookCaptionCopy("ZEC/USDT").includes("settled as pZEC-USDT0"), true);
+  assert.equal(depthSessionLastCopy(usdt, "0.13"), "session last · pZEC-USDT0 · spread 0.13");
+  assert.equal(tapeCaptionCopy("ZEC/USDC", true), "Recent ZEC/USDC trades withheld. Settled as pZEC-USDC. Fixture tape is not shown.");
+  assert.equal(sessionLastStatLabel(usdc, true), "Session last · pZEC-USDC");
+  assert.equal(tapeMiniLabel(false, false, usdt), "Withheld · pZEC-USDT0");
+  assert.equal(chartRangeTabLabel("1D", usdt), "1D · pZEC-USDT0");
+  assert.equal(chartPanelHeadingCopy("ZEC/USDC"), "ZEC/USDC · pZEC-USDC");
+  assert.equal(chartPanelEyebrowCopy(usdc), "Illustrative market data · pZEC-USDC");
+  assert.equal(priceChartLabelCopy("ZEC/USDT", "1H"), "Illustrative 1H price chart for ZEC/USDT, settled as pZEC-USDT0");
 });

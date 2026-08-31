@@ -22,6 +22,7 @@ test("status payload cannot be read as live funds or custody", async () => {
   assert.equal(status.custody, "none");
   assert.equal(status.contracts, "source-undeployed");
   assert.equal(status.marketData, "illustrative");
+  assert.equal(status.incidents, "architecture-demonstration");
 });
 
 test("status page links to legal and security without a live-funds claim", async () => {
@@ -341,6 +342,34 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(globalError, /outline: 2px solid #15140d/);
   assert.doesNotMatch(globalError, /is a live exchange/);
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
+  const education = await readFile(join(root, "src/lib/preview-education.ts"), "utf8");
+  assert.match(education, /Education, not consent|not a financial record/);
+  assert.doesNotMatch(education, /I agree/);
+  assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education, not consent/);
+  assert.match(await readFile(join(root, "src/lib/access-demo.ts"), "utf8"), /State demonstration/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/access-demo.ts"), "utf8"), /geolocat/i);
+  assert.match(await readFile(join(root, "src/lib/ticket-shortcuts.ts"), "utf8"), /dialogOpen/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /interpretTicketKey/);
+  assert.match(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /No address generated in simulation/);
+  assert.match(await readFile(join(root, "src/components/incident-demo.tsx"), "utf8"), /State demonstration/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /\blive outage\b/i);
+  assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /Architecture incident demonstrations/);
+  assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /demo=incidents/);
+  assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /not a live outage/);
+  assert.match(await readFile(join(root, "src/components/incident-demo.tsx"), "utf8"), /architecture-demonstration/);
+  assert.match(await readFile(join(root, "src/lib/ticket-shortcuts.ts"), "utf8"), /reviewOpen/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /emptyShareCopy/);
+  assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /Settled as \$\{settlementPair\}/);
+  assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /blotterEmptyLogCopy/);
+  assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /blotterLogEventCopy/);
+  assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /expiry \$\{expiry\}/);
+  assert.match(await readFile(join(root, "src/lib/terminal-url.ts"), "utf8"), /demo/);
+  assert.match(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /rememberIncidentDemo/);
+  assert.match(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /phlebas\.incidentDemo/);
+  assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /useSyncExternalStore/);
+  assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /rememberIncidentDemo\(true\)/);
+  assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /demoQuery = incidentDemo/);
+  assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /highlightIncidents=\{incidentDemo\}/);
 });
 
 test("vercel.json does not assign operator URLs", async () => {

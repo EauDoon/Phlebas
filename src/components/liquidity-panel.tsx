@@ -6,6 +6,13 @@ import { quoteConstantProductSwapAtoms } from "@/lib/amm";
 import { AMM_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import {
   burnShares,
+  emptyShareCopy,
+  isLpPauseNotice,
+  lpPauseNoticeCopy,
+  lpBurnNoticeCopy,
+  lpMintNoticeCopy,
+  lpResetNoticeCopy,
+  lpSwapNoticeCopy,
   hypotheticalImpermanentLoss,
   IL_PRICE_SCENARIOS,
   lpOperationAllowed,
@@ -14,7 +21,7 @@ import {
   seedPool,
   type PoolShares,
 } from "@/lib/lp";
-import { pools, type MarketId } from "@/lib/market-data";
+import { markets, pools, type MarketId } from "@/lib/market-data";
 import {
   FEED_STATUS_LABELS,
   FEED_STATUSES,
@@ -82,9 +89,10 @@ export function LiquidityPanel({
   const [notice, setNotice] = useState("Integer pool math. Wallet actions stay disabled.");
   const [tradingPaused, setTradingPaused] = useState(false);
   const [review, setReview] = useState<LpReview | null>(null);
+  const gate = ticketGate(feedStatus, false, markets[marketId].settlementPair);
+  const feedBlocksLp = feedStatus === "loading" || feedStatus === "stale" || feedStatus === "unavailable";
   const poolReserves = poolState[selectedPool.id];
   const sessionEntry = entryDeposits[selectedPool.id];
-  const gate = ticketGate(feedStatus, false);
   const mintEnabled = lpOperationAllowed("mint", tradingPaused) && gate.canReview;
   const swapEnabled = lpOperationAllowed("swap", tradingPaused) && gate.canReview;
 
@@ -232,7 +240,7 @@ export function LiquidityPanel({
       return;
     }
     if (!lpOperationAllowed("mint", tradingPaused)) {
-      setNotice("Trading is paused. LP withdrawal remains available.");
+      setNotice(lpPauseNoticeCopy(markets[marketId].settlementPair, true));
       return;
     }
     if (!amountPreview.valid || amountPreview.zecAtoms <= 0n || amountPreview.quoteAtoms <= 0n) {
@@ -266,7 +274,7 @@ export function LiquidityPanel({
         },
       }));
       setReview(null);
-      setNotice(`Minted ${minted.shares.toString()} local LP shares. Wallet actions stay disabled.`);
+      setNotice(lpMintNoticeCopy(minted.shares, markets[marketId].settlementPair));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : amountPreview.message);
     }
@@ -275,7 +283,7 @@ export function LiquidityPanel({
   function simulateBurn() {
     const shares = heldShares[selectedPool.id];
     if (shares <= 0n) {
-      setNotice("No session LP shares to burn.");
+      setNotice(emptyShareCopy(selectedPool.id));
       return;
     }
     try {
@@ -283,7 +291,7 @@ export function LiquidityPanel({
       setPoolState((current) => ({ ...current, [selectedPool.id]: burned.pool }));
       setHeldShares((current) => ({ ...current, [selectedPool.id]: 0n }));
       setEntryDeposits((current) => ({ ...current, [selectedPool.id]: { pzecAtoms: 0n, quoteAtoms: 0n } }));
-      setNotice(`Burned session shares for ${formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS)} pZEC. Local preview only.`);
+      setNotice(lpBurnNoticeCopy(formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS), markets[marketId].settlementPair));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Share amount is outside the preview range");
     }
@@ -295,7 +303,7 @@ export function LiquidityPanel({
       return;
     }
     if (!lpOperationAllowed("swap", tradingPaused)) {
-      setNotice("Trading is paused. LP withdrawal remains available.");
+      setNotice(lpPauseNoticeCopy(markets[marketId].settlementPair, true));
       return;
     }
     if (!amountPreview.valid || amountPreview.zecAtoms <= 0n) {
@@ -332,11 +340,17 @@ export function LiquidityPanel({
         },
       }));
       setReview(null);
-      setNotice(`Simulated pZEC→${selectedPool.quote} swap. Output ${formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2)} ${selectedPool.quote}. Local preview only.`);
+      setNotice(lpSwapNoticeCopy(
+        formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2),
+        selectedPool.quote,
+        markets[marketId].settlementPair,
+      ));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Swap quote is outside the preview range.");
     }
   }
+
+  const liveNotice = isLpPauseNotice(notice) ? lpPauseNoticeCopy(markets[marketId].settlementPair, tradingPaused) : notice;
 
   return (
     <div className={styles.featureGrid}>
@@ -400,6 +414,24 @@ export function LiquidityPanel({
 
         {selectedPool.id === "pZEC/USDT0" && (
           <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
+        )}
+        {feedStatus !== "illustrative" && (
+          <div className={styles.ticketBlocked} role="status">
+            <strong>{gate.heading}</strong>
+            <p>
+              {gate.message}
+              {gate.asOf ? ` As of ${gate.asOf}.` : ""}
+              {" "}
+              {feedBlocksLp
+                ? "Burn stays available. Mint and swap stay off while the market-data feed is not illustrative."
+                : "Pool math is still a local preview. The empty book does not drain the pool."}
+            </p>
+            {onRetryFeed && (
+              <button type="button" className={styles.textButton} onClick={onRetryFeed}>
+                Retry illustrative feed
+              </button>
+            )}
+          </div>
         )}
 
         {!gate.canReview && (
@@ -553,18 +585,16 @@ export function LiquidityPanel({
             aria-pressed={tradingPaused}
             onClick={() => {
               setTradingPaused((current) => !current);
-              setNotice(tradingPaused
-                ? "Trading pause lifted. Mint and swap are available again."
-                : "Trading paused. LP withdrawal remains available.");
+              setNotice(lpPauseNoticeCopy(markets[marketId].settlementPair, !tradingPaused));
             }}
           >
             {tradingPaused ? "Resume trading preview" : "Pause trading preview"}
           </button>
-          <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setReview(null); setNotice("Local pool reserves restored."); }}>
+          <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setReview(null); setNotice(lpResetNoticeCopy(markets[marketId].settlementPair)); }}>
             Reset pool
           </button>
         </div>
-        <p className={styles.inlineNotice} aria-live="polite">{notice}</p>
+        <p className={styles.inlineNotice} aria-live="polite">{liveNotice}</p>
         <button type="button" className={styles.primaryAction} disabled>
           Wallet actions disabled in simulation
         </button>

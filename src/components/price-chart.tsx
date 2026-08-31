@@ -5,7 +5,7 @@ import {
 } from "@/lib/chart-display";
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { chartSeries } from "@/lib/market-data";
-import { feedSurface, type FeedStatus } from "@/lib/market-state";
+import { feedSurface, priceChartLabelCopy, type FeedStatus } from "@/lib/market-state";
 import { PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -29,6 +29,7 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
     );
   }
   const values = chartSeries[marketId][range];
+  const chartLabel = priceChartLabelCopy(marketId, range);
   const { min, max, midTicks, points, areaPoints } = chartDisplayGeometry(values);
 
   return (
@@ -37,17 +38,11 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
         className={styles.chart}
         viewBox={`0 0 ${CHART_DISPLAY_WIDTH} ${CHART_DISPLAY_HEIGHT}`}
         role="img"
-        aria-label={
-          feedStatus === "stale"
-            ? `Delayed illustrative ${range} price chart for ${marketId}`
-            : `Illustrative ${range} price chart for ${marketId}`
-        }
+        aria-label={feedStatus === "stale" ? `Delayed ${chartLabel}` : chartLabel}
         preserveAspectRatio="none"
       >
         <title>
-          {feedStatus === "stale"
-            ? `Delayed illustrative ${range} price chart for ${marketId}`
-            : `Illustrative ${range} price chart for ${marketId}`}
+          {feedStatus === "stale" ? `Delayed ${chartLabel}` : chartLabel}
         </title>
         <defs>
           <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">

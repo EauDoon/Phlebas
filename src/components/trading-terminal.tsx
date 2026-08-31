@@ -1,12 +1,20 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { AccessDemo } from "@/lib/access-demo";
 import { CHART_RANGES, nextChartRange } from "@/lib/chart-ranges";
 import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
+import {
+  INCIDENT_DEMO_QUERY,
+  getIncidentDemoServerSnapshot,
+  getIncidentDemoSnapshot,
+  rememberIncidentDemo,
+  subscribeIncidentDemo,
+} from "@/lib/gateway-incidents";
+import { terminalUrl } from "@/lib/terminal-url";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
@@ -14,8 +22,15 @@ import { MARKET_ID_LABELS, MARKET_IDS, nextMarketId } from "@/lib/market-ids";
 import {
   FEED_STATUS_LABELS,
   FEED_STATUSES,
+  chartPanelEyebrowCopy,
+  chartPanelHeadingCopy,
+  chartRangeTabLabel,
   feedSurface,
+  feedWithheldCopy,
   nextFeedStatus,
+  sessionLastStatLabel,
+  tapeCaptionCopy,
+  tapeMiniLabel,
   type FeedStatus,
 } from "@/lib/market-state";
 import { interpretRovingKey } from "@/lib/roving-keys";
@@ -34,6 +49,9 @@ import {
   canCover,
   describeSubmit,
   formatFillTime,
+  inventoryRejectCopy,
+  selfTradeRejectCopy,
+  ticketRejectCopy,
   releaseRestingOrder,
   seedBook,
   seedPaperAccount,
@@ -57,16 +75,8 @@ import { TradeTicket } from "./trade-ticket";
 import { WalletBar } from "./wallet-bar";
 import styles from "./terminal.module.css";
 
-function viewUrl(view: TerminalView, market: MarketId, feed: FeedStatus) {
-  const params = new URLSearchParams({ market });
-  if (feed !== "illustrative") {
-    params.set("feed", feed);
-  }
-  if (view === "liquidity") {
-    return `/liquidity?${params.toString()}`;
-  }
-  params.set("view", view);
-  return `/trade?${params.toString()}`;
+function viewUrl(view: TerminalView, market: MarketId, feed: FeedStatus, demo?: string) {
+  return terminalUrl({ view, market, feed, demo });
 }
 
 function seedBooks() {
@@ -87,14 +97,18 @@ export function TradingTerminal({
   initialView = "trade",
   initialMarket = "ZEC/USDC",
   initialFeed = "illustrative",
+  initialBridgeJourney = "deposit",
   initialAccess = "open",
   forceEducation = false,
+  highlightIncidents = false,
 }: {
   initialView?: TerminalView;
   initialMarket?: MarketId;
   initialFeed?: FeedStatus;
+  initialBridgeJourney?: "deposit" | "withdrawal";
   initialAccess?: AccessDemo;
   forceEducation?: boolean;
+  highlightIncidents?: boolean;
 }) {
   const router = useRouter();
   const [view, setView] = useState<TerminalView>(initialView);
@@ -111,6 +125,13 @@ export function TradingTerminal({
   const [accountEpoch, setAccountEpoch] = useState(0);
   const [priceSelection, setPriceSelection] = useState<{ ticks: bigint; nonce: number } | null>(null);
   const [wallet, setWallet] = useState<WalletState>(disconnectedWallet);
+  const storedIncidentDemo = useSyncExternalStore(
+    subscribeIncidentDemo,
+    getIncidentDemoSnapshot,
+    getIncidentDemoServerSnapshot,
+  );
+  const incidentDemo = highlightIncidents || storedIncidentDemo;
+  const demoQuery = incidentDemo ? INCIDENT_DEMO_QUERY : undefined;
   const nextOrderId = useRef(1);
   const nextPriceNonce = useRef(1);
   const nextFillId = useRef(1);
@@ -121,13 +142,20 @@ export function TradingTerminal({
   const market = markets[marketId];
   const book = books[marketId];
   const feed = feedSurface(feedStatus);
+  const statsSurface = feed;
   const displayedBook = feed.showFixtures ? book : emptyBook(book.lastTicks);
   const account = accounts[marketId];
+
+  useEffect(() => {
+    if (highlightIncidents) {
+      rememberIncidentDemo(true);
+    }
+  }, [highlightIncidents]);
 
   function selectView(nextView: TerminalView) {
     setView(nextView);
     setViewFocusId(nextView);
-    router.replace(viewUrl(nextView, marketId, feedStatus), { scroll: false });
+    router.replace(viewUrl(nextView, marketId, feedStatus, demoQuery), { scroll: false });
   }
 
   function moveViewFocus(next: TerminalView) {
@@ -165,13 +193,13 @@ export function TradingTerminal({
   function selectMarket(nextMarket: MarketId) {
     setMarketId(nextMarket);
     setMarketFocusId(nextMarket);
-    router.replace(viewUrl(view, nextMarket, feedStatus), { scroll: false });
+    router.replace(viewUrl(view, nextMarket, feedStatus, demoQuery), { scroll: false });
   }
 
   function selectFeed(nextFeed: FeedStatus) {
     setFeedStatus(nextFeed);
     setFeedFocusId(nextFeed);
-    router.replace(viewUrl(view, marketId, nextFeed), { scroll: false });
+    router.replace(viewUrl(view, marketId, nextFeed, demoQuery), { scroll: false });
   }
 
   function moveMarketFocus(next: MarketId) {
@@ -263,9 +291,7 @@ export function TradingTerminal({
         setAccounts({ ...accounts, [marketId]: nextAccount });
         setEvents((current) => [...current, ...expireEvents(userExpired)]);
       }
-      return order.side === "buy"
-        ? "Session quote inventory is insufficient."
-        : "Session pZEC inventory is insufficient.";
+      return inventoryRejectCopy(order.side, marketId);
     }
 
     const id = `user-${nextOrderId.current}`;
@@ -278,7 +304,7 @@ export function TradingTerminal({
         setAccounts({ ...accounts, [marketId]: nextAccount });
         setEvents((current) => [...current, ...expireEvents(userExpired)]);
       }
-      return "Self-trade prevented. Cancel the resting session order or choose another price.";
+      return selfTradeRejectCopy(marketId);
     }
 
     const applied = applySubmit(nextAccount, order, result);
@@ -288,7 +314,7 @@ export function TradingTerminal({
         setAccounts({ ...accounts, [marketId]: nextAccount });
         setEvents((current) => [...current, ...expireEvents(userExpired)]);
       }
-      return applied.blockedReason;
+      return ticketRejectCopy(applied.blockedReason, marketId);
     }
 
     setBooks({ ...books, [marketId]: result.book });
@@ -448,7 +474,7 @@ export function TradingTerminal({
             </button>
           ))}
         </nav>
-        <WalletBar wallet={wallet} onChange={setWallet} />
+        <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
       </header>
 
       <PreviewEducation force={forceEducation} />
@@ -508,10 +534,10 @@ export function TradingTerminal({
                   </div>
                 </div>
               </div>
-              <dl className={styles.marketStats}>
+              <dl className={styles.marketStats} aria-label="Market statistics">
                 <div className={styles.priceStat}>
-                  <dt>Session last</dt>
-                  <dd>{formatAtomicUnits(book.lastTicks, PRICE_DECIMALS, 2)}</dd>
+                  <dt>{sessionLastStatLabel(market.settlementPair, statsSurface.showFixtures)}</dt>
+                  <dd>{statsSurface.showFixtures ? formatAtomicUnits(book.lastTicks, PRICE_DECIMALS, 2) : "—"}</dd>
                 </div>
                 <div>
                   <dt>24h change</dt>
@@ -529,7 +555,10 @@ export function TradingTerminal({
             <div className={styles.tradeGrid}>
               <section id="price-chart" tabIndex={-1} className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
                 <div className={styles.panelHeader}>
-                  <div><span className={styles.eyebrow}>{feed.eyebrow}</span><h2 id="chart-title">{marketId}</h2></div>
+                  <div>
+                    <span className={styles.eyebrow}>{chartPanelEyebrowCopy(market.settlementPair)}</span>
+                    <h2 id="chart-title" aria-label={chartPanelHeadingCopy(marketId)}>{marketId}</h2>
+                  </div>
                   <div className={styles.rangeTabs} role="radiogroup" aria-label="Chart range">
                     {CHART_RANGES.map((item) => (
                       <button
@@ -537,6 +566,7 @@ export function TradingTerminal({
                         key={item}
                         role="radio"
                         aria-checked={range === item}
+                        aria-label={chartRangeTabLabel(item, market.settlementPair)}
                         tabIndex={range === item ? 0 : -1}
                         className={range === item ? styles.textActive : undefined}
                         ref={(node) => {
@@ -563,7 +593,7 @@ export function TradingTerminal({
                 }}
               />
               <TradeTicket
-                key={`${marketId}:${feedStatus}`}
+                key={feedStatus}
                 market={market}
                 book={displayedBook}
                 lastTicks={book.lastTicks}
@@ -583,13 +613,11 @@ export function TradingTerminal({
                 <div className={styles.panelHeader}>
                   <h2 id="recent-trades-title">Recent trades</h2>
                   <span className={styles.miniLabel}>
-                    {sessionTape.length > 0
-                      ? (feed.showFixtures ? "Session + fixture" : "Session tape")
-                      : (feed.showFixtures ? "Fixture tape" : feed.eyebrow)}
+                    {tapeMiniLabel(sessionTape.length > 0, statsSurface.showFixtures, market.settlementPair)}
                   </span>
                 </div>
                 <table className={styles.dataTable}>
-                  <caption className={styles.srOnly}>Recent {marketId} trades settled as {market.settlementPair}. Session fills appear first.</caption>
+                  <caption className={styles.srOnly}>{tapeCaptionCopy(marketId, !statsSurface.showFixtures)}</caption>
                   <thead>
                     <tr><th scope="col">Price {market.quote}</th><th scope="col">Size pZEC</th><th scope="col">Time</th></tr>
                   </thead>
@@ -617,7 +645,7 @@ export function TradingTerminal({
                     {sessionTape.length === 0 && fixtureTape.length === 0 && (
                       <tr>
                         <td colSpan={3}>
-                          <p className={styles.emptyState}>{feed.heading}. {feed.message}</p>
+                          <p className={styles.emptyState}>{feedWithheldCopy(feedStatus, market.settlementPair)}</p>
                         </td>
                       </tr>
                     )}
@@ -650,8 +678,8 @@ export function TradingTerminal({
             onRetryFeed={() => selectFeed("illustrative")}
           />
         )}
-        {initialAccess === "open" && view === "bridge" && <BridgePanel />}
-        {initialAccess === "open" && view === "architecture" && <ArchitecturePanel />}
+        {initialAccess === "open" && view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
+        {initialAccess === "open" && view === "architecture" && <ArchitecturePanel highlightIncidents={incidentDemo} />}
       </main>
 
       <footer className={styles.footer}>

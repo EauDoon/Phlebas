@@ -8,10 +8,17 @@ import {
   nextBlotterTab,
   type BlotterTab,
 } from "@/lib/blotter-tabs";
+import {
+  blotterEmptyFillsCopy,
+  blotterEmptyLogCopy,
+  blotterEmptyOrdersCopy,
+  blotterLogCaptionCopy,
+  blotterLogEventCopy,
+} from "@/lib/blotter-copy";
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
 import type { RestingOrder } from "@/lib/matcher";
-import { describeSessionLogEvent, type SessionLogEvent } from "@/lib/replay";
+import type { SessionLogEvent } from "@/lib/replay";
 import type { PaperAccount, UserFill } from "@/lib/session";
 import { availablePzec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
 import { PZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
@@ -124,7 +131,7 @@ export function OrderBlotter({
       {tab === "orders" && (
         <div role="tabpanel" id="blotter-panel-orders" aria-labelledby="blotter-tab-orders">
         {openOrders.length === 0 ? (
-          <p className={styles.emptyState}>No open session orders. Venue fixture levels remain on the book.</p>
+          <p className={styles.emptyState}>{blotterEmptyOrdersCopy(market.settlementPair)}</p>
         ) : (
           <div className={styles.tableScroll}>
           <table className={styles.dataTable}>
@@ -173,7 +180,7 @@ export function OrderBlotter({
       {tab === "fills" && (
         <div role="tabpanel" id="blotter-panel-fills" aria-labelledby="blotter-tab-fills">
         {marketFills.length === 0 ? (
-          <p className={styles.emptyState}>No session fills yet. Submitting a simulated order can trade against the fixture book.</p>
+          <p className={styles.emptyState}>{blotterEmptyFillsCopy(market.settlementPair)}</p>
         ) : (
           <div className={styles.tableScroll}>
           <table className={styles.dataTable}>
@@ -249,10 +256,10 @@ export function OrderBlotter({
       {tab === "log" && (
         <div role="tabpanel" id="blotter-panel-log" aria-labelledby="blotter-tab-log">
         {events.length === 0 ? (
-          <p className={styles.emptyState}>No session events yet. Replaying this log reconstructs the book and balances.</p>
+          <p className={styles.emptyState}>{blotterEmptyLogCopy(market.settlementPair)}</p>
         ) : (
           <table className={styles.dataTable}>
-            <caption className={styles.srOnly}>Append-only session event log</caption>
+            <caption className={styles.srOnly}>{blotterLogCaptionCopy(market.settlementPair)}</caption>
             <thead>
               <tr>
                 <th scope="col">#</th>
@@ -265,7 +272,8 @@ export function OrderBlotter({
                 <tr key={`${event.kind}-${index}`}>
                   <th scope="row">{events.length - Math.min(events.length, 20) + index + 1}</th>
                   <td>{event.kind}</td>
-                  <td>{describeSessionLogEvent(event)}</td>
+                  {/* The pure blotter copy module keeps describeSessionLogEvent formatting and adds settlement context. */}
+                  <td>{blotterLogEventCopy(event)}</td>
                 </tr>
               ))}
             </tbody>

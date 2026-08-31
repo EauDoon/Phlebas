@@ -5,7 +5,13 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as Reac
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import { sepoliaDomain, typedData, type TypedOrder } from "@/lib/eip712";
-import { getInjectedProvider, signTypedData } from "@/lib/evm-wallet";
+import {
+  getInjectedProvider,
+  isMissingProviderCopy,
+  missingProviderCopy,
+  retargetSettlementCopy,
+  signTypedData,
+} from "@/lib/evm-wallet";
 import { planTestnetSubmit, sendSettlement, sepoliaSubmitEnabled } from "@/lib/sepolia-submit";
 import { TESTNET } from "@/lib/testnet";
 import { parseExpiryUnix, settlementDigest, typedOrderFromTicket } from "@/lib/ticket-order";
@@ -25,6 +31,7 @@ import {
   type TicketTif,
 } from "@/lib/ticket-groups";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
+import { describeSubmit, isTicketRejectCopy } from "@/lib/session";
 import { compareVenues, type RouteComparison } from "@/lib/router";
 import {
   calculatePreviewNotional,
@@ -155,6 +162,7 @@ export function TradeTicket({
   const [rejected, setRejected] = useState<string | null>(null);
   const [appliedPriceNonce, setAppliedPriceNonce] = useState(0);
   const [sessionNonce, setSessionNonce] = useState(1);
+  const reviewOpenRef = useRef(false);
   const [review, setReview] = useState<{
     side: TicketSide;
     priceTicks: bigint;
@@ -175,6 +183,10 @@ export function TradeTicket({
     setTypeFocus("limit");
     setPrice(formatAtomicUnits(priceSelection.ticks, PRICE_DECIMALS, 2));
   }
+
+  useEffect(() => {
+    reviewOpenRef.current = review !== null;
+  }, [review]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -283,7 +295,7 @@ export function TradeTicket({
   const expiryError = expiryParse.error;
   const inputError = priceError ?? sizeError ?? slippageError ?? expiryError;
   const bookEmpty = book.bids.length === 0 && book.asks.length === 0;
-  const gate = ticketGate(feedStatus, bookEmpty);
+  const gate = ticketGate(feedStatus, bookEmpty, market.settlementPair);
 
   function applyPercent(percent: 25 | 50 | 75 | 100) {
     const share = BigInt(percent);
@@ -427,8 +439,9 @@ export function TradeTicket({
       nowUnix,
     });
     if (clobPreview.status === "rejected" && clobPreview.reason === "Order expiry has passed") {
-      setRejected(`Rejected. ${clobPreview.reason}`);
-      setNotice(clobPreview.reason);
+      const rejectedCopy = describeSubmit(clobPreview, market.id);
+      setRejected(rejectedCopy);
+      setNotice(rejectedCopy);
       setReview(null);
       return;
     }
@@ -494,7 +507,7 @@ export function TradeTicket({
     }
     const provider = getInjectedProvider();
     if (!provider) {
-      setNotice("No injected EVM wallet.");
+      setNotice(missingProviderCopy(market.settlementPair));
       return;
     }
     if (!TESTNET.deployed) {
@@ -552,10 +565,7 @@ export function TradeTicket({
       sizeAtoms: review.sizeAtoms,
       expiryUnix: review.expiryUnix,
     });
-    const isRejected = result.startsWith("Rejected.")
-      || result.includes("insufficient")
-      || result.startsWith("Self-trade");
-    setRejected(isRejected ? result : null);
+    setRejected(isTicketRejectCopy(result) ? result : null);
     setNotice(result);
     setReview(null);
   }
@@ -583,7 +593,7 @@ export function TradeTicket({
       {rejected && gate.canReview && (
         <div className={styles.ticketBlocked} role="alert">
           <strong>Order rejected</strong>
-          <p>{rejected} Retry is safe; nothing was submitted.</p>
+          <p>{retargetSettlementCopy(rejected, market.settlementPair)} Retry is safe; nothing was submitted.</p>
         </div>
       )}
 
@@ -916,7 +926,11 @@ export function TradeTicket({
         </button>
       )}
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
-        {inputError ?? notionalError ?? notice}
+        {inputError ?? notionalError ?? (isTicketRejectCopy(notice)
+          ? retargetSettlementCopy(notice, market.settlementPair)
+          : isMissingProviderCopy(notice)
+            ? missingProviderCopy(market.settlementPair)
+            : notice)}
       </p>
       <div className={styles.shortcutRegion} role="region" aria-labelledby="ticket-keyboard-heading">
         <h3 id="ticket-keyboard-heading">Ticket keyboard</h3>

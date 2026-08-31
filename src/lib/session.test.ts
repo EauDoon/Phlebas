@@ -8,12 +8,18 @@ import {
   availableQuote,
   canCover,
   describeSubmit,
+  inventoryRejectCopy,
+  isTicketRejectCopy,
   releaseRestingOrder,
   seedBook,
   seedPaperAccount,
+  selfTradeRejectCopy,
+  ticketRejectCopy,
   userOrders,
   wouldSelfTrade,
 } from "./session.ts";
+import { retargetSettlementCopy } from "./evm-wallet.ts";
+import { markets } from "./market-data.ts";
 import { quoteAtomsForFill } from "./units.ts";
 
 test("seeds the USDC book from fixture levels with integer ticks", () => {
@@ -187,4 +193,71 @@ test("checks exact fill debit plus rounded remainder reservation", () => {
   assert.equal(applied.blockedReason, "Session quote inventory is insufficient.");
   assert.deepEqual(applied.account, account);
   assert.equal(availableQuote(applied.account), 2n);
+});
+
+test("describeSubmit names settlement on a real FOK miss", () => {
+  const book = seedBook("ZEC/USDC");
+  const result = submitOrder(book, {
+    id: "taker",
+    side: "buy",
+    tif: "FOK",
+    priceTicks: 5291n,
+    sizeAtoms: 100_00000000n,
+  });
+  assert.equal(result.status, "rejected");
+  assert.equal(
+    describeSubmit(result, "ZEC/USDC"),
+    "Rejected. Fill-or-kill could not fill in full. Settled as pZEC-USDC.",
+  );
+  assert.equal(
+    describeSubmit(result, "ZEC/USDT"),
+    "Rejected. Fill-or-kill could not fill in full. Settled as pZEC-USDT0.",
+  );
+  assert.equal(isTicketRejectCopy(describeSubmit(result, "ZEC/USDC")), true);
+});
+
+test("ticket reject copy follows the selected market after a switch", () => {
+  const book = seedBook("ZEC/USDC");
+  const result = submitOrder(book, {
+    id: "taker",
+    side: "buy",
+    tif: "FOK",
+    priceTicks: 5291n,
+    sizeAtoms: 100_00000000n,
+  });
+  assert.equal(result.status, "rejected");
+  const usdc = describeSubmit(result, "ZEC/USDC");
+  const usdt = describeSubmit(result, "ZEC/USDT");
+  assert.equal(usdc, "Rejected. Fill-or-kill could not fill in full. Settled as pZEC-USDC.");
+  assert.equal(usdt, "Rejected. Fill-or-kill could not fill in full. Settled as pZEC-USDT0.");
+  assert.equal(isTicketRejectCopy(usdc), true);
+  assert.equal(
+    retargetSettlementCopy(usdc, markets["ZEC/USDT"].settlementPair),
+    usdt,
+  );
+  assert.equal(
+    retargetSettlementCopy(ticketRejectCopy("Order expiry has passed", "ZEC/USDC"), markets["ZEC/USDT"].settlementPair),
+    ticketRejectCopy("Order expiry has passed", "ZEC/USDT"),
+  );
+  assert.doesNotMatch(retargetSettlementCopy(usdc, markets["ZEC/USDT"].settlementPair), /native ZEC/);
+});
+
+test("inventory reject copy starts from session seed inventory", () => {
+  const account = seedPaperAccount();
+  assert.equal(canCover(account, "buy", 1_000_00000000n, 5291n), false);
+  assert.equal(
+    inventoryRejectCopy("buy", "ZEC/USDC"),
+    "Rejected. Session quote inventory is insufficient. Settled as pZEC-USDC.",
+  );
+  assert.equal(canCover(account, "sell", 10_00000000n, 5278n), true);
+  assert.equal(
+    inventoryRejectCopy("sell", "ZEC/USDT"),
+    "Rejected. Session pZEC inventory is insufficient. Settled as pZEC-USDT0.",
+  );
+  assert.equal(
+    selfTradeRejectCopy("ZEC/USDC"),
+    "Rejected. Self-trade prevented. Cancel the resting session order or choose another price. Settled as pZEC-USDC.",
+  );
+  assert.equal(isTicketRejectCopy(ticketRejectCopy("Order expiry has passed", "ZEC/USDC")), true);
+  assert.doesNotMatch(inventoryRejectCopy("buy", "ZEC/USDC"), /native ZEC/);
 });
