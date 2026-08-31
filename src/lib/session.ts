@@ -157,14 +157,14 @@ export function applySubmit(
   if (result.fills.length > 0 && fillQuoteAtoms === 0n) {
     return { account, blockedReason: "Executed notional must settle to at least one quote atom." };
   }
-  const filledPzecAtoms = result.fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
-  const restingPzecAtoms = result.status === "open" ? result.remainingAtoms : 0n;
-  const restingQuoteAtoms = order.side === "buy" && restingPzecAtoms > 0n
-    ? quoteAtomsForFill(restingPzecAtoms, order.priceTicks, "up")
+  const filledZecAtoms = result.fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
+  const restingZecAtoms = result.status === "open" ? result.remainingAtoms : 0n;
+  const restingQuoteAtoms = order.side === "buy" && restingZecAtoms > 0n
+    ? quoteAtomsForFill(restingZecAtoms, order.priceTicks, "up")
     : 0n;
   const required = order.side === "buy"
     ? fillQuoteAtoms + restingQuoteAtoms
-    : filledPzecAtoms + restingPzecAtoms;
+    : filledZecAtoms + restingZecAtoms;
   const available = order.side === "buy" ? availableQuote(account) : availableZec(account);
   if (available < required) {
     return {

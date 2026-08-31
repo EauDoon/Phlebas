@@ -346,10 +346,10 @@ export function TradeTicket({
       return;
     }
     setRejected(null);
-    const filledPzecAtoms = clobPreview.fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
+    const filledZecAtoms = clobPreview.fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
     const clobDebitAtoms = side === "buy"
       ? quoteAtomsForFills(clobPreview.fills, "up")
-      : filledPzecAtoms;
+      : filledZecAtoms;
     const clobReservationAtoms = clobPreview.status === "open"
       ? side === "buy"
         ? quoteAtomsForFill(clobPreview.remainingAtoms, prepared.priceTicks, "up")
