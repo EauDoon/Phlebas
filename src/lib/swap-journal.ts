@@ -1,5 +1,6 @@
 import { UINT64_MAX, normalizeHex32, type Hex32 } from "./order-domain.ts";
 import { sha256Hex } from "./sha256.ts";
+import { swapStateRoot } from "./swap-root.ts";
 import {
   authorizeSwapTerms,
   confirmSwapFunding,
@@ -35,6 +36,8 @@ export type SwapEventReceipt = Readonly<{
   swapId: Hex32;
   termsHash: Hex32;
   previousEventHash: Hex32;
+  priorStateRoot: Hex32;
+  nextStateRoot: Hex32;
   payload: SwapEventPayload;
   payloadHash: Hex32;
   semanticSlot: string;
@@ -44,6 +47,7 @@ export type SwapEventReceipt = Readonly<{
 export type SwapJournal = Readonly<{
   swapId: Hex32;
   termsHash: Hex32;
+  initialStateRoot: Hex32;
   receipts: readonly SwapEventReceipt[];
   head: Hex32;
   nextSequence: bigint;
@@ -104,6 +108,8 @@ export function hashSwapEvent(receipt: Omit<SwapEventReceipt, "eventHash">): Hex
     `swapId=${canonicalHex32(receipt.swapId, "Swap ID")}`,
     `termsHash=${canonicalHex32(receipt.termsHash, "Terms hash")}`,
     `previousEventHash=${canonicalHex32(receipt.previousEventHash, "Previous event hash")}`,
+    `priorStateRoot=${canonicalHex32(receipt.priorStateRoot, "Prior state root")}`,
+    `nextStateRoot=${canonicalHex32(receipt.nextStateRoot, "Next state root")}`,
     `payloadHash=${canonicalHex32(receipt.payloadHash, "Payload hash")}`,
     `semanticSlot=${receipt.semanticSlot}`,
   ].join("\n"));
@@ -113,6 +119,7 @@ export function emptySwapJournal(state: SwapState): SwapJournal {
   return Object.freeze({
     swapId: state.swapId,
     termsHash: state.termsHash,
+    initialStateRoot: swapStateRoot(state),
     receipts: Object.freeze([]),
     head: SWAP_EVENT_GENESIS,
     nextSequence: 1n,
@@ -153,13 +160,19 @@ export function appendSwapEvent(
   const conflict = journal.receipts.find((receipt) => receipt.semanticSlot === semanticSlot);
   if (conflict) throw new Error("Conflicting event occupies the same semantic slot");
 
+  const priorStateRoot = swapStateRoot(state);
+  const expectedPriorRoot = journal.receipts.at(-1)?.nextStateRoot ?? journal.initialStateRoot;
+  if (priorStateRoot !== expectedPriorRoot) throw new Error("Supplied swap state does not match the journal head");
   const nextState = applySwapEvent(state, payload);
+  const nextStateRoot = swapStateRoot(nextState);
   const unsigned: Omit<SwapEventReceipt, "eventHash"> = Object.freeze({
     version: SWAP_EVENT_VERSION,
     sequence: journal.nextSequence,
     swapId: state.swapId,
     termsHash: state.termsHash,
     previousEventHash: journal.head,
+    priorStateRoot,
+    nextStateRoot,
     payload,
     payloadHash,
     semanticSlot,
@@ -182,6 +195,7 @@ export function verifySwapJournal(journal: SwapJournal): boolean {
   try {
     const swapId = canonicalHex32(journal.swapId, "Journal swap ID");
     const termsHash = canonicalHex32(journal.termsHash, "Journal terms hash");
+    let stateRoot = canonicalHex32(journal.initialStateRoot, "Journal initial state root");
     let previous = SWAP_EVENT_GENESIS;
     let sequence = 1n;
     const payloads = new Set<string>();
@@ -189,6 +203,7 @@ export function verifySwapJournal(journal: SwapJournal): boolean {
     for (const receipt of journal.receipts) {
       if (receipt.version !== SWAP_EVENT_VERSION || receipt.sequence !== sequence) return false;
       if (receipt.swapId !== swapId || receipt.termsHash !== termsHash || receipt.previousEventHash !== previous) return false;
+      if (receipt.priorStateRoot !== stateRoot) return false;
       if (receipt.payloadHash !== hashSwapEventPayload(receipt.payload)) return false;
       if (receipt.semanticSlot !== swapEventSemanticSlot(receipt.payload)) return false;
       if (payloads.has(receipt.payloadHash) || slots.has(receipt.semanticSlot)) return false;
@@ -197,6 +212,7 @@ export function verifySwapJournal(journal: SwapJournal): boolean {
       payloads.add(receipt.payloadHash);
       slots.add(receipt.semanticSlot);
       previous = receipt.eventHash;
+      stateRoot = canonicalHex32(receipt.nextStateRoot, "Receipt next state root");
       sequence += 1n;
     }
     return journal.head === previous && journal.nextSequence === sequence;
