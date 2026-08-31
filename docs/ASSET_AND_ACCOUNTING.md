@@ -278,7 +278,7 @@ Each pool has two token reserves and one LP share supply. For a pool with reserv
 x * y >= k_before
 ```
 
-The inequality accounts for fees retained by the pool. Contract code must use integer arithmetic with explicit rounding. The current interface's fee, TVL, volume, and reserve figures are simulations.
+The inequality accounts for fees retained by the pool. Contract code must use integer arithmetic with explicit rounding. The current interface's fee, TVL, volume, and reserve figures are simulations. The illustrative price chart maps integer tick fixtures to SVG pixel coordinates; those pixel positions may be IEEE floats. Axis labels remain integer ticks. That is a display exception, not a financial conversion.
 
 Adding liquidity transfers both assets into the pool and mints LP shares. Removing liquidity burns shares and transfers the proportional reserves. Neither action changes `pZEC` supply or the native reserve obligation.
 

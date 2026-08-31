@@ -1,3 +1,8 @@
+import {
+  CHART_DISPLAY_HEIGHT,
+  CHART_DISPLAY_WIDTH,
+  chartDisplayGeometry,
+} from "@/lib/chart-display";
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { chartSeries } from "@/lib/market-data";
 import { feedSurface, type FeedStatus } from "@/lib/market-state";
@@ -24,25 +29,13 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
     );
   }
   const values = chartSeries[marketId][range];
-  const min = Math.min(...values) - 25;
-  const max = Math.max(...values) + 25;
-  const width = 760;
-  const height = 270;
-  const points = values
-    .map((value, index) => {
-      const x = (index / (values.length - 1)) * width;
-      const y = height - ((value - min) / (max - min)) * height;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-  const areaPoints = `0,${height} ${points} ${width},${height}`;
-  const midTicks = BigInt(Math.trunc((min + max) / 2));
+  const { min, max, midTicks, points, areaPoints } = chartDisplayGeometry(values);
 
   return (
     <div className={styles.chartWrap}>
       <svg
         className={styles.chart}
-        viewBox={`0 0 ${width} ${height}`}
+        viewBox={`0 0 ${CHART_DISPLAY_WIDTH} ${CHART_DISPLAY_HEIGHT}`}
         role="img"
         aria-label={
           feedStatus === "stale"
@@ -66,9 +59,9 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
           <line
             key={line}
             x1="0"
-            x2={width}
-            y1={(height / 3) * line}
-            y2={(height / 3) * line}
+            x2={CHART_DISPLAY_WIDTH}
+            y1={(CHART_DISPLAY_HEIGHT / 3) * line}
+            y2={(CHART_DISPLAY_HEIGHT / 3) * line}
             className={styles.chartGrid}
           />
         ))}
