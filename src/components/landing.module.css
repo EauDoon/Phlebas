@@ -989,6 +989,11 @@
     padding: 0 14px;
   }
 
+  .brand {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
   .desktopNav,
   .headerCta,
   .previewStatus {
