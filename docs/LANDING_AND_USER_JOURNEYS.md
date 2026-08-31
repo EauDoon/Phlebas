@@ -376,11 +376,11 @@ Step 2:
 
 Title:
 
-> pZEC would depend on custody.
+> Pairs are native ZEC against USDC and USDT.
 
 Body:
 
-> pZEC is the planned settlement receipt for eligible transparent native ZEC. It is not native ZEC, shielded ZEC, or a trustless bridge asset.
+> This preview labels ZEC-USDC and ZEC-USDT. It is not live settlement, not shielded ZEC, and not a trustless bridge. USDT0 is abandoned. No mainnet funds move here.
 
 Step 3:
 
@@ -398,7 +398,7 @@ Actions:
 - Step 3: `Enter simulation`
 - Every step: `Back` when a previous step exists
 
-The dialog has a visible step count, initial focus on the heading, focus containment, and Escape support. Closing it has the same result as `Enter simulation` because the persistent banner remains. Store only a local disclosure version such as `phlebas.previewEducationVersion = 2026-08-30-1`. Do not create an account, cookie identifier, fingerprint, or analytics identity.
+The dialog has a visible step count, initial focus on the heading, focus containment, and Escape support. Closing it has the same result as `Enter simulation` because the persistent banner remains. Store only a local disclosure version such as `phlebas.previewEducationVersion = 2026-08-31-1`. Do not create an account, cookie identifier, fingerprint, or analytics identity.
 
 Show the dialog again when the disclosure version changes or local storage is cleared.
 
