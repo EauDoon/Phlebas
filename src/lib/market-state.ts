@@ -17,8 +17,40 @@ export function isFeedStatus(value: string | undefined): value is FeedStatus {
   return FEED_STATUSES.includes(value as FeedStatus);
 }
 
+export function ticketGateCopy(
+  message: string,
+  settlementPair?: Market["settlementPair"],
+): string {
+  if (!settlementPair) return message;
+  return `${message} Settled as ${settlementPair}.`;
+}
+
 export function emptyBookGateCopy(settlementPair: Market["settlementPair"]): string {
-  return `No resting depth. Review is disabled until the local book has size. Settled as ${settlementPair}.`;
+  return ticketGateCopy(
+    "No resting depth. Review is disabled until the local book has size.",
+    settlementPair,
+  );
+}
+
+export function loadingGateCopy(settlementPair: Market["settlementPair"]): string {
+  return ticketGateCopy(
+    "The ticket is waiting for a book snapshot. Retry is safe; nothing was submitted.",
+    settlementPair,
+  );
+}
+
+export function staleGateCopy(settlementPair: Market["settlementPair"]): string {
+  return ticketGateCopy(
+    "The illustrative feed is marked delayed. Stale data cannot move from preview to confirm.",
+    settlementPair,
+  );
+}
+
+export function unavailableGateCopy(settlementPair: Market["settlementPair"]): string {
+  return ticketGateCopy(
+    "Integrity checks failed. Preview-to-sign is disabled. Retry is safe; nothing was submitted.",
+    settlementPair,
+  );
 }
 
 export function ticketGate(
@@ -31,7 +63,9 @@ export function ticketGate(
       status: "loading",
       canReview: false,
       heading: "Loading market data",
-      message: "The ticket is waiting for a book snapshot. Retry is safe; nothing was submitted.",
+      message: settlementPair
+        ? loadingGateCopy(settlementPair)
+        : "The ticket is waiting for a book snapshot. Retry is safe; nothing was submitted.",
       asOf: null,
     };
   }
@@ -41,7 +75,9 @@ export function ticketGate(
       status: "unavailable",
       canReview: false,
       heading: "Market data unavailable",
-      message: "Integrity checks failed. Preview-to-sign is disabled. Retry is safe; nothing was submitted.",
+      message: settlementPair
+        ? unavailableGateCopy(settlementPair)
+        : "Integrity checks failed. Preview-to-sign is disabled. Retry is safe; nothing was submitted.",
       asOf: null,
     };
   }
@@ -51,7 +87,9 @@ export function ticketGate(
       status: "stale",
       canReview: false,
       heading: "Market data stale",
-      message: "The illustrative feed is marked delayed. Stale data cannot move from preview to confirm.",
+      message: settlementPair
+        ? staleGateCopy(settlementPair)
+        : "The illustrative feed is marked delayed. Stale data cannot move from preview to confirm.",
       asOf: "2026-08-30T16:32:08Z",
     };
   }
@@ -138,4 +176,29 @@ export function depthSessionLastCopy(
   return spreadLabel
     ? `session last · ${settlementPair} · spread ${spreadLabel}`
     : `session last · ${settlementPair}`;
+}
+
+export function tapeCaptionCopy(marketId: MarketId, withheld: boolean): string {
+  const settlementPair = markets[marketId].settlementPair;
+  if (withheld) {
+    return `Recent ${marketId} trades withheld. Settled as ${settlementPair}. Fixture tape is not shown.`;
+  }
+  return `Recent ${marketId} trades settled as ${settlementPair}. Session fills appear first.`;
+}
+
+export function sessionLastStatLabel(
+  settlementPair: Market["settlementPair"],
+  showFixtures: boolean,
+): string {
+  return showFixtures ? `Session last · ${settlementPair}` : "Session last";
+}
+
+export function tapeMiniLabel(
+  hasSessionTape: boolean,
+  showFixtures: boolean,
+  settlementPair: Market["settlementPair"],
+): string {
+  if (hasSessionTape) return "Session + fixture";
+  if (showFixtures) return "Fixture tape";
+  return `Withheld · ${settlementPair}`;
 }
