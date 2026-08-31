@@ -90,7 +90,7 @@ export const sampleSwapTerms: SwapTermsV1 = {
   zecAsset: `${sampleZecChain}/slip44:133`,
   quoteChain: sampleQuoteChain,
   quoteAsset: "eip155:421614/erc20:0x1111111111111111111111111111111111111111",
-  protocolFeeQuoteAtoms: 7_936n,
+  protocolFeeQuoteAtoms: 0n,
   feeRecipient: hex20("7"),
   maximumFeeBps: 30n,
   zcashLockScriptHash: hex20("a"),
@@ -130,7 +130,7 @@ export function fundingEvidence(
   observerIndex: 0 | 1 = 0,
 ): FundingEvidence {
   const blockHeight = 100n;
-  const executedAtSeconds = (leg === "zec" ? terms.zecFundBy : terms.evmFundBy) - 100n;
+  const executedAtSeconds = (leg === "zec" ? terms.zecFundBy : terms.evmFundBy) - 1n;
   const unsigned = {
     leg,
     swapId: createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy).swapId,
@@ -164,7 +164,7 @@ export function fundingEvidence(
       observerPolicyId: terms.observerPolicyId,
       finalityPolicyId: leg === "zec" ? terms.zecFinalityPolicyId : terms.evmFinalityPolicyId,
       observedAtSeconds: executedAtSeconds + finality.minimumAgeSeconds,
-      tipBlockHash: keccak256Text(`${leg}-tip-${suffix}-${observerIndex}`),
+      tipBlockHash: keccak256Text(`${leg}-tip-${suffix}`),
       tipBlockHeight: blockHeight + finality.minimumConfirmations - 1n,
     },
   };
@@ -231,7 +231,7 @@ export function spendEvidence(
       observerPolicyId: terms.observerPolicyId,
       finalityPolicyId: leg === "zec" ? terms.zecFinalityPolicyId : terms.evmFinalityPolicyId,
       observedAtSeconds: executedAtSeconds + finality.minimumAgeSeconds,
-      tipBlockHash: keccak256Text(`${leg}-${action}-tip-${observerIndex}`),
+      tipBlockHash: keccak256Text(`${leg}-${action}-tip`),
       tipBlockHeight: blockHeight + finality.minimumConfirmations - 1n,
     },
   };

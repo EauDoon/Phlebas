@@ -90,7 +90,11 @@ test("enforces ZEC-first funding and exact evidence", () => {
     () => observeSwapFunding(prepared, { ...evidence, fact: { ...evidence.fact, amountAtoms: 1n } }),
     /canonical content/,
   );
-  assert.deepEqual(prepared.zec, { phase: "funding-prepared", fundingArtifactHash: keccak256Text("zec-artifact") });
+  assert.deepEqual(prepared.zec, {
+    phase: "funding-prepared",
+    fundingArtifactHash: keccak256Text("zec-artifact"),
+    fundingPreparedAtSeconds: sampleSwapTerms.zecFundBy - 1n,
+  });
   const observed = observeSwapFunding(prepared, evidence);
   assert.equal(swapPhase(observed), "awaiting-zec-confirmation");
   assert.throws(() => confirmSwapFunding(observed, "zec", evidence.fact.factId, evidence.attestation.observedAtSeconds), /quorum/);
@@ -177,10 +181,53 @@ test("rejects EVM claims at the refund deadline", () => {
   const zecPrepared = prepareSwapFunding(authorized, "zec", keccak256Text("za"), 3n);
   const zecQuorum = observeFundingQuorum(zecPrepared, "zec", terms);
   const zecFunded = confirmSwapFunding(zecQuorum.observed, "zec", zecQuorum.first.fact.factId, zecQuorum.qualifiedAtSeconds);
-  const evmPrepared = prepareSwapFunding(zecFunded, "evm", keccak256Text("ea"), 4n);
+  const evmPrepared = prepareSwapFunding(zecFunded, "evm", keccak256Text("ea"), terms.evmFundBy - 1n);
   const evmQuorum = observeFundingQuorum(evmPrepared, "evm", terms);
   const bothFunded = confirmSwapFunding(evmQuorum.observed, "evm", evmQuorum.first.fact.factId, evmQuorum.qualifiedAtSeconds);
   assert.throws(() => observeSwapSpend(bothFunded, spendEvidence("evm", "claim", terms.evmRefundTime, terms)), /at or after/);
+});
+
+test("accepts a transparent ZEC claim at the refund threshold while the outpoint remains unspent", () => {
+  const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
+  const bothFunded = fundedSwap(terms);
+  const evmClaim = observeSpendQuorum(bothFunded, "evm", "claim", terms.evmRefundTime - 1n, terms);
+  const evmClaimed = confirmSwapSpend(
+    evmClaim.observed,
+    "evm",
+    evmClaim.first.fact.factId,
+    evmClaim.qualifiedAtSeconds,
+  );
+  const zecClaim = observeSpendQuorum(evmClaimed, "zec", "claim", terms.zecRefundTime, terms);
+  const settled = confirmSwapSpend(
+    zecClaim.observed,
+    "zec",
+    zecClaim.first.fact.factId,
+    zecClaim.qualifiedAtSeconds,
+  );
+  assert.equal(swapPhase(settled), "settled");
+});
+
+test("disputes observers that report different tips at the same height", () => {
+  const prepared = prepareSwapFunding(
+    authorizedSwap(),
+    "zec",
+    keccak256Text("conflicting-view-artifact"),
+    sampleSwapTerms.zecFundBy - 1n,
+  );
+  const first = fundingEvidence("zec", "1", sampleSwapTerms, 0);
+  const second = fundingEvidence("zec", "1", sampleSwapTerms, 1);
+  const conflicting = {
+    ...second,
+    attestation: { ...second.attestation, tipBlockHash: keccak256Text("different-same-height-tip") },
+  };
+  const disputed = observeSwapFunding(observeSwapFunding(prepared, first), conflicting);
+  assert.equal(swapPhase(disputed), "disputed");
+  assert.equal(disputed.zec.fundingAttestations?.length, 2);
+  assert.equal(disputed.disputes[0]?.evidenceId, conflicting.attestation.evidenceId);
+  assert.throws(
+    () => confirmSwapFunding(disputed, "zec", first.fact.factId, conflicting.attestation.observedAtSeconds),
+    /disputed/,
+  );
 });
 
 test("fails closed on stale or conflicting observer evidence", () => {
@@ -202,7 +249,7 @@ test("preserves a revealed secret when its EVM claim reorganizes", () => {
   const zecPrepared = prepareSwapFunding(authorized, "zec", keccak256Text("zr"), 3n);
   const zecQuorum = observeFundingQuorum(zecPrepared, "zec", terms);
   const zecFunded = confirmSwapFunding(zecQuorum.observed, "zec", zecQuorum.first.fact.factId, zecQuorum.qualifiedAtSeconds);
-  const evmPrepared = prepareSwapFunding(zecFunded, "evm", keccak256Text("er"), 4n);
+  const evmPrepared = prepareSwapFunding(zecFunded, "evm", keccak256Text("er"), terms.evmFundBy - 1n);
   const evmQuorum = observeFundingQuorum(evmPrepared, "evm", terms);
   const bothFunded = confirmSwapFunding(evmQuorum.observed, "evm", evmQuorum.first.fact.factId, evmQuorum.qualifiedAtSeconds);
   const claimEvidence = spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms);
@@ -331,6 +378,77 @@ test("replaces a retracted unconfirmed funding report for the same fact only", (
   );
 });
 
+test("requires fresh replacement evidence and a complete resolution graph", () => {
+  const prepared = prepareSwapFunding(
+    authorizedSwap(),
+    "zec",
+    keccak256Text("fresh-replacement-artifact"),
+    sampleSwapTerms.zecFundBy - 1n,
+  );
+  const first = fundingEvidence("zec", "1", sampleSwapTerms, 0);
+  const second = fundingEvidence("zec", "1", sampleSwapTerms, 1);
+  const observed = observeSwapFunding(observeSwapFunding(prepared, first), second);
+  const disputed = retractSwapEvidence(observed, first.attestation.evidenceId, "First report left the canonical view");
+  assert.throws(
+    () => replaceSwapFundingAttestation(
+      disputed,
+      "zec",
+      first.attestation.evidenceId,
+      { fact: first.fact, attestation: second.attestation },
+      keccak256Text("reused-evidence-resolution"),
+      second.attestation.observedAtSeconds,
+      "An active report cannot be reused as replacement evidence",
+    ),
+    /must be fresh/,
+  );
+
+  const replacement = {
+    fact: first.fact,
+    attestation: {
+      ...first.attestation,
+      evidenceId: keccak256Text("fresh-replacement-evidence"),
+    },
+  };
+  const recovered = replaceSwapFundingAttestation(
+    disputed,
+    "zec",
+    first.attestation.evidenceId,
+    replacement,
+    keccak256Text("fresh-evidence-resolution"),
+    replacement.attestation.observedAtSeconds,
+    "Fresh evidence restored the canonical observer quorum",
+  );
+  assert.throws(
+    () => swapPhase({
+      ...recovered,
+      zec: {
+        ...recovered.zec,
+        fundingAttestations: recovered.zec.fundingAttestations?.filter(
+          (attestation) => attestation.evidenceId !== replacement.attestation.evidenceId,
+        ),
+      },
+    }),
+    /replacement must remain active/,
+  );
+  assert.throws(
+    () => swapPhase({
+      ...recovered,
+      resolutions: [{ ...recovered.resolutions[0]!, occurredAtSeconds: 0n }],
+    }),
+    /cannot precede either observer report/,
+  );
+  assert.throws(
+    () => swapPhase({
+      ...recovered,
+      resolutions: [{
+        ...recovered.resolutions[0]!,
+        retractedSourceId: sampleEvidencePolicies.observer.sourceIds[1]!,
+      }],
+    }),
+    /retracted attestation does not bind/,
+  );
+});
+
 test("rejects malformed terminal and resolution metadata", () => {
   const authorized = authorizedSwap();
   assert.throws(
@@ -340,17 +458,119 @@ test("rejects malformed terminal and resolution metadata", () => {
     }),
     /predates/,
   );
+  const orphanFactId = keccak256Text("orphan-fact");
+  const orphanRetractedId = keccak256Text("not-retracted");
+  const orphanReplacementId = keccak256Text("replacement");
+  const orphanRetractedAttestation = {
+    ...fundingEvidence("zec", "orphan", sampleSwapTerms, 0).attestation,
+    evidenceId: orphanRetractedId,
+    factId: orphanFactId,
+  };
+  const orphanReplacementAttestation = {
+    ...fundingEvidence("zec", "orphan", sampleSwapTerms, 1).attestation,
+    evidenceId: orphanReplacementId,
+    factId: orphanFactId,
+  };
   assert.throws(
     () => swapPhase({
       ...authorized,
       resolutions: [{
         resolutionId: keccak256Text("orphan-resolution"),
-        retractedEvidenceId: keccak256Text("not-retracted"),
-        replacementEvidenceId: keccak256Text("replacement"),
+        leg: "zec",
+        evidenceKind: "funding",
+        factId: orphanFactId,
+        retractedEvidenceId: orphanRetractedId,
+        retractedSourceId: sampleEvidencePolicies.observer.sourceIds[0]!,
+        retractedAttestation: orphanRetractedAttestation,
+        replacementEvidenceId: orphanReplacementId,
+        replacementSourceId: sampleEvidencePolicies.observer.sourceIds[1]!,
+        replacementAttestation: orphanReplacementAttestation,
         occurredAtSeconds: sampleSwapTerms.zecFundBy,
         detail: "Orphan recovery record",
       }],
     }),
     /reference retracted evidence/,
+  );
+  const firstId = keccak256Text("cycle-first");
+  const secondId = keccak256Text("cycle-second");
+  const cycleFactId = keccak256Text("cycle-fact");
+  const firstAttestation = {
+    ...fundingEvidence("zec", "cycle", sampleSwapTerms, 0).attestation,
+    evidenceId: firstId,
+    factId: cycleFactId,
+  };
+  const secondAttestation = {
+    ...fundingEvidence("zec", "cycle", sampleSwapTerms, 1).attestation,
+    evidenceId: secondId,
+    factId: cycleFactId,
+  };
+  assert.throws(
+    () => swapPhase({
+      ...authorized,
+      retractedEvidenceIds: { [firstId]: true, [secondId]: true },
+      resolutions: [{
+        resolutionId: keccak256Text("cycle-resolution-one"),
+        leg: "zec",
+        evidenceKind: "funding",
+        factId: cycleFactId,
+        retractedEvidenceId: firstId,
+        retractedSourceId: sampleEvidencePolicies.observer.sourceIds[0]!,
+        retractedAttestation: firstAttestation,
+        replacementEvidenceId: secondId,
+        replacementSourceId: sampleEvidencePolicies.observer.sourceIds[1]!,
+        replacementAttestation: secondAttestation,
+        occurredAtSeconds: sampleSwapTerms.zecFundBy,
+        detail: "First cyclic replacement",
+      }, {
+        resolutionId: keccak256Text("cycle-resolution-two"),
+        leg: "zec",
+        evidenceKind: "funding",
+        factId: cycleFactId,
+        retractedEvidenceId: secondId,
+        retractedSourceId: sampleEvidencePolicies.observer.sourceIds[1]!,
+        retractedAttestation: secondAttestation,
+        replacementEvidenceId: firstId,
+        replacementSourceId: sampleEvidencePolicies.observer.sourceIds[0]!,
+        replacementAttestation: firstAttestation,
+        occurredAtSeconds: sampleSwapTerms.zecFundBy,
+        detail: "Second cyclic replacement",
+      }],
+    }),
+    /cycle/,
+  );
+});
+
+test("rejects persisted funding preparation before its causal authorization and confirmation gates", () => {
+  const zecFunded = fundedZecSwap();
+  assert.throws(
+    () => swapPhase({
+      ...zecFunded,
+      zec: { ...zecFunded.zec, fundingPreparedAtSeconds: 1n },
+    }),
+    /cannot predate exact terms authorization/,
+  );
+
+  const bothFunded = fundedSwap();
+  assert.throws(
+    () => swapPhase({
+      ...bothFunded,
+      evm: {
+        ...bothFunded.evm,
+        fundingPreparedAtSeconds: (bothFunded.zec.fundingConfirmedAtSeconds as bigint) - 1n,
+      },
+    }),
+    /cannot predate policy-confirmed ZEC funding/,
+  );
+});
+
+test("rejects a forged settled phase without canonical chain facts", () => {
+  const authorized = authorizedSwap();
+  assert.throws(
+    () => swapPhase({
+      ...authorized,
+      zec: { phase: "claimed-confirmed" },
+      evm: { phase: "claimed-confirmed" },
+    }),
+    /funding/,
   );
 });

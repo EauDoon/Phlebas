@@ -76,6 +76,21 @@ test("binds canonical terms into every state root and transition", () => {
   );
 });
 
+test("rejects prototype-backed authorization records", () => {
+  const initial = createSwapState(sampleSwapTerms, {
+    minimumFundingWindowSeconds: 100n,
+    minimumClaimWindowSeconds: 100n,
+    minimumSafetyWindowSeconds: 500n,
+  }, sampleEvidencePolicies, sampleMarketPolicy);
+  const inherited = Object.create({
+    "zec-seller": sampleSwapTerms.authorizationDeadline - 2n,
+    "stablecoin-seller": sampleSwapTerms.authorizationDeadline - 1n,
+  }) as typeof initial.authorizations;
+  const forged = { ...initial, authorizations: inherited };
+  assert.throws(() => swapStateRoot(forged), /plain canonical record/);
+  assert.throws(() => emptySwapJournal(forged), /plain canonical record/);
+});
+
 test("binds timing, market, observer, and finality policies into state integrity", () => {
   const state = authorizedSwap();
   assert.throws(
@@ -154,6 +169,27 @@ test("binds spends to the exact funded outpoint or escrow record", () => {
   }
 });
 
+test("rejects chain facts that predate their causal prerequisites", () => {
+  const prepared = prepareSwapFunding(
+    authorizedSwap(),
+    "zec",
+    keccak256Text("chronology-artifact"),
+    sampleSwapTerms.zecFundBy - 1n,
+  );
+  const prematureFunding = replaceFundingFact(fundingEvidence("zec"), {
+    executedAtSeconds: sampleSwapTerms.zecFundBy - 2n,
+  });
+  assert.throws(() => observeSwapFunding(prepared, prematureFunding), /prepared artifact/);
+
+  const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
+  const funded = fundedSwap(terms);
+  const prematureClaim = replaceSpendFact(
+    spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms),
+    { executedAtSeconds: funded.evm.funding!.executedAtSeconds - 1n },
+  );
+  assert.throws(() => observeSwapSpend(funded, prematureClaim), /cannot predate/);
+});
+
 test("requires approved fresh observers and policy-qualified finality", () => {
   const prepared = prepareSwapFunding(
     authorizedSwap(),
@@ -218,7 +254,6 @@ test("binds every mutable signed term to the terms digest", () => {
       quoteAmountAtoms: 52_920_000n,
       executionPriceTicks: sampleSwapTerms.executionPriceTicks + 1n,
     }),
-    { ...sampleSwapTerms, protocolFeeQuoteAtoms: sampleSwapTerms.protocolFeeQuoteAtoms + 1n },
     { ...sampleSwapTerms, feeRecipient: hex20("6") },
     { ...sampleSwapTerms, maximumFeeBps: sampleSwapTerms.maximumFeeBps - 1n },
     { ...sampleSwapTerms, zcashLockScriptHash: hex20("b") },
@@ -245,6 +280,7 @@ test("binds every mutable signed term to the terms digest", () => {
   assert.equal(new Set(mutations.map(hashSwapTerms)).size, mutations.length);
   for (const mutation of mutations) assert.notEqual(hashSwapTerms(mutation), baseline);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, version: 2 as 1 }), /Unsupported/);
+  assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, protocolFeeQuoteAtoms: 1n }), /fees remain disabled/);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, zecAsset: `${sampleSwapTerms.zecChain}/slip44:999` }), /slip44:133/);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, fillId: keccak256Text("other-fill") }), /canonical match fields/);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, quoteAmountAtoms: sampleSwapTerms.quoteAmountAtoms + 1n }), /reconcile/);
@@ -290,11 +326,32 @@ test("rejects wrong preimages and keeps the funded state byte-identical", () => 
 });
 
 test("rejects conflicting replacement evidence in an occupied journal slot", () => {
-  const initial = authorizedSwap();
-  const prepared = prepareSwapFunding(initial, "zec", keccak256Text("zec-artifact"), sampleSwapTerms.zecFundBy - 1n);
-  const journal = emptySwapJournal(prepared);
+  const initial = createSwapState(sampleSwapTerms, {
+    minimumFundingWindowSeconds: 100n,
+    minimumClaimWindowSeconds: 100n,
+    minimumSafetyWindowSeconds: 500n,
+  }, sampleEvidencePolicies, sampleMarketPolicy);
+  const journal = emptySwapJournal(initial);
+  const authorizedZec = appendSwapEvent(journal, initial, {
+    kind: "authorize-terms",
+    partyId: sampleSwapTerms.zecSellerId,
+    termsHash: initial.termsHash,
+    occurredAtSeconds: sampleSwapTerms.authorizationDeadline - 2n,
+  });
+  const authorizedBoth = appendSwapEvent(authorizedZec.journal, authorizedZec.state, {
+    kind: "authorize-terms",
+    partyId: sampleSwapTerms.stablecoinSellerId,
+    termsHash: initial.termsHash,
+    occurredAtSeconds: sampleSwapTerms.authorizationDeadline - 1n,
+  });
+  const prepared = appendSwapEvent(authorizedBoth.journal, authorizedBoth.state, {
+    kind: "prepare-funding",
+    leg: "zec",
+    artifactHash: keccak256Text("zec-artifact"),
+    occurredAtSeconds: sampleSwapTerms.zecFundBy - 1n,
+  });
   const firstEvidence = fundingEvidence("zec");
-  const first = appendSwapEvent(journal, prepared, { kind: "observe-funding", evidence: firstEvidence });
+  const first = appendSwapEvent(prepared.journal, prepared.state, { kind: "observe-funding", evidence: firstEvidence });
   const replacement = replaceFundingFact(firstEvidence, { blockHash: keccak256Text("replacement-block") });
   assert.throws(() => appendSwapEvent(first.journal, first.state, {
     kind: "observe-funding",

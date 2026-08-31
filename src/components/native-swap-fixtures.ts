@@ -169,7 +169,7 @@ function fundingEvidence(leg: "zec" | "evm", observerIndex: 0 | 1 = 0): FundingE
     fixtureMarketPolicy,
   );
   const blockHeight = leg === "zec" ? 2_100_001n : 12_300_001n;
-  const executedAtSeconds = (leg === "zec" ? fixtureTerms.zecFundBy : fixtureTerms.evmFundBy) - 100n;
+  const executedAtSeconds = (leg === "zec" ? fixtureTerms.zecFundBy : fixtureTerms.evmFundBy) - 1n;
   const unsigned = {
     leg,
     swapId: identity.swapId,
@@ -202,7 +202,7 @@ function fundingEvidence(leg: "zec" | "evm", observerIndex: 0 | 1 = 0): FundingE
       observerPolicyId: fixtureTerms.observerPolicyId,
       finalityPolicyId: leg === "zec" ? fixtureTerms.zecFinalityPolicyId : fixtureTerms.evmFinalityPolicyId,
       observedAtSeconds: executedAtSeconds + finality.minimumAgeSeconds,
-      tipBlockHash: leg === "zec" ? (observerIndex === 0 ? hex32("3b") : hex32("3c")) : (observerIndex === 0 ? hex32("3d") : hex32("3e")),
+      tipBlockHash: leg === "zec" ? hex32("3b") : hex32("3d"),
       tipBlockHeight: blockHeight + finality.minimumConfirmations - 1n,
     },
   };
@@ -264,7 +264,7 @@ function spendEvidence(
       observerPolicyId: fixtureTerms.observerPolicyId,
       finalityPolicyId: leg === "zec" ? fixtureTerms.zecFinalityPolicyId : fixtureTerms.evmFinalityPolicyId,
       observedAtSeconds: executedAtSeconds + finality.minimumAgeSeconds,
-      tipBlockHash: observerIndex === 0 ? hex32("57") : hex32("58"),
+      tipBlockHash: hex32(key === "evm-claim" ? "57" : key === "zec-claim" ? "58" : key === "evm-refund" ? "59" : "5a"),
       tipBlockHeight: blockHeight + finality.minimumConfirmations - 1n,
     },
   };
