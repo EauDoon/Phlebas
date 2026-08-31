@@ -1212,4 +1212,8 @@ a.skipLink:focus-visible {
     padding: 6px;
     scrollbar-gutter: stable;
   }
+
+  .skipLink {
+    min-width: 44px;
+  }
 }
