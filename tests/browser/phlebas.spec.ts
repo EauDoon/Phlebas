@@ -1208,3 +1208,42 @@ test("incident demonstration keeps selected copy in a named region", async ({ pa
   await expect(page.getByText("They do not imply a live account, incident, or outage.")).toBeVisible();
 });
 
+test("market feed connect chart range and ticket side stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const targets = [
+    page.getByRole("radio", { name: "ZEC / USDC" }),
+    page.getByRole("radio", { name: "Illustrative" }),
+    page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }),
+    page.getByRole("radio", { name: "4H" }),
+    page.getByRole("button", { name: "Buy", exact: true }),
+  ];
+  for (const target of targets) {
+    await expect(target).toBeVisible();
+    const box = await target.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  }
+});
+
+test("404 skip link reaches the missing-route copy", async ({ page }) => {
+  await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipMissing = page.getByRole("link", { name: "Skip to missing-route copy" });
+  await expect(skipMissing).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#missing-route")).toBeFocused();
+});
+
+test("architecture skip link reaches the incident demonstration", async ({ page }) => {
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipIncident = page.getByRole("link", { name: "Skip to incident demonstration" });
+  await expect(skipIncident).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#incident-demonstration")).toBeFocused();
+});
+
