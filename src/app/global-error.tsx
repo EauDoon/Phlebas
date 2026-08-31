@@ -14,6 +14,7 @@ export default function GlobalError({
           href="#retry-copy"
           style={{
             display: "inline-flex",
+            minWidth: 44,
             minHeight: 44,
             alignItems: "center",
             padding: "9px 12px",
