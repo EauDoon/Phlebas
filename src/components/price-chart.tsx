@@ -15,10 +15,12 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
   const surface = feedSurface(feedStatus);
   if (!surface.showFixtures) {
     return (
-      <p className={styles.emptyState} role="status">
-        <strong>{surface.heading}. </strong>
-        {surface.message}
-      </p>
+      <div className={styles.chartWrap}>
+        <p className={styles.emptyState} role="status">
+          <strong>{surface.heading}. </strong>
+          {surface.message}
+        </p>
+      </div>
     );
   }
   const values = chartSeries[marketId][range];
