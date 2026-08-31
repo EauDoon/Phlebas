@@ -6,7 +6,7 @@
 .skipNav {
   position: fixed;
   z-index: 50;
-  top: 8px;
+  top: 12px;
   left: 8px;
   display: flex;
   flex-direction: column;
