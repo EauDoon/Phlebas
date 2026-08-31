@@ -217,3 +217,7 @@ export function chartPanelHeadingCopy(marketId: MarketId): string {
 export function chartPanelEyebrowCopy(settlementPair: Market["settlementPair"]): string {
   return `Illustrative market data · ${settlementPair}`;
 }
+
+export function priceChartLabelCopy(marketId: MarketId, range: ChartRange): string {
+  return `Illustrative ${range} price chart for ${marketId}, settled as ${markets[marketId].settlementPair}`;
+}
