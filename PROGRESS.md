@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after incorporating the latest product UI commits and current main for PR #22.
+Last updated: 01-09-2026 after education Enter simulation in 320px, copy padding not pushing Continue, Continue ring #f4c95d, leftover 44px status/security 320 and loading/404 768.
 
 ## Branch
 
@@ -256,13 +256,115 @@ Last updated: 31-08-2026 after incorporating the latest product UI commits and c
 - Header brand stays a 44px target at 320px under reduced motion
 - Skip-nav clip-path restore keeps skip links 44px tall
 - Playwright covers 320px focused skip-nav vs banner copy, 44px brand, and 44px skip links after clip restore
+- Focused skip-nav wraps skip links two-up at 320px so it does not consume the full viewport height
+- Terminal skip-nav in flow does not cover the topbar brand
+- Skip-nav returns to its clipped hidden state after skip-link activation
+- Playwright covers 320px skip-nav wrap, terminal brand below skip-nav, and hide after skip
+- Skip-link `:focus-visible` keeps the 2px `#15140d` ring for keyboard focus
+- Two-up skip links stay 44px tall when the label wraps at 320px
+- Focused skip-nav stays inside the 320px viewport (`max-width: 100%`)
+- Skip-nav focused padding is 4px so the 2px ring plus offset stays inside overflow-y auto
+- Hidden reduced-motion skip-nav zeros padding and gap and sets `transition: none` so hide restores a 1px clip box
+- Playwright covers focus-visible wrap height, 320px overflow, unclipped ring, and hide after skip
+- Skip-link wrapped labels use `line-height: 1.3` at 320px
+- Skip-nav height cap uses 6px padding so the 2px ring plus offset is not clipped vertically
+- A later `max-width: 820px` rule keeps `overflow-y: auto` after reduced-motion `overflow: visible`
+- Skip-nav `scrollbar-gutter: stable` keeps two-up skip links at least 44px
+- Focused skip-nav at 390px is `width: 100%` two-up with the 2px ring inside the viewport
+- `a.skipLink:focus-visible` keeps outline `#15140d` against global `a:focus-visible`
+- Overflow-y auto without reduced-motion still contains the skip-link ring
+- Focused skip-nav stays in flow (`position: relative; inset auto`) so it does not cover the landing header after wrap
+- Playwright covers wrapped line-height, vertical ring, gutter, 390px two-up, focus-visible color, motion overflow-y auto, and header clearance
+- Two-up skip-link labels use `overflow-wrap: anywhere` so width stays at least 44px
+- Focused skip-nav stays two-up at 768px (`flex-direction: row; flex-wrap: wrap`) with the 2px ring inside the viewport
+- Skip-nav `column-gap` / `row-gap` 4px plus `max-width: calc(50% - 2px)` keeps two-up links inside the guttered nav
+- A wrapped two-up pair uses `align-items: stretch` so both links share the same row height
+- Focused skip-nav `z-index: auto` at 820px so it does not cover the landing Menu button
+- Terminal skip-nav at 390px stays two-up with the 2px ring inside the viewport
+- Playwright covers 768px two-up, overflow-wrap, gutter max-width, stretched row height, Menu clearance, and terminal 390px two-up
+- Skip-nav `row-gap: 8px` so 2px rings plus offset do not clip between wrapped rows
+- Two-up skip-link `padding: 8px` and `box-sizing: border-box` keep overflow-wrap labels inside the 44px target
+- Two-up skip links use `flex: 1 0` so a leftover odd link stays at least 44px
+- Focused skip-nav `z-index: 1` at 820px so skip links stay above the simulation banner
+- Focused skip-nav at 768px does not cover the landing header brand
+- Terminal skip-nav at 768px stays two-up with the 2px ring inside the viewport
+- Simulation-frame skip-nav on `/legal` and `/security` stays two-up at 320px
+- Playwright covers row-gap rings, leftover 44px, 768px brand, terminal 768 two-up, legal/security two-up, and banner stacking
+- Skip-nav `column-gap: 8px` so 2px rings plus offset do not overlap two-up neighbors
+- Two-up skip links use `flex: 1 0 calc(50% - 4px)` to match the 8px column-gap
+- Two-up skip links use `word-break: break-word` so overflow-wrap stays inside the cell
+- `/status` skip-nav stays two-up at 320px
+- Liquidity leftover skip link (three links) stays at least 44px at 320px
+- Skip-link 8px padding still leaves a 44px min-height
+- Focused skip-nav at 768px does not cover the landing Menu button
+- Focused skip-nav z-index 1 does not cover the landing header after wrap at 320px
+- Playwright covers column-gap rings, status two-up, liquidity leftover, 768px Menu, 320px header, and security wrap
+- Two-up skip links use `flex: 1 1` so 8px column-gap plus scrollbar-gutter still leaves 44px at 320px
+- Focused skip-nav `min-width: 0` so the guttered nav can shrink
+- Two-up `max-width: min(100%, calc(50% - 4px))` keeps word-break inside the 44px cell
+- 404 and loading skip-nav stay two-up at 320px
+- Bridge leftover skip link (three links) stays at least 44px at 320px
+- Architecture skip-nav at 320px stays two-up with the 2px ring inside the viewport
+- Status skip-nav at 768px stays two-up with the 2px ring inside the viewport
+- Playwright covers gutter 44px, 404/loading two-up, bridge leftover, architecture 320 ring, status 768, and word-break overflow
+- Trailing `max-width: 820px` skip-link rule keeps `min-width`/`min-height` 44px after skip-nav `min-width: 0`
+- Trailing skip-link `flex: 1 1 calc(50% - 4px)` keeps two-up after reduced-motion
+- Error-page skip-nav stays two-up at 320px
+- Country-block skip-nav stays two-up at 320px
+- Architecture skip links stay at least 44px at 390px
+- Loading, 404, and bridge skip-nav stay two-up at 768px with the 2px ring inside the viewport
+- Playwright covers error and country-block two-up, architecture 390 leftover, and 768 loading/404/bridge two-up
+- Trailing skip-link `max-width: min(100%, calc(50% - 4px))` and `box-sizing: border-box` keep two-up plus 8px gap inside 320px
+- Global-error skip-nav has Skip to main content and Skip to retry copy, two-up, with a `#15140d` focus-visible ring
+- Global-error Retry stays 44px
+- Legal skip links stay at least 44px at 390px
+- Liquidity, country-block, architecture, and error skip-nav stay two-up at 768px with the 2px ring inside the viewport
+- Playwright covers 768 liquidity/country-block/architecture/error two-up, legal leftover at 390px, and 320 trailing overflow
+- Trailing skip-nav `padding: 8px` keeps the 2px ring inside overflow-y auto
+- Education dialog `margin-top: min(40vh, 17.5rem)` at 820px so it stays below skip-nav
+- Education waits to `showModal` while skip-nav is `:focus-within`
+- Security and status leftover skip links stay at least 44px at 390px
+- Liquidity leftover skip link stays at least 44px at 768px
+- Bridge leftover skip link stays at least 44px at 390px
+- Global-error skip-nav is two-up at every width, including 768px
+- Playwright covers leftover 44px, education clearance, and overflow-y ring padding
+- Education dialog `max-height: calc(100vh - min(40vh, 17.5rem) - 12px)` and `overflow-y: auto` keep Continue inside 320px
+- Education `.tourNav` is sticky at the bottom of the 320px dialog
+- Security and status leftover skip links stay at least 44px at 768px
+- Country-block, 404, and loading leftover skip links stay at least 44px at 390px
+- First and trailing 820px skip-nav padding is 8px so two-up links stay 44px at 320px after the gutter
+- Playwright covers education Continue in 320px, leftover 44px, and 8px padding two-up
+- Education dialog `scroll-padding-top/bottom: 8px` and heading `scroll-margin-top: 8px` keep the 2px ring inside max-height
+- Education Back stays inside the 320px viewport with sticky tourNav
+- Education Enter simulation stays 44px (`flex-shrink: 0`) after skip-nav margin-top
+- Legal leftover skip link stays at least 44px at 768px
+- Architecture leftover skip links stay at least 44px at 768px
+- Error-page leftover skip link stays at least 44px at 390px
+- Skip-nav 8px padding keeps the 2px ring inside overflow-y auto at 768px
+- Playwright covers education Back, Enter simulation, heading ring, leftover 768/390, and skip-nav ring at 768px
+- Education Back stays 44px when disabled on the first step
+- Education copy has 52px padding-bottom at 820px so sticky tourNav does not cover it
+- Education Continue `:focus-visible` is a 2px ring; tourNav padding keeps it inside overflow-y auto
+- Liquidity leftover skip link stays at least 44px at 390px
+- Bridge and country-block leftover skip links stay at least 44px at 768px
+- Skip-nav 8px padding keeps the 2px ring inside overflow-y auto at 390px
+- Playwright covers disabled Back, sticky copy clearance, Continue ring, leftover 390/768, and skip-nav ring at 390px
+- Education dialog is a column at 820px; tourNav `margin-top: auto` keeps Enter simulation in the 320px viewport
+- Education copy padding-bottom is 8px so Continue is not pushed below 320px
+- Education Continue ring is `#f4c95d` against global `button:focus-visible`
+- Status and security leftover skip links stay at least 44px at 320px
+- Loading and 404 leftover skip links stay at least 44px at 768px
+- Playwright covers Enter simulation in 320px, Continue `#f4c95d`, and leftover 320/768
 
 ## Next
 
-- Focused skip-nav should wrap skip links at 320px so it does not consume the full viewport height
-- Terminal skip-nav in flow should not cover the topbar brand
-- Skip-nav should return to its hidden state after skip-link activation
-- Playwright: 320px skip-nav wrap, terminal brand not covered, skip-nav hides after activation
+- Education Back should stay inside the 320px viewport on the last step
+- Education sticky tourNav `z-index: 1` should not cover the heading 2px ring
+- Legal leftover skip link should stay at least 44px at 320px
+- Architecture leftover skip links should stay at least 44px at 320px
+- Error-page leftover skip link should stay at least 44px at 768px
+- Country-block leftover skip link should stay at least 44px at 320px
+- Education dialog flex column should keep the heading scroll-margin inside overflow-y auto
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available

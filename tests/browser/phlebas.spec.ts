@@ -2071,3 +2071,1212 @@ test("focused skip-nav does not cover banner copy and restores 44px skip links a
   const bannerBox = await page.getByRole("status", { name: "Simulation disclosure" }).boundingBox();
   expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((bannerBox?.y ?? 0) + 1);
 });
+
+test("focused skip-nav wraps at 320px, leaves the terminal brand clear, and hides after skip", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+
+  await page.keyboard.press("Tab");
+  const landingSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(landingSkip);
+  expect((await landingSkip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  const landingNav = page.getByRole("navigation", { name: "Skip links" });
+  const landingLayout = await landingNav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return {
+      direction: style.flexDirection,
+      wrap: style.flexWrap,
+      height: rect.height,
+    };
+  });
+  expect(landingLayout.direction).toBe("row");
+  expect(landingLayout.wrap).toBe("wrap");
+  expect(landingLayout.height).toBeLessThan(280);
+
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main#main-content")).toBeFocused();
+  const landingHidden = await landingNav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return {
+      clip: style.clipPath,
+      width: rect.width,
+      height: rect.height,
+      focusWithin: element.matches(":focus-within"),
+    };
+  });
+  expect(landingHidden.focusWithin).toBe(false);
+  expect(landingHidden.clip).toMatch(/inset\(50%\)/);
+  expect(landingHidden.width).toBeLessThan(8);
+  expect(landingHidden.height).toBeLessThan(8);
+
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const tradeSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(tradeSkip);
+
+  const tradeNav = page.getByRole("navigation", { name: "Skip links" });
+  const tradeNavBox = await tradeNav.boundingBox();
+  const brandBox = await page.getByRole("link", { name: "Phlebas home" }).boundingBox();
+  expect(tradeNavBox?.height ?? 900).toBeLessThan(280);
+  expect((tradeNavBox?.y ?? 0) + (tradeNavBox?.height ?? 0)).toBeLessThanOrEqual((brandBox?.y ?? 0) + 1);
+
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main#main-content")).toBeFocused();
+  const tradeHidden = await tradeNav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return {
+      clip: style.clipPath,
+      width: rect.width,
+      height: rect.height,
+      focusWithin: element.matches(":focus-within"),
+    };
+  });
+  expect(tradeHidden.focusWithin).toBe(false);
+  expect(tradeHidden.clip).toMatch(/inset\(50%\)/);
+  expect(tradeHidden.width).toBeLessThan(8);
+  expect(tradeHidden.height).toBeLessThan(8);
+});
+
+test("skip-link focus-visible wrap stays 44px and the 320px skip-nav does not clip the ring", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+
+  const skipStyle = await skip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      outlineWidth: style.outlineWidth,
+      outlineStyle: style.outlineStyle,
+      outlineOffset: style.outlineOffset,
+      minHeight: style.minHeight,
+      whiteSpace: style.whiteSpace,
+    };
+  });
+  expect(skipStyle.outlineWidth).toBe("2px");
+  expect(skipStyle.outlineStyle).toBe("solid");
+  expect(skipStyle.outlineOffset).toBe("2px");
+  expect(Number.parseFloat(skipStyle.minHeight)).toBeGreaterThanOrEqual(44);
+  expect(skipStyle.whiteSpace).toBe("normal");
+
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  const navBox = await nav.boundingBox();
+  expect(navBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect((navBox?.x ?? 0) + (navBox?.width ?? 0)).toBeLessThanOrEqual(320);
+
+  await tabTo(page, page.getByRole("link", { name: "Skip to terminal preview" }));
+  const longSkip = page.getByRole("link", { name: "Skip to terminal preview" });
+  await expectVisibleFocus(longSkip);
+  expect((await longSkip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  const ring = await longSkip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.parentElement;
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      left: rect.left - extent,
+      right: rect.right + extent,
+      parentLeft: parentRect?.left ?? 0,
+      parentRight: parentRect?.right ?? 0,
+    };
+  });
+  expect(ring.left).toBeGreaterThanOrEqual(ring.parentLeft - 0.5);
+  expect(ring.right).toBeLessThanOrEqual(ring.parentRight + 0.5);
+
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const tradeSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(tradeSkip);
+  const tradeNavBox = await page.getByRole("navigation", { name: "Skip links" }).boundingBox();
+  expect(tradeNavBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect((tradeNavBox?.x ?? 0) + (tradeNavBox?.width ?? 0)).toBeLessThanOrEqual(320);
+  expect((await tradeSkip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("skip-nav keeps wrapped line-height, 390px two-up ring, gutter, and header clearance", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+
+  const skipStyle = await skip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      lineHeight: Number.parseFloat(style.lineHeight),
+      fontSize: Number.parseFloat(style.fontSize),
+      minHeight: Number.parseFloat(style.minHeight),
+      minWidth: Number.parseFloat(style.minWidth),
+      outlineColor: style.outlineColor,
+    };
+  });
+  expect(skipStyle.lineHeight).toBeGreaterThanOrEqual(skipStyle.fontSize * 1.25);
+  expect(skipStyle.minHeight).toBeGreaterThanOrEqual(44);
+  expect(skipStyle.minWidth).toBeGreaterThanOrEqual(44);
+  expect(skipStyle.outlineColor).toBe("rgb(21, 20, 13)");
+
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  expect(await nav.evaluate((element) => getComputedStyle(element).scrollbarGutter)).toBe("stable");
+  expect(await nav.evaluate((element) => getComputedStyle(element).overflowY)).toBe("auto");
+
+  await tabTo(page, page.getByRole("link", { name: "Skip to terminal preview" }));
+  const longSkip = page.getByRole("link", { name: "Skip to terminal preview" });
+  await expectVisibleFocus(longSkip);
+  expect((await longSkip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  const verticalRing = await longSkip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.parentElement;
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      parentTop: parentRect?.top ?? 0,
+      parentBottom: parentRect?.bottom ?? 0,
+    };
+  });
+  expect(verticalRing.top).toBeGreaterThanOrEqual(verticalRing.parentTop - 0.5);
+  expect(verticalRing.bottom).toBeLessThanOrEqual(verticalRing.parentBottom + 0.5);
+
+  const navBox = await nav.boundingBox();
+  const headerBox = await page.locator("header").boundingBox();
+  expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((headerBox?.y ?? 0) + 1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip390 = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip390);
+  const layout390 = await nav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const links = [...element.querySelectorAll("a")].slice(0, 2).map((link) => link.getBoundingClientRect());
+    return {
+      wrap: style.flexWrap,
+      direction: style.flexDirection,
+      overflowY: style.overflowY,
+      firstTop: links[0]?.top ?? 0,
+      secondTop: links[1]?.top ?? 0,
+      firstRight: links[0]?.right ?? 0,
+      secondLeft: links[1]?.left ?? 0,
+    };
+  });
+  expect(layout390.direction).toBe("row");
+  expect(layout390.wrap).toBe("wrap");
+  expect(layout390.overflowY).toBe("auto");
+  expect(Math.abs(layout390.firstTop - layout390.secondTop)).toBeLessThan(2);
+  expect(layout390.secondLeft).toBeGreaterThan(layout390.firstRight);
+
+  const ring390 = await skip390.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      left: rect.left - extent,
+      right: rect.right + extent,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      color: style.outlineColor,
+    };
+  });
+  expect(ring390.color).toBe("rgb(21, 20, 13)");
+  expect(ring390.left).toBeGreaterThanOrEqual(-0.5);
+  expect(ring390.top).toBeGreaterThanOrEqual(-0.5);
+  expect(ring390.right).toBeLessThanOrEqual(390.5);
+  expect(ring390.bottom).toBeLessThanOrEqual(844.5);
+  expect((await skip390.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const motionSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(motionSkip);
+  const motionNav = page.getByRole("navigation", { name: "Skip links" });
+  expect(await motionNav.evaluate((element) => getComputedStyle(element).overflowY)).toBe("auto");
+  const motionRing = await motionSkip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.parentElement;
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      left: rect.left - extent,
+      right: rect.right + extent,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      parentLeft: parentRect?.left ?? 0,
+      parentRight: parentRect?.right ?? 0,
+      parentTop: parentRect?.top ?? 0,
+      parentBottom: parentRect?.bottom ?? 0,
+    };
+  });
+  expect(motionRing.left).toBeGreaterThanOrEqual(motionRing.parentLeft - 0.5);
+  expect(motionRing.right).toBeLessThanOrEqual(motionRing.parentRight + 0.5);
+  expect(motionRing.top).toBeGreaterThanOrEqual(motionRing.parentTop - 0.5);
+  expect(motionRing.bottom).toBeLessThanOrEqual(motionRing.parentBottom + 0.5);
+});
+
+test("skip-nav two-up at 768 and 390 keeps 44px links, wrap, gutter, and Menu clear", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  const layout768 = await nav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const links = [...element.querySelectorAll("a")];
+    const first = links[0]?.getBoundingClientRect();
+    const second = links[1]?.getBoundingClientRect();
+    return {
+      wrap: style.flexWrap,
+      direction: style.flexDirection,
+      alignItems: style.alignItems,
+      columnGap: style.columnGap,
+      overflowWrap: links[0] ? getComputedStyle(links[0]).overflowWrap : "",
+      minWidth: links[0] ? Number.parseFloat(getComputedStyle(links[0]).minWidth) : 0,
+      firstHeight: first?.height ?? 0,
+      secondHeight: second?.height ?? 0,
+      firstTop: first?.top ?? 0,
+      secondTop: second?.top ?? 0,
+      firstRight: first?.right ?? 0,
+      secondLeft: second?.left ?? 0,
+      secondRight: second?.right ?? 0,
+      navRight: element.getBoundingClientRect().right,
+    };
+  });
+  expect(layout768.direction).toBe("row");
+  expect(layout768.wrap).toBe("wrap");
+  expect(layout768.alignItems).toBe("stretch");
+  expect(layout768.columnGap).toBe("8px");
+  expect(layout768.overflowWrap).toMatch(/anywhere|break-word/);
+  expect(layout768.minWidth).toBeGreaterThanOrEqual(44);
+  expect(layout768.firstHeight).toBeGreaterThanOrEqual(44);
+  expect(layout768.secondHeight).toBeGreaterThanOrEqual(44);
+  expect(Math.abs(layout768.firstHeight - layout768.secondHeight)).toBeLessThan(1);
+  expect(Math.abs(layout768.firstTop - layout768.secondTop)).toBeLessThan(2);
+  expect(layout768.secondLeft).toBeGreaterThan(layout768.firstRight);
+  expect(layout768.secondRight).toBeLessThanOrEqual(layout768.navRight + 0.5);
+
+  const ring768 = await skip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      left: rect.left - extent,
+      right: rect.right + extent,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+    };
+  });
+  expect(ring768.left).toBeGreaterThanOrEqual(-0.5);
+  expect(ring768.top).toBeGreaterThanOrEqual(-0.5);
+  expect(ring768.right).toBeLessThanOrEqual(768.5);
+  expect(ring768.bottom).toBeLessThanOrEqual(1024.5);
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expectVisibleFocus(skip);
+  const navBox = await nav.boundingBox();
+  const menuBox = await page.getByRole("button", { name: "Menu" }).boundingBox();
+  expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((menuBox?.y ?? 0) + 1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const tradeSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(tradeSkip);
+  const tradeNav = page.getByRole("navigation", { name: "Skip links" });
+  const tradeLayout = await tradeNav.evaluate((element) => {
+    const links = [...element.querySelectorAll("a")].slice(0, 2).map((link) => link.getBoundingClientRect());
+    const style = getComputedStyle(element);
+    return {
+      wrap: style.flexWrap,
+      direction: style.flexDirection,
+      firstTop: links[0]?.top ?? 0,
+      secondTop: links[1]?.top ?? 0,
+      firstRight: links[0]?.right ?? 0,
+      secondLeft: links[1]?.left ?? 0,
+      firstHeight: links[0]?.height ?? 0,
+      secondHeight: links[1]?.height ?? 0,
+    };
+  });
+  expect(tradeLayout.direction).toBe("row");
+  expect(tradeLayout.wrap).toBe("wrap");
+  expect(Math.abs(tradeLayout.firstTop - tradeLayout.secondTop)).toBeLessThan(2);
+  expect(tradeLayout.secondLeft).toBeGreaterThan(tradeLayout.firstRight);
+  expect(tradeLayout.firstHeight).toBeGreaterThanOrEqual(44);
+  expect(tradeLayout.secondHeight).toBeGreaterThanOrEqual(44);
+  expect(Math.abs(tradeLayout.firstHeight - tradeLayout.secondHeight)).toBeLessThan(1);
+
+  const tradeRing = await tradeSkip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      left: rect.left - extent,
+      right: rect.right + extent,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      color: style.outlineColor,
+    };
+  });
+  expect(tradeRing.color).toBe("rgb(21, 20, 13)");
+  expect(tradeRing.left).toBeGreaterThanOrEqual(-0.5);
+  expect(tradeRing.top).toBeGreaterThanOrEqual(-0.5);
+  expect(tradeRing.right).toBeLessThanOrEqual(390.5);
+  expect(tradeRing.bottom).toBeLessThanOrEqual(844.5);
+});
+
+test("skip-nav row-gap leftover 768 brand legal two-up and banner stacking", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  const landingLayout = await nav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const links = [...element.querySelectorAll("a")];
+    const first = links[0]?.getBoundingClientRect();
+    const third = links[2]?.getBoundingClientRect();
+    const last = links[links.length - 1]?.getBoundingClientRect();
+    const banner = document.querySelector('[aria-label="Simulation disclosure"]');
+    return {
+      rowGap: style.rowGap,
+      navZ: Number.parseInt(style.zIndex, 10) || 0,
+      bannerZ: Number.parseInt(banner ? getComputedStyle(banner).zIndex : "0", 10) || 0,
+      padding: links[0] ? getComputedStyle(links[0]).paddingTop : "",
+      minWidth: links[0] ? Number.parseFloat(getComputedStyle(links[0]).minWidth) : 0,
+      firstBottom: first?.bottom ?? 0,
+      thirdTop: third?.top ?? 0,
+      lastWidth: last?.width ?? 0,
+      lastHeight: last?.height ?? 0,
+    };
+  });
+  expect(landingLayout.rowGap).toBe("8px");
+  expect(landingLayout.navZ).toBeGreaterThan(landingLayout.bannerZ);
+  expect(landingLayout.padding).toBe("8px");
+  expect(landingLayout.minWidth).toBeGreaterThanOrEqual(44);
+  expect(landingLayout.lastWidth).toBeGreaterThanOrEqual(44);
+  expect(landingLayout.lastHeight).toBeGreaterThanOrEqual(44);
+  expect(landingLayout.firstBottom + 4).toBeLessThanOrEqual(landingLayout.thirdTop - 4 + 0.5);
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expectVisibleFocus(skip);
+  const navBox = await nav.boundingBox();
+  const brandBox = await page.getByRole("link", { name: "Phlebas home" }).boundingBox();
+  expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((brandBox?.y ?? 0) + 1);
+
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const tradeSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(tradeSkip);
+  const tradeNav = page.getByRole("navigation", { name: "Skip links" });
+  const trade768 = await tradeNav.evaluate((element) => {
+    const links = [...element.querySelectorAll("a")].slice(0, 2).map((link) => link.getBoundingClientRect());
+    const style = getComputedStyle(element);
+    const first = links[0];
+    return {
+      wrap: style.flexWrap,
+      direction: style.flexDirection,
+      firstTop: links[0]?.top ?? 0,
+      secondTop: links[1]?.top ?? 0,
+      firstRight: links[0]?.right ?? 0,
+      secondLeft: links[1]?.left ?? 0,
+      firstHeight: links[0]?.height ?? 0,
+      secondHeight: links[1]?.height ?? 0,
+      ringLeft: (first?.left ?? 0) - 4,
+      ringRight: (first?.right ?? 0) + 4,
+      ringTop: (first?.top ?? 0) - 4,
+      ringBottom: (first?.bottom ?? 0) + 4,
+    };
+  });
+  expect(trade768.direction).toBe("row");
+  expect(trade768.wrap).toBe("wrap");
+  expect(Math.abs(trade768.firstTop - trade768.secondTop)).toBeLessThan(2);
+  expect(trade768.secondLeft).toBeGreaterThan(trade768.firstRight);
+  expect(trade768.firstHeight).toBeGreaterThanOrEqual(44);
+  expect(trade768.secondHeight).toBeGreaterThanOrEqual(44);
+  expect(trade768.ringLeft).toBeGreaterThanOrEqual(-0.5);
+  expect(trade768.ringTop).toBeGreaterThanOrEqual(-0.5);
+  expect(trade768.ringRight).toBeLessThanOrEqual(768.5);
+  expect(trade768.ringBottom).toBeLessThanOrEqual(1024.5);
+
+  for (const path of ["/legal", "/security"] as const) {
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const frameSkip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(frameSkip);
+    const frameNav = page.getByRole("navigation", { name: "Skip links" });
+    const frameLayout = await frameNav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")].map((link) => link.getBoundingClientRect());
+      const style = getComputedStyle(element);
+      return {
+        wrap: style.flexWrap,
+        direction: style.flexDirection,
+        count: links.length,
+        firstTop: links[0]?.top ?? 0,
+        secondTop: links[1]?.top ?? 0,
+        firstRight: links[0]?.right ?? 0,
+        secondLeft: links[1]?.left ?? 0,
+        firstWidth: links[0]?.width ?? 0,
+        secondWidth: links[1]?.width ?? 0,
+        firstHeight: links[0]?.height ?? 0,
+        secondHeight: links[1]?.height ?? 0,
+      };
+    });
+    expect(frameLayout.count).toBe(2);
+    expect(frameLayout.direction).toBe("row");
+    expect(frameLayout.wrap).toBe("wrap");
+    expect(Math.abs(frameLayout.firstTop - frameLayout.secondTop)).toBeLessThan(2);
+    expect(frameLayout.secondLeft).toBeGreaterThan(frameLayout.firstRight);
+    expect(frameLayout.firstWidth).toBeGreaterThanOrEqual(44);
+    expect(frameLayout.secondWidth).toBeGreaterThanOrEqual(44);
+    expect(frameLayout.firstHeight).toBeGreaterThanOrEqual(44);
+    expect(frameLayout.secondHeight).toBeGreaterThanOrEqual(44);
+  }
+});
+
+test("skip-nav column-gap status liquidity leftover 768 Menu and security wrap", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  const landingLayout = await nav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const links = [...element.querySelectorAll("a")];
+    const first = links[0]?.getBoundingClientRect();
+    const second = links[1]?.getBoundingClientRect();
+    return {
+      columnGap: style.columnGap,
+      minHeight: links[0] ? Number.parseFloat(getComputedStyle(links[0]).minHeight) : 0,
+      padding: links[0] ? getComputedStyle(links[0]).paddingTop : "",
+      firstRight: first?.right ?? 0,
+      secondLeft: second?.left ?? 0,
+      firstHeight: first?.height ?? 0,
+    };
+  });
+  expect(landingLayout.columnGap).toBe("8px");
+  expect(landingLayout.minHeight).toBeGreaterThanOrEqual(44);
+  expect(landingLayout.padding).toBe("8px");
+  expect(landingLayout.firstHeight).toBeGreaterThanOrEqual(44);
+  expect(landingLayout.firstRight + 4).toBeLessThanOrEqual(landingLayout.secondLeft - 4 + 0.5);
+
+  const navBox = await nav.boundingBox();
+  const headerBox = await page.locator("header").boundingBox();
+  expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((headerBox?.y ?? 0) + 1);
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expectVisibleFocus(skip);
+  const nav768 = await nav.boundingBox();
+  const menuBox = await page.getByRole("button", { name: "Menu" }).boundingBox();
+  expect((nav768?.y ?? 0) + (nav768?.height ?? 0)).toBeLessThanOrEqual((menuBox?.y ?? 0) + 1);
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/status", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const statusSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(statusSkip);
+  const statusNav = page.getByRole("navigation", { name: "Skip links" });
+  const statusLayout = await statusNav.evaluate((element) => {
+    const links = [...element.querySelectorAll("a")].map((link) => link.getBoundingClientRect());
+    const style = getComputedStyle(element);
+    return {
+      wrap: style.flexWrap,
+      direction: style.flexDirection,
+      count: links.length,
+      firstTop: links[0]?.top ?? 0,
+      secondTop: links[1]?.top ?? 0,
+      firstRight: links[0]?.right ?? 0,
+      secondLeft: links[1]?.left ?? 0,
+      firstHeight: links[0]?.height ?? 0,
+      secondHeight: links[1]?.height ?? 0,
+    };
+  });
+  expect(statusLayout.count).toBe(2);
+  expect(statusLayout.direction).toBe("row");
+  expect(statusLayout.wrap).toBe("wrap");
+  expect(Math.abs(statusLayout.firstTop - statusLayout.secondTop)).toBeLessThan(2);
+  expect(statusLayout.secondLeft).toBeGreaterThan(statusLayout.firstRight);
+  expect(statusLayout.firstHeight).toBeGreaterThanOrEqual(44);
+  expect(statusLayout.secondHeight).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const lpSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(lpSkip);
+  const lpNav = page.getByRole("navigation", { name: "Skip links" });
+  const lpLayout = await lpNav.evaluate((element) => {
+    const links = [...element.querySelectorAll("a")];
+    const last = links[links.length - 1]?.getBoundingClientRect();
+    return {
+      count: links.length,
+      lastWidth: last?.width ?? 0,
+      lastHeight: last?.height ?? 0,
+    };
+  });
+  expect(lpLayout.count).toBe(3);
+  expect(lpLayout.lastWidth).toBeGreaterThanOrEqual(44);
+  expect(lpLayout.lastHeight).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/security", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await tabTo(page, page.getByRole("link", { name: "Skip to security article" }));
+  const securitySkip = page.getByRole("link", { name: "Skip to security article" });
+  await expectVisibleFocus(securitySkip);
+  const wrap = await securitySkip.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      overflowWrap: style.overflowWrap,
+      wordBreak: style.wordBreak,
+      scrollOverflow: element.scrollWidth - element.clientWidth,
+      minWidth: Number.parseFloat(style.minWidth),
+      minHeight: Number.parseFloat(style.minHeight),
+    };
+  });
+  expect(wrap.overflowWrap).toMatch(/anywhere|break-word/);
+  expect(["break-word", "normal"]).toContain(wrap.wordBreak);
+  expect(wrap.scrollOverflow).toBeLessThanOrEqual(1);
+  expect(wrap.minWidth).toBeGreaterThanOrEqual(44);
+  expect(wrap.minHeight).toBeGreaterThanOrEqual(44);
+});
+
+test("skip-nav 404 loading bridge leftover architecture 320 and status 768", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  const gutterLayout = await nav.evaluate((element) => {
+    const links = [...element.querySelectorAll("a")].slice(0, 2).map((link) => {
+      const rect = link.getBoundingClientRect();
+      const style = getComputedStyle(link);
+      return {
+        width: rect.width,
+        height: rect.height,
+        minWidth: Number.parseFloat(style.minWidth),
+        scrollOverflow: link.scrollWidth - link.clientWidth,
+      };
+    });
+    return {
+      scrollbarGutter: getComputedStyle(element).scrollbarGutter,
+      first: links[0],
+      second: links[1],
+    };
+  });
+  expect(gutterLayout.scrollbarGutter).toBe("stable");
+  expect(gutterLayout.first?.minWidth ?? 0).toBeGreaterThanOrEqual(44);
+  expect(gutterLayout.first?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(gutterLayout.second?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(gutterLayout.first?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(gutterLayout.first?.scrollOverflow ?? 1).toBeLessThanOrEqual(1);
+  expect(gutterLayout.second?.scrollOverflow ?? 1).toBeLessThanOrEqual(1);
+
+  async function expectTwoUp(path: string, leftover?: { count: number }) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const pathSkip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(pathSkip);
+    const pathNav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await pathNav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")].map((link) => link.getBoundingClientRect());
+      const style = getComputedStyle(element);
+      const first = links[0];
+      return {
+        wrap: style.flexWrap,
+        direction: style.flexDirection,
+        count: links.length,
+        firstTop: first?.top ?? 0,
+        secondTop: links[1]?.top ?? 0,
+        firstRight: first?.right ?? 0,
+        secondLeft: links[1]?.left ?? 0,
+        firstWidth: first?.width ?? 0,
+        secondWidth: links[1]?.width ?? 0,
+        lastWidth: links[links.length - 1]?.width ?? 0,
+        lastHeight: links[links.length - 1]?.height ?? 0,
+        ringLeft: (first?.left ?? 0) - 4,
+        ringRight: (first?.right ?? 0) + 4,
+        ringTop: (first?.top ?? 0) - 4,
+        ringBottom: (first?.bottom ?? 0) + 4,
+      };
+    });
+    expect(layout.direction).toBe("row");
+    expect(layout.wrap).toBe("wrap");
+    expect(layout.firstWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.secondWidth).toBeGreaterThanOrEqual(44);
+    expect(Math.abs(layout.firstTop - layout.secondTop)).toBeLessThan(2);
+    expect(layout.secondLeft).toBeGreaterThan(layout.firstRight);
+    expect(layout.ringLeft).toBeGreaterThanOrEqual(-0.5);
+    expect(layout.ringTop).toBeGreaterThanOrEqual(-0.5);
+    expect(layout.ringRight).toBeLessThanOrEqual(320.5);
+    expect(layout.ringBottom).toBeLessThanOrEqual(900.5);
+    if (leftover) {
+      expect(layout.count).toBe(leftover.count);
+      expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+      expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+    }
+  }
+
+  await expectTwoUp("/this-route-is-not-part-of-the-simulation");
+  await expectTwoUp("/trade?loading=1");
+  await expectTwoUp("/trade?view=bridge", { count: 3 });
+  await expectTwoUp("/trade?view=architecture");
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/status", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const statusSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(statusSkip);
+  const statusNav = page.getByRole("navigation", { name: "Skip links" });
+  const status768 = await statusNav.evaluate((element) => {
+    const links = [...element.querySelectorAll("a")].map((link) => link.getBoundingClientRect());
+    const style = getComputedStyle(element);
+    const first = links[0];
+    return {
+      wrap: style.flexWrap,
+      direction: style.flexDirection,
+      firstTop: first?.top ?? 0,
+      secondTop: links[1]?.top ?? 0,
+      firstRight: first?.right ?? 0,
+      secondLeft: links[1]?.left ?? 0,
+      firstHeight: first?.height ?? 0,
+      secondHeight: links[1]?.height ?? 0,
+      ringLeft: (first?.left ?? 0) - 4,
+      ringRight: (first?.right ?? 0) + 4,
+      ringTop: (first?.top ?? 0) - 4,
+      ringBottom: (first?.bottom ?? 0) + 4,
+    };
+  });
+  expect(status768.direction).toBe("row");
+  expect(status768.wrap).toBe("wrap");
+  expect(Math.abs(status768.firstTop - status768.secondTop)).toBeLessThan(2);
+  expect(status768.secondLeft).toBeGreaterThan(status768.firstRight);
+  expect(status768.firstHeight).toBeGreaterThanOrEqual(44);
+  expect(status768.secondHeight).toBeGreaterThanOrEqual(44);
+  expect(status768.ringLeft).toBeGreaterThanOrEqual(-0.5);
+  expect(status768.ringTop).toBeGreaterThanOrEqual(-0.5);
+  expect(status768.ringRight).toBeLessThanOrEqual(768.5);
+  expect(status768.ringBottom).toBeLessThanOrEqual(1024.5);
+});
+
+test("skip-nav error country-block architecture leftover and 768 loading 404 bridge", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  async function expectTwoUp(path: string, viewportWidth: number, viewportHeight: number) {
+    await page.setViewportSize({ width: viewportWidth, height: viewportHeight });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")].map((link) => link.getBoundingClientRect());
+      const style = getComputedStyle(element);
+      const first = links[0];
+      return {
+        wrap: style.flexWrap,
+        direction: style.flexDirection,
+        minWidth: Number.parseFloat(getComputedStyle(element.querySelector("a") ?? element).minWidth),
+        count: links.length,
+        firstTop: first?.top ?? 0,
+        secondTop: links[1]?.top ?? 0,
+        firstRight: first?.right ?? 0,
+        secondLeft: links[1]?.left ?? 0,
+        widths: links.map((link) => link.width),
+        heights: links.map((link) => link.height),
+        ringLeft: (first?.left ?? 0) - 4,
+        ringRight: (first?.right ?? 0) + 4,
+        ringTop: (first?.top ?? 0) - 4,
+        ringBottom: (first?.bottom ?? 0) + 4,
+      };
+    });
+    expect(layout.direction).toBe("row");
+    expect(layout.wrap).toBe("wrap");
+    expect(layout.minWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.count).toBeGreaterThanOrEqual(2);
+    expect(Math.abs(layout.firstTop - layout.secondTop)).toBeLessThan(2);
+    expect(layout.secondLeft).toBeGreaterThan(layout.firstRight);
+    for (const width of layout.widths) {
+      expect(width).toBeGreaterThanOrEqual(44);
+    }
+    for (const height of layout.heights) {
+      expect(height).toBeGreaterThanOrEqual(44);
+    }
+    expect(layout.ringLeft).toBeGreaterThanOrEqual(-0.5);
+    expect(layout.ringTop).toBeGreaterThanOrEqual(-0.5);
+    expect(layout.ringRight).toBeLessThanOrEqual(viewportWidth + 0.5);
+    expect(layout.ringBottom).toBeLessThanOrEqual(viewportHeight + 0.5);
+    return layout;
+  }
+
+  const errorLayout = await expectTwoUp("/trade?error=1", 320, 900);
+  expect(errorLayout.count).toBe(2);
+
+  const blockedLayout = await expectTwoUp("/trade?access=blocked", 320, 900);
+  expect(blockedLayout.count).toBe(2);
+
+  const architecture390 = await expectTwoUp("/trade?view=architecture", 390, 844);
+  expect(architecture390.count).toBe(4);
+  expect(architecture390.widths[architecture390.widths.length - 1] ?? 0).toBeGreaterThanOrEqual(44);
+
+  await expectTwoUp("/trade?loading=1", 768, 1024);
+  await expectTwoUp("/this-route-is-not-part-of-the-simulation", 768, 1024);
+  const bridge768 = await expectTwoUp("/trade?view=bridge", 768, 1024);
+  expect(bridge768.count).toBe(3);
+  expect(bridge768.widths[bridge768.widths.length - 1] ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("skip-nav 768 liquidity country-block architecture error legal leftover and 320 overflow", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  async function expectTwoUp(path: string, viewportWidth: number, viewportHeight: number) {
+    await page.setViewportSize({ width: viewportWidth, height: viewportHeight });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element, width) => {
+      const links = [...element.querySelectorAll("a")].map((link) => link.getBoundingClientRect());
+      const style = getComputedStyle(element);
+      const navRect = element.getBoundingClientRect();
+      const first = links[0];
+      return {
+        wrap: style.flexWrap,
+        direction: style.flexDirection,
+        count: links.length,
+        firstTop: first?.top ?? 0,
+        secondTop: links[1]?.top ?? 0,
+        firstRight: first?.right ?? 0,
+        secondLeft: links[1]?.left ?? 0,
+        lastWidth: links[links.length - 1]?.width ?? 0,
+        lastHeight: links[links.length - 1]?.height ?? 0,
+        widths: links.map((link) => link.width),
+        navRight: navRect.right,
+        ringRight: (first?.right ?? 0) + 4,
+        ringLeft: (first?.left ?? 0) - 4,
+        ringTop: (first?.top ?? 0) - 4,
+        ringBottom: (first?.bottom ?? 0) + 4,
+        viewportWidth: width,
+      };
+    }, viewportWidth);
+    expect(layout.direction).toBe("row");
+    expect(layout.wrap).toBe("wrap");
+    expect(layout.count).toBeGreaterThanOrEqual(2);
+    expect(Math.abs(layout.firstTop - layout.secondTop)).toBeLessThan(2);
+    expect(layout.secondLeft).toBeGreaterThan(layout.firstRight);
+    for (const width of layout.widths) {
+      expect(width).toBeGreaterThanOrEqual(44);
+    }
+    expect(layout.navRight).toBeLessThanOrEqual(viewportWidth + 0.5);
+    expect(layout.ringLeft).toBeGreaterThanOrEqual(-0.5);
+    expect(layout.ringTop).toBeGreaterThanOrEqual(-0.5);
+    expect(layout.ringRight).toBeLessThanOrEqual(viewportWidth + 0.5);
+    expect(layout.ringBottom).toBeLessThanOrEqual(viewportHeight + 0.5);
+    return layout;
+  }
+
+  await expectTwoUp("/liquidity", 768, 1024);
+  await expectTwoUp("/trade?access=blocked", 768, 1024);
+  await expectTwoUp("/trade?view=architecture", 768, 1024);
+  await expectTwoUp("/trade?error=1", 768, 1024);
+
+  const legal390 = await expectTwoUp("/legal", 390, 844);
+  expect(legal390.count).toBe(2);
+  expect(legal390.lastWidth).toBeGreaterThanOrEqual(44);
+  expect(legal390.lastHeight).toBeGreaterThanOrEqual(44);
+
+  const overflow320 = await expectTwoUp("/", 320, 900);
+  expect(overflow320.navRight).toBeLessThanOrEqual(320.5);
+  expect(overflow320.ringRight).toBeLessThanOrEqual(320.5);
+});
+
+test("skip-nav leftover 44px education clearance and overflow-y ring padding", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  async function leftover(path: string, width: number, height: number, count: number) {
+    await page.setViewportSize({ width, height });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")];
+      const last = links[links.length - 1]?.getBoundingClientRect();
+      const first = links[0];
+      const style = first ? getComputedStyle(first) : null;
+      const parent = first?.parentElement;
+      const parentRect = parent?.getBoundingClientRect();
+      const rect = first?.getBoundingClientRect();
+      const extent = style
+        ? (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0)
+        : 0;
+      return {
+        count: links.length,
+        lastWidth: last?.width ?? 0,
+        lastHeight: last?.height ?? 0,
+        padding: parent ? getComputedStyle(parent).paddingTop : "",
+        ringTop: (rect?.top ?? 0) - extent,
+        ringBottom: (rect?.bottom ?? 0) + extent,
+        parentTop: parentRect?.top ?? 0,
+        parentBottom: parentRect?.bottom ?? 0,
+      };
+    });
+    expect(layout.count).toBe(count);
+    expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+    expect(layout.padding).toBe("8px");
+    expect(layout.ringTop).toBeGreaterThanOrEqual(layout.parentTop - 0.5);
+    expect(layout.ringBottom).toBeLessThanOrEqual(layout.parentBottom + 0.5);
+  }
+
+  await leftover("/security", 390, 844, 2);
+  await leftover("/status", 390, 844, 2);
+  await leftover("/liquidity", 768, 1024, 3);
+  await leftover("/trade?view=bridge", 390, 844, 3);
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  const dialogBox = await dialog.boundingBox();
+  const skipNav = page.getByRole("navigation", { name: "Skip links" });
+  const skipBox = await skipNav.boundingBox();
+  const marginTop = await dialog.evaluate((element) => getComputedStyle(element).marginTop);
+  expect(Number.parseFloat(marginTop)).toBeGreaterThanOrEqual(200);
+  const overlaps = Boolean(
+    skipBox && dialogBox
+    && skipBox.width > 8
+    && skipBox.height > 8
+    && skipBox.x < dialogBox.x + dialogBox.width
+    && skipBox.x + skipBox.width > dialogBox.x
+    && skipBox.y < dialogBox.y + dialogBox.height
+    && skipBox.y + skipBox.height > dialogBox.y,
+  );
+  expect(overlaps).toBe(false);
+});
+
+test("education Continue stays in 320px and leftover skip links stay 44px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const continueButton = page.getByRole("dialog").getByRole("button", { name: "Continue" });
+  await expect(continueButton).toBeVisible();
+  const continueBox = await continueButton.boundingBox();
+  expect(continueBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(continueBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((continueBox?.y ?? 0) + (continueBox?.height ?? 0)).toBeLessThanOrEqual(900);
+  expect((continueBox?.x ?? 0) + (continueBox?.width ?? 0)).toBeLessThanOrEqual(320);
+  const dialogStyle = await page.getByRole("dialog").evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      maxHeight: style.maxHeight,
+      overflowY: style.overflowY,
+      boxSizing: style.boxSizing,
+    };
+  });
+  expect(dialogStyle.overflowY).toBe("auto");
+  expect(dialogStyle.boxSizing).toBe("border-box");
+  expect(Number.parseFloat(dialogStyle.maxHeight)).toBeGreaterThan(0);
+
+  async function leftover(path: string, width: number, height: number, count: number) {
+    await page.setViewportSize({ width, height });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")];
+      const last = links[links.length - 1]?.getBoundingClientRect();
+      const first = links[0]?.getBoundingClientRect();
+      return {
+        count: links.length,
+        lastWidth: last?.width ?? 0,
+        lastHeight: last?.height ?? 0,
+        firstWidth: first?.width ?? 0,
+        firstHeight: first?.height ?? 0,
+        padding: getComputedStyle(element).paddingTop,
+      };
+    });
+    expect(layout.count).toBe(count);
+    expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+    expect(layout.firstWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.firstHeight).toBeGreaterThanOrEqual(44);
+    expect(layout.padding).toBe("8px");
+  }
+
+  await leftover("/security", 768, 1024, 2);
+  await leftover("/status", 768, 1024, 2);
+  await leftover("/trade?access=blocked", 390, 844, 2);
+  await leftover("/this-route-is-not-part-of-the-simulation", 390, 844, 2);
+  await leftover("/trade?loading=1", 390, 844, 2);
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+  const twoUp = await page.getByRole("navigation", { name: "Skip links" }).evaluate((element) => {
+    const links = [...element.querySelectorAll("a")].slice(0, 2).map((link) => link.getBoundingClientRect());
+    return {
+      firstWidth: links[0]?.width ?? 0,
+      secondWidth: links[1]?.width ?? 0,
+      padding: getComputedStyle(element).paddingTop,
+      gutter: getComputedStyle(element).scrollbarGutter,
+    };
+  });
+  expect(twoUp.padding).toBe("8px");
+  expect(twoUp.gutter).toBe("stable");
+  expect(twoUp.firstWidth).toBeGreaterThanOrEqual(44);
+  expect(twoUp.secondWidth).toBeGreaterThanOrEqual(44);
+});
+
+test("education Back Enter simulation heading ring leftover 768 and skip-nav ring at 768", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  const back = dialog.getByRole("button", { name: "Back" });
+  await expect(back).toBeVisible();
+  const backBox = await back.boundingBox();
+  expect(backBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(backBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((backBox?.y ?? 0) + (backBox?.height ?? 0)).toBeLessThanOrEqual(900);
+
+  const headingRing = await dialog.getByRole("heading").evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.closest("dialog");
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      top: rect.top - extent,
+      parentTop: parentRect?.top ?? 0,
+      outlineWidth: style.outlineWidth,
+      scrollPaddingTop: parent ? getComputedStyle(parent).scrollPaddingTop : "",
+      scrollMarginTop: style.scrollMarginTop,
+    };
+  });
+  expect(headingRing.scrollPaddingTop).toBe("8px");
+  expect(headingRing.scrollMarginTop).toBe("8px");
+  expect(headingRing.top).toBeGreaterThanOrEqual(headingRing.parentTop - 0.5);
+
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  await expect(enter).toBeVisible();
+  const enterBox = await enter.boundingBox();
+  expect(enterBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(enterBox?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(enterBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((enterBox?.y ?? 0) + (enterBox?.height ?? 0)).toBeLessThanOrEqual(900);
+
+  async function leftover(path: string, width: number, height: number, count: number) {
+    await page.setViewportSize({ width, height });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")];
+      const last = links[links.length - 1]?.getBoundingClientRect();
+      const first = links[0];
+      const style = first ? getComputedStyle(first) : null;
+      const parentRect = element.getBoundingClientRect();
+      const rect = first?.getBoundingClientRect();
+      const extent = style
+        ? (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0)
+        : 0;
+      return {
+        count: links.length,
+        lastWidth: last?.width ?? 0,
+        lastHeight: last?.height ?? 0,
+        padding: getComputedStyle(element).paddingTop,
+        ringTop: (rect?.top ?? 0) - extent,
+        ringBottom: (rect?.bottom ?? 0) + extent,
+        parentTop: parentRect.top,
+        parentBottom: parentRect.bottom,
+      };
+    });
+    expect(layout.count).toBe(count);
+    expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+    expect(layout.padding).toBe("8px");
+    expect(layout.ringTop).toBeGreaterThanOrEqual(layout.parentTop - 0.5);
+    expect(layout.ringBottom).toBeLessThanOrEqual(layout.parentBottom + 0.5);
+  }
+
+  await leftover("/legal", 768, 1024, 2);
+  await leftover("/trade?view=architecture", 768, 1024, 4);
+  await leftover("/trade?error=1", 390, 844, 2);
+  await leftover("/", 768, 1024, 7);
+});
+
+test("education disabled Back sticky copy Continue ring leftover 390 768 and skip-nav ring at 390", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  const back = dialog.getByRole("button", { name: "Back" });
+  await expect(back).toBeDisabled();
+  expect((await back.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect((await back.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(44);
+
+  const copy = dialog.getByRole("region", { name: "Education copy" });
+  const copyBox = await copy.boundingBox();
+  const tourTop = await back.evaluate((element) => element.parentElement?.getBoundingClientRect().top ?? 0);
+  const copyBottomContent = (copyBox?.y ?? 0) + (copyBox?.height ?? 0) - 8;
+  expect(copyBottomContent).toBeLessThanOrEqual(tourTop + 1);
+
+  const continueButton = dialog.getByRole("button", { name: "Continue" });
+  await tabTo(page, continueButton);
+  await expect(continueButton).toBeFocused();
+  const continueRing = await continueButton.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const parent = element.closest("dialog");
+    const parentRect = parent?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const extent = (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0);
+    return {
+      outlineWidth: style.outlineWidth,
+      outlineOffset: style.outlineOffset,
+      top: rect.top - extent,
+      bottom: rect.bottom + extent,
+      parentTop: parentRect?.top ?? 0,
+      parentBottom: parentRect?.bottom ?? 0,
+    };
+  });
+  expect(Number.parseFloat(continueRing.outlineWidth)).toBeGreaterThanOrEqual(2);
+  expect(Number.parseFloat(continueRing.outlineOffset)).toBeGreaterThanOrEqual(0);
+  expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
+  expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
+
+  async function leftover(path: string, width: number, height: number, count: number) {
+    await page.setViewportSize({ width, height });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")];
+      const last = links[links.length - 1]?.getBoundingClientRect();
+      const first = links[0];
+      const style = first ? getComputedStyle(first) : null;
+      const parentRect = element.getBoundingClientRect();
+      const rect = first?.getBoundingClientRect();
+      const extent = style
+        ? (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0)
+        : 0;
+      return {
+        count: links.length,
+        lastWidth: last?.width ?? 0,
+        lastHeight: last?.height ?? 0,
+        padding: getComputedStyle(element).paddingTop,
+        ringTop: (rect?.top ?? 0) - extent,
+        ringBottom: (rect?.bottom ?? 0) + extent,
+        parentTop: parentRect.top,
+        parentBottom: parentRect.bottom,
+      };
+    });
+    expect(layout.count).toBe(count);
+    expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+    expect(layout.padding).toBe("8px");
+    expect(layout.ringTop).toBeGreaterThanOrEqual(layout.parentTop - 0.5);
+    expect(layout.ringBottom).toBeLessThanOrEqual(layout.parentBottom + 0.5);
+  }
+
+  await leftover("/liquidity", 390, 844, 3);
+  await leftover("/trade?view=bridge", 768, 1024, 3);
+  await leftover("/trade?access=blocked", 768, 1024, 2);
+  await leftover("/", 390, 844, 7);
+});
+
+test("education Enter simulation stays in 320px Continue ring is #f4c95d leftover 320 768", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  const continueButton = dialog.getByRole("button", { name: "Continue" });
+  const continueBox = await continueButton.boundingBox();
+  expect(continueBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((continueBox?.y ?? 0) + (continueBox?.height ?? 0)).toBeLessThanOrEqual(900);
+
+  await tabTo(page, continueButton);
+  await expect(continueButton).toBeFocused();
+  await expect.poll(async () => {
+    return continueButton.evaluate((element) => getComputedStyle(element).outlineColor);
+  }).toBe("rgb(244, 201, 93)");
+
+  await continueButton.click();
+  await continueButton.click();
+  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  await expect(enter).toBeVisible();
+  const enterBox = await enter.boundingBox();
+  expect(enterBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(enterBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((enterBox?.y ?? 0) + (enterBox?.height ?? 0)).toBeLessThanOrEqual(900);
+  expect((enterBox?.x ?? 0) + (enterBox?.width ?? 0)).toBeLessThanOrEqual(320);
+
+  async function leftover(path: string, width: number, height: number, count: number) {
+    await page.setViewportSize({ width, height });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")];
+      const last = links[links.length - 1]?.getBoundingClientRect();
+      return {
+        count: links.length,
+        lastWidth: last?.width ?? 0,
+        lastHeight: last?.height ?? 0,
+      };
+    });
+    expect(layout.count).toBe(count);
+    expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+  }
+
+  await leftover("/status", 320, 900, 2);
+  await leftover("/security", 320, 900, 2);
+  await leftover("/trade?loading=1", 768, 1024, 2);
+  await leftover("/this-route-is-not-part-of-the-simulation", 768, 1024, 2);
+});
+
