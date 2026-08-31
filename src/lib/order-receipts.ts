@@ -56,7 +56,11 @@ export function appendIntakeReceipt(
   acceptedAtSeconds: bigint,
 ): { chain: ReceiptChain; receipt: IntakeReceipt } {
   const normalizedOrderHash = normalizeHex32(orderHash, "Order hash");
-  if (chain.receipts.some((receipt) => receipt.orderHash === normalizedOrderHash)) {
+  const previousReceipt = chain.receipts.at(-1);
+  if (previousReceipt && acceptedAtSeconds < previousReceipt.acceptedAtSeconds) {
+    throw new RangeError("Receipt time cannot move backward");
+  }
+  if (chain.receipts.some((receipt) => normalizeHex32(receipt.orderHash, "Receipt order hash") === normalizedOrderHash)) {
     throw new Error("Order hash already has an intake receipt");
   }
   const receipt: IntakeReceipt = {
@@ -78,16 +82,24 @@ export function appendIntakeReceipt(
 }
 
 export function verifyReceiptChain(chain: ReceiptChain): boolean {
-  let previous = RECEIPT_GENESIS_HASH;
-  let sequence = 1n;
-  const seen = new Set<string>();
-  for (const receipt of chain.receipts) {
-    if (receipt.version !== RECEIPT_VERSION || receipt.sequence !== sequence) return false;
-    if (receipt.previousReceiptHash !== previous || seen.has(receipt.orderHash)) return false;
-    if (receipt.receiptHash !== hashIntakeReceipt(sequence, receipt.acceptedAtSeconds, receipt.orderHash, previous)) return false;
-    seen.add(receipt.orderHash);
-    previous = receipt.receiptHash;
-    sequence += 1n;
+  try {
+    let previous = RECEIPT_GENESIS_HASH;
+    let previousAcceptedAtSeconds: bigint | undefined;
+    let sequence = 1n;
+    const seen = new Set<string>();
+    for (const receipt of chain.receipts) {
+      const orderHash = normalizeHex32(receipt.orderHash, "Receipt order hash");
+      if (receipt.version !== RECEIPT_VERSION || receipt.sequence !== sequence) return false;
+      if (receipt.previousReceiptHash !== previous || seen.has(orderHash)) return false;
+      if (previousAcceptedAtSeconds !== undefined && receipt.acceptedAtSeconds < previousAcceptedAtSeconds) return false;
+      if (receipt.receiptHash !== hashIntakeReceipt(sequence, receipt.acceptedAtSeconds, orderHash, previous)) return false;
+      seen.add(orderHash);
+      previous = receipt.receiptHash;
+      previousAcceptedAtSeconds = receipt.acceptedAtSeconds;
+      sequence += 1n;
+    }
+    return chain.head === previous && chain.nextSequence === sequence;
+  } catch {
+    return false;
   }
-  return chain.head === previous && chain.nextSequence === sequence;
 }

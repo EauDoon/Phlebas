@@ -1,4 +1,4 @@
-import type { TypedOrderIntent } from "./eip712-order.ts";
+import { hashOrderStruct, type TypedOrderIntent } from "./eip712-order.ts";
 import { UINT64_MAX, normalizeHex32, type Hex32 } from "./order-domain.ts";
 
 export type OrderLifecycleState = Readonly<{
@@ -6,11 +6,12 @@ export type OrderLifecycleState = Readonly<{
   cancelledNonceKeys: Readonly<Record<string, true>>;
   nonceClaims: Readonly<Record<string, Hex32>>;
   acceptedOrderHashes: Readonly<Record<string, true>>;
+  acceptedOrderStructHashes: Readonly<Record<string, Hex32>>;
 }>;
 
 export type OrderActivity = Readonly<{
   active: boolean;
-  reason?: "expired" | "epoch-invalidated" | "nonce-cancelled" | "not-accepted";
+  reason?: "expired" | "epoch-invalidated" | "nonce-cancelled" | "not-accepted" | "body-mismatch";
 }>;
 
 export function emptyOrderLifecycle(): OrderLifecycleState {
@@ -19,6 +20,7 @@ export function emptyOrderLifecycle(): OrderLifecycleState {
     cancelledNonceKeys: {},
     nonceClaims: {},
     acceptedOrderHashes: {},
+    acceptedOrderStructHashes: {},
   };
 }
 
@@ -42,6 +44,7 @@ export function claimOrderNonce(
   order: TypedOrderIntent,
 ): OrderLifecycleState {
   const normalizedHash = normalizeHex32(orderHash, "Order hash");
+  const structHash = hashOrderStruct(order);
   const key = orderNonceKey(order);
   if (order.accountEpoch !== activeAccountEpoch(state, order.makerAccountId)) {
     throw new Error("Order account epoch is not active");
@@ -53,6 +56,7 @@ export function claimOrderNonce(
     ...state,
     nonceClaims: { ...state.nonceClaims, [key]: normalizedHash },
     acceptedOrderHashes: { ...state.acceptedOrderHashes, [normalizedHash]: true },
+    acceptedOrderStructHashes: { ...state.acceptedOrderStructHashes, [normalizedHash]: structHash },
   };
 }
 
@@ -93,8 +97,16 @@ export function orderActivity(
   order: TypedOrderIntent,
   nowSeconds: bigint,
 ): OrderActivity {
+  if (nowSeconds < 0n || nowSeconds > UINT64_MAX) throw new RangeError("Activity time must fit uint64");
   const normalizedHash = normalizeHex32(orderHash, "Order hash");
   if (!state.acceptedOrderHashes[normalizedHash]) return { active: false, reason: "not-accepted" };
+  try {
+    if (state.acceptedOrderStructHashes[normalizedHash] !== hashOrderStruct(order)) {
+      return { active: false, reason: "body-mismatch" };
+    }
+  } catch {
+    return { active: false, reason: "body-mismatch" };
+  }
   if (order.expiry <= nowSeconds) return { active: false, reason: "expired" };
   if (order.accountEpoch !== activeAccountEpoch(state, order.makerAccountId)) return { active: false, reason: "epoch-invalidated" };
   if (state.cancelledNonceKeys[orderNonceKey(order)]) return { active: false, reason: "nonce-cancelled" };

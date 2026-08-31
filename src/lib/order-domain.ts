@@ -7,8 +7,8 @@ export const UINT64_MAX = (1n << 64n) - 1n;
 export const UINT256_MAX = (1n << 256n) - 1n;
 export const MAX_ORDER_FEE_BPS = 30n;
 
-const CAIP_NAMESPACE = /^[a-z0-9-]{3,8}:[A-Za-z0-9-_]{1,64}$/;
-const CAIP_ASSET = /^[a-z0-9-]{3,8}:[A-Za-z0-9-_]{1,64}\/[a-z0-9-]{3,8}:[A-Za-z0-9.%_-]{1,128}$/;
+const CAIP_NAMESPACE = /^[a-z0-9-]{3,8}:[A-Za-z0-9-_]{1,32}$/;
+const CAIP_ASSET = /^[a-z0-9-]{3,8}:[A-Za-z0-9-_]{1,32}\/[a-z0-9-]{3,8}:[A-Za-z0-9.%_-]{1,128}$/;
 
 export function assertUint(value: bigint, bits: 64 | 256, label: string): void {
   const maximum = bits === 64 ? UINT64_MAX : UINT256_MAX;

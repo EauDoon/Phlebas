@@ -77,11 +77,13 @@ function encodeAddress(value: HexAddress, label: string): Uint8Array {
 export function createOrderDomain(chainId: bigint, verifyingContract: string): OrderDomain {
   assertUint(chainId, 256, "EIP-712 chain ID");
   if (chainId === 0n) throw new RangeError("EIP-712 chain ID must be positive");
+  const normalizedContract = normalizeAddress(verifyingContract, "Verifying contract");
+  if (normalizedContract === `0x${"00".repeat(20)}`) throw new RangeError("Verifying contract cannot be zero");
   return {
     name: ORDER_DOMAIN_NAME,
     version: ORDER_DOMAIN_VERSION,
     chainId,
-    verifyingContract: normalizeAddress(verifyingContract, "Verifying contract"),
+    verifyingContract: normalizedContract,
   };
 }
 

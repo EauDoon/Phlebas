@@ -1,5 +1,5 @@
 import type { TypedOrderIntent } from "./eip712-order.ts";
-import { normalizeHex32, type Hex32 } from "./order-domain.ts";
+import { UINT64_MAX, normalizeHex32, type Hex32 } from "./order-domain.ts";
 
 export type SequencedOrder = Readonly<{
   orderHash: Hex32;
@@ -49,20 +49,27 @@ export function planPriceTimeMatches(
   taker: SequencedOrder,
   restingOrders: readonly SequencedOrder[],
 ): MatchPlan {
-  normalizeHex32(taker.orderHash, "Taker order hash");
+  const takerOrderHash = normalizeHex32(taker.orderHash, "Taker order hash");
+  if (taker.sequence <= 0n || taker.sequence > UINT64_MAX) throw new RangeError("Taker sequence must be a positive uint64");
   if (taker.remainingBaseAtoms <= 0n || taker.remainingBaseAtoms > taker.order.baseAmountAtoms) {
     throw new RangeError("Taker remaining amount is invalid");
   }
 
-  const candidates = restingOrders.filter((candidate) => {
-    normalizeHex32(candidate.orderHash, "Maker order hash");
+  const seenOrderHashes = new Set<string>();
+  const candidates = restingOrders.map((candidate) => ({
+    ...candidate,
+    orderHash: normalizeHex32(candidate.orderHash, "Maker order hash"),
+  })).filter((candidate) => {
+    if (candidate.sequence <= 0n || candidate.sequence > UINT64_MAX) throw new RangeError("Maker sequence must be a positive uint64");
+    if (seenOrderHashes.has(candidate.orderHash)) throw new Error("Resting order hash is duplicated");
+    seenOrderHashes.add(candidate.orderHash);
     if (candidate.remainingBaseAtoms <= 0n || candidate.remainingBaseAtoms > candidate.order.baseAmountAtoms) {
       throw new RangeError("Maker remaining amount is invalid");
     }
     return candidate.sequence < taker.sequence
       && candidate.order.timeInForce === 0
       && candidate.order.side !== taker.order.side
-      && candidate.order.makerAccountId !== taker.order.makerAccountId
+      && normalizeHex32(candidate.order.makerAccountId, "Maker account ID") !== normalizeHex32(taker.order.makerAccountId, "Taker account ID")
       && samePair(candidate.order, taker.order)
       && crosses(taker.order, candidate.order);
   }).sort((left, right) => comparePriority(taker.order.side, left, right));
@@ -73,7 +80,7 @@ export function planPriceTimeMatches(
     const amount = maker.remainingBaseAtoms < remaining ? maker.remainingBaseAtoms : remaining;
     fills.push({
       makerOrderHash: maker.orderHash,
-      takerOrderHash: taker.orderHash,
+      takerOrderHash,
       makerSequence: maker.sequence,
       executionPriceTicks: maker.order.limitPriceTicks,
       baseAmountAtoms: amount,

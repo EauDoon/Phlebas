@@ -18,7 +18,7 @@ const pair = {
   baseChainId: chainIdentifier("bip122:00040fe8ec8471911baa1db1266ea15d"),
   baseAssetId: assetIdentifier("bip122:00040fe8ec8471911baa1db1266ea15d/slip44:133"),
   quoteChainId: chainIdentifier("eip155:42161"),
-  quoteAssetId: assetIdentifier("eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831"),
+  quoteAssetId: assetIdentifier("eip155:42161/erc20:0x2222222222222222222222222222222222222222"),
 };
 const adapter = adapterIdentifier("no-value-reference-v1");
 const maker = accountIdentifier("session:maker");
@@ -88,4 +88,29 @@ test("rejects nonce replay before appending another receipt", () => {
   assert.throws(() => acceptOrderIntent(first, { ...order(1n), salt: keccak256Text("different") }, 1_001n), /nonce is already claimed/);
   assert.equal(first.receiptChain.head, head);
   assert.equal(first.receiptChain.receipts.length, 1);
+});
+
+test("copies the accepted order and rejects unknown replay event kinds", () => {
+  const mutableOrder = { ...order(1n) };
+  const result = acceptOrderIntent(initial(), mutableOrder, 1_000n);
+  mutableOrder.recipientAccountId = accountIdentifier("session:attacker");
+  assert.notEqual(result.accepted.order.recipientAccountId, mutableOrder.recipientAccountId);
+  assert.throws(
+    () => replayOrderReference(result.state, [{ kind: "unknown" } as unknown as OrderReferenceEvent]),
+    /Unknown order reference event kind/,
+  );
+});
+
+test("snapshot binds accepted order bodies and nonce claims", () => {
+  const result = acceptOrderIntent(initial(), order(1n), 1_000n);
+  const accepted = result.accepted;
+  const changed = {
+    ...result.state,
+    acceptedOrders: {
+      ...result.state.acceptedOrders,
+      [accepted.orderHash]: { ...accepted, order: { ...accepted.order, recipientAccountId: accountIdentifier("session:attacker") } },
+    },
+  };
+  assert.notEqual(orderReferenceSnapshot(changed), orderReferenceSnapshot(result.state));
+  assert.match(orderReferenceSnapshot(result.state), /claims=.*bindings=/);
 });

@@ -44,8 +44,10 @@ export function orderPolicyErrors(order: TypedOrderIntent, context: OrderPolicyC
   if (order.expiry <= context.nowSeconds || order.expiry > UINT64_MAX) errors.push("Order must have a future uint64 expiry");
   if (order.accountEpoch !== context.activeAccountEpoch) errors.push("Order account epoch is not active");
   if (order.maximumFeeBps < 0n || order.maximumFeeBps > MAX_ORDER_FEE_BPS) errors.push("Order fee cap exceeds 30 basis points");
-  if ((order.allowedVenues & ~KNOWN_VENUES) !== 0 || order.allowedVenues === 0) errors.push("Allowed venues contain an unknown or empty mask");
-  if ((context.requireClob ?? true) && (order.allowedVenues & VENUE_CLOB) === 0) errors.push("Order does not authorize the CLOB venue");
+  if (!Number.isInteger(order.allowedVenues) || order.allowedVenues <= 0 || order.allowedVenues > 0xff
+    || (order.allowedVenues & ~KNOWN_VENUES) !== 0) errors.push("Allowed venues contain an unknown, fractional, or empty mask");
+  if (Number.isInteger(order.allowedVenues) && (context.requireClob ?? true)
+    && (order.allowedVenues & VENUE_CLOB) === 0) errors.push("Order does not authorize the CLOB venue");
   if (order.side !== 0 && order.side !== 1) errors.push("Order side is invalid");
   if (order.timeInForce !== 0 && order.timeInForce !== 1 && order.timeInForce !== 2) errors.push("Time in force is invalid");
   if (!isSamePair(order, context.pair)) errors.push("Order asset-chain pair is not allowed");

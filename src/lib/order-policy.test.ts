@@ -3,13 +3,13 @@ import test from "node:test";
 
 import type { TypedOrderIntent } from "./eip712-order.ts";
 import { assertOrderPolicy, orderPolicyErrors, type OrderPolicyContext } from "./order-policy.ts";
-import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier } from "./order-domain.ts";
+import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier, type Hex32 } from "./order-domain.ts";
 
 const pair = {
   baseChainId: chainIdentifier("bip122:00040fe8ec8471911baa1db1266ea15d"),
   baseAssetId: assetIdentifier("bip122:00040fe8ec8471911baa1db1266ea15d/slip44:133"),
   quoteChainId: chainIdentifier("eip155:42161"),
-  quoteAssetId: assetIdentifier("eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831"),
+  quoteAssetId: assetIdentifier("eip155:42161/erc20:0x2222222222222222222222222222222222222222"),
 };
 const adapter = adapterIdentifier("no-value-reference-v1");
 const order: TypedOrderIntent = {
@@ -48,6 +48,7 @@ test("rejects zero, expired, stale-epoch, excessive-fee, and unknown-venue order
   assert.match(orderPolicyErrors({ ...order, accountEpoch: 2n }, context).join(";"), /not active/);
   assert.match(orderPolicyErrors({ ...order, maximumFeeBps: 31n }, context).join(";"), /exceeds 30/);
   assert.match(orderPolicyErrors({ ...order, allowedVenues: 4 }, context).join(";"), /unknown/);
+  assert.match(orderPolicyErrors({ ...order, allowedVenues: 1.5 }, context).join(";"), /fractional/);
 });
 
 test("enforces the exact asset-chain pair and settlement adapter", () => {
@@ -63,7 +64,7 @@ test("requires IOC, GTC, and FOK intents to remain price bounded", () => {
 });
 
 test("rejects zero identities, zero salts, and excessive lifetimes", () => {
-  const zero = `0x${"00".repeat(32)}`;
+  const zero = `0x${"00".repeat(32)}` as Hex32;
   assert.throws(() => assertOrderPolicy({ ...order, makerAccountId: zero }, context), /cannot be zero/);
   assert.throws(() => assertOrderPolicy({ ...order, salt: zero }, context), /cannot be zero/);
   assert.throws(() => assertOrderPolicy({ ...order, expiry: context.nowSeconds + 86_401n }, context), /maximum lifetime/);

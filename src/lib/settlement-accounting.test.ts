@@ -4,7 +4,7 @@ import test from "node:test";
 import type { TypedOrderIntent } from "./eip712-order.ts";
 import { keccak256Text } from "./keccak.ts";
 import { claimOrderNonce, emptyOrderLifecycle } from "./order-lifecycle.ts";
-import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier } from "./order-domain.ts";
+import { UINT256_MAX, accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier, type Hex32 } from "./order-domain.ts";
 import type { PlannedFill, SequencedOrder } from "./price-time.ts";
 import { balanceOf, createSettlementLedger, settlePlannedFill } from "./settlement-accounting.ts";
 
@@ -15,7 +15,7 @@ const pair = {
   baseChainId: chainIdentifier("bip122:00040fe8ec8471911baa1db1266ea15d"),
   baseAssetId: assetIdentifier("bip122:00040fe8ec8471911baa1db1266ea15d/slip44:133"),
   quoteChainId: chainIdentifier("eip155:42161"),
-  quoteAssetId: assetIdentifier("eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831"),
+  quoteAssetId: assetIdentifier("eip155:42161/erc20:0x2222222222222222222222222222222222222222"),
   settlementAdapterId: adapterIdentifier("no-value-reference-v1"),
 };
 
@@ -103,4 +103,71 @@ test("records fill progress and rejects replayed state transitions", () => {
   const applied = settlePlannedFill(ledger, lifecycle(), fill, maker, taker, parameters);
   assert.equal(applied.ledger.filledBaseAtoms[maker.orderHash], 100_000_000n);
   assert.throws(() => settlePlannedFill(applied.ledger, lifecycle(), fill, maker, taker, parameters), /does not reconcile/);
+});
+
+test("rejects changed signed fields before applying settlement", () => {
+  const changedMaker = {
+    ...maker,
+    order: { ...maker.order, recipientAccountId: accountIdentifier("session:attacker") },
+  };
+  assert.throws(
+    () => settlePlannedFill(createSettlementLedger(), lifecycle(), fill, changedMaker, taker, parameters),
+    /body-mismatch/,
+  );
+});
+
+test("canonicalizes order hashes so case variants cannot split fill state", () => {
+  const upper = (value: Hex32) => `0x${value.slice(2).toUpperCase()}` as Hex32;
+  const upperMaker = { ...maker, orderHash: upper(maker.orderHash) };
+  const upperTaker = { ...taker, orderHash: upper(taker.orderHash) };
+  const upperFill = { ...fill, makerOrderHash: upper(fill.makerOrderHash), takerOrderHash: upper(fill.takerOrderHash) };
+  const ledger = createSettlementLedger({
+    [sellerId]: { baseAtoms: 100_000_000n, quoteAtoms: 0n },
+    [buyerId]: { baseAtoms: 0n, quoteAtoms: 60_000_000n },
+  });
+  const applied = settlePlannedFill(ledger, lifecycle(), upperFill, upperMaker, upperTaker, parameters);
+  assert.deepEqual(Object.keys(applied.ledger.filledBaseAtoms).sort(), [maker.orderHash, taker.orderHash].sort());
+  assert.throws(() => settlePlannedFill(applied.ledger, lifecycle(), fill, maker, taker, parameters), /does not reconcile/);
+});
+
+test("rounds sub-atom fees down to preserve the signed basis-point cap", () => {
+  const tinySeller = { ...maker, order: { ...maker.order, baseAmountAtoms: 1n, limitPriceTicks: 1n }, remainingBaseAtoms: 1n };
+  const tinyBuyer = { ...taker, order: { ...taker.order, baseAmountAtoms: 1n, limitPriceTicks: 1n }, remainingBaseAtoms: 1n };
+  const tinyFill = { ...fill, executionPriceTicks: 1n, baseAmountAtoms: 1n };
+  let state = claimOrderNonce(emptyOrderLifecycle(), tinySeller.orderHash, tinySeller.order);
+  state = claimOrderNonce(state, tinyBuyer.orderHash, tinyBuyer.order);
+  const applied = settlePlannedFill(
+    createSettlementLedger({
+      [sellerId]: { baseAtoms: 1n, quoteAtoms: 0n },
+      [buyerId]: { baseAtoms: 0n, quoteAtoms: 1n },
+    }),
+    state,
+    tinyFill,
+    tinySeller,
+    tinyBuyer,
+    { ...parameters, quoteCostDivisor: 1n, makerFeeBps: 1n, takerFeeBps: 1n },
+  );
+  assert.equal(applied.sellerFeeAtoms, 0n);
+  assert.equal(applied.buyerFeeAtoms, 0n);
+});
+
+test("rejects quote and balance values outside uint256", () => {
+  const hugeSeller = { ...maker, order: { ...maker.order, baseAmountAtoms: UINT256_MAX, limitPriceTicks: UINT256_MAX }, remainingBaseAtoms: UINT256_MAX };
+  const hugeBuyer = { ...taker, order: { ...taker.order, baseAmountAtoms: UINT256_MAX, limitPriceTicks: UINT256_MAX }, remainingBaseAtoms: UINT256_MAX };
+  const hugeFill = { ...fill, executionPriceTicks: UINT256_MAX, baseAmountAtoms: UINT256_MAX };
+  let state = claimOrderNonce(emptyOrderLifecycle(), hugeSeller.orderHash, hugeSeller.order);
+  state = claimOrderNonce(state, hugeBuyer.orderHash, hugeBuyer.order);
+  assert.throws(
+    () => settlePlannedFill(createSettlementLedger(), state, hugeFill, hugeSeller, hugeBuyer, { ...parameters, quoteCostDivisor: 1n }),
+    /exceeds uint256/,
+  );
+  assert.throws(() => createSettlementLedger({ [sellerId]: { baseAtoms: UINT256_MAX + 1n, quoteAtoms: 0n } }), /fit uint256/);
+});
+
+test("rejects duplicate normalized balance accounts", () => {
+  const upperSeller = `0x${sellerId.slice(2).toUpperCase()}` as Hex32;
+  assert.throws(() => createSettlementLedger({
+    [sellerId]: { baseAtoms: 1n, quoteAtoms: 0n },
+    [upperSeller]: { baseAtoms: 1n, quoteAtoms: 0n },
+  }), /duplicated after normalization/);
 });

@@ -18,7 +18,7 @@ const order: TypedOrderIntent = {
   baseChainId: chainIdentifier("bip122:00040fe8ec8471911baa1db1266ea15d"),
   baseAssetId: assetIdentifier("bip122:00040fe8ec8471911baa1db1266ea15d/slip44:133"),
   quoteChainId: chainIdentifier("eip155:42161"),
-  quoteAssetId: assetIdentifier("eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831"),
+  quoteAssetId: assetIdentifier("eip155:42161/erc20:0x2222222222222222222222222222222222222222"),
   side: 0,
   baseAmountAtoms: 100_000_000n,
   limitPriceTicks: 5_291n,
@@ -34,9 +34,9 @@ const order: TypedOrderIntent = {
 };
 
 test("creates deterministic EIP-712 domain, struct, and final hashes", () => {
-  assert.equal(hashOrderDomain(domain), hashOrderDomain({ ...domain }));
-  assert.equal(hashOrderStruct(order), hashOrderStruct({ ...order }));
-  assert.equal(hashTypedOrder(domain, order), hashTypedOrder(domain, { ...order }));
+  assert.equal(hashOrderDomain(domain), "0x6b01cce2a86c72d0cf0f70b0eddb2065f365f53988b280d65e6af059a17316ea");
+  assert.equal(hashOrderStruct(order), "0x7cb65a4a61fa28f469d4c553a4733e4093db1dbe82817bcfcf9480332fdd9958");
+  assert.equal(hashTypedOrder(domain, order), "0x4f988534f3e4c867ae8890636d15fab94992d0e9a35b431b1d5445e6b59163e6");
   assert.match(hashTypedOrder(domain, order), /^0x[0-9a-f]{64}$/);
   assert.notEqual(hashTypedOrder(domain, order), hashTypedOrder(domain, { ...order, nonce: 2n }));
   assert.notEqual(hashTypedOrder(domain, order), hashTypedOrder(createOrderDomain(42162n, domain.verifyingContract), order));
@@ -57,6 +57,7 @@ test("rejects invalid fixed-width values and integer overflow before hashing", (
   assert.throws(() => hashOrderStruct({ ...order, makerAccountId: "0x12" }), /32 bytes/);
   assert.throws(() => createOrderDomain(0n, domain.verifyingContract), /positive/);
   assert.throws(() => createOrderDomain(42161n, "0x1234"), /20 bytes/);
+  assert.throws(() => createOrderDomain(42161n, `0x${"00".repeat(20)}`), /cannot be zero/);
 });
 
 test("binds the settlement adapter and both asset-chain pairs", () => {

@@ -5,8 +5,10 @@ import { keccak256Text } from "./keccak.ts";
 import {
   appendIntakeReceipt,
   emptyReceiptChain,
+  hashIntakeReceipt,
   verifyReceiptChain,
 } from "./order-receipts.ts";
+import type { Hex32 } from "./order-domain.ts";
 
 test("assigns monotonic receipt sequences and chains every accepted order", () => {
   const first = appendIntakeReceipt(emptyReceiptChain(), keccak256Text("order-1"), 100n);
@@ -45,4 +47,31 @@ test("keeps receipts signable but unsigned in the no-key reference", () => {
     "sequence",
     "version",
   ]);
+});
+
+test("rejects semantic hash duplicates and time regression", () => {
+  const first = appendIntakeReceipt(emptyReceiptChain(), keccak256Text("order-1"), 100n);
+  const upperOrderHash = `0x${first.receipt.orderHash.slice(2).toUpperCase()}` as Hex32;
+  const duplicateReceipt = {
+    version: 1 as const,
+    sequence: 2n,
+    acceptedAtSeconds: 101n,
+    orderHash: upperOrderHash,
+    previousReceiptHash: first.receipt.receiptHash,
+    receiptHash: hashIntakeReceipt(2n, 101n, upperOrderHash, first.receipt.receiptHash),
+  };
+  assert.equal(verifyReceiptChain({ receipts: [first.receipt, duplicateReceipt], head: duplicateReceipt.receiptHash, nextSequence: 3n }), false);
+  assert.throws(() => appendIntakeReceipt(first.chain, keccak256Text("order-2"), 99n), /cannot move backward/);
+});
+
+test("malformed persisted receipt fields fail closed", () => {
+  const first = appendIntakeReceipt(emptyReceiptChain(), keccak256Text("order-1"), 100n);
+  assert.equal(verifyReceiptChain({
+    ...first.chain,
+    receipts: [{ ...first.receipt, orderHash: "0x12" as Hex32 }],
+  }), false);
+  assert.equal(verifyReceiptChain({
+    ...first.chain,
+    receipts: [{ ...first.receipt, acceptedAtSeconds: "bad" as unknown as bigint }],
+  }), false);
 });

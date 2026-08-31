@@ -1,4 +1,4 @@
-import { hashTypedOrder, type OrderDomain, type TypedOrderIntent } from "./eip712-order.ts";
+import { hashOrderStruct, hashTypedOrder, type OrderDomain, type TypedOrderIntent } from "./eip712-order.ts";
 import {
   activeAccountEpoch,
   advanceAccountEpoch,
@@ -9,7 +9,7 @@ import {
 } from "./order-lifecycle.ts";
 import { assertOrderPolicy, type OrderPair } from "./order-policy.ts";
 import { appendIntakeReceipt, emptyReceiptChain, type ReceiptChain } from "./order-receipts.ts";
-import type { Hex32 } from "./order-domain.ts";
+import { normalizeHex32, type Hex32 } from "./order-domain.ts";
 import type { SequencedOrder } from "./price-time.ts";
 
 export type OrderReferenceState = Readonly<{
@@ -56,15 +56,27 @@ export function acceptOrderIntent(
     settlementAdapterId: state.settlementAdapterId,
     maximumLifetimeSeconds: state.maximumLifetimeSeconds,
   });
-  const orderHash = hashTypedOrder(state.domain, order);
-  const lifecycle = claimOrderNonce(state.lifecycle, orderHash, order);
+  const acceptedOrder = Object.freeze({
+    ...order,
+    makerAccountId: normalizeHex32(order.makerAccountId, "Maker account ID"),
+    authorizedSignerId: normalizeHex32(order.authorizedSignerId, "Authorized signer ID"),
+    baseChainId: normalizeHex32(order.baseChainId, "Base chain ID"),
+    baseAssetId: normalizeHex32(order.baseAssetId, "Base asset ID"),
+    quoteChainId: normalizeHex32(order.quoteChainId, "Quote chain ID"),
+    quoteAssetId: normalizeHex32(order.quoteAssetId, "Quote asset ID"),
+    salt: normalizeHex32(order.salt, "Salt"),
+    recipientAccountId: normalizeHex32(order.recipientAccountId, "Recipient account ID"),
+    settlementAdapterId: normalizeHex32(order.settlementAdapterId, "Settlement adapter ID"),
+  }) satisfies TypedOrderIntent;
+  const orderHash = hashTypedOrder(state.domain, acceptedOrder);
+  const lifecycle = claimOrderNonce(state.lifecycle, orderHash, acceptedOrder);
   const appended = appendIntakeReceipt(state.receiptChain, orderHash, acceptedAtSeconds);
-  const accepted: SequencedOrder = {
+  const accepted: SequencedOrder = Object.freeze({
     orderHash,
     sequence: appended.receipt.sequence,
-    order,
-    remainingBaseAtoms: order.baseAmountAtoms,
-  };
+    order: acceptedOrder,
+    remainingBaseAtoms: acceptedOrder.baseAmountAtoms,
+  });
   return {
     accepted,
     state: {
@@ -87,10 +99,13 @@ export function applyOrderReferenceEvent(
       lifecycle: cancelOrderNonce(state.lifecycle, event.accountId, event.accountEpoch, event.nonce),
     };
   }
-  return {
-    ...state,
-    lifecycle: advanceAccountEpoch(state.lifecycle, event.accountId, event.nextEpoch),
-  };
+  if (event.kind === "advance-epoch") {
+    return {
+      ...state,
+      lifecycle: advanceAccountEpoch(state.lifecycle, event.accountId, event.nextEpoch),
+    };
+  }
+  throw new TypeError("Unknown order reference event kind");
 }
 
 export function replayOrderReference(
@@ -106,9 +121,17 @@ export function orderReferenceSnapshot(state: OrderReferenceState): string {
     .map(([account, epoch]) => `${account}:${epoch}`)
     .join(",");
   const cancelled = Object.keys(state.lifecycle.cancelledNonceKeys).sort().join(",");
+  const claims = Object.entries(state.lifecycle.nonceClaims)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, orderHash]) => `${key}:${orderHash}`)
+    .join(",");
+  const bindings = Object.entries(state.lifecycle.acceptedOrderStructHashes)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([orderHash, structHash]) => `${orderHash}:${structHash}`)
+    .join(",");
   const accepted = Object.values(state.acceptedOrders)
     .sort((left, right) => left.sequence < right.sequence ? -1 : 1)
-    .map((entry) => `${entry.sequence}:${entry.orderHash}:${entry.remainingBaseAtoms}`)
+    .map((entry) => `${entry.sequence}:${entry.orderHash}:${hashOrderStruct(entry.order)}:${entry.remainingBaseAtoms}`)
     .join(",");
-  return `head=${state.receiptChain.head}|next=${state.receiptChain.nextSequence}|epochs=${epochs}|cancelled=${cancelled}|accepted=${accepted}`;
+  return `head=${state.receiptChain.head}|next=${state.receiptChain.nextSequence}|epochs=${epochs}|cancelled=${cancelled}|claims=${claims}|bindings=${bindings}|accepted=${accepted}`;
 }

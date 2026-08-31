@@ -21,7 +21,7 @@ const order: TypedOrderIntent = {
   baseChainId: chainIdentifier("bip122:00040fe8ec8471911baa1db1266ea15d"),
   baseAssetId: assetIdentifier("bip122:00040fe8ec8471911baa1db1266ea15d/slip44:133"),
   quoteChainId: chainIdentifier("eip155:42161"),
-  quoteAssetId: assetIdentifier("eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831"),
+  quoteAssetId: assetIdentifier("eip155:42161/erc20:0x2222222222222222222222222222222222222222"),
   side: 0,
   baseAmountAtoms: 100n,
   limitPriceTicks: 5_000n,
@@ -67,4 +67,12 @@ test("expiry and unknown hashes fail closed", () => {
   const claimed = claimOrderNonce(emptyOrderLifecycle(), hash, order);
   assert.deepEqual(orderActivity(claimed, hash, order, 10_000n), { active: false, reason: "expired" });
   assert.deepEqual(orderActivity(claimed, keccak256Text("unknown"), order, 9_000n), { active: false, reason: "not-accepted" });
+  assert.throws(() => orderActivity(claimed, hash, order, -1n), /uint64/);
+});
+
+test("binds every active lifecycle lookup to the accepted order body", () => {
+  const hash = keccak256Text("order-1");
+  const claimed = claimOrderNonce(emptyOrderLifecycle(), hash, order);
+  const changedRecipient = { ...order, recipientAccountId: accountIdentifier("session:attacker") };
+  assert.deepEqual(orderActivity(claimed, hash, changedRecipient, 9_000n), { active: false, reason: "body-mismatch" });
 });

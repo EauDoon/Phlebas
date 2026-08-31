@@ -14,7 +14,7 @@ import {
 
 test("derives stable, namespace-separated chain, asset, account, and adapter identifiers", () => {
   const chain = chainIdentifier("eip155:42161");
-  const asset = assetIdentifier("eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831");
+  const asset = assetIdentifier("eip155:42161/erc20:0x2222222222222222222222222222222222222222");
   const account = accountIdentifier("session:maker-1");
   const adapter = adapterIdentifier("no-value-reference-v1");
   for (const identifier of [chain, asset, account, adapter]) assert.match(identifier, /^0x[0-9a-f]{64}$/);
@@ -43,6 +43,7 @@ test("enforces exact unsigned integer ranges", () => {
 
 test("rejects ambiguous or malformed canonical identifiers", () => {
   assert.throws(() => chainIdentifier("42161"), /CAIP-2/);
+  assert.throws(() => chainIdentifier(`bip122:${"a".repeat(33)}`), /CAIP-2/);
   assert.throws(() => assetIdentifier("eip155:42161"), /CAIP-19/);
   assert.throws(() => accountIdentifier(" account"), /canonical string/);
   assert.throws(() => adapterIdentifier("Native ZEC"), /invalid/);

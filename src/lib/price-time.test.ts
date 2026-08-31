@@ -10,7 +10,7 @@ const pair = {
   baseChainId: chainIdentifier("bip122:00040fe8ec8471911baa1db1266ea15d"),
   baseAssetId: assetIdentifier("bip122:00040fe8ec8471911baa1db1266ea15d/slip44:133"),
   quoteChainId: chainIdentifier("eip155:42161"),
-  quoteAssetId: assetIdentifier("eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831"),
+  quoteAssetId: assetIdentifier("eip155:42161/erc20:0x2222222222222222222222222222222222222222"),
   settlementAdapterId: adapterIdentifier("no-value-reference-v1"),
 };
 
@@ -78,4 +78,19 @@ test("does not mix asset-chain pairs or accept non-resting IOC makers", () => {
   const otherPair = { ...intent("other", 1, 5_200n, 10n), baseChainId: pair.quoteChainId };
   const iocMaker = intent("ioc", 1, 5_100n, 10n, 1);
   assert.equal(planPriceTimeMatches(taker, [sequenced("other", 1n, otherPair), sequenced("ioc", 2n, iocMaker)]).fills.length, 0);
+});
+
+test("rejects duplicate maker hashes and case-variant self trades", () => {
+  const buyOrder = intent("buy", 0, 5_300n, 10n, 1);
+  const taker = sequenced("buy", 4n, buyOrder);
+  const duplicate = sequenced("duplicate", 1n, intent("seller", 1, 5_200n, 5n));
+  assert.throws(
+    () => planPriceTimeMatches(taker, [duplicate, { ...duplicate, sequence: 2n, orderHash: `0x${duplicate.orderHash.slice(2).toUpperCase()}` }]),
+    /duplicated/,
+  );
+  const caseVariantSelf = {
+    ...intent("self", 1, 5_200n, 10n),
+    makerAccountId: `0x${buyOrder.makerAccountId.slice(2).toUpperCase()}`,
+  } as TypedOrderIntent;
+  assert.equal(planPriceTimeMatches(taker, [sequenced("self", 1n, caseVariantSelf)]).fills.length, 0);
 });
