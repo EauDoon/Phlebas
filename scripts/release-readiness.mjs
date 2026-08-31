@@ -3,7 +3,6 @@
 // and prints the release verdict. The script is the entry point
 // for the on-call engineer's sign-off.
 
-import { strict as assert } from "node:assert";
 import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
