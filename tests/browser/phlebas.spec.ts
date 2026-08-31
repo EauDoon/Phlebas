@@ -272,6 +272,8 @@ test("trade ticket shows parser errors instead of a tick notice", async ({ page 
 
 test("gateway preview is not a receivable deposit", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "ZEC gateway" })).toBeVisible();
+  await expect(page.getByText("ZEC to pZEC")).toHaveCount(0);
   await expect(page.getByText("zcash:{TEX_ADDRESS}?amount=1&label=Phlebas", { exact: true })).toBeVisible();
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
   await page.getByRole("button", { name: "Issue testnet TEX" }).click();
@@ -1271,6 +1273,9 @@ test("architecture incident demonstrations stay labeled copy", async ({ page }) 
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
   const select = page.getByRole("combobox", { name: "Gateway incident demonstration" });
   await expect(select).toBeVisible();
+  await select.selectOption({ label: "Deposit credit is paused for review." });
+  await expect(page.getByText("The observed transaction has not been approved for minting.")).toBeVisible();
+  await expect(page.getByText("pZEC minting")).toHaveCount(0);
   await select.selectOption({ label: "Gateway incident controls are active." });
   await expect(page.getByText("These screens are labeled demonstrations.")).toBeVisible();
   await expect(page.getByText("A previously credited Zcash deposit changed after a chain reorganization.")).toBeVisible();
