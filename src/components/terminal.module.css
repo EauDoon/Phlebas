@@ -1941,8 +1941,9 @@ a.skipLink:focus-visible {
     z-index: 1;
     flex-shrink: 0;
     margin-top: auto;
+    overflow: visible;
     background: var(--surface);
-    padding: 8px 4px;
+    padding: 8px;
   }
 
   .educationDialog .tourNav button {
