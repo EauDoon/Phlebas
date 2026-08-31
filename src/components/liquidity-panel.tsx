@@ -444,7 +444,13 @@ export function LiquidityPanel({
           {amountPreview.valid ? amountPreview.message : "Use a positive plain decimal with no more than 8 places. Integer quote."}
         </p>
 
-        <dl className={styles.statGrid} role="group" aria-label="Pool stats and impermanent loss versus hold">
+        <dl
+          id="pool-stats"
+          className={styles.statGrid}
+          role="group"
+          aria-label="Pool stats and impermanent loss versus hold"
+          tabIndex={-1}
+        >
           <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
           <div><dt>TVL</dt><dd>Fixture {selectedPool.tvl}</dd></div>
           <div><dt>24h volume</dt><dd>Fixture {selectedPool.volume}</dd></div>

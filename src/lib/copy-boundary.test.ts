@@ -110,6 +110,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   const liquidity = await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8");
   assert.match(liquidity, /aria-errormessage/);
   assert.match(liquidity, /amountErrorId/);
+  assert.match(liquidity, /id="pool-stats"/);
   assert.match(liquidity, /Fixture \{selectedPool\.tvl\}/);
   assert.match(liquidity, /Fixture \{selectedPool\.volume\}/);
   assert.match(liquidity, /Retry illustrative feed/);
