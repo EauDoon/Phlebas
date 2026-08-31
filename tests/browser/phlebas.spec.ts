@@ -1349,3 +1349,39 @@ test("terminal skip link reaches recent trades", async ({ page }) => {
   await expect(page.locator("#recent-trades")).toBeFocused();
 });
 
+test("mid-price fills and inventory rows stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const mid = page.getByRole("cell", { name: /session last/ });
+  await expect(mid).toBeVisible();
+  expect((await mid.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.getByRole("button", { name: "Ask 52.91" }).click();
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("tab", { name: "Fills" }).click();
+  const fillRow = page.getByRole("table", { name: /Session fills for ZEC\/USDC/ }).locator("tbody tr").first();
+  await expect(fillRow).toBeVisible();
+  expect((await fillRow.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.getByRole("tab", { name: "Inventory" }).click();
+  const inventoryRow = page.getByRole("tabpanel").locator("dl > div").first();
+  await expect(inventoryRow).toBeVisible();
+  expect((await inventoryRow.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("loading skip link reaches the withheld-price notice", async ({ page }) => {
+  await page.goto("/trade?loading=1", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Loading the simulation" })).toBeVisible();
+  await expect(page.getByText("No market data is live.")).toBeVisible();
+  await expect(page.getByText("No prices, balances, or depth are shown while this route loads.")).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipNotice = page.getByRole("link", { name: "Skip to withheld-price notice" });
+  await expect(skipNotice).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#withheld-price")).toBeFocused();
+});
+
