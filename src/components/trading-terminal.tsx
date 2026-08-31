@@ -18,6 +18,8 @@ import { terminalUrl } from "@/lib/terminal-url";
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
 import {
+  chartPanelEyebrowCopy,
+  chartPanelHeadingCopy,
   chartRangeTabLabel,
   feedSurface,
   feedWithheldCopy,
@@ -360,7 +362,10 @@ export function TradingTerminal({
             <div className={styles.tradeGrid}>
               <section className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
                 <div className={styles.panelHeader}>
-                  <div><span className={styles.eyebrow}>Illustrative market data</span><h2 id="chart-title">{marketId}</h2></div>
+                  <div>
+                    <span className={styles.eyebrow}>{chartPanelEyebrowCopy(market.settlementPair)}</span>
+                    <h2 id="chart-title" aria-label={chartPanelHeadingCopy(marketId)}>{marketId}</h2>
+                  </div>
                   <div
                     className={styles.rangeTabs}
                     role="tablist"

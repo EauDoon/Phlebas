@@ -8,6 +8,7 @@ import {
   burnShares,
   emptyShareCopy,
   lpPauseNoticeCopy,
+  lpResetNoticeCopy,
   hypotheticalImpermanentLoss,
   IL_PRICE_SCENARIOS,
   lpOperationAllowed,
@@ -434,7 +435,7 @@ export function LiquidityPanel({
           >
             {tradingPaused ? "Resume trading preview" : "Pause trading preview"}
           </button>
-          <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setNotice("Local pool reserves restored."); }}>
+          <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setNotice(lpResetNoticeCopy(markets[marketId].settlementPair)); }}>
             Reset pool
           </button>
         </div>

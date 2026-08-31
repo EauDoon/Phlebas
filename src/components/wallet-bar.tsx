@@ -9,6 +9,7 @@ import {
   getInjectedProvider,
   missingProviderCopy,
   walletConnectFailureCopy,
+  walletStateWithSettlement,
   type WalletState,
 } from "@/lib/evm-wallet";
 
@@ -33,10 +34,7 @@ export function WalletBar({
     }
     setBusy(true);
     try {
-      const next = await connectTestnetWallet(provider);
-      onChange(next.error
-        ? { ...next, error: walletConnectFailureCopy(next.error, settlementPair) }
-        : next);
+      onChange(walletStateWithSettlement(await connectTestnetWallet(provider), settlementPair));
     } catch (error) {
       onChange({
         ...disconnectedWallet,
