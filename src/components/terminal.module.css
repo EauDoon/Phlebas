@@ -60,6 +60,10 @@
   scroll-margin-top: 12px;
 }
 
+#missing-route {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
