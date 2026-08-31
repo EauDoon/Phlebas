@@ -1119,3 +1119,92 @@ test("status skip link reaches the ledger", async ({ page }) => {
   await expect(page.locator("#status-ledger")).toBeFocused();
 });
 
+test("market arrows move focus and Enter selects USDT", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const usdc = page.getByRole("radio", { name: "ZEC / USDC" });
+  const usdt = page.getByRole("radio", { name: "ZEC / USDT" });
+  await usdc.focus();
+  await expect(usdc).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("ArrowRight");
+  await expect(usdt).toBeFocused();
+  await expect(usdc).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("Enter");
+  await expect(usdt).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByText("settles pZEC-USDT0")).toBeVisible();
+});
+
+test("feed-state arrows move focus and Enter selects loading", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const illustrative = page.getByRole("radio", { name: "Illustrative" });
+  const loading = page.getByRole("radio", { name: "Loading" });
+  await illustrative.focus();
+  await expect(illustrative).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("ArrowRight");
+  await expect(loading).toBeFocused();
+  await expect(illustrative).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("End");
+  await expect(page.getByRole("radio", { name: "Unavailable" })).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(illustrative).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("Enter");
+  await expect(loading).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByText("Loading market data", { exact: true }).first()).toBeVisible();
+});
+
+test("review Back and ticket primary stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const review = page.getByRole("button", { name: "Review simulated buy" });
+  const reviewBox = await review.boundingBox();
+  expect(reviewBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await review.click();
+  const back = page.getByRole("button", { name: "Back" });
+  await expect(back).toBeVisible();
+  const backBox = await back.boundingBox();
+  expect(backBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const confirm = page.getByRole("button", { name: "Confirm simulated buy" });
+  const confirmBox = await confirm.boundingBox();
+  expect(confirmBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("LP mint swap and burn tour buttons are 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  for (const name of ["Review simulated mint", "Burn session shares", "Review simulated swap"]) {
+    const button = page.getByRole("button", { name });
+    await expect(button).toBeVisible();
+    const box = await button.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  }
+});
+
+test("legal and security skip links reach the articles", async ({ page }) => {
+  await page.goto("/legal", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipLegal = page.getByRole("link", { name: "Skip to legal article" });
+  await expect(skipLegal).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#legal-article")).toBeFocused();
+
+  await page.goto("/security", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipSecurity = page.getByRole("link", { name: "Skip to security article" });
+  await expect(skipSecurity).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#security-article")).toBeFocused();
+});
+
+test("incident demonstration keeps selected copy in a named region", async ({ page }) => {
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  const region = page.getByRole("region", { name: "Selected incident demonstration" });
+  await expect(region).toBeVisible();
+  await expect(region).toContainText("Phlebas is not available in this location.");
+  await page.getByLabel("Gateway incident demonstration").selectOption("planned-maintenance");
+  await expect(region).toContainText("Gateway maintenance is scheduled.");
+  await expect(page.getByText("They do not imply a live account, incident, or outage.")).toBeVisible();
+});
+
