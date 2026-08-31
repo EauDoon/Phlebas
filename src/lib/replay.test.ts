@@ -14,7 +14,7 @@ test("replaying the same submit and cancel log yields the same book and balances
       tif: "IOC",
       priceTicks: 5291n,
       sizeAtoms: 1_00000000n,
-      expiryUnix: 1700000000n;
+      expiryUnix: 1700000000n,
     },
     {
       kind: "submit",
