@@ -1408,6 +1408,7 @@
   min-height: 44px;
   flex-shrink: 0;
   align-items: center;
+  justify-content: center;
   padding: 8px 14px;
   border: 1px solid var(--border);
   border-radius: 6px;
