@@ -71,7 +71,6 @@ Last updated: 31-08-2026 after PRODUCT_SPEC UI flows: payout tour claims, settle
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (blocked on a Vercel deploy token in this session; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
-- Playwright: IOC remainder cancel and FOK reject-in-full from the ticket
 - Keyboard: blotter Cancel from the tab order at 320px
 
 ## Blockers

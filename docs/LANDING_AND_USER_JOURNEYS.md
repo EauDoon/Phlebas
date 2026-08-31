@@ -42,7 +42,7 @@ Planning dials:
 | `/` | Landing page | Implemented locally, no wallet or asset action |
 | `/trade` | Terminal shell, defaults to trade | Implemented locally, simulation only |
 | `/trade?view=trade` | Trade preview | Implemented locally with illustrative order entry |
-| `/trade?view=trade&feed=stale` | Ticket gate | Allowlisted feed states: `illustrative`, `empty`, `stale`, `unavailable`. Invalid values return to illustrative. |
+| `/trade?view=trade&feed=stale` | Ticket gate | Allowlisted feed states: `illustrative`, `loading`, `empty`, `stale`, `unavailable`. Invalid values return to illustrative. |
 | `/trade?view=liquidity` | LP preview | Implemented locally with illustrative pool calculations |
 | `/trade?view=bridge` | Gateway boundary | Implemented locally as a deposit ZIP 321 preview and withdrawal state tour |
 | `/trade?view=architecture` | Product boundary | Implemented locally as a read-only explanation |
