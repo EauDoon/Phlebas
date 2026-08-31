@@ -92,6 +92,10 @@
   min-height: 44px;
 }
 
+:global(#liquidity-pools) {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
