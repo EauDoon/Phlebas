@@ -1,122 +1,254 @@
 import assert from "node:assert/strict";
-import test from "node:test";
 import { once } from "node:events";
 import { mkdtemp, rm, unlink } from "node:fs/promises";
+import type { Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AddressInfo } from "node:net";
+import test from "node:test";
 
+import { createOrderDomain, hashOrderDomain, type TypedOrderIntent } from "../../src/lib/eip712-order.ts";
+import { keccak256Text } from "../../src/lib/keccak.ts";
+import type { MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
+import type { PersistentMatcherConfiguration, PersistentMatcherEvent } from "../../src/lib/persistent-matcher.ts";
+import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier } from "../../src/lib/order-domain.ts";
+import { VENUE_CLOB } from "../../src/lib/order-policy.ts";
+import { serializePersistentMatcherEvent } from "./persistent-store.ts";
 import { startMatcher } from "./server.ts";
 
-test("matcher HTTP health is loopback-only and starts at sequence zero", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "phlebas-matcher-http-"));
-  const server = startMatcher({ host: "127.0.0.1", port: 0, persistPath: join(dir, "state.json") });
+const now = 1_800_000_000n;
+const domain = createOrderDomain(42161n, "0x1111111111111111111111111111111111111111");
+const baseNetwork = "bip122:00040fe8ec8471911baa1db1266ea15d";
+const baseAsset = `${baseNetwork}/slip44:133`;
+const quoteNetwork = "eip155:42161";
+const quoteAsset = `${quoteNetwork}/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831`;
+const protocol = "transparent-htlc-v1";
+const configuration: PersistentMatcherConfiguration = {
+  domain,
+  atomicSwapPolicy: {
+    orderDomain: domain,
+    pair: {
+      base: { network: baseNetwork, asset: baseAsset, environment: "mainnet", decimals: 8 },
+      quote: { network: quoteNetwork, asset: quoteAsset, environment: "mainnet", decimals: 6 },
+    },
+    settlementProtocolVersion: protocol,
+    stablecoinRefundDelaySeconds: 3_600n,
+    zcashRefundSafetyDeltaSeconds: 7_200n,
+    zcashRequiredConfirmations: 10,
+    quoteRequiredConfirmations: 65,
+  },
+  solverQuotePolicy: {
+    matcherDomainHash: hashOrderDomain(domain),
+    baseNetwork,
+    baseAsset,
+    quoteNetwork,
+    quoteAsset,
+    settlementProtocolVersion: protocol,
+    maximumCapacityBaseAtoms: 10_000_000_000n,
+    maximumLifetimeSeconds: 10_000n,
+  },
+  maximumOrderLifetimeSeconds: 10_000n,
+  limits: {
+    minimumBaseAmountAtoms: 1n,
+    maximumBaseAmountAtoms: 10_000_000_000n,
+    maximumAcceptedOrders: 1_000,
+    maximumOpenOrders: 100,
+    maximumOpenOrdersPerAccount: 10,
+    maximumSolverQuotes: 100,
+    maximumRouteFills: 16,
+    maximumSolverFills: 8,
+  },
+};
+const verifier: MatcherSignatureVerifier = { verify() {} };
+
+function event(requestId = "order-one"): Extract<PersistentMatcherEvent, { kind: "accept-order" }> {
+  const sourceAccount = "zcash:mainnet:t3-maker-one";
+  const recipientAccount = `${quoteNetwork}:0x1111111111111111111111111111111111111111`;
+  const order: TypedOrderIntent = {
+    makerAccountId: accountIdentifier(sourceAccount),
+    authorizedSignerId: accountIdentifier(`${quoteNetwork}:signer-one`),
+    recipientAccountId: accountIdentifier(recipientAccount),
+    baseChainId: chainIdentifier(baseNetwork),
+    baseAssetId: assetIdentifier(baseAsset),
+    quoteChainId: chainIdentifier(quoteNetwork),
+    quoteAssetId: assetIdentifier(quoteAsset),
+    side: 1,
+    baseAmountAtoms: 100_000_000n,
+    limitPriceTicks: 5_000n,
+    nonce: 1n,
+    accountEpoch: 0n,
+    expiry: now + 5_000n,
+    salt: keccak256Text("server-order-one"),
+    timeInForce: 0,
+    maximumFeeBps: 30n,
+    allowedVenues: VENUE_CLOB,
+    settlementAdapterId: adapterIdentifier(protocol),
+  };
+  return {
+    version: 1,
+    requestId,
+    occurredAtSeconds: now,
+    kind: "accept-order",
+    submission: { order, signature: "signed-order", accounts: { sourceAccount, recipientAccount } },
+  };
+}
+
+function payload(value: PersistentMatcherEvent): unknown {
+  return serializePersistentMatcherEvent(configuration, value).payload;
+}
+
+async function listen(server: Server): Promise<string> {
   await once(server, "listening");
   const address = server.address() as AddressInfo;
   assert.equal(address.address, "127.0.0.1");
+  return `http://127.0.0.1:${address.port}`;
+}
+
+async function close(server: Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => server.close((error?: Error) => error ? reject(error) : resolve()));
+}
+
+async function json(response: Response): Promise<Record<string, unknown>> {
+  return await response.json() as Record<string, unknown>;
+}
+
+test("starts loopback-only in an honest unconfigured no-value mode", async () => {
+  const server = startMatcher({ host: "127.0.0.1", port: 0 });
+  const origin = await listen(server);
   try {
-    const health = await fetch(`http://127.0.0.1:${address.port}/health`);
-    const body = await health.json() as {
-      matcher: string;
-      sequence: number;
-      sequenceRoot: string;
-      startedAt: number;
-      lastSequenceAt: number;
-      persistReadable: boolean;
-    };
-    assert.equal(health.ok, true);
-    assert.equal(body.matcher, "local-operator");
-    assert.equal(body.sequence, 0);
-    assert.equal(body.sequenceRoot.length, 64);
-    assert.match(body.sequenceRoot, /^[0-9a-f]{64}$/);
-    assert.equal(typeof body.startedAt, "number");
-    assert.equal(body.lastSequenceAt, body.startedAt);
-    assert.equal(body.persistReadable, true);
-    const sequence = await fetch(`http://127.0.0.1:${address.port}/sequence`);
-    const sequenceBody = await sequence.json() as {
-      sequence: number;
-      sequenceRoot: string;
-      after: number;
-      receipts: unknown[];
-    };
-    assert.equal(sequence.status, 200);
-    assert.equal(sequenceBody.sequence, 0);
-    assert.equal(sequenceBody.sequenceRoot, body.sequenceRoot);
-    assert.equal(sequenceBody.after, 0);
-    assert.deepEqual(sequenceBody.receipts, []);
-    const cursor = await fetch(`http://127.0.0.1:${address.port}/sequence?after=1`);
-    const cursorBody = await cursor.json() as { after: number; receipts: unknown[] };
-    assert.equal(cursorBody.after, 1);
-    assert.deepEqual(cursorBody.receipts, []);
-    const missing = await fetch(`http://127.0.0.1:${address.port}/nope`);
-    assert.equal(missing.status, 404);
+    const health = await fetch(`${origin}/health`);
+    const body = await json(health);
+    assert.equal(health.status, 200);
+    assert.equal(body.matcher, "persistent-native-v1");
+    assert.equal(body.configured, false);
+    assert.equal(body.acceptingMutations, false);
+    assert.equal(body.mode, "no-value");
+    assert.equal(body.custody, false);
+    assert.equal((await fetch(`${origin}/v1/sequence`)).status, 503);
+    assert.equal((await fetch(`${origin}/v1/orders`, { method: "POST" })).status, 503);
   } finally {
-    server.close();
-    await once(server, "close");
-    await rm(dir, { recursive: true, force: true });
+    await close(server);
   }
 });
 
-test("matcher HTTP rejects live signing while the settlement manifest is undeployed", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "phlebas-matcher-sig-"));
-  const server = startMatcher({ host: "127.0.0.1", port: 0, persistPath: join(dir, "state.json") });
-  await once(server, "listening");
-  const { port } = server.address() as AddressInfo;
-  const signature = "0x0fd73c37f4362021fdd1693bdca85f8592eb338a7d62338504ba2cbaee2bb90f26bdec5b2efeb086308bce8a9db936bb754bfafeda2305485b91a3b1c371ee8b1b";
+test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-http-"));
+  let server = startMatcher({ host: "127.0.0.1", port: 0, dataDirectory: directory, configuration, verifier, clockSeconds: () => now });
+  let origin = await listen(server);
   try {
-    const response = await fetch(`http://127.0.0.1:${port}/orders`, {
+    const first = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        maker: "0x0000000000000000000000000000000000000001",
-        side: 0,
-        baseAsset: "0x0000000000000000000000000000000000000001",
-        quoteAsset: "0x0000000000000000000000000000000000000002",
-        baseAmount: "100000000",
-        limitPriceTicks: "5291",
-        nonce: "1",
-        accountEpoch: "0",
-        expiry: "0",
-        salt: "1",
-        recipient: "0x0000000000000000000000000000000000000001",
-        maximumFeeBps: 30,
-        allowedVenues: 1,
-        tif: "GTC",
-        signature,
-      }),
+      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      body: JSON.stringify(payload(event())),
     });
-    const body = await response.json() as { reason: string };
-    assert.equal(response.status, 503);
-    assert.equal(body.reason, "settlement-domain-unavailable");
+    assert.equal(first.status, 201);
+    const firstBody = await json(first);
+    assert.equal(firstBody.replayed, false);
+
+    const replay = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      body: JSON.stringify(payload(event())),
+    });
+    assert.equal(replay.status, 200);
+    assert.equal((await json(replay)).replayed, true);
+
+    const health = await json(await fetch(`${origin}/health`));
+    assert.equal(health.sequence, "1");
+    assert.match(String(health.stateRoot), /^0x[0-9a-f]{64}$/);
+    const sequence = await json(await fetch(`${origin}/v1/sequence?after=0&limit=1`));
+    assert.equal(sequence.nextAfter, "1");
+    assert.equal(sequence.hasMore, false);
+    assert.equal((sequence.receipts as unknown[]).length, 1);
+    const receipt = await fetch(`${origin}/v1/requests/order-one`);
+    assert.equal(receipt.status, 200);
+    const book = await json(await fetch(`${origin}/v1/market/book`));
+    assert.equal(((book.book as { asks: unknown[] }).asks).length, 1);
+    assert.equal((await fetch(`${origin}/v1/checkpoint`)).status, 200);
+    assert.equal((await fetch(`${origin}/v1/executions?after=1`)).status, 200);
+    await close(server);
+
+    server = startMatcher({ host: "127.0.0.1", port: 0, dataDirectory: directory, configuration, verifier, clockSeconds: () => now });
+    origin = await listen(server);
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "1");
   } finally {
-    server.close();
-    await once(server, "close");
-    await rm(dir, { recursive: true, force: true });
+    if (server.listening) await close(server);
+    await rm(directory, { recursive: true, force: true });
   }
 });
 
-test("matcher fails closed when initialized replay state disappears", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "phlebas-matcher-missing-"));
-  const persistPath = join(dir, "state.json");
-  const first = startMatcher({ host: "127.0.0.1", port: 0, persistPath });
-  await once(first, "listening");
-  const firstPort = (first.address() as AddressInfo).port;
-  assert.equal((await fetch(`http://127.0.0.1:${firstPort}/health`)).status, 200);
-  first.close();
-  await once(first, "close");
-  await unlink(persistPath);
-
-  const restarted = startMatcher({ host: "127.0.0.1", port: 0, persistPath });
-  await once(restarted, "listening");
-  const restartedPort = (restarted.address() as AddressInfo).port;
+test("rejects ambiguous endpoints, idempotency mismatch, media type, and oversized bodies", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-abuse-"));
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: directory,
+    configuration,
+    verifier,
+    maximumBodyBytes: 2_048,
+  });
+  const origin = await listen(server);
   try {
-    const response = await fetch(`http://127.0.0.1:${restartedPort}/health`);
-    const body = await response.json() as { reason: string };
-    assert.equal(response.status, 400);
-    assert.match(body.reason, /state is missing after initialization/);
+    const wrongKind = await fetch(`${origin}/v1/solver-quotes`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      body: JSON.stringify(payload(event())),
+    });
+    assert.equal(wrongKind.status, 400);
+    const wrongKey = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "different" },
+      body: JSON.stringify(payload(event())),
+    });
+    assert.equal(wrongKey.status, 400);
+    assert.equal((await fetch(`${origin}/v1/orders`, { method: "POST", body: "{}" })).status, 415);
+    const duplicate = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "duplicate" },
+      body: '{"kind":"accept-order","kind":"cancel-order"}',
+    });
+    assert.equal(duplicate.status, 400);
+    assert.match(String((await json(duplicate)).reason), /invalid-json/);
+    const oversized = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "large" },
+      body: JSON.stringify({ value: "x".repeat(3_000) }),
+    });
+    assert.equal(oversized.status, 413);
+    assert.equal((await fetch(`${origin}/v1/sequence?after=01`)).status, 400);
+    assert.equal((await fetch(`${origin}/v1/sequence?limit=101`)).status, 400);
+    assert.equal((await fetch(`${origin}/v1/requests/missing`)).status, 404);
   } finally {
-    restarted.close();
-    await once(restarted, "close");
-    await rm(dir, { recursive: true, force: true });
+    await close(server);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("fails closed on a second writer and missing initialized journal", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-lock-"));
+  let first = startMatcher({ host: "127.0.0.1", port: 0, dataDirectory: directory, configuration, verifier });
+  const firstOrigin = await listen(first);
+  assert.equal((await fetch(`${firstOrigin}/health`)).status, 200);
+  const second = startMatcher({ host: "127.0.0.1", port: 0, dataDirectory: directory, configuration, verifier });
+  const secondOrigin = await listen(second);
+  try {
+    const locked = await fetch(`${secondOrigin}/health`);
+    assert.equal(locked.status, 503);
+    assert.match(String((await json(locked)).reason), /writer lock already exists/);
+  } finally {
+    await close(second);
+    await close(first);
+  }
+
+  await unlink(join(directory, "events.jsonl"));
+  first = startMatcher({ host: "127.0.0.1", port: 0, dataDirectory: directory, configuration, verifier });
+  const missingOrigin = await listen(first);
+  try {
+    const missing = await fetch(`${missingOrigin}/health`);
+    assert.equal(missing.status, 503);
+    assert.match(String((await json(missing)).reason), /persistence is missing/);
+  } finally {
+    await close(first);
+    await rm(directory, { recursive: true, force: true });
   }
 });
