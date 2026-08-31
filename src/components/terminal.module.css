@@ -80,6 +80,10 @@
   min-height: 44px;
 }
 
+:global(#country-block) {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
