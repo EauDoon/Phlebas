@@ -1140,6 +1140,24 @@
   line-height: 1.55;
 }
 
+.placeholderQr {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin: 4px 0 0;
+}
+
+.placeholderQr svg {
+  border: 8px solid #f4f1e6;
+  background: #f4f1e6;
+}
+
+.placeholderQr figcaption {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .tourNav {
   display: flex;
   flex-wrap: wrap;
