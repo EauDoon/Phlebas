@@ -45,6 +45,8 @@ export function hashIntakeReceipt(
   orderHash: Hex32,
   previousReceiptHash: Hex32,
 ): Hex32 {
+  if (typeof sequence !== "bigint") throw new TypeError("Receipt sequence must be a bigint");
+  if (typeof acceptedAtSeconds !== "bigint") throw new TypeError("Receipt time must be a bigint");
   if (sequence <= 0n || sequence > UINT64_MAX) throw new RangeError("Receipt sequence must be a positive uint64");
   if (acceptedAtSeconds < 0n || acceptedAtSeconds > UINT64_MAX) throw new RangeError("Receipt time must fit uint64");
   return keccak256Text(receiptPayload(sequence, acceptedAtSeconds, orderHash, previousReceiptHash));
@@ -55,6 +57,7 @@ export function appendIntakeReceipt(
   orderHash: Hex32,
   acceptedAtSeconds: bigint,
 ): { chain: ReceiptChain; receipt: IntakeReceipt } {
+  if (!verifyReceiptChain(chain)) throw new Error("Cannot append to an invalid receipt chain");
   const normalizedOrderHash = normalizeHex32(orderHash, "Order hash");
   const previousReceipt = chain.receipts.at(-1);
   if (previousReceipt && acceptedAtSeconds < previousReceipt.acceptedAtSeconds) {

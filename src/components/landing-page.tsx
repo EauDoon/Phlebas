@@ -144,7 +144,7 @@ export function LandingPage() {
             <h2 id="gates-title">A working preview is not permission to hold funds.</h2>
           </div>
           <div className={styles.gateCopy}>
-            <p>Real assets stay blocked until entity, licensing, custody, reserve, signer, audit, market-integrity, jurisdiction, insurance, monitoring, and incident gates have current written evidence.</p>
+            <p>Real assets stay blocked until wallet compatibility, atomic-swap protocol and contract, observer, refund and recovery, audit, legal, market-integrity, monitoring, and incident gates have current written evidence.</p>
             <ul>
               <li>USDC is the first proposed quote asset.</li>
               <li>USDT0 requires a separate later listing decision.</li>

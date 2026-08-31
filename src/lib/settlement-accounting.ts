@@ -37,7 +37,8 @@ export function createSettlementLedger(
   for (const [accountId, balance] of Object.entries(balances)) {
     const account = normalizeHex32(accountId, "Balance account ID");
     if (Object.prototype.hasOwnProperty.call(normalized, account)) throw new Error("Balance account ID is duplicated after normalization");
-    if (balance.baseAtoms < 0n || balance.quoteAtoms < 0n
+    if (typeof balance.baseAtoms !== "bigint" || typeof balance.quoteAtoms !== "bigint"
+      || balance.baseAtoms < 0n || balance.quoteAtoms < 0n
       || balance.baseAtoms > UINT256_MAX || balance.quoteAtoms > UINT256_MAX) {
       throw new RangeError("Balances must fit uint256");
     }
@@ -48,6 +49,37 @@ export function createSettlementLedger(
 
 export function balanceOf(ledger: SettlementLedger, accountId: Hex32): AtomicBalance {
   return ledger.balances[normalizeHex32(accountId, "Balance account ID")] ?? { baseAtoms: 0n, quoteAtoms: 0n };
+}
+
+function normalizeSettlementLedger(ledger: SettlementLedger): SettlementLedger {
+  const balances: Record<string, AtomicBalance> = {};
+  for (const [accountId, balance] of Object.entries(ledger.balances)) {
+    const account = normalizeHex32(accountId, "Balance account ID");
+    if (Object.prototype.hasOwnProperty.call(balances, account)) throw new Error("Balance account ID is duplicated after normalization");
+    if (typeof balance.baseAtoms !== "bigint" || typeof balance.quoteAtoms !== "bigint"
+      || balance.baseAtoms < 0n || balance.quoteAtoms < 0n
+      || balance.baseAtoms > UINT256_MAX || balance.quoteAtoms > UINT256_MAX) {
+      throw new RangeError("Balances must fit uint256");
+    }
+    balances[account] = { ...balance };
+  }
+
+  const filledBaseAtoms: Record<string, bigint> = {};
+  for (const [orderHashValue, filled] of Object.entries(ledger.filledBaseAtoms)) {
+    const orderHash = normalizeHex32(orderHashValue, "Filled order hash");
+    if (Object.prototype.hasOwnProperty.call(filledBaseAtoms, orderHash)) throw new Error("Filled order hash is duplicated after normalization");
+    if (typeof filled !== "bigint" || filled < 0n || filled > UINT256_MAX) throw new RangeError("Prior filled amount must fit uint256");
+    filledBaseAtoms[orderHash] = filled;
+  }
+
+  const appliedFillIds: Record<string, true> = {};
+  for (const [fillIdValue, applied] of Object.entries(ledger.appliedFillIds)) {
+    const fillId = normalizeHex32(fillIdValue, "Applied fill ID");
+    if (Object.prototype.hasOwnProperty.call(appliedFillIds, fillId)) throw new Error("Applied fill ID is duplicated after normalization");
+    if (applied !== true) throw new TypeError("Applied fill marker must be true");
+    appliedFillIds[fillId] = true;
+  }
+  return { balances, filledBaseAtoms, appliedFillIds };
 }
 
 function divideUp(numerator: bigint, denominator: bigint): bigint {
@@ -132,6 +164,7 @@ export function settlePlannedFill(
   taker: SequencedOrder,
   parameters: SettlementParameters,
 ): AppliedSettlement {
+  const normalizedLedger = normalizeSettlementLedger(ledger);
   assertFillShape(fill, maker, taker);
   const makerOrderHash = normalizeHex32(maker.orderHash, "Maker order hash");
   const takerOrderHash = normalizeHex32(taker.orderHash, "Taker order hash");
@@ -139,7 +172,16 @@ export function settlePlannedFill(
     const orderHash = normalizeHex32(sequenced.orderHash, `${role} order hash`);
     const activity = orderActivity(lifecycle, orderHash, sequenced.order, parameters.nowSeconds);
     if (!activity.active) throw new Error(`${role} order is not active: ${activity.reason}`);
-    const filled = ledger.filledBaseAtoms[orderHash] ?? 0n;
+    const filled = normalizedLedger.filledBaseAtoms[orderHash] ?? 0n;
+    if (typeof filled !== "bigint" || filled < 0n || filled > sequenced.order.baseAmountAtoms || filled > UINT256_MAX) {
+      throw new RangeError(`${role} prior filled amount is outside the signed order`);
+    }
+    if (typeof sequenced.remainingBaseAtoms !== "bigint"
+      || sequenced.remainingBaseAtoms < 0n
+      || sequenced.remainingBaseAtoms > sequenced.order.baseAmountAtoms
+      || sequenced.remainingBaseAtoms > UINT256_MAX) {
+      throw new RangeError(`${role} remaining amount is outside the signed order`);
+    }
     if (sequenced.remainingBaseAtoms !== sequenced.order.baseAmountAtoms - filled) throw new Error(`${role} remaining amount does not reconcile`);
     if (fill.baseAmountAtoms > sequenced.remainingBaseAtoms) throw new Error(`${role} order would be overfilled`);
   }
@@ -162,8 +204,8 @@ export function settlePlannedFill(
   const sellerFeeAtoms = maker.order.side === 1 ? makerFee : takerFee;
   if (sellerFeeAtoms > quoteAmountAtoms) throw new Error("Seller fee exceeds settled quote output");
 
-  const makerFilledBefore = ledger.filledBaseAtoms[makerOrderHash] ?? 0n;
-  const takerFilledBefore = ledger.filledBaseAtoms[takerOrderHash] ?? 0n;
+  const makerFilledBefore = normalizedLedger.filledBaseAtoms[makerOrderHash] ?? 0n;
+  const takerFilledBefore = normalizedLedger.filledBaseAtoms[takerOrderHash] ?? 0n;
   const fillId = keccak256Text([
     "PhlebasAppliedFill:v1",
     makerOrderHash,
@@ -173,7 +215,7 @@ export function settlePlannedFill(
     fill.baseAmountAtoms.toString(),
     fill.executionPriceTicks.toString(),
   ].join("|"));
-  if (ledger.appliedFillIds[fillId]) throw new Error("Fill replayed");
+  if (normalizedLedger.appliedFillIds[fillId]) throw new Error("Fill replayed");
 
   const deltas: Record<string, Delta> = {};
   addDelta(deltas, seller.order.makerAccountId, -fill.baseAmountAtoms, 0n);
@@ -188,13 +230,13 @@ export function settlePlannedFill(
     buyerFeeAtoms,
     sellerFeeAtoms,
     ledger: {
-      balances: applyDeltas(ledger, deltas),
+      balances: applyDeltas(normalizedLedger, deltas),
       filledBaseAtoms: {
-        ...ledger.filledBaseAtoms,
+        ...normalizedLedger.filledBaseAtoms,
         [makerOrderHash]: makerFilledBefore + fill.baseAmountAtoms,
         [takerOrderHash]: takerFilledBefore + fill.baseAmountAtoms,
       },
-      appliedFillIds: { ...ledger.appliedFillIds, [fillId]: true },
+      appliedFillIds: { ...normalizedLedger.appliedFillIds, [fillId]: true },
     },
   };
 }

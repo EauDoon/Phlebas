@@ -56,12 +56,15 @@ export function planPriceTimeMatches(
   }
 
   const seenOrderHashes = new Set<string>();
+  const seenSequences = new Set<bigint>();
   const candidates = restingOrders.map((candidate) => ({
     ...candidate,
     orderHash: normalizeHex32(candidate.orderHash, "Maker order hash"),
   })).filter((candidate) => {
     if (candidate.sequence <= 0n || candidate.sequence > UINT64_MAX) throw new RangeError("Maker sequence must be a positive uint64");
+    if (seenSequences.has(candidate.sequence)) throw new Error("Resting intake sequence is duplicated");
     if (seenOrderHashes.has(candidate.orderHash)) throw new Error("Resting order hash is duplicated");
+    seenSequences.add(candidate.sequence);
     seenOrderHashes.add(candidate.orderHash);
     if (candidate.remainingBaseAtoms <= 0n || candidate.remainingBaseAtoms > candidate.order.baseAmountAtoms) {
       throw new RangeError("Maker remaining amount is invalid");

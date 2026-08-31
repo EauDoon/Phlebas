@@ -75,3 +75,20 @@ test("malformed persisted receipt fields fail closed", () => {
     receipts: [{ ...first.receipt, acceptedAtSeconds: "bad" as unknown as bigint }],
   }), false);
 });
+
+test("rejects runtime type confusion and invalid prior receipt state", () => {
+  const orderHash = keccak256Text("order-1");
+  assert.throws(
+    () => hashIntakeReceipt(1n, "bad" as unknown as bigint, orderHash, emptyReceiptChain().head),
+    /must be a bigint/,
+  );
+  const first = appendIntakeReceipt(emptyReceiptChain(), orderHash, 100n);
+  assert.throws(
+    () => appendIntakeReceipt({ ...first.chain, nextSequence: 3n }, keccak256Text("order-2"), 101n),
+    /invalid receipt chain/,
+  );
+  assert.throws(
+    () => appendIntakeReceipt({ ...first.chain, head: keccak256Text("wrong-head") }, keccak256Text("order-2"), 101n),
+    /invalid receipt chain/,
+  );
+});

@@ -114,3 +114,21 @@ test("snapshot binds accepted order bodies and nonce claims", () => {
   assert.notEqual(orderReferenceSnapshot(changed), orderReferenceSnapshot(result.state));
   assert.match(orderReferenceSnapshot(result.state), /claims=.*bindings=/);
 });
+
+test("empty snapshots bind the configured signing domain and pair", () => {
+  const baseline = initial();
+  const otherDomain = createOrderReference({
+    domain: createOrderDomain(42162n, "0x1111111111111111111111111111111111111111"),
+    pair: baseline.pair,
+    settlementAdapterId: baseline.settlementAdapterId,
+    maximumLifetimeSeconds: baseline.maximumLifetimeSeconds,
+  });
+  const otherPair = createOrderReference({
+    domain: baseline.domain,
+    pair: { ...baseline.pair, quoteAssetId: assetIdentifier("eip155:42161/erc20:0x3333333333333333333333333333333333333333") },
+    settlementAdapterId: baseline.settlementAdapterId,
+    maximumLifetimeSeconds: baseline.maximumLifetimeSeconds,
+  });
+  assert.notEqual(orderReferenceSnapshot(baseline), orderReferenceSnapshot(otherDomain));
+  assert.notEqual(orderReferenceSnapshot(baseline), orderReferenceSnapshot(otherPair));
+});

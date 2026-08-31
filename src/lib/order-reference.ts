@@ -1,4 +1,4 @@
-import { hashOrderStruct, hashTypedOrder, type OrderDomain, type TypedOrderIntent } from "./eip712-order.ts";
+import { hashOrderDomain, hashOrderStruct, hashTypedOrder, type OrderDomain, type TypedOrderIntent } from "./eip712-order.ts";
 import {
   activeAccountEpoch,
   advanceAccountEpoch,
@@ -116,6 +116,15 @@ export function replayOrderReference(
 }
 
 export function orderReferenceSnapshot(state: OrderReferenceState): string {
+  const configuration = [
+    hashOrderDomain(state.domain),
+    normalizeHex32(state.pair.baseChainId, "Base chain ID"),
+    normalizeHex32(state.pair.baseAssetId, "Base asset ID"),
+    normalizeHex32(state.pair.quoteChainId, "Quote chain ID"),
+    normalizeHex32(state.pair.quoteAssetId, "Quote asset ID"),
+    normalizeHex32(state.settlementAdapterId, "Settlement adapter ID"),
+    state.maximumLifetimeSeconds.toString(),
+  ].join(":");
   const epochs = Object.entries(state.lifecycle.accountEpochs)
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([account, epoch]) => `${account}:${epoch}`)
@@ -133,5 +142,5 @@ export function orderReferenceSnapshot(state: OrderReferenceState): string {
     .sort((left, right) => left.sequence < right.sequence ? -1 : 1)
     .map((entry) => `${entry.sequence}:${entry.orderHash}:${hashOrderStruct(entry.order)}:${entry.remainingBaseAtoms}`)
     .join(",");
-  return `head=${state.receiptChain.head}|next=${state.receiptChain.nextSequence}|epochs=${epochs}|cancelled=${cancelled}|claims=${claims}|bindings=${bindings}|accepted=${accepted}`;
+  return `config=${configuration}|head=${state.receiptChain.head}|next=${state.receiptChain.nextSequence}|epochs=${epochs}|cancelled=${cancelled}|claims=${claims}|bindings=${bindings}|accepted=${accepted}`;
 }

@@ -58,6 +58,10 @@ test("rejects invalid fixed-width values and integer overflow before hashing", (
   assert.throws(() => createOrderDomain(0n, domain.verifyingContract), /positive/);
   assert.throws(() => createOrderDomain(42161n, "0x1234"), /20 bytes/);
   assert.throws(() => createOrderDomain(42161n, `0x${"00".repeat(20)}`), /cannot be zero/);
+  const confused = { ...order, baseAmountAtoms: "10" as unknown as bigint };
+  assert.throws(() => hashOrderStruct(confused), /must be a bigint/);
+  assert.throws(() => typedOrderData(domain, confused), /must be a bigint/);
+  assert.throws(() => createOrderDomain("42161" as unknown as bigint, domain.verifyingContract), /must be a bigint/);
 });
 
 test("binds the settlement adapter and both asset-chain pairs", () => {

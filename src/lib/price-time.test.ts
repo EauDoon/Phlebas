@@ -94,3 +94,14 @@ test("rejects duplicate maker hashes and case-variant self trades", () => {
   } as TypedOrderIntent;
   assert.equal(planPriceTimeMatches(taker, [sequenced("self", 1n, caseVariantSelf)]).fills.length, 0);
 });
+
+test("rejects duplicate intake sequences even across different prices", () => {
+  const taker = sequenced("buy", 4n, intent("buy", 0, 5_300n, 10n, 1));
+  assert.throws(
+    () => planPriceTimeMatches(taker, [
+      sequenced("seller-a", 1n, intent("seller-a", 1, 5_200n, 5n)),
+      sequenced("seller-b", 1n, intent("seller-b", 1, 5_250n, 5n)),
+    ]),
+    /sequence is duplicated/,
+  );
+});

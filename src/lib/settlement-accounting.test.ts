@@ -95,6 +95,20 @@ test("rejects overfills, stale remaining amounts, and inactive orders", () => {
   assert.throws(() => settlePlannedFill(ledger, lifecycle(), fill, maker, taker, { ...parameters, nowSeconds: 10_000n }), /not active: expired/);
 });
 
+test("rejects corrupted prior fill and remaining state", () => {
+  const negativeFilled = { ...createSettlementLedger(), filledBaseAtoms: { [maker.orderHash]: -1n } };
+  const excessiveFilled = { ...createSettlementLedger(), filledBaseAtoms: { [maker.orderHash]: maker.order.baseAmountAtoms + 1n } };
+  assert.throws(
+    () => settlePlannedFill(negativeFilled, lifecycle(), { ...fill, baseAmountAtoms: 1n }, { ...maker, remainingBaseAtoms: maker.order.baseAmountAtoms + 1n }, taker, parameters),
+    /Prior filled amount must fit/,
+  );
+  assert.throws(() => settlePlannedFill(excessiveFilled, lifecycle(), fill, maker, taker, parameters), /prior filled amount is outside/);
+  assert.throws(
+    () => settlePlannedFill(createSettlementLedger(), lifecycle(), fill, { ...maker, remainingBaseAtoms: -1n }, taker, parameters),
+    /remaining amount is outside/,
+  );
+});
+
 test("records fill progress and rejects replayed state transitions", () => {
   const ledger = createSettlementLedger({
     [sellerId]: { baseAtoms: 100_000_000n, quoteAtoms: 0n },
@@ -170,4 +184,40 @@ test("rejects duplicate normalized balance accounts", () => {
     [sellerId]: { baseAtoms: 1n, quoteAtoms: 0n },
     [upperSeller]: { baseAtoms: 1n, quoteAtoms: 0n },
   }), /duplicated after normalization/);
+});
+
+test("normalizes persisted ledger keys without splitting fill or replay state", () => {
+  const upper = (value: Hex32) => `0x${value.slice(2).toUpperCase()}` as Hex32;
+  const partialMaker = { ...maker, remainingBaseAtoms: maker.order.baseAmountAtoms - 5n };
+  const partialTaker = { ...taker, remainingBaseAtoms: taker.order.baseAmountAtoms - 5n };
+  const ledger: ReturnType<typeof createSettlementLedger> = {
+    balances: {
+      [upper(sellerId)]: { baseAtoms: 100_000_000n, quoteAtoms: 0n },
+      [upper(buyerId)]: { baseAtoms: 0n, quoteAtoms: 60_000_000n },
+    },
+    filledBaseAtoms: { [upper(maker.orderHash)]: 5n, [upper(taker.orderHash)]: 5n },
+    appliedFillIds: {},
+  };
+  const applied = settlePlannedFill(ledger, lifecycle(), { ...fill, baseAmountAtoms: 10_000n }, partialMaker, partialTaker, parameters);
+  assert.equal(applied.ledger.filledBaseAtoms[maker.orderHash], 10_005n);
+  assert.equal(Object.keys(applied.ledger.filledBaseAtoms).some((key) => /[A-F]/.test(key)), false);
+
+  const replayLedger = { ...ledger, appliedFillIds: { [upper(applied.fillId)]: true as const } };
+  assert.throws(
+    () => settlePlannedFill(replayLedger, lifecycle(), { ...fill, baseAmountAtoms: 10_000n }, partialMaker, partialTaker, parameters),
+    /Fill replayed/,
+  );
+});
+
+test("rejects duplicate normalized persisted ledger keys", () => {
+  const upperMakerHash = `0x${maker.orderHash.slice(2).toUpperCase()}` as Hex32;
+  const ledger = {
+    ...createSettlementLedger(),
+    filledBaseAtoms: { [maker.orderHash]: 0n, [upperMakerHash]: 0n },
+  };
+  assert.throws(() => settlePlannedFill(ledger, lifecycle(), fill, maker, taker, parameters), /duplicated after normalization/);
+  assert.throws(
+    () => createSettlementLedger({ [sellerId]: { baseAtoms: "bad" as unknown as bigint, quoteAtoms: 0n } }),
+    /fit uint256/,
+  );
 });

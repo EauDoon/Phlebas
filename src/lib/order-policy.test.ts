@@ -49,11 +49,25 @@ test("rejects zero, expired, stale-epoch, excessive-fee, and unknown-venue order
   assert.match(orderPolicyErrors({ ...order, maximumFeeBps: 31n }, context).join(";"), /exceeds 30/);
   assert.match(orderPolicyErrors({ ...order, allowedVenues: 4 }, context).join(";"), /unknown/);
   assert.match(orderPolicyErrors({ ...order, allowedVenues: 1.5 }, context).join(";"), /fractional/);
+  assert.match(orderPolicyErrors({ ...order, baseAmountAtoms: "10" as unknown as bigint }, context).join(";"), /bigint/);
+  assert.match(orderPolicyErrors(order, { ...context, nowSeconds: "1000000" as unknown as bigint }).join(";"), /bigint/);
 });
 
 test("enforces the exact asset-chain pair and settlement adapter", () => {
   assert.throws(() => assertOrderPolicy({ ...order, baseChainId: pair.quoteChainId }, context), /pair is not allowed/);
   assert.throws(() => assertOrderPolicy({ ...order, settlementAdapterId: adapterIdentifier("other-v1") }, context), /adapter/);
+});
+
+test("accepts case variants of the same hashed pair identifiers", () => {
+  const upper = (value: Hex32) => `0x${value.slice(2).toUpperCase()}` as Hex32;
+  assert.deepEqual(orderPolicyErrors({
+    ...order,
+    baseChainId: upper(order.baseChainId),
+    baseAssetId: upper(order.baseAssetId),
+    quoteChainId: upper(order.quoteChainId),
+    quoteAssetId: upper(order.quoteAssetId),
+    settlementAdapterId: upper(order.settlementAdapterId),
+  }, context), []);
 });
 
 test("requires IOC, GTC, and FOK intents to remain price bounded", () => {

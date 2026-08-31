@@ -45,6 +45,7 @@ test("rejects ambiguous or malformed canonical identifiers", () => {
   assert.throws(() => chainIdentifier("42161"), /CAIP-2/);
   assert.throws(() => chainIdentifier(`bip122:${"a".repeat(33)}`), /CAIP-2/);
   assert.throws(() => assetIdentifier("eip155:42161"), /CAIP-19/);
+  assert.throws(() => assetIdentifier("eip155:42161/erc20:not_allowed"), /CAIP-19/);
   assert.throws(() => accountIdentifier(" account"), /canonical string/);
   assert.throws(() => adapterIdentifier("Native ZEC"), /invalid/);
 });

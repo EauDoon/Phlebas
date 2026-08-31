@@ -61,9 +61,28 @@ function concatBytes(...values: Uint8Array[]): Uint8Array {
 }
 
 function encodeUint(value: bigint, bits: 8 | 16 | 64 | 256, label: string): Uint8Array {
+  if (typeof value !== "bigint") throw new TypeError(`${label} must be a bigint`);
   const maximum = (1n << BigInt(bits)) - 1n;
   if (value < 0n || value > maximum) throw new RangeError(`${label} must fit uint${bits}`);
   return hexToBytes(value.toString(16).padStart(64, "0"));
+}
+
+function assertOrderEncoding(order: TypedOrderIntent): void {
+  if (order.side !== 0 && order.side !== 1) throw new RangeError("Side must be 0 or 1");
+  if (order.timeInForce !== 0 && order.timeInForce !== 1 && order.timeInForce !== 2) {
+    throw new RangeError("Time in force must be 0, 1, or 2");
+  }
+  if (typeof order.allowedVenues !== "number" || !Number.isInteger(order.allowedVenues)
+    || order.allowedVenues < 0 || order.allowedVenues > 0xff) {
+    throw new RangeError("Allowed venues must be an integer uint8");
+  }
+  assertUint(order.baseAmountAtoms, 256, "Base amount");
+  assertUint(order.limitPriceTicks, 256, "Limit price");
+  assertUint(order.nonce, 64, "Nonce");
+  assertUint(order.accountEpoch, 64, "Account epoch");
+  assertUint(order.expiry, 64, "Expiry");
+  if (typeof order.maximumFeeBps !== "bigint") throw new TypeError("Maximum fee must be a bigint");
+  if (order.maximumFeeBps < 0n || order.maximumFeeBps > 0xffffn) throw new RangeError("Maximum fee must fit uint16");
 }
 
 function encodeBytes32(value: Hex32, label: string): Uint8Array {
@@ -99,6 +118,7 @@ export function hashOrderDomain(domain: OrderDomain): Hex32 {
 }
 
 export function hashOrderStruct(order: TypedOrderIntent): Hex32 {
+  assertOrderEncoding(order);
   const encoded = concatBytes(
     hexToBytes(keccak256Text(ORDER_INTENT_TYPE)),
     encodeBytes32(order.makerAccountId, "Maker account ID"),
@@ -132,6 +152,8 @@ export function hashTypedOrder(domain: OrderDomain, order: TypedOrderIntent): He
 }
 
 export function typedOrderData(domain: OrderDomain, order: TypedOrderIntent) {
+  hashOrderDomain(domain);
+  assertOrderEncoding(order);
   return {
     domain: {
       name: domain.name,
