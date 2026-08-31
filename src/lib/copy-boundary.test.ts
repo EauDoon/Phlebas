@@ -400,6 +400,13 @@ test("journeys pin refunded tZEC restore without live payout", async () => {
   assert.doesNotMatch(journeys, /\blive payout/i);
 });
 
+test("journeys pin unresolved recovery without live payout", async () => {
+  const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
+  assert.match(journeys, /unresolved -> exact committed transaction observed -> broadcast \| mined/);
+  assert.match(journeys, /unresolved -> verified input restoration -> payable/);
+  assert.doesNotMatch(journeys, /\blive payout/i);
+});
+
 test("PRODUCT_SPEC 9.3 pins unresolved recovery branches", async () => {
   const spec = await readFile(join(root, "docs/PRODUCT_SPEC.md"), "utf8");
   assert.match(spec, /unresolved -> exact committed transaction observed -> broadcast \| mined/);
