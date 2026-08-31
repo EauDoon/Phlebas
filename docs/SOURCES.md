@@ -71,3 +71,12 @@ These interface references inform hierarchy and density only. Phlebas uses its o
 - [Bitcoin base58check encoding](https://en.bitcoin.it/wiki/Base58Check_encoding)
 - [Zcash transparent address encoding ZIP 316](https://zips.z.cash/zip-0316)
 - [RIPEMD-160 reference implementation and test vectors](https://homes.esat.kuleuven.be/~bosselae/ripemd160/)
+
+## Observer and watchtower references
+
+- [Ethereum JSON-RPC specification (eth_getLogs)](https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_getlogs)
+- [EIP-20 token standard (event semantics)](https://eips.ethereum.org/EIPS/eip-20)
+- [Zebrad Zcash full-node reference](https://github.com/ZcashFoundation/zebra)
+- [Zcash light-clientd reference](https://github.com/zcash/lightwalletd)
+- [Google SRE book, chapter on alert design](https://sre.google/sre-book/monitoring-distributed-systems/)
+- [Elastic Common Schema (ECS) field reference for observability](https://www.elastic.co/guide/en/ecs/current/ecs-reference.html)
