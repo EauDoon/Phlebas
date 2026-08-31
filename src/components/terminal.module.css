@@ -68,7 +68,7 @@
 
 .simulationBanner {
   display: flex;
-  min-height: 32px;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   gap: 10px;
