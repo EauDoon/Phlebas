@@ -298,6 +298,10 @@
   padding: 0 18px;
 }
 
+.heroActions .primaryCta {
+  flex-shrink: 0;
+}
+
 .primaryCta span,
 .journeyList article > a span {
   margin-left: 22px;
