@@ -405,7 +405,10 @@ export function TradingTerminal({
           </>
         ) : null}
         {initialAccess === "open" && view === "bridge" ? (
-          <a className={styles.skipLink} href="#destination-inspector">Skip to destination inspector</a>
+          <>
+            <a className={styles.skipLink} href="#destination-inspector">Skip to destination inspector</a>
+            <a className={styles.skipLink} href="#privacy-callouts">Skip to privacy callouts</a>
+          </>
         ) : null}
       </nav>
       <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
