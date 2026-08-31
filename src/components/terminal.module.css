@@ -884,6 +884,10 @@
   height: 44px;
 }
 
+#blotter-panel-log .emptyState {
+  min-height: 44px;
+}
+
 .emptyState {
   margin: 14px;
   color: var(--text-muted);
