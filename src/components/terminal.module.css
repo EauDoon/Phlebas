@@ -1951,6 +1951,7 @@ a.skipLink:focus-visible {
 .educationDialog .tourNav {
   box-sizing: border-box;
   width: 100%;
+  min-height: 44px;
   flex-shrink: 0;
   margin: 18px 0 0;
   overflow: visible;
