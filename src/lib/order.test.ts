@@ -6,6 +6,7 @@ import {
   calculateWorstPrice,
   formatZecPreviewAmount,
   marketOrderConstraintCopy,
+  sideControlCopy,
   formatQuotePreviewAmount,
   parseStrictDecimal,
   ZEC_ATOMIC_RULE,
@@ -84,6 +85,17 @@ test("rounds market caps conservatively to the quote-price tick", () => {
   assert.equal(calculateWorstPrice(52.84, "sell", 0.5), 52.57);
   assert.equal(calculateWorstPrice(52.84, "buy", 0.001), 52.85);
   assert.equal(calculateWorstPrice(52.84, "sell", 0.001), 52.83);
+});
+
+test("side control copy names Buy and Sell without color-only selection", () => {
+  assert.equal(sideControlCopy("buy", false), "Buy");
+  assert.equal(sideControlCopy("sell", false), "Sell");
+  assert.equal(sideControlCopy("buy", true), "Buy selected");
+  assert.equal(sideControlCopy("sell", true), "Sell selected");
+  assert.notEqual(sideControlCopy("buy", true), sideControlCopy("sell", true));
+  assert.match(sideControlCopy("buy", true), /Buy/);
+  assert.match(sideControlCopy("sell", true), /Sell/);
+  assert.doesNotMatch(sideControlCopy("buy", true), /pZEC/);
 });
 
 test("market-order constraint copy names IOC and a signed worst price", () => {

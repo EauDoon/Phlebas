@@ -1,5 +1,10 @@
 export type OrderSide = "buy" | "sell";
 
+export function sideControlCopy(side: OrderSide, selected: boolean): string {
+  const label = side === "buy" ? "Buy" : "Sell";
+  return selected ? `${label} selected` : label;
+}
+
 export type AtomicDecimalRule = Readonly<{
   decimalPlaces: number;
   minimumAtomicUnits: bigint;
