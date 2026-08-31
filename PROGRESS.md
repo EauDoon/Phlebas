@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after §10/§11 320px LP, gateway, and Buy/Sell flows.
+Last updated: 01-09-2026 after 320px B/S shortcuts, book Bid/Ask, gateway rejected/unresolved, and LP loading/stale.
 
 ## Branch
 
@@ -179,6 +179,10 @@ Last updated: 01-09-2026 after §10/§11 320px LP, gateway, and Buy/Sell flows.
 - Buy/Sell selected state is `sideControlCopy` text plus underline, not color alone. Playwright at 320px.
 - Gateway empty/error copy is `gatewayOffCopy` / `gatewayUnavailableCopy`. 320px Issue retry stays non-receivable.
 - LP empty shares, toxic-flow risk, unavailable mint/swap, and Retry illustrative are covered at 320px.
+- Ticket B/S keyboard shortcuts are unit-tested and covered at 320px (`shortcuts-320.spec.ts`).
+- Book Bid/Ask buttons use visible `bookSideControlCopy` (`Ask 52.91` / `Bid 52.78`), not `.srOnly`.
+- Withdrawal tour includes Rejected (pre-burn) and Unresolved (after mined). 320px Playwright walks both. Nothing is sent.
+- LP `feed=loading` and `feed=stale` disable mint/swap, leave burn on, and Retry illustrative is covered at 320px.
 
 ## Next
 
@@ -186,10 +190,9 @@ Last updated: 01-09-2026 after §10/§11 320px LP, gateway, and Buy/Sell flows.
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
 - ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
-- Book bid/ask actionable prices still hide Bid/Ask in `.srOnly` (color and column)
-- Ticket B/S keyboard shortcuts are untested in Playwright
-- Gateway tour still omits PRODUCT_SPEC 9.3 rejected, unresolved, and stale-proof states
-- LP loading and stale feed states are not yet covered at 320px
+- Tape Buy/Sell labels are still `.srOnly` on non-control rows
+- Gateway tour still has no dedicated expired/reorganized-evidence (stale-proof) step between burn submitted and closed
+- Ticket loading/stale/empty gates are not yet re-run as dedicated 320px specs (default-width coverage exists)
 
 ## Blockers
 
