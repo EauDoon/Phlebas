@@ -206,6 +206,12 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /isTicketRejectCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /isMissingProviderCopy/);
   assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /key=\{feedStatus\}/);
+  const terminalTape = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");
+  assert.match(terminalTape, /tapeSideCopy/);
+  assert.match(terminalTape, /tapeSideCopy\(trade\.takerSide\)/);
+  assert.match(terminalTape, /tapeSideCopy\(trade\.side\)/);
+  assert.doesNotMatch(terminalTape, /srOnly\}>\{trade\.(?:takerSide|side) === "buy" \? "Buy" : "Sell"/);
+  assert.doesNotMatch(terminalTape, /srOnly\}>\{tapeSideCopy/);
   const orderBook = await readFile(join(root, "src/components/order-book.tsx"), "utf8");
   assert.match(orderBook, /bookSideControlCopy/);
   assert.match(orderBook, /bookSideControlCopy\(bookSide, priceLabel\)/);

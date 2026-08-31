@@ -26,6 +26,7 @@ import {
   sessionLastStatLabel,
   tapeCaptionCopy,
   tapeMiniLabel,
+  tapeSideCopy,
   type FeedStatus,
 } from "@/lib/market-state";
 import type { SessionLogEvent } from "@/lib/replay";
@@ -446,8 +447,7 @@ export function TradingTerminal({
                     {sessionTape.map((trade) => (
                       <tr key={trade.id}>
                         <th scope="row" className={trade.takerSide === "buy" ? styles.buyText : styles.sellText}>
-                          <span className={styles.srOnly}>{trade.takerSide === "buy" ? "Buy" : "Sell"} </span>
-                          {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
+                          {tapeSideCopy(trade.takerSide)} {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
                         </th>
                         <td>{formatAtomicUnits(trade.sizeAtoms, ZEC_DECIMALS, 2)}</td>
                         <td>{trade.time}</td>
@@ -457,8 +457,7 @@ export function TradingTerminal({
                       ? recentTrades[marketId].map((trade) => (
                         <tr key={`fixture-${trade.time}-${trade.priceTicks.toString()}`}>
                           <th scope="row" className={trade.side === "buy" ? styles.buyText : styles.sellText}>
-                            <span className={styles.srOnly}>{trade.side === "buy" ? "Buy" : "Sell"} </span>
-                            {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
+                            {tapeSideCopy(trade.side)} {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
                           </th>
                           <td>{formatAtomicUnits(trade.sizeAtoms, ZEC_DECIMALS, 2)}</td>
                           <td>{trade.time}</td>
