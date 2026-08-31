@@ -133,7 +133,17 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /:global\(#legal-article\)/);
   assert.match(terminalCss, /:global\(#security-article\)/);
   assert.match(terminalCss, /scroll-margin-top: 12px/);
-  assert.match(await readFile(join(root, "src/components/landing.module.css"), "utf8"), /:global\(#main-content\)/);
+  const landingCss = await readFile(join(root, "src/components/landing.module.css"), "utf8");
+  assert.match(landingCss, /:global\(#main-content\)/);
+  assert.match(landingCss, /:global\(#markets\)/);
+  assert.match(landingCss, /:global\(#exists-today\)/);
+  assert.match(landingCss, /:global\(#pzec\)/);
+  assert.match(landingCss, /:global\(#terminal-preview\)/);
+  assert.match(landingCss, /:global\(#journeys\)/);
+  assert.match(landingCss, /:global\(#launch-gates\)/);
+  assert.match(landingCss, /outline: 2px solid #15140d/);
+  assert.match(landingCss, /outline-offset: 2px/);
+  assert.match(terminalCss, /:global\(#order-ticket\)/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /id="status-ledger"/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /role="list" aria-label="Simulation status ledger"/);
   assert.match(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /Nothing was sent/);
