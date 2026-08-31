@@ -254,6 +254,7 @@ export function TradingTerminal({
                     onChange={(event) => selectFeed(event.target.value as FeedStatus)}
                   >
                     <option value="illustrative">Illustrative</option>
+                    <option value="loading">Loading</option>
                     <option value="empty">Empty</option>
                     <option value="stale">Stale</option>
                     <option value="unavailable">Unavailable</option>
