@@ -9,8 +9,8 @@ import {
   getInjectedProvider,
   missingProviderCopy,
   retargetSettlementCopy,
+  walletConnectBarTitle,
   walletConnectFailureCopy,
-  walletConnectTitle,
   walletDisconnectLabel,
   walletStateWithSettlement,
   type WalletState,
@@ -77,7 +77,7 @@ export function WalletBar({
         onClick={() => void connect()}
         disabled={busy}
         aria-label="Connect Arbitrum Sepolia wallet"
-        title={busy ? walletConnectTitle(settlementPair, true) : (errorCopy ?? walletConnectTitle(settlementPair, false))}
+        title={walletConnectBarTitle(settlementPair, { busy, error: errorCopy })}
       >
         {busy ? "Connecting" : "Connect wallet"}
       </button>
