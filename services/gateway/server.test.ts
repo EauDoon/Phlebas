@@ -19,9 +19,11 @@ test("gateway HTTP issues unique textest intents on loopback", async () => {
   const { port } = address;
   try {
     const health = await fetch(`http://127.0.0.1:${port}/health`);
-    const healthBody = await health.json() as { network: string };
+    const healthBody = await health.json() as { network: string; issued: number; cap: number };
     assert.equal(health.ok, true);
     assert.equal(healthBody.network, "testnet");
+    assert.equal(healthBody.issued, 0);
+    assert.equal(healthBody.cap, 64);
 
     const first = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
     const firstBody = await first.json() as { tex: string; request: string };

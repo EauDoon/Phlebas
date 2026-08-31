@@ -1,3 +1,4 @@
+import { GATEWAY_DEFAULT_MAX_INTENTS } from "./intent-cap.ts";
 import { isLoopbackOperatorUrl } from "./operator-url.ts";
 
 export function simulationStatus(env: Record<string, string | undefined> = process.env) {
@@ -20,6 +21,6 @@ export function simulationStatus(env: Record<string, string | undefined> = proce
     marketData: "illustrative",
     countryAccess: "deny-default",
     sequenceRoot: null,
-    intentCap: gatewayLoopback ? 64 : null,
+    intentCap: gatewayLoopback ? GATEWAY_DEFAULT_MAX_INTENTS : null,
   } as const;
 }
