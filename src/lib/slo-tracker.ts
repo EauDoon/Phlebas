@@ -62,6 +62,16 @@ export function sloVerdict(state: SloState, target: SloTarget, nowSeconds: bigin
   const samples = state[key] ?? [];
   const cutoff = nowSeconds - target.windowSeconds;
   const inWindow = samples.filter((s) => s.observedAt >= cutoff);
+  if (inWindow.length === 0) {
+    return {
+      service: target.service,
+      metric: target.metric,
+      ratio: 1,
+      threshold: target.threshold,
+      meets: true,
+      sampleCount: 0,
+    };
+  }
   const ratio = complianceRatio(state, target, nowSeconds);
   return {
     service: target.service,
