@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after payout walker states and unresolved recovery tour steps.
+Last updated: 01-09-2026 after reserve tZEC refund helper and gateway stub walker states.
 
 ## Branch
 
@@ -196,6 +196,8 @@ Last updated: 01-09-2026 after payout walker states and unresolved recovery tour
 - `payoutClaimForTourStep` walks `transaction_prepared`, `signed`, `broadcast`, `mined`, and `confirmed` as real states.
 - Withdrawal tour includes Observed recovery and Inputs restored. 320px Playwright. Nothing is sent.
 - LANDING_AND_USER_JOURNEYS includes unresolved recovery and deposit fail-closed Unavailable, Rejected, and Stale.
+- `refundWithdrawalBeforeSignature` restores tZEC supply from a payable reserve snapshot and refuses signed claims. Unit test starts from `burnedState`.
+- Gateway stub uses `payoutClaimStubCopy(tourClaim)` so later happy-path ids show `signed`/`broadcast`/`mined`/`confirmed`, not collapsed payable.
 
 ## Next
 
@@ -203,9 +205,9 @@ Last updated: 01-09-2026 after payout walker states and unresolved recovery tour
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
 - ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
-- Bridge panel stub claim may still show payable for later happy-path UI until the walker output is surfaced in the claim line
-- Reserve coverage ledger (`reserve.ts`) still has no refunded tZEC helper
-- PRODUCT_SPEC §12 fail-closed observer disagreement is an architecture demo; it is not yet a deposit-tour walk stop
+- Reserve `WithdrawalClaimStatus` still has no `refunded` status token; refund removes the payable claim instead
+- Gateway stub is text-only; 320px density of stub states across USDT markets is still thin
+- Deposit Unavailable covers observer disagreement in the tour; architecture demo remains a separate surface
 
 ## Blockers
 
