@@ -986,3 +986,64 @@ test("document metadata names a no-value simulation", async ({ page }) => {
   );
 });
 
+test("terminal view arrows move focus and Enter selects", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const trade = page.getByRole("tab", { name: "Trade" });
+  const liquidity = page.getByRole("tab", { name: "Liquidity" });
+  await trade.focus();
+  await expect(trade).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowRight");
+  await expect(liquidity).toBeFocused();
+  await expect(trade).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("End");
+  await expect(page.getByRole("tab", { name: "Architecture" })).toBeFocused();
+  await expect(trade).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Home");
+  await expect(trade).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("Enter");
+  await expect(liquidity).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
+});
+
+test("invalid LP amount shows a field error and keeps review closed", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  const amount = page.getByRole("textbox", { name: "pZEC liquidity amount" });
+  await amount.fill("abc");
+  await expect(page.getByText("Enter a positive plain decimal with no more than 8 places.").first()).toBeVisible();
+  await expect(amount).toHaveAttribute("aria-invalid", "true");
+  await expect(amount).toHaveAttribute("aria-errormessage", /.+/);
+  await page.getByRole("button", { name: "Review simulated mint" }).click();
+  await expect(page.getByRole("button", { name: "Confirm simulated mint" })).toHaveCount(0);
+});
+
+test("24h volume and LP TVL values are labeled as fixtures", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await expect(page.getByText("Fixture $1.84M", { exact: true })).toBeVisible();
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await expect(page.getByText("Fixture $842,410", { exact: true })).toBeVisible();
+  await expect(page.getByText("Fixture $311,820", { exact: true })).toBeVisible();
+});
+
+test("ticket keyboard is a named 44px region", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const region = page.getByRole("region", { name: "Ticket keyboard" });
+  await expect(region).toBeVisible();
+  await expect(region).toContainText("G/I/F time in force");
+  const box = await region.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("withdrawal tour demonstrates unresolved without inventing a payout", async ({ page }) => {
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Withdrawal states" }).click();
+  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
+  const next = page.getByRole("button", { name: "Next state" });
+  for (let index = 0; index < 9; index += 1) {
+    await next.click();
+  }
+  await expect(page.getByText("Unresolved", { exact: true })).toBeVisible();
+  await expect(page.getByText("This demonstration does not invent a payout. No native ZEC was sent.")).toBeVisible();
+  await expect(page.getByText("Stub claim: unresolved. Nothing is sent.")).toBeVisible();
+});
+
