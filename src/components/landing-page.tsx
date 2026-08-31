@@ -1,6 +1,12 @@
 import Link from "next/link";
 
-import { LANDING_HERO, LANDING_LEDGER, LANDING_LEDGER_HEADING, LANDING_PZEC } from "@/lib/landing-copy";
+import {
+  LANDING_HERO,
+  LANDING_LEDGER,
+  LANDING_LEDGER_HEADING,
+  LANDING_PZEC,
+  LANDING_SKIP_LINKS,
+} from "@/lib/landing-copy";
 import { LANDING_EVIDENCE } from "@/lib/landing-evidence";
 import { LANDING_GATE_STATUS, LANDING_MAINNET_GATES } from "@/lib/landing-gates";
 
@@ -12,7 +18,11 @@ import styles from "./landing.module.css";
 export function LandingPage() {
   return (
     <div className={styles.page}>
-      <a className={styles.skipLink} href="#main-content">Skip to main content</a>
+      <nav className={styles.skipNav} aria-label="Skip links">
+        {LANDING_SKIP_LINKS.map((link) => (
+          <a className={styles.skipLink} href={link.href} key={link.href}>{link.label}</a>
+        ))}
+      </nav>
       <div className={styles.simulationBanner} role="status">
         <strong>Simulation only</strong>
         <span>No-value simulation. Optional Sepolia wallet and local testnet services stay off until started. No mainnet funds.</span>
@@ -68,7 +78,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className={styles.evidenceSection} id="exists-today" aria-labelledby="exists-title">
+        <section className={styles.evidenceSection} id="exists-today" tabIndex={-1} aria-labelledby="exists-title">
           <div className={styles.sectionIntro}>
             <span className={styles.eyebrow}>What exists today</span>
             <h2 id="exists-title">A working preview, bounded on purpose.</h2>
@@ -110,7 +120,7 @@ export function LandingPage() {
 
         <LandingTerminalPreview />
 
-        <section className={styles.journeySection} id="journeys" aria-labelledby="journeys-title">
+        <section className={styles.journeySection} id="journeys" tabIndex={-1} aria-labelledby="journeys-title">
           <div className={styles.sectionIntro}>
             <span className={styles.eyebrow}>Choose a path</span>
             <h2 id="journeys-title">Choose what to inspect.</h2>

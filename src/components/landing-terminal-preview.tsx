@@ -12,7 +12,7 @@ const bids = book.bids.slice(0, 3);
 
 export function LandingTerminalPreview() {
   return (
-    <section className={styles.terminalPreviewSection} id="terminal-preview" aria-labelledby="terminal-preview-title">
+    <section className={styles.terminalPreviewSection} id="terminal-preview" tabIndex={-1} aria-labelledby="terminal-preview-title">
       <div className={styles.sectionIntro}>
         <span className={styles.eyebrow}>Interface preview</span>
         <h2 id="terminal-preview-title">Inspect the market model without connecting a wallet.</h2>

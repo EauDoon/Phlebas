@@ -7,16 +7,26 @@
     var(--background);
 }
 
-.skipLink {
+.skipNav {
   position: fixed;
-  display: inline-flex;
   z-index: 50;
   top: 8px;
   left: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transform: translateY(-220%);
+}
+
+.skipNav:focus-within {
+  transform: none;
+}
+
+.skipLink {
+  display: inline-flex;
   min-height: 44px;
   align-items: center;
   padding: 9px 12px;
-  transform: translateY(-160%);
   border-radius: 5px;
   color: #15140d;
   background: var(--accent);
@@ -24,8 +34,11 @@
   font-weight: 700;
 }
 
-.skipLink:focus {
-  transform: translateY(0);
+.evidenceSection,
+.journeySection,
+.terminalPreviewSection,
+.pzecSection {
+  scroll-margin-top: 12px;
 }
 
 .simulationBanner {
