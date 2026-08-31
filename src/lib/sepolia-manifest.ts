@@ -8,13 +8,13 @@ export type SepoliaManifest = {
   label: string;
   broadcastTx: string | null;
   contracts: {
-    PZec: string | null;
+    Zec: string | null;
     TUsdc: string | null;
-    TUsdt0: string | null;
+    TUsdt: string | null;
     Settlement: string | null;
     Factory: string | null;
-    PzecUsdcPair: string | null;
-    PzecUsdt0Pair: string | null;
+    ZecUsdcPair: string | null;
+    ZecUsdtPair: string | null;
     Router: string | null;
   };
 };
@@ -44,13 +44,13 @@ export function emptyManifest(commit = "UNDEPLOYED"): SepoliaManifest {
     label: "no-value Arbitrum Sepolia only",
     broadcastTx: null,
     contracts: {
-      PZec: null,
+      Zec: null,
       TUsdc: null,
-      TUsdt0: null,
+      TUsdt: null,
       Settlement: null,
       Factory: null,
-      PzecUsdcPair: null,
-      PzecUsdt0Pair: null,
+      ZecUsdcPair: null,
+      ZecUsdtPair: null,
       Router: null,
     },
   };
@@ -80,8 +80,8 @@ export function recordBroadcast(
     }
     for (const extra of tx.additionalContracts ?? []) {
       if (extra.contractName === "Pair" && isOnchainAddress(extra.address)) {
-        if (!next.contracts.PzecUsdcPair) next.contracts.PzecUsdcPair = extra.address;
-        else next.contracts.PzecUsdt0Pair = extra.address;
+        if (!next.contracts.ZecUsdcPair) next.contracts.ZecUsdcPair = extra.address;
+        else next.contracts.ZecUsdtPair = extra.address;
       }
     }
   }
