@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after USDT0 mint, idle title after market switch, and withheld USDT0 chart before retry.
+Last updated: 31-08-2026 after missing-provider, disconnect, and USDT0 pause/burn/reset name the settlement pair.
 
 ## Branch
 
@@ -129,17 +129,20 @@ Last updated: 31-08-2026 after USDT0 mint, idle title after market switch, and w
 - Idle wallet connect title uses `walletConnectIdleTitle` and keeps the settlement pair after switching market.
 - LP mint success on the USDT0 pool uses `lpMintNoticeCopy` from a real mint on `pools[1]` and names `pZEC-USDT0`. Wallet actions stay disabled.
 - After switching to ZEC/USDT with the feed unavailable, withheld chart and 24h stats copy uses `feedWithheldCopy` and names `pZEC-USDT0` before Retry illustrative.
+- Missing-provider copy after switching market then clicking connect names `pZEC-USDT0`.
+- Wallet disconnect accessible name after switching market keeps the settlement pair. Stub is Arbitrum Sepolia only. Nothing is sent.
+- LP pause notice on the USDT0 pool uses `lpPauseNoticeCopy` from `pools[1]` and names `pZEC-USDT0`. Burn stays available.
+- LP burn success on USDT0 uses `lpBurnNoticeCopy` from a real mint-then-burn and names `pZEC-USDT0`. Local preview only.
+- LP reset-pool notice on USDT0 uses `lpResetNoticeCopy` from a real mint then restore and names `pZEC-USDT0`.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Missing-provider copy after switching market then clicking connect should name pZEC-USDT0
-- Wallet disconnect accessible name after switching market should keep the settlement pair
-- LP pause notice on the USDT0 pool should name pZEC-USDT0
-- LP burn success on USDT0 from a real mint-then-burn should name pZEC-USDT0
-- LP reset-pool notice on USDT0 should name pZEC-USDT0
+- Ticket sign missing-provider copy should name the selected market settlement pair
+- Missing-provider error should keep the settlement pair if the market switches after a failed connect
+- LP pause notice should name the newly selected pool if trading stays paused after a pool switch
 
 ## Blockers
 
