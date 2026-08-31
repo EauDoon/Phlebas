@@ -766,6 +766,7 @@
   width: fit-content;
   min-width: 44px;
   min-height: 44px;
+  flex-shrink: 0;
   align-items: center;
   color: var(--accent);
   font-size: 11px;
