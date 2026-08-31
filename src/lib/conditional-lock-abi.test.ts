@@ -1,118 +1,121 @@
-// Pins the lock ABI as seen by the browser to the Solidity contract. Any
-// change to the function or event signatures in the contract must update the
-// selectors here and the contract in lockstep. Run with `node --test`.
-
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 
 import {
-  CLAIM_EVENT_SIGNATURE,
+  CLAIMED_EVENT_SIGNATURE,
   CLAIM_SELECTOR,
-  DEPOSIT_EVENT_SIGNATURE,
-  DEPOSIT_SELECTOR,
-  PAUSE_SELECTOR,
-  PAUSE_SET_EVENT_SIGNATURE,
-  REFUND_EVENT_SIGNATURE,
+  FUNDED_EVENT_SIGNATURE,
+  FUND_SELECTOR,
+  LOCK_CREATED_EVENT_SIGNATURE,
+  REFUNDED_EVENT_SIGNATURE,
   REFUND_SELECTOR,
-  UNPAUSE_SELECTOR,
+  VERIFY_PREIMAGE_SELECTOR,
   encodeClaimCalldata,
-  encodeDepositCalldata,
-  encodePauseCalldata,
+  encodeConditionalLockConstructorArgs,
+  encodeFundCalldata,
   encodeRefundCalldata,
-  encodeUnpauseCalldata,
-  type LockParams,
+  encodeVerifyPreimageCalldata,
+  type ConditionalLockTerms,
 } from "./conditional-lock-abi.ts";
 
-test("deposit selector matches Solidity keccak", () => {
-  assert.equal(DEPOSIT_SELECTOR, "7402f10a");
+const terms: ConditionalLockTerms = {
+  swapId: `0x${"11".repeat(32)}`,
+  termsHash: `0x${"22".repeat(32)}`,
+  token: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+  funder: "0x1111111111111111111111111111111111111111",
+  claimRecipient: "0x2222222222222222222222222222222222222222",
+  refundRecipient: "0x1111111111111111111111111111111111111111",
+  amount: 100_000_000n,
+  hashlock: `0x${"33".repeat(32)}`,
+  fundingCutoff: 1_900_000_000n,
+  claimCutoff: 1_900_003_600n,
+  refundTime: 1_900_007_200n,
+};
+
+test("function selectors match the Solidity ABI", () => {
+  assert.equal(FUND_SELECTOR, "b60d4288");
+  assert.equal(CLAIM_SELECTOR, "bd66528a");
+  assert.equal(REFUND_SELECTOR, "590e1ae3");
+  assert.equal(VERIFY_PREIMAGE_SELECTOR, "6ea8a0ca");
 });
 
-test("claim selector matches Solidity keccak", () => {
-  assert.equal(CLAIM_SELECTOR, "31d14457");
-});
-
-test("refund selector matches Solidity keccak", () => {
-  assert.equal(REFUND_SELECTOR, "278ecde1");
-});
-
-test("pause selector matches Solidity keccak", () => {
-  assert.equal(PAUSE_SELECTOR, "8456cb59");
-});
-
-test("unpause selector matches Solidity keccak", () => {
-  assert.equal(UNPAUSE_SELECTOR, "3f4ba83a");
-});
-
-test("event signatures pin the contract ABI", () => {
+test("event signatures match the Solidity ABI", () => {
   assert.equal(
-    DEPOSIT_EVENT_SIGNATURE,
-    "783edc607a76ed51cbc26c67a7f167e74218a61b9a0f34c701bc8e204d36b49b",
-  );
-  assert.equal(
-    CLAIM_EVENT_SIGNATURE,
-    "4ec90e965519d92681267467f775ada5bd214aa92c0dc93d90a5e880ce9ed026",
+    LOCK_CREATED_EVENT_SIGNATURE,
+    "ac651265f70c23b890ceac240cb11b0afa638867e02692e17e9947adbe5c0e9b",
   );
   assert.equal(
-    REFUND_EVENT_SIGNATURE,
-    "7ca5472b7ea78c2c0141c5a12ee6d170cf4ce8ed06be3d22c8252ddfc7a6a2c4",
+    FUNDED_EVENT_SIGNATURE,
+    "72684aa74a58c3501fe65eec4ae1b61d5c12bcb5aae4b47ab0b56842b112f20b",
   );
   assert.equal(
-    PAUSE_SET_EVENT_SIGNATURE,
-    "878ac8a2ca79520471f8f3c8494fa802c03ce3bf034252aad7f22318984fdbdb",
+    CLAIMED_EVENT_SIGNATURE,
+    "0508a8b4117d9a7b3d8f5895f6413e61b4f9a2df35afbfb41e78d0ecfff1843f",
+  );
+  assert.equal(
+    REFUNDED_EVENT_SIGNATURE,
+    "f552ca82e113ac3c539c3d617f29fcd19c172a0c75dad017555c9e109f7fe183",
   );
 });
 
-test("encodeDepositCalldata produces 4 + 6*32 byte payload", () => {
-  const params: LockParams = {
-    token: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-    amount: 100_000_000n,
-    hashlock: "0x5b20697604703c31c910b528899cfcd8fc4b623c0582032d0fa8fb854ed48017",
-    refundAfter: 1_900_000_000n,
-    refundTo: "0x1111111111111111111111111111111111111111",
-    claimTo: "0x2222222222222222222222222222222222222222",
-  };
-  const data = encodeDepositCalldata(params);
-  assert.equal(data.slice(2, 10), DEPOSIT_SELECTOR);
-  const payloadLen = (data.length - 2) / 2 - 4;
-  assert.equal(payloadLen, 6 * 32);
-});
-
-test("encodeClaimCalldata prepends selector and packs lockId and preimage", () => {
-  const data = encodeClaimCalldata(
-    7n,
-    "0x0000000000000000000000000000000000000000000000000000000000c0ffee",
+test("constructor arguments encode all eleven immutable terms in order", () => {
+  const encoded = encodeConditionalLockConstructorArgs(terms);
+  assert.equal((encoded.length - 2) / 2, 11 * 32);
+  assert.equal(encoded.slice(2, 66), "11".repeat(32));
+  assert.equal(encoded.slice(66, 130), "22".repeat(32));
+  assert.equal(
+    encoded.slice(130, 194),
+    "000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
   );
-  assert.equal(data.slice(2, 10), CLAIM_SELECTOR);
-  assert.equal(data.length, 2 + 4 * 2 + 64 * 2);
+  assert.equal(encoded.slice(450, 514), "33".repeat(32));
 });
 
-test("encodeRefundCalldata prepends selector and packs lockId", () => {
-  const data = encodeRefundCalldata(7n);
-  assert.equal(data.slice(2, 10), REFUND_SELECTOR);
-  assert.equal(data.length, 2 + 4 * 2 + 32 * 2);
+test("action encoders match the one-lock call shapes", () => {
+  const preimage = `0x${"ab".repeat(32)}`;
+  assert.equal(encodeFundCalldata(), `0x${FUND_SELECTOR}`);
+  assert.equal(
+    encodeClaimCalldata(preimage),
+    `0x${CLAIM_SELECTOR}${"ab".repeat(32)}`,
+  );
+  assert.equal(encodeRefundCalldata(), `0x${REFUND_SELECTOR}`);
+  assert.equal(
+    encodeVerifyPreimageCalldata(preimage),
+    `0x${VERIFY_PREIMAGE_SELECTOR}${"ab".repeat(32)}`,
+  );
 });
 
-test("encodePauseCalldata and encodeUnpauseCalldata are selector-only", () => {
-  assert.equal(encodePauseCalldata(), `0x${PAUSE_SELECTOR}`);
-  assert.equal(encodeUnpauseCalldata(), `0x${UNPAUSE_SELECTOR}`);
+test("constructor encoding rejects terms the contract would reject", () => {
+  assert.throws(() => encodeConditionalLockConstructorArgs({
+    ...terms,
+    swapId: `0x${"00".repeat(32)}`,
+  }));
+  assert.throws(() => encodeConditionalLockConstructorArgs({
+    ...terms,
+    amount: 0n,
+  }));
+  assert.throws(() => encodeConditionalLockConstructorArgs({
+    ...terms,
+    claimRecipient: terms.funder,
+  }));
+  assert.throws(() => encodeConditionalLockConstructorArgs({
+    ...terms,
+    refundRecipient: "0x3333333333333333333333333333333333333333",
+  }));
+  assert.throws(() => encodeConditionalLockConstructorArgs({
+    ...terms,
+    claimCutoff: terms.fundingCutoff,
+  }));
 });
 
-test("encodeClaimCalldata rejects zero or negative lockId", () => {
-  assert.throws(() => encodeClaimCalldata(0n, "0x" + "00".repeat(32)));
-  assert.throws(() => encodeClaimCalldata(-1n, "0x" + "00".repeat(32)));
-  assert.throws(() => encodeRefundCalldata(0n));
-});
-
-test("encodeDepositCalldata rejects malformed fields", () => {
-  const base: LockParams = {
-    token: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-    amount: 1n,
-    hashlock: "0x" + "11".repeat(32),
-    refundAfter: 1n,
-    refundTo: "0x1111111111111111111111111111111111111111",
-    claimTo: "0x2222222222222222222222222222222222222222",
-  };
-  assert.throws(() => encodeDepositCalldata({ ...base, token: "0xnope" }));
-  assert.throws(() => encodeDepositCalldata({ ...base, refundTo: "0x" }));
-  assert.throws(() => encodeDepositCalldata({ ...base, hashlock: "0x" + "11".repeat(31) }));
+test("encoders reject malformed fixed-width values", () => {
+  assert.throws(() => encodeClaimCalldata(`0x${"11".repeat(31)}`));
+  assert.throws(() => encodeClaimCalldata("11".repeat(32)));
+  assert.throws(() => encodeConditionalLockConstructorArgs({
+    ...terms,
+    token: "0xnot-an-address",
+  }));
+  assert.throws(() => encodeConditionalLockConstructorArgs({
+    ...terms,
+    refundTime: 1n << 64n,
+  }));
 });
