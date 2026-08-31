@@ -630,6 +630,73 @@ test("chart range uses a tablist and unavailable tape names the feed", async ({ 
   await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed.").first()).toBeVisible();
 });
 
+test("ticket G I F shortcuts set time in force and ignore an open dialog", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "Order entry" }).click();
+  await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("i");
+  await expect(page.getByRole("button", { name: "IOC" })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("f");
+  await expect(page.getByRole("button", { name: "FOK" })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("g");
+  await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
+
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("i");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("heading", { name: "Order entry" }).click();
+  await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("deposit tour walks Eligibility through Complete without a receivable address", async ({ page }) => {
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Eligibility", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await expect(page.getByRole("heading", { name: "Address request", exact: true })).toBeVisible();
+  await expect(page.getByText("No address generated in simulation.")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toHaveCount(0);
+  await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
+  await page.getByRole("button", { name: "Next state" }).click();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await expect(page.getByRole("heading", { name: "Complete", exact: true })).toBeVisible();
+  await expect(page.getByText("No native ZEC was received and no pZEC was minted.")).toBeVisible();
+});
+
+test("architecture incident demonstrations stay labeled copy", async ({ page }) => {
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  const select = page.getByRole("combobox", { name: "Gateway incident demonstration" });
+  await expect(select).toBeVisible();
+  await select.selectOption({ label: "Gateway incident controls are active." });
+  await expect(page.getByText("These screens are labeled demonstrations.")).toBeVisible();
+  await expect(page.getByText("A previously credited Zcash deposit changed after a chain reorganization.")).toBeVisible();
+});
+
+test("education dialog and incident select keep 44px targets at 320px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  const box = await dialog.boundingBox();
+  expect(box, "education dialog bounding box").toBeTruthy();
+  expect(box?.width ?? 0).toBeLessThanOrEqual(320);
+  const continueBox = await dialog.getByRole("button", { name: "Continue" }).boundingBox();
+  expect(continueBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Escape");
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  const incident = page.getByRole("combobox", { name: "Gateway incident demonstration" });
+  const incidentBox = await incident.boundingBox();
+  expect(incidentBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const overflow = await page.evaluate(() => ({
+    body: document.body.scrollWidth - document.body.clientWidth,
+    document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  }));
+  expect(overflow).toEqual({ body: 0, document: 0 });
+});
+
 test("landing Liquidity nav selects LP and arrows move focus only", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/", { waitUntil: "networkidle" });

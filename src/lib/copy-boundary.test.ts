@@ -71,6 +71,11 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education, not consent/);
   assert.match(await readFile(join(root, "src/lib/access-demo.ts"), "utf8"), /State demonstration/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/access-demo.ts"), "utf8"), /geolocat/i);
+  assert.match(await readFile(join(root, "src/lib/ticket-shortcuts.ts"), "utf8"), /dialogOpen/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /interpretTicketKey/);
+  assert.match(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /No address generated in simulation/);
+  assert.match(await readFile(join(root, "src/components/incident-demo.tsx"), "utf8"), /State demonstration/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /\blive outage\b/i);
 });
 
 test("vercel.json does not assign operator URLs", async () => {
