@@ -30,7 +30,10 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /Simulation only/);
   assert.match(landing, /No mainnet funds/);
   assert.match(landing, /Deny by default/);
-  assert.match(landing, /not native ZEC, shielded ZEC, or a trustless bridge asset/);
+  assert.match(landing, /superseded pZEC pool fixture/);
+  assert.match(landing, /not the native-settlement target/);
+  assert.match(landing, /Native settlement target/);
+  assert.doesNotMatch(landing, /pZEC (?:is|equals|represents) native ZEC/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(terminal), /trustless bridge/i);
   assert.match(terminal, /do not move mainnet funds/);

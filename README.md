@@ -1,18 +1,18 @@
 # Phlebas
 
-Phlebas is a production-minded protocol design and no-value interface simulation for ZEC markets against USDC and USDT. The interface uses the familiar market labels `ZEC/USDC` and `ZEC/USDT`, while the proposed Arbitrum settlement assets are `pZEC-USDC` and `pZEC-USDT0`.
+Phlebas is being developed as a non-custodial exchange for native transparent ZEC against USDC and USDT. The current application is a no-value interface and matching simulation. The target settlement path uses one two-chain atomic swap for each fill, with users signing every asset-moving transaction in their own wallet boundary.
 
 > Status: no-value simulation with optional local testnet services. Contracts are in-repo and undeployed. The public matcher is in-browser. A local operator, testnet TEX gateway, and Arbitrum Sepolia wallet connector exist and do not move mainnet funds. It is not an exchange and is not an offer of financial services.
 
 ## Product boundary
 
-Native ZEC is not an ERC-20 token and cannot sit directly inside an EVM constant product pool. The reference design therefore separates three systems:
+Native ZEC is not an ERC-20 token and cannot sit directly inside an EVM constant-product pool. The target design separates three systems:
 
-1. A transparent-Zcash gateway observes confirmed native ZEC deposits and would issue a fully reserved, 8-decimal `pZEC` receipt.
-2. Arbitrum contracts would settle signed order-book trades and host constrained constant product pools for `pZEC/USDC` and `pZEC/USDT0`.
-3. A public web interface presents markets and prepares user-signed actions without holding custody keys or operating the authoritative matcher.
+1. An offchain matcher sequences signed orders and creates immutable settlement terms for each fill.
+2. Native transparent ZEC and the selected EVM stablecoin enter separate user-authorized conditional locks that share one hash and use staggered refund deadlines.
+3. Read-only observers and a persistent coordinator report funding, claim, refund, and reorganization state without controlling either asset.
 
-This is a hybrid DEX design. The AMM and trade settlement can be onchain, but the proposed ZEC gateway is custodial and the order matcher is an offchain operator. The project must not be described as trustless, private, shielded, or native-ZEC settlement.
+The matcher can omit or delay orders, so the design is non-custodial but not trustless. Version 1 uses transparent ZEC. It does not provide shielded settlement. Native ZEC and an EVM token cannot form a standard Uniswap v2 pool in one contract, so wallet-held solver liquidity replaces passive LP shares in the target product.
 
 ## Included in this candidate
 
@@ -20,11 +20,11 @@ This is a hybrid DEX design. The AMM and trade settlement can be onchain, but th
 - An original landing page with explicit system-status disclosures
 - An in-browser price-time matcher (GTC, IOC, FOK) with session inventory, open orders, fills, and an append-only replay log
 - Canonical PRODUCT_SPEC order encoding with a SHA-256 simulation digest and a keccak EIP-712 typed-data hash
-- Integer CLOB vs AMM split-route comparison and LP share mint/burn previews, including IL versus hold at 4x and 1/4x
+- Integer CLOB vs legacy pZEC AMM split-route comparison and LP share mint/burn previews, retained while the UI migrates to solver liquidity
 - Integer seed books, empty/loading/stale/unavailable ticket gates, and a transparent-destination inspector
 - Click-to-price depth, local last/spread, and slippage-bounded market orders as IOC
-- Integer constant-product quotes and local add/swap previews for `pZEC/USDC` and `pZEC/USDT0`
-- ZIP 321 testnet TEX issuance through a local gateway, plus the PRODUCT_SPEC withdrawal state tour
+- Integer constant-product quotes and local add/swap previews for the superseded pZEC simulation
+- ZIP 321 testnet TEX issuance through a local gateway and a custody-state tour that remain legacy simulation surfaces
 - `/status` and `/api/status`, branded 404/error surfaces, and production `noindex`
 - Executable withdrawal-coverage checks after a finalized burn; production mint, custody, and payout remain design-only
 - Threat model, operational controls, compliance gates, and staged launch plan
@@ -33,6 +33,7 @@ This is a hybrid DEX design. The AMM and trade settlement can be onchain, but th
 - No-value Arbitrum Sepolia contracts (`contracts/`), a local matcher operator (`services/matcher`), and a local TEX gateway (`services/gateway`)
 
 The public Vercel app still does not deploy those contracts, hold spend keys, or run the authoritative matcher.
+Native atomic-swap terms, wallet handoff, live testnet integrations, the production matcher, Zcash transaction construction, EVM contracts, observers, and the coordinator remain acceptance targets. The superseding architecture is recorded in [ADR 0002](docs/adr/0002-native-zec-atomic-settlement.md).
 
 ## Design direction
 
@@ -53,7 +54,7 @@ The terminal takes structural cues from [Hyperliquid](https://app.hyperliquid.xy
 | `docs/BROWSER_ACCEPTANCE.md` | Reproducible responsive, keyboard, and reduced-motion checks |
 | `docs/LANDING_AND_USER_JOURNEYS.md` | Landing, trader, LP, deposit, and withdrawal experience |
 | `docs/ARCHITECTURE.md` | System boundaries and proposed production topology |
-| `docs/ASSET_AND_ACCOUNTING.md` | pZEC, reserves, liabilities, and reconciliation |
+| `docs/ASSET_AND_ACCOUNTING.md` | Superseded pZEC accounting and the migration target for per-swap accounting |
 | `docs/WALLET_COMPATIBILITY.md` | Current ZEC wallet evidence and executable Testnet qualification |
 | `docs/THREAT_MODEL.md` | Abuse cases, invariants, tests, and stop conditions |
 | `docs/OPERATIONS.md` | Proposed services, observability, and incident control |
@@ -103,28 +104,29 @@ npm run check:browser
 
 The [browser acceptance guide](docs/BROWSER_ACCEPTANCE.md) defines the routes, viewport widths, assertions, and limits.
 
-## Proposed production decisions
+## Target production decisions
 
-- Network: Arbitrum One, chain ID `42161`
-- Quote assets: native Circle USDC first, USDT0 only after a separate issuer and jurisdiction gate
-- ZEC representation: non-upgradeable `pZEC`, 8 decimals, mint and burn restricted to the gateway
-- Orders: EIP-712 signed intents, atomic onchain settlement, maker cancellation bitmap and account epoch
+- Networks: the current Zcash transparent pool and one approved EVM network, with Arbitrum as the test candidate
+- Quote assets: native Circle USDC first; USDT or USDT0 remains unresolved until one exact asset passes issuer, contract, and jurisdiction review
+- ZEC representation: native transparent ZEC only, with no Phlebas receipt or platform balance
+- Settlement: one two-chain conditional-lock workflow per fill, with wallet-controlled claim and refund paths
+- Orders: versioned signed intents, maker nonce cancellation, account epoch, and exact chain and asset identities
 - Matcher: offchain price-time priority with append-only sequencing evidence
-- AMM: fixed 30 basis point fee, no farms, gauges, leverage, flash callbacks, or arbitrary pair creation
-- Administration: non-upgradeable core contracts, timelocked governance, narrow emergency pause powers
-- Custody: threshold controls, independent Zcash observers, public reserve and liability reconciliation, no lending or rehypothecation
+- Liquidity: signed solver or maker quotes backed by inventory that remains in each provider's wallets until a swap is authorized
+- Contracts: non-upgradeable stablecoin conditional locks with no arbitrary token, callback, or custody path
+- Custody: none. Phlebas cannot sign, redirect, claim, or refund either user's assets
 
-Every decision remains provisional until implementation, independent audits, legal review, custody validation, and the launch gates pass.
+Every decision remains provisional until implementation, independent audits, legal review, executed wallet tests, and the launch gates pass.
 
 ## ZEC wallet compatibility
 
-The proposed deposit flow does not invent an EVM-style ZEC wallet connector. It uses a unique TEX address, a standard ZIP 321 `zcash:` payment request, QR or copy-and-paste handoff, and independent chain observation. Withdrawals accept only a network-correct transparent destination under the proposed policy.
+The target flow uses a wallet adapter or reviewable transaction artifact for the exact transparent P2SH fund, claim, and refund paths. ZIP 321 and TEX payment requests do not authorize those scripts and are not substitutes for swap transaction support.
 
-No wallet is Phlebas verified today. The [wallet compatibility plan](docs/WALLET_COMPATIBILITY.md) separates maintainer-documented capabilities from executed interoperability evidence and defines the Testnet suite a wallet must pass before the UI can call it compatible.
+No wallet is Phlebas verified today. A wallet must pass executed Testnet funding, claim, timeout refund, restart, fee, and reorganization tests for the exact script before the UI calls it compatible.
 
 ## Deployment boundary
 
-Vercel may host the public, stateless interface, documentation, read-only public market data, and client-side transaction preparation. It must never store custody or mint keys, operate Zcash nodes, coordinate withdrawals, maintain the authoritative customer-liability ledger, or host sanctions and identity casework.
+Vercel may host the public interface, documentation, read-only public market data, and client-side preparation of unsigned terms. It must never store wallet keys, node credentials, the authoritative swap journal, or a service that can sign or spend either asset.
 
 ## Licensing and publication
 

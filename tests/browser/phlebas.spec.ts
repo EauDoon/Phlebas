@@ -8,12 +8,12 @@ const routes = [
   {
     path: "/",
     disclosure: "Simulation only",
-    marker: "The custody line, drawn in public.",
+    marker: "Native ZEC, wallet controlled.",
   },
   {
     path: "/trade",
     disclosure: "Protocol preview",
-    marker: "settles pZEC-USDC",
+    marker: "legacy simulation: pZEC-USDC",
   },
   {
     path: "/liquidity",
@@ -129,7 +129,7 @@ for (const width of viewports) {
           expect(bannerBeforeHeader).toBe(true);
           await expect(page.getByRole("heading", { name: "Nothing hidden behind the preview" })).toBeVisible();
           await expect(page.getByText(
-            "pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.",
+            "The pZEC pool and gateway screens remain only as a clearly labeled legacy simulation while the native flow is built.",
             { exact: true },
           )).toBeVisible();
           await expect(page.getByText("Deny by default", { exact: true })).toBeVisible();
@@ -149,16 +149,16 @@ for (const width of viewports) {
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/trade\?view=trade$/);
       await expect(page.getByRole("combobox", { name: "Selected market" })).toHaveValue("ZEC/USDC");
-      await expect(page.getByText("settles pZEC-USDC", { exact: true })).toBeVisible();
+      await expect(page.getByText("legacy simulation: pZEC-USDC", { exact: true })).toBeVisible();
 
       await page.goto("/", { waitUntil: "networkidle" });
-      const understandPzec = page.getByRole("link", { name: "Understand pZEC" });
-      await tabTo(page, understandPzec);
-      await expectVisibleFocus(understandPzec);
+      const understandSettlement = page.getByRole("link", { name: "Understand settlement" });
+      await tabTo(page, understandSettlement);
+      await expectVisibleFocus(understandSettlement);
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/#pzec$/);
       await expect(page.getByText(
-        "pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.",
+        "The pZEC pool and gateway screens remain only as a clearly labeled legacy simulation while the native flow is built.",
         { exact: true },
       )).toBeVisible();
 
@@ -288,7 +288,7 @@ test("local matcher fills a buy against the fixture ask", async ({ page }) => {
   await page.getByRole("button", { name: "Ask 52.91" }).click();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByText("pZEC is a custody receipt, not native ZEC.")).toBeVisible();
+  await expect(page.getByText("Legacy simulation only. pZEC is not the target asset.")).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText(/Filled against the local ZEC\/USDC book/)).toBeVisible();
   await expect(page.getByRole("tab", { name: "Fills" })).toBeVisible();
@@ -387,7 +387,7 @@ test("GTC remainder can be cancelled and epoch invalidation is visible", async (
 test("USDT market names USDT0 settlement and empty feed shows no depth", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
-  await expect(page.getByText("settles pZEC-USDT0")).toBeVisible();
+  await expect(page.getByText("legacy simulation: pZEC-USDT0")).toBeVisible();
   await page.getByRole("combobox", { name: "Market data state" }).selectOption("empty");
   await expect(page.getByText("No resting depth. The local book is empty.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
@@ -492,7 +492,7 @@ test("order expiry unix time appears on review", async ({ page }) => {
 test("architecture view keeps Vercel off the matcher", async ({ page }) => {
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
   await expect(page.getByText("Loopback gateway and matcher never hosted on Vercel")).toBeVisible();
-  await expect(page.getByText("The matcher is not trustless.")).toBeVisible();
+  await expect(page.getByText(/matcher can censor or delay orders, so it is not trustless/)).toBeVisible();
 });
 
 test("connect wallet without a provider shows a visible rejection", async ({ page }) => {

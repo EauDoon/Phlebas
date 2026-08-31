@@ -1,69 +1,82 @@
-# Phlebas progress
+# Phlebas Progress
 
-Read this first on every continue. Update it after every batch: done, next, blockers, branch.
+Read this first on every continuation. Update it after each merged batch.
 
-Last updated: 31-08-2026 after the mainnet-readiness hardening batch was integrated with the latest contributor head.
+Updated: 31-08-2026 after PR #19 and PR #20 merged to `main` at `a2569b35963ff46f2ab628059c7a997f6929d7d7`.
 
-## Branch
+## Goal
 
-`codex/mainnet-readiness` integrates the current `feat/simulation-hardening` head from PR #19.
+Build a live, fully functioning, non-custodial exchange for native transparent ZEC against USDC and USDT. Keep every user and solver key in its wallet. Continue through missing-key boundaries and gate only the exact signing, broadcast, or deployment action that requires a key.
 
-## Done
+## Current branch
 
-- In-browser price-time matcher (GTC, IOC, FOK), session inventory, blotter, click-to-price, depth
-- Review-and-confirm before simulated fills (custody notice, worst price, CLOB vs AMM, SHA-256 digest)
-- Integer AMM quotes, amount-in inversion, LP share mint/burn
-- Append-only session log that replays to the same book and balances
-- `/status`, `/api/status`, branded 404/error, ZIP 321 copy (placeholder, not payable)
-- CI: `npm run check` (includes secret scan) plus Playwright Chromium
-- Public production: https://phlebas.vercel.app (noindex). Still a no-value simulation.
-- Integer seed books, chart ticks, and 24h stats without float `toFixed` conversion
-- Split-route (CLOB + AMM) comparison with a signed worst-price bound; confirm still executes CLOB only
-- Empty, stale, and unavailable ticket gates from PRODUCT_SPEC §10, with retry to illustrative
-- Playwright fixture binds `127.0.0.1` on an OS-assigned free port
-- Transparent destination inspector: shielded, TEX, and payment-request inputs are rejected; nothing is sent
-- Keccak-256 plus EIP-712 `Order` typed-data hashing for Arbitrum Sepolia (`PhlebasSettlement` v1). Session tickets still use SHA-256.
-- No-value Arbitrum Sepolia contracts: tpZEC, quote faucets, settlement, factory, pair, router. Typehashes match the TypeScript vectors. Undeployed.
-- Receivable testnet TEX via a local gateway (`textest` only, single-use ledger). Public app issues nothing without `PHLEBAS_GATEWAY_URL`.
-- Injected EVM wallet connector limited to Arbitrum Sepolia. Signing does not submit a settlement transaction.
-- Local matcher operator sequences, recovers EIP-712 signatures, and matches. Not bundled into Vercel.
-- Foundry Sepolia deploy script plus `scripts/record-sepolia-deploy.mjs`. Manifest stays `deployed: false` until `--mark-deployed` verifies a successful receipt and bytecode at every recorded address over Sepolia RPC.
-- Session tickets bind keccak EIP-712 to settlement when a wallet is connected. SHA-256 remains the session-only simulation encoding.
-- Wallet signing stays disabled until the verified manifest is deployed. Sign-and-submit also requires `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1`.
-- Matcher persists book, receipts, recover, and sequence under `services/matcher/.data` on 127.0.0.1.
-- Isolated local Compose under `services/` for gateway, matcher, and observer. Host ports bind `127.0.0.1`. Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.
-- Zebra observer and mint-attestation stubs: textest only, 10 confirmations, durable one-outpoint/one-mint replay protection, strict observation input, and conservative multi-observer confirmation agreement. No Zebra RPC. HTTP `/attest` is covered by a live loopback/restart test.
-- License: Apache License 2.0 (`LICENSE`). Not MIT. Product language unchanged.
-- Operator runbook for local Compose: `docs/OPERATOR_RUNBOOK.md`. Gateway, matcher, and observer health and incident steps.
-- Public operator APIs accept only loopback HTTP services and remain unavailable on Vercel.
-- Payout claim stub walks requested, screened, burn-submitted, payable, and unresolved states. Nothing is sent.
-- Country access remains deny by default. Empty and loading market feeds fail closed.
-- Fills, resting orders, and tape entries name the simulated settlement pair. Account epochs and invalidation are visible.
-- LP burns remain available during a trading pause. Wallet, gateway, and review failures stay visible.
-- Matcher health exposes a receipt cursor, sequence root, start time, and last-sequence time for local monitoring.
-- EIP-712 and settlement calldata bind time-in-force and enforce Solidity integer widths; wallets recheck Sepolia immediately before signing.
-- Settlement rejects high-s signatures, reentrancy, self-trades, invalid roles/assets, unsupported TIF behavior, and unsafe token-return conventions. Exact buyer, seller, and fee accounting is tested.
-- AMM first mint uses geometric-mean shares with locked minimum liquidity; later mints use both reserves, LP exits remain open during a trading pause, and donation-aware burn/sync paths are tested.
-- Matcher rejects replay, expiry, unapproved assets/venues, self-trades, unsupported multi-fill IOC/FOK, and fee caps that cannot settle. Signatures are mandatory outside explicit unit-test bypasses.
-- Matcher, gateway, and observer mutations are serialized and use file fsync plus atomic rename. Corrupt or unexpectedly missing replay state fails closed. Windows lacks a portable directory-fsync barrier, which is documented without weakening file fsync or rename.
-- Sepolia deployment requires distinct roles. The manifest is wired into runtime configuration and cannot be marked deployed without a complete, commit-bound successful Sepolia receipt and verified bytecode at every address.
-- CI pins the Foundry action and toolchain. Contract invariants include 10,000-case AMM-product and settlement-rounding fuzz runs in the release check.
-- Session blotter log lines include expiry when a ticket is confirmed. The nonce-bitmap helper matches `Settlement.sol`.
-- In-browser and operator matchers reject expired takers and sweep expired resting orders before matching.
-- Ticket rejections use a visible alert panel. LP mint and swap use review-and-confirm. Blotter tabs expose keyboard-operable tabpanels.
-- `/legal` and `/security` simulation pages are cross-linked from the landing, terminal, status, and frame navigation.
+`feat/native-zec-swap-domain`, rebased from `main` at `a2569b35963ff46f2ab628059c7a997f6929d7d7`.
 
-## Next
+The next PR contains at least eight meaningful commits, an independent current-byte review, a Vercel preview for the exact head, and production verification after merge.
 
-- Publish, verify, and merge the exact hardening head only after fresh Verify and Vercel success.
-- Record and independently verify a real Arbitrum Sepolia deployment using approved role addresses.
-- Build the authoritative append-only matcher/settlement service and custody attestation path on isolated infrastructure, not Vercel or the local JSON stores.
-- Complete closed-testnet reorg, replay, signer-loss, reserve-deficit, recovery, load, and disaster-recovery drills.
-- Complete independent contract/infrastructure audits, Apache-2.0 distribution review, legal/entity/country approvals, and named operational ownership.
+## Delivered on main
 
-## Blockers
+* Original landing page and responsive trading terminal for `ZEC/USDC` and `ZEC/USDT`
+* In-browser price-time matcher with GTC, IOC, FOK, partial fills, cancellation, session inventory, and replay
+* Side-aware integer simulation settlement and dust protection
+* Integer AMM, routing comparison, and LP preview for the superseded pZEC simulation
+* Empty, loading, stale, and unavailable market-data gates
+* SHA-256 session digests and keccak EIP-712 typed data for the legacy Sepolia slice
+* Optional EIP-1193 Sepolia wallet flow, with submission disabled until the manifest is verified
+* Undeployed pZEC, quote-token, settlement, factory, pair, and router contracts for no-value Sepolia testing
+* Loopback gateway, matcher, and observer services with serialized atomic persistence and replay controls
+* Transparent destination inspection, ZIP 321 and TEX testnet surfaces, and a no-send payout tour
+* Status, legal, and security routes, security headers, no-index policy, error surfaces, CI, and Vercel production
 
-- Mainnet remains a no-go: there is no production custody, reserve attester, mint controller, redemption service, identity/compliance tier, surveillance system, or independently audited deployment.
-- The local JSON persistence added for testnet is intentionally single-process and is not the production authoritative ledger.
-- Language bar still holds: never imply live, audited, trustless, private, shielded, or native-ZEC
-- Vercel still must not hold spend keys, issue mainnet TEX, or run the authoritative matcher
+Current-main release evidence:
+
+* 203 unit and service tests
+* 22 Foundry tests
+* lint and type checking
+* secret-pattern scan across 170 files
+* production build
+* 46 Chromium browser tests
+* GitHub Verify run `33389882770`
+* successful production Vercel deployment for merge `a2569b3`
+
+The pZEC gateway, reserve, mint, burn, payout, passive AMM, and Sepolia contract surfaces are retained as legacy simulation and testnet code. They do not define the production target.
+
+## Active batch
+
+* Supersede the custody-backed pZEC target with native-ZEC atomic settlement
+* Define exact Zcash and EVM chain and asset identities
+* Add a versioned EIP-712 native order intent
+* Add strict order policy, nonce and epoch cancellation, chained intake receipts, and price-time plans
+* Add deterministic settlement accounting, replay snapshots, and adversarial persistence checks
+* Bind every current surface to simulation and no-live-funds product truth
+* Preserve the no-key and no-chain boundary for this batch
+
+The pre-rebase branch passed an independent P0/P1 review and an independent Foundry EIP-712 digest comparison. After rebasing onto merged `main`, integration tree `fcb34d5` passed lint, type checking, 259 unit and service tests, 22 Foundry tests, a 185-file secret-pattern scan, the production build, and all 46 Chromium browser tests. The subsequent snapshot-integrity repair passes the same gates with 261 unit and service tests. Publication still requires a clean final-head review plus fresh GitHub Verify and Vercel results for that exact head.
+
+## Next batches
+
+1. Native two-chain swap state machine and lock, claim, refund UI
+2. Zcash transparent P2SH transaction lab and wallet adapter
+3. EVM exact-token conditional-lock contracts on local chains
+4. Read-only observers, persistent coordinator, and watchtower
+5. Approved Testnet wallet execution
+6. Persistent matcher and public market data
+7. Wallet-held solver liquidity
+8. Operations and production hardening
+
+## Gates
+
+No key is needed for the active batch.
+
+HOLD:
+
+* wallet signing or new wallet connection;
+* Zcash or EVM broadcast;
+* Testnet or Mainnet deployment;
+* funded addresses or real assets;
+* wallet compatibility labels;
+* production contract identities;
+* passive Uniswap v2 LP claims for native ZEC;
+* live-exchange claims.
+
+Each item remains on HOLD until its protocol, test, audit, legal, operational, and authorization gates pass.

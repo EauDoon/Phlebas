@@ -278,7 +278,7 @@ export function TradingTerminal({
                     <option value="ZEC/USDT">ZEC / USDT</option>
                   </select>
                 </label>
-                <span className={styles.settlementBadge}>settles {market.settlementPair}</span>
+                <span className={styles.settlementBadge}>legacy simulation: {market.settlementPair}</span>
                 {marketId === "ZEC/USDT" && <span className={styles.gateBadge}>Later listing gate</span>}
                 <label>
                   <span>Market data</span>

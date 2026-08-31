@@ -652,7 +652,7 @@ export function TradeTicket({
       {review ? (
         <div className={styles.reviewBlock}>
           <p className={styles.gateNotice}>
-            pZEC is a custody receipt, not native ZEC. This fill is public in the simulation. The matcher is not trustless.
+            Legacy simulation only. pZEC is not the target asset. This local fill is public and the matcher is not trustless.
           </p>
           <dl className={styles.ticketSummary}>
             <div>

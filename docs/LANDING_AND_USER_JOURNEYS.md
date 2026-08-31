@@ -1,18 +1,22 @@
 # Phlebas Landing and User Journeys
 
-Status: the landing page, terminal shell, local matcher, LP preview, withdrawal state tour, destination inspector, optional Sepolia wallet signing, keccak EIP-712, and local textest services are implemented for no-value use. The loopback services are never hosted on Vercel. Contracts remain undeployed and no live-funds path exists.
+Status: legacy custody-interface specification, retained for the current no-value simulation
+
+The pZEC, gateway, deposit, withdrawal, and passive LP requirements below document the legacy ADR 0001 interface. They are not requirements for the target product. [ADR 0002](adr/0002-native-zec-atomic-settlement.md), [Product specification](PRODUCT_SPEC.md), [Architecture](ARCHITECTURE.md), and [Delivery plan](DELIVERY_PLAN.md) govern the native-ZEC target and its replacement user journey.
+
+The landing page, terminal shell, local matcher, LP preview, withdrawal state tour, destination inspector, optional Sepolia wallet flow, keccak EIP-712 path, and local textest services are implemented for no-value use. The loopback services are never hosted on Vercel. Contracts remain undeployed, wallet signing remains gated by that manifest, and no live-funds path exists.
 
 Phlebas currently has no live market data, deployed contract, real deposit, withdrawal, order, stablecoin, pZEC, custody, identity, or authoritative matching service. Every value and state in the public interface is illustrative. Wallet signing stays disabled while the verified testnet deployment manifest is undeployed. This specification does not authorize mainnet, custody, publication, or financial services.
 
-The user-facing market aliases are `ZEC / USDC` and `ZEC / USDT`, matching the requested markets. Every market ticket, review, and history surface must also state the exact proposed settlement pair, `pZEC / USDC` or `pZEC / USDT0`. Pool labels use the settlement assets. Native `ZEC` refers only to Zcash that would enter or leave the transparent gateway.
+The legacy simulation uses the market aliases `ZEC / USDC` and `ZEC / USDT` while disclosing its simulated settlement pair, `pZEC / USDC` or `pZEC / USDT0`. The target replaces those receipt pairs with native transparent ZEC and an exact issuer-approved stablecoin, settled through chain-native conditional locks.
 
 ## Product outcome
 
-The landing page should answer four questions before asking a visitor to enter the terminal:
+The legacy landing page was designed to answer four questions before asking a visitor to enter the terminal:
 
 - What is Phlebas?
 - What exists today?
-- What is pZEC, and where does custody begin?
+- Why is pZEC shown only as a superseded simulation?
 - What can a visitor safely do in the current preview?
 
 The intended first impression is a serious market design with its limits shown in public. The page must not resemble a live exchange launch, token sale, rewards campaign, or liquidity solicitation.
