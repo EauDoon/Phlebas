@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {ERC20} from "./ERC20.sol";
 
 /// @notice Testnet-only 8-decimal ZEC receipt. Not native ZEC. Not live settlement. Mint is minter-gated.
-contract PZec is ERC20 {
+contract Zec is ERC20 {
     address public minter;
     address public pauser;
     address public governor;
@@ -19,7 +19,7 @@ contract PZec is ERC20 {
         ERC20("Phlebas Testnet ZEC", "tZEC", 8)
     {
         if (minter_ == address(0) || pauser_ == address(0) || governor_ == address(0)) {
-            revert("PZec: zero role");
+            revert("Zec: zero role");
         }
         minter = minter_;
         pauser = pauser_;

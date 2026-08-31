@@ -31,6 +31,10 @@ contract TestBase {
         require(keccak256(bytes(left)) == keccak256(bytes(right)), "string neq");
     }
 
+    function assertEq(address left, address right) internal pure {
+        require(left == right, "address neq");
+    }
+
     function assertGt(uint256 left, uint256 right) internal pure {
         require(left > right, "not gt");
     }
