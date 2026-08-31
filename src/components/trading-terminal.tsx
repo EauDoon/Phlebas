@@ -86,6 +86,7 @@ export function TradingTerminal({
   initialBridgeJourney = "deposit",
   initialAccess = "open",
   forceEducation = false,
+  highlightIncidents = false,
 }: {
   initialView?: View;
   initialMarket?: MarketId;
@@ -93,6 +94,7 @@ export function TradingTerminal({
   initialBridgeJourney?: "deposit" | "withdrawal";
   initialAccess?: AccessDemo;
   forceEducation?: boolean;
+  highlightIncidents?: boolean;
 }) {
   const router = useRouter();
   const [view, setView] = useState<View>(initialView);
@@ -470,7 +472,9 @@ export function TradingTerminal({
           />
         )}
         {initialAccess === "open" && view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
-        {initialAccess === "open" && view === "architecture" && <ArchitecturePanel />}
+        {initialAccess === "open" && view === "architecture" && (
+          <ArchitecturePanel highlightIncidents={highlightIncidents} />
+        )}
       </main>
 
       <footer className={styles.footer}>

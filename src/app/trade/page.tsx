@@ -4,6 +4,7 @@ import { TradingTerminal } from "@/components/trading-terminal";
 import { parseAccessDemo } from "@/lib/access-demo";
 import type { MarketId } from "@/lib/market-data";
 import { isFeedStatus } from "@/lib/market-state";
+import { isIncidentDemoQuery } from "@/lib/gateway-incidents";
 import { isEducationForceQuery } from "@/lib/preview-education";
 
 export const metadata: Metadata = {
@@ -31,6 +32,7 @@ export default async function TradePage({
     journey?: string | string[];
     access?: string | string[];
     education?: string | string[];
+    demo?: string | string[];
   }>;
 }) {
   const params = await searchParams;
@@ -40,6 +42,7 @@ export default async function TradePage({
   const journey = Array.isArray(params.journey) ? params.journey[0] : params.journey;
   const access = Array.isArray(params.access) ? params.access[0] : params.access;
   const education = Array.isArray(params.education) ? params.education[0] : params.education;
+  const demo = Array.isArray(params.demo) ? params.demo[0] : params.demo;
   return (
     <TradingTerminal
       initialView={isTradeView(view) ? view : "trade"}
@@ -48,6 +51,7 @@ export default async function TradePage({
       initialBridgeJourney={journey === "withdrawal" ? "withdrawal" : "deposit"}
       initialAccess={parseAccessDemo(access)}
       forceEducation={isEducationForceQuery(education)}
+      highlightIncidents={isIncidentDemoQuery(demo)}
     />
   );
 }
