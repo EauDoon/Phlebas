@@ -16,6 +16,18 @@ export function emptyShareCopy(poolId: "ZEC/USDC" | "ZEC/USDT"): string {
   return `No session LP shares in ${poolId}. Burn stays idle until a local mint.`;
 }
 
+export function lpRiskCopy(): string {
+  return "LPs would face ZEC reserve and redemption risk, stablecoin risk, smart-contract risk, impermanent loss, toxic flow from the order book, and emergency operating restrictions.";
+}
+
+export function lpFeedBlockCopy(): string {
+  return "Burn stays available. Mint and swap stay off while the market-data feed is not illustrative.";
+}
+
+export function lpEmptyBookCopy(): string {
+  return "Pool math is still a local preview. The empty book does not drain the pool.";
+}
+
 export function lpPauseNoticeCopy(
   settlementPair: Market["settlementPair"],
   paused: boolean,

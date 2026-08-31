@@ -5,6 +5,9 @@ import { quoteConstantProductSwapAtoms } from "./amm.ts";
 import {
   burnShares,
   emptyShareCopy,
+  lpEmptyBookCopy,
+  lpFeedBlockCopy,
+  lpRiskCopy,
   isLpPauseNotice,
   lpPauseNoticeCopy,
   lpBurnNoticeCopy,
@@ -43,6 +46,19 @@ test("mint then burn returns the added reserves on a fresh pool ratio", () => {
 test("rejects a zero mint", () => {
   const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
   assert.throws(() => mintShares(pool, 0n), /positive/);
+});
+
+test("LP risk copy covers PRODUCT_SPEC toxic flow and emergency restrictions", () => {
+  assert.match(lpRiskCopy(), /ZEC reserve and redemption risk/);
+  assert.match(lpRiskCopy(), /stablecoin risk/);
+  assert.match(lpRiskCopy(), /smart-contract risk/);
+  assert.match(lpRiskCopy(), /impermanent loss/);
+  assert.match(lpRiskCopy(), /toxic flow from the order book/);
+  assert.match(lpRiskCopy(), /emergency operating restrictions/);
+  assert.doesNotMatch(lpRiskCopy(), /adverse selection/);
+  assert.doesNotMatch(lpRiskCopy(), /pZEC/);
+  assert.match(lpFeedBlockCopy(), /Burn stays available/);
+  assert.match(lpEmptyBookCopy(), /empty book does not drain the pool/);
 });
 
 test("empty share copy names the selected pool and is not a book-empty notice", () => {
