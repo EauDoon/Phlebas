@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after PRODUCT_SPEC UI flows: payout tour claims, settlement-pair history, epoch, LP pause, review confirmations, empty/loading feeds.
+Last updated: 31-08-2026 after fee-envelope constants, gateway health cap, status intent-cap unset, and matcher persistReadable.
 
 ## Branch
 
@@ -66,12 +66,17 @@ Last updated: 31-08-2026 after PRODUCT_SPEC UI flows: payout tour claims, settle
 - Empty feed shows empty depth. Loading feed disables review.
 - `/api/status` never copies a remote operator URL. `intentCap` is 64 only when the gateway URL is loopback HTTP. `sequenceRoot` stays null without a fetched loopback matcher.
 - Blotter tables scroll inside the panel so the settlement column cannot blow the 320px page.
+- Gateway health publishes `issued` and `cap` from the shared `GATEWAY_DEFAULT_MAX_INTENTS` (64).
+- Ticket and LP copy bind to version-1 fee constants (5 / 15 / 30 bps, max 30).
+- Public `/status` shows intent cap `unset` when no loopback gateway URL is configured.
+- Matcher health reports `persistReadable`. Observer health reports the 10-confirmation floor.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (blocked on a Vercel deploy token in this session; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
+- Playwright: `/status` intent-cap `unset` after the next production build
 
 ## Blockers
 
