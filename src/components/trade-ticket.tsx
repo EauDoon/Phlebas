@@ -594,6 +594,22 @@ export function TradeTicket({
           </p>
           <dl className={styles.ticketSummary}>
             <div>
+              <dt>Leaves the session</dt>
+              <dd>
+                {review.side === "buy"
+                  ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote} on Arbitrum Sepolia`
+                  : `${formatAtomicUnits(review.clobDebitAtoms, PZEC_DECIMALS)} pZEC on Arbitrum Sepolia`}
+              </dd>
+            </div>
+            <div>
+              <dt>Arrives in the session</dt>
+              <dd>
+                {review.side === "buy"
+                  ? `pZEC on Arbitrum Sepolia, settled as ${market.settlementPair}`
+                  : `${market.quote} on Arbitrum Sepolia, settled as ${market.settlementPair}`}
+              </dd>
+            </div>
+            <div>
               <dt>Immediate CLOB debit</dt>
               <dd>
                 {review.side === "buy"
@@ -616,6 +632,10 @@ export function TradeTicket({
               <dd>{formatAtomicUnits(review.priceTicks, PRICE_DECIMALS, 2)} {market.quote}</dd>
             </div>
             <div>
+              <dt>Fees</dt>
+              <dd>Proposed taker 15 bps, maker 5 bps, AMM 30 bps. Not deducted in this simulation.</dd>
+            </div>
+            <div>
               <dt>CLOB vs AMM</dt>
               <dd>{describeRoute(review.comparison, market.quote)}</dd>
             </div>
@@ -624,6 +644,9 @@ export function TradeTicket({
               <dd>{review.digest.slice(0, 16)}…</dd>
             </div>
           </dl>
+          <p className={styles.inlineNotice}>
+            Transparent Zcash and this Arbitrum fill are publicly linkable. pZEC redemption depends on the gateway.
+          </p>
           <p className={styles.inlineNotice}>
             Confirm submits only the local CLOB. Split and AMM figures are comparison quotes, not an executed router fill.
           </p>
