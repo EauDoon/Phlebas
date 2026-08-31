@@ -2921,3 +2921,69 @@ test("skip-nav 768 liquidity country-block architecture error legal leftover and
   expect(overflow320.ringRight).toBeLessThanOrEqual(320.5);
 });
 
+test("skip-nav leftover 44px education clearance and overflow-y ring padding", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  async function leftover(path: string, width: number, height: number, count: number) {
+    await page.setViewportSize({ width, height });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")];
+      const last = links[links.length - 1]?.getBoundingClientRect();
+      const first = links[0];
+      const style = first ? getComputedStyle(first) : null;
+      const parent = first?.parentElement;
+      const parentRect = parent?.getBoundingClientRect();
+      const rect = first?.getBoundingClientRect();
+      const extent = style
+        ? (Number.parseFloat(style.outlineWidth) || 0) + (Number.parseFloat(style.outlineOffset) || 0)
+        : 0;
+      return {
+        count: links.length,
+        lastWidth: last?.width ?? 0,
+        lastHeight: last?.height ?? 0,
+        padding: parent ? getComputedStyle(parent).paddingTop : "",
+        ringTop: (rect?.top ?? 0) - extent,
+        ringBottom: (rect?.bottom ?? 0) + extent,
+        parentTop: parentRect?.top ?? 0,
+        parentBottom: parentRect?.bottom ?? 0,
+      };
+    });
+    expect(layout.count).toBe(count);
+    expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+    expect(layout.padding).toBe("8px");
+    expect(layout.ringTop).toBeGreaterThanOrEqual(layout.parentTop - 0.5);
+    expect(layout.ringBottom).toBeLessThanOrEqual(layout.parentBottom + 0.5);
+  }
+
+  await leftover("/security", 390, 844, 2);
+  await leftover("/status", 390, 844, 2);
+  await leftover("/liquidity", 768, 1024, 3);
+  await leftover("/trade?view=bridge", 390, 844, 3);
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  const dialogBox = await dialog.boundingBox();
+  const skipNav = page.getByRole("navigation", { name: "Skip links" });
+  const skipBox = await skipNav.boundingBox();
+  const marginTop = await dialog.evaluate((element) => getComputedStyle(element).marginTop);
+  expect(Number.parseFloat(marginTop)).toBeGreaterThanOrEqual(200);
+  const overlaps = Boolean(
+    skipBox && dialogBox
+    && skipBox.width > 8
+    && skipBox.height > 8
+    && skipBox.x < dialogBox.x + dialogBox.width
+    && skipBox.x + skipBox.width > dialogBox.x
+    && skipBox.y < dialogBox.y + dialogBox.height
+    && skipBox.y + skipBox.height > dialogBox.y,
+  );
+  expect(overlaps).toBe(false);
+});
+
