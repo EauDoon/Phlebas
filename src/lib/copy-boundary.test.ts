@@ -58,6 +58,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"), /zips\.z\.cash\/zip-0320/);
   assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(terminal), /trustless bridge/i);
+  assert.match(terminal, /Fixture \$\{market\.volume\}/);
   assert.match(terminal, /do not move mainnet funds/);
   assert.match(terminal, /not trustless/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicly linkable/);
@@ -89,6 +90,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   const liquidity = await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8");
   assert.match(liquidity, /aria-errormessage/);
   assert.match(liquidity, /amountErrorId/);
+  assert.match(liquidity, /Fixture \{selectedPool\.tvl\}/);
+  assert.match(liquidity, /Fixture \{selectedPool\.volume\}/);
   assert.match(liquidity, /Retry illustrative feed/);
   assert.match(liquidity, /No session LP shares/);
   assert.match(liquidity, /not a return or profit projection/i);

@@ -405,7 +405,7 @@ export function TradingTerminal({
                 </div>
                 <div><dt>24h high</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
                 <div><dt>24h low</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
-                <div><dt>24h volume</dt><dd>{feed.showFixtures ? market.volume : "—"}</dd></div>
+                <div><dt>24h volume</dt><dd>{feed.showFixtures ? `Fixture ${market.volume}` : "—"}</dd></div>
               </dl>
               <p className={styles.inlineNotice}>{feed.statsNote}</p>
             </section>

@@ -392,6 +392,8 @@ export function LiquidityPanel({
 
         <dl className={styles.statGrid} role="group" aria-label="Pool stats and impermanent loss versus hold">
           <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
+          <div><dt>TVL</dt><dd>Fixture {selectedPool.tvl}</dd></div>
+          <div><dt>24h volume</dt><dd>Fixture {selectedPool.volume}</dd></div>
           <div><dt>pZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reservePzecAtoms, PZEC_DECIMALS, 2)}</dd></div>
           <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
           <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>

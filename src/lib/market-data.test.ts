@@ -72,3 +72,12 @@ test("formats 24h change from integer basis points", () => {
   assert.equal(formatSignedChange(-120), "-1.20%");
   assert.equal(formatSignedChange(0), "0.00%");
 });
+
+test("volume and TVL fixtures stay dollar-shaped strings for labeled display", () => {
+  assert.match(markets["ZEC/USDC"].volume, /^\$[\d.]+M$/);
+  assert.match(markets["ZEC/USDT"].volume, /^\$[\d.]+M$/);
+  for (const pool of pools) {
+    assert.match(pool.tvl, /^\$[\d,]+$/);
+    assert.match(pool.volume, /^\$[\d,]+$/);
+  }
+});
