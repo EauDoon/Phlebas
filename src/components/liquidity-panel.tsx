@@ -3,7 +3,7 @@
 import { useId, useMemo, useState } from "react";
 
 import { quoteConstantProductSwapAtoms } from "@/lib/amm";
-import { AMM_FEE_BPS } from "@/lib/fees";
+import { AMM_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import {
   burnShares,
   hypotheticalImpermanentLoss,
@@ -55,6 +55,7 @@ export function LiquidityPanel({
   const [entryDeposits, setEntryDeposits] = useState<Record<PoolId, EntryDeposit>>(emptyDeposits);
   const [notice, setNotice] = useState("Integer pool math. Wallet actions stay disabled.");
   const [tradingPaused, setTradingPaused] = useState(false);
+  const [review, setReview] = useState<"mint" | "swap" | null>(null);
   const poolReserves = poolState[selectedPool.id];
   const sessionEntry = entryDeposits[selectedPool.id];
 
@@ -148,6 +149,7 @@ export function LiquidityPanel({
           quoteAtoms: current[selectedPool.id].quoteAtoms + minted.quoteAtoms,
         },
       }));
+      setReview(null);
       setNotice(`Minted ${minted.shares.toString()} local LP shares. Wallet actions stay disabled.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : amountPreview.message);
@@ -194,6 +196,7 @@ export function LiquidityPanel({
           reserveQuoteAtoms: current[selectedPool.id].reserveQuoteAtoms - swap.amountOut,
         },
       }));
+      setReview(null);
       setNotice(`Simulated pZEC→${selectedPool.quote} swap. Output ${formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2)} ${selectedPool.quote}. Local preview only.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Swap quote is outside the preview range.");
@@ -282,10 +285,85 @@ export function LiquidityPanel({
           {amountPreview.swapNote ? ` ${amountPreview.swapNote}` : ""}
         </p>
 
+        {review ? (
+          <div className={styles.reviewBlock}>
+            <p className={styles.gateNotice}>
+              pZEC is a custody receipt, not native ZEC. LP preview stays in this browser. Wallet actions stay disabled.
+            </p>
+            <dl className={styles.statGrid}>
+              <div>
+                <dt>Leaves the session</dt>
+                <dd>
+                  {review === "mint"
+                    ? `${formatAtomicUnits(amountPreview.zecAtoms, PZEC_DECIMALS)} pZEC and ${amountPreview.balancedQuote} ${selectedPool.quote} on Arbitrum Sepolia`
+                    : `${formatAtomicUnits(amountPreview.zecAtoms, PZEC_DECIMALS)} pZEC on Arbitrum Sepolia`}
+                </dd>
+              </div>
+              <div>
+                <dt>Arrives in the session</dt>
+                <dd>
+                  {review === "mint"
+                    ? `${amountPreview.shares.toString()} local LP shares for ${selectedPool.id}`
+                    : `${amountPreview.swapOut} ${selectedPool.quote} from the ${selectedPool.id} pool`}
+                </dd>
+              </div>
+              <div>
+                <dt>Fees</dt>
+                <dd>{review === "mint" ? "Balanced add pays no swap fee" : feeEnvelopeCopy()}</dd>
+              </div>
+            </dl>
+            <p className={styles.inlineNotice}>
+              Transparent Zcash and this Arbitrum LP action are publicly linkable. pZEC redemption depends on the gateway.
+              LPs also face stablecoin risk, smart-contract risk, impermanent loss, and toxic flow from the order book.
+            </p>
+            <button
+              type="button"
+              className={styles.primaryAction}
+              onClick={review === "mint" ? simulateAdd : simulateSwap}
+            >
+              Confirm simulated {review}
+            </button>
+            <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
+              Back
+            </button>
+          </div>
+        ) : (
         <div className={styles.tourNav}>
-          <button type="button" onClick={simulateAdd} disabled={!lpOperationAllowed("mint", tradingPaused)}>Simulate mint</button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!lpOperationAllowed("mint", tradingPaused)) {
+                setNotice("Trading is paused. LP withdrawal remains available.");
+                return;
+              }
+              if (!amountPreview.valid || amountPreview.zecAtoms <= 0n || amountPreview.quoteAtoms <= 0n) {
+                setNotice(amountPreview.message);
+                return;
+              }
+              setReview("mint");
+            }}
+            disabled={!lpOperationAllowed("mint", tradingPaused)}
+          >
+            Review simulated mint
+          </button>
           <button type="button" onClick={simulateBurn} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
-          <button type="button" onClick={simulateSwap} disabled={!lpOperationAllowed("swap", tradingPaused)}>Simulate swap</button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!lpOperationAllowed("swap", tradingPaused)) {
+                setNotice("Trading is paused. LP withdrawal remains available.");
+                return;
+              }
+              if (!amountPreview.valid || amountPreview.zecAtoms <= 0n) {
+                setNotice(amountPreview.message);
+                return;
+              }
+              setReview("swap");
+            }}
+            disabled={!lpOperationAllowed("swap", tradingPaused)}
+          >
+            Review simulated swap
+          </button>
           <button
             type="button"
             aria-pressed={tradingPaused}
@@ -298,10 +376,11 @@ export function LiquidityPanel({
           >
             {tradingPaused ? "Resume trading preview" : "Pause trading preview"}
           </button>
-          <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setNotice("Local pool reserves restored."); }}>
+          <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setReview(null); setNotice("Local pool reserves restored."); }}>
             Reset pool
           </button>
         </div>
+        )}
         <p className={styles.inlineNotice} aria-live="polite">{notice}</p>
         <button type="button" className={styles.primaryAction} disabled>
           Wallet actions disabled in simulation
