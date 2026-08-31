@@ -41,6 +41,15 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /href="#pairs"/);
   assert.doesNotMatch(landing, /Understand pZEC/);
   assert.doesNotMatch(landing, /wrap ZEC as pZEC/);
+  assert.match(landing, /pairsSection/);
+  assert.match(landing, /pairsCopy/);
+  assert.doesNotMatch(landing, /pzecSection/);
+  assert.doesNotMatch(landing, /pzecCopy/);
+  assert.doesNotMatch(landing, /pZEC/);
+  const landingCss = await readFile(join(root, "src/components/landing.module.css"), "utf8");
+  assert.match(landingCss, /\.pairsSection/);
+  assert.match(landingCss, /\.pairsCopy/);
+  assert.doesNotMatch(landingCss, /pzec/i);
   assert.match(await readFile(join(root, "src/lib/session.ts"), "utf8"), /SESSION_ZEC_ATOMS/);
   assert.match(await readFile(join(root, "src/lib/session.ts"), "utf8"), /export function availableZec/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/session.ts"), "utf8"), /availablePzec/);
