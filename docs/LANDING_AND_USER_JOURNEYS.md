@@ -76,7 +76,7 @@ Landing navigation targets:
 
 - `Markets` points to `#terminal-preview`.
 - `Liquidity` points to `#journeys` with the LP path selected only after client hydration. Without JavaScript, it points to the section start.
-- `Gateway` points to `#pzec`.
+- `Gateway` points to `#journey-deposit`. The native-pairs section is `#pairs`.
 - `Architecture` points to `/trade?view=architecture`.
 
 At 820 pixels and below, use a menu button with the visible label `Menu`. The menu opens a modal navigation panel with focus containment, an explicit close button, Escape support, and the same DOM reading order. The simulation banner remains above it.
@@ -117,7 +117,7 @@ Do not render a placeholder GitHub URL. Omit `Source repository` until a real pu
 |  in public.                              Wallets: unavailable          |
 |                                          Custody: not operating        |
 |  Supporting copy                         Contracts: not deployed       |
-|  [Enter simulation] [Understand pZEC]    [Open status details]        |
+|  [Enter simulation] [Understand native pairs] [Open status details]   |
 |                                                                       |
 +-----------------------------------------------------------------------+
 | WHAT EXISTS TODAY | four evidence rows, not promotional cards         |
@@ -156,7 +156,7 @@ Use a 12-column content grid with a maximum content width of 1,440 pixels. The h
 | No wallets or custody           |
 +----------------------------------+
 | [Enter simulation]              |
-| [Understand pZEC]               |
+| [Understand native pairs]       |
 +----------------------------------+
 | What exists today               |
 +----------------------------------+
@@ -196,7 +196,7 @@ Primary action:
 
 Secondary action:
 
-> Understand pZEC
+> Understand native pairs
 
 Small disclosure below both actions:
 
@@ -484,7 +484,7 @@ The entry action is `Preview deposit states`, not `Deposit ZEC`.
 4. The visitor selects `Walk through states`.
 5. A deterministic state tour displays Eligibility, Address request, Observed, Screening, Confirming, Mint queued, and Complete.
 6. The Address request state shows a neutral placeholder panel with `No address generated in simulation`. It must not display an address-like fixture, QR code, copy control, URI, or scannable data.
-7. The Complete state says: `State demonstration complete. No native ZEC was received and no pZEC was minted.`
+7. The Complete state says: `State demonstration complete. No native ZEC was received and nothing was minted.`
 
 The simulation does not accept a Zcash address, EVM address, transaction hash, amount tied to a wallet, identity document, country, name, email, or screening input.
 
@@ -527,7 +527,7 @@ The entry action is `Preview withdrawal states`, not `Withdraw ZEC`.
 3. The interface shows a fixed, clearly labeled example summary. It does not accept or display a real Zcash address.
 4. The visitor selects `Walk through states`.
 5. A deterministic state tour displays title-case labels for the PRODUCT_SPEC 9.3 happy path: Requested, Screened, Burn submitted, Burn finalized, Payable, Transaction prepared, Signed, Broadcast, Mined, Confirmed.
-6. The Confirmed state says: `State demonstration complete. No pZEC was burned and no native ZEC was sent.`
+6. The Confirmed state says: `State demonstration complete. Nothing was burned and no native ZEC was sent.`
 
 Do not render an address input, paste target, QR scanner, wallet connector, or transaction submit control in the current simulation.
 
@@ -760,7 +760,7 @@ PR 1 creates the landing page and preserves the current simulation behind `/trad
 1. Given a visitor opens `/`, when the page renders, then the persistent simulation banner appears before the header and the hero states that no real assets or systems are connected.
 2. Given the hero renders, when the visitor reads it in DOM order, then the current-system ledger appears before the primary action on mobile and beside the statement on desktop.
 3. Given the visitor selects `Enter simulation`, when navigation completes, then `/trade?view=trade` opens with first-session education and `ZEC / USDC` as the default display market, with `Settles ZEC / USDC` visible.
-4. Given the visitor selects `Understand pZEC`, when the page moves to `#pzec`, then the custody-backed receipt, transparent native ZEC, and no-shielding boundaries are visible without another interaction.
+4. Given the visitor selects `Understand native pairs`, when the page moves to `#pairs`, then native ZEC against native USDC and USDT, and no-shielding boundaries, are visible without another interaction.
 5. Given the landing terminal slice renders, then it is labeled `Simulation` and contains no wallet balance, real address, reserve figure, transaction hash, fill, return, profit, countdown, or live-data claim.
 6. Given the repository URL is absent, then no GitHub placeholder or dead source link renders.
 7. Given a keyboard-only visitor, then skip link, header, menu, calls to action, tabs, disclosures, and footer links are reachable in logical order with visible focus.
