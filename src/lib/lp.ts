@@ -119,8 +119,8 @@ export type ImpermanentLossPreview = {
 };
 
 export const IL_PRICE_SCENARIOS = [
-  { label: "4x pZEC/quote", priceMultipleNumerator: 4n, priceMultipleDenominator: 1n },
-  { label: "1/4x pZEC/quote", priceMultipleNumerator: 1n, priceMultipleDenominator: 4n },
+  { label: "4x ZEC/quote", priceMultipleNumerator: 4n, priceMultipleDenominator: 1n },
+  { label: "1/4x ZEC/quote", priceMultipleNumerator: 1n, priceMultipleDenominator: 4n },
 ] as const;
 
 function integerSqrt(value: bigint): bigint {

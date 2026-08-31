@@ -12,6 +12,7 @@ import {
   lpResetNoticeCopy,
   lpSwapNoticeCopy,
   hypotheticalImpermanentLoss,
+  IL_PRICE_SCENARIOS,
   lpOperationAllowed,
   mintShares,
   realizedImpermanentLoss,
@@ -274,6 +275,13 @@ test("LP swap notice names ZEC-USDT from a real USDT mint then swap", () => {
     lpSwapNoticeCopy(outputLabel, pools[1].quote, markets["ZEC/USDT"].settlementPair),
     /native ZEC/,
   );
+});
+
+test("IL-versus-hold labels use ZEC/quote", () => {
+  assert.equal(IL_PRICE_SCENARIOS[0].label, "4x ZEC/quote");
+  assert.equal(IL_PRICE_SCENARIOS[1].label, "1/4x ZEC/quote");
+  assert.doesNotMatch(IL_PRICE_SCENARIOS[0].label, /pZEC/);
+  assert.doesNotMatch(IL_PRICE_SCENARIOS[1].label, /pZEC/);
 });
 
 test("hypothetical 4x IL equals the deposited quote on an even size", () => {
