@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after price-chart aria-label, wallet disconnect label, and LP mint notice name the settlement pair.
+Last updated: 31-08-2026 after LP burn notice, idle wallet title, and chart fixtures return name the settlement pair.
 
 ## Branch
 
@@ -117,15 +117,18 @@ Last updated: 31-08-2026 after price-chart aria-label, wallet disconnect label, 
 - Price chart aria-label and SVG title use `priceChartLabelCopy` and name the settlement pair from real market state.
 - Wallet disconnect control accessible name uses `walletDisconnectLabel` and names the settlement pair.
 - LP mint success notice uses `lpMintNoticeCopy` and names the settlement pair.
+- LP burn success notice uses `lpBurnNoticeCopy` from a real mint-then-burn and names the settlement pair. Local preview only.
+- Idle wallet connect title uses `walletConnectIdleTitle` and names the settlement pair.
+- After Retry illustrative from a withheld feed, the price chart img uses `priceChartLabelCopy` again.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- LP burn success notice should name the selected pool settlement pair
-- Wallet connect button title should name the settlement pair when idle
-- Chart withheld empty-state should keep using priceChartLabelCopy when fixtures return
+- LP swap success notice should name the selected pool settlement pair
+- Wallet connecting state should keep the settlement pair on the idle title
+- Chart 1H/1D img labels should update with the selected range after fixtures return
 
 ## Blockers
 
