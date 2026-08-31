@@ -442,10 +442,12 @@ test("ZIP 321 copy stays disabled without a gateway", async ({ page }) => {
 
 test("stale market data disables preview-to-sign and retries to illustrative", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
+  await expect(page.getByLabel("Market statistics").getByText("Session last · pZEC-USDC")).toBeVisible();
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
   await page.getByRole("combobox", { name: "Market data state" }).selectOption("stale");
   await expect(page.getByText("Market data stale", { exact: true })).toBeVisible();
+  await expect(page.getByText("The illustrative feed is marked delayed. Stale data cannot move from preview to confirm. Settled as pZEC-USDC.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
@@ -491,6 +493,7 @@ test("USDT market names USDT0 settlement and empty feed shows no depth", async (
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await page.getByRole("combobox", { name: "Market data state" }).selectOption("loading");
   await expect(page.getByText("Loading market data", { exact: true })).toBeVisible();
+  await expect(page.getByText("The ticket is waiting for a book snapshot. Retry is safe; nothing was submitted. Settled as pZEC-USDT0.")).toBeVisible();
 });
 
 test("LP preview shows integer IL versus hold", async ({ page }) => {
@@ -671,6 +674,7 @@ test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
   await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed.").first()).toBeVisible();
   await expect(page.getByRole("region", { name: "Selected market summary" }).getByRole("status")).toContainText("Settled as pZEC-USDC");
+  await expect(page.getByText("Integrity checks failed. Preview-to-sign is disabled. Retry is safe; nothing was submitted. Settled as pZEC-USDC.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await page.goto("/liquidity?feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
@@ -731,6 +735,8 @@ test("chart range uses a tablist and unavailable tape names the feed", async ({ 
   await expect(page.getByLabel("Asks")).toContainText("Market data unavailable");
   await expect(page.getByLabel("Asks")).toContainText("Settled as pZEC-USDC");
   await expect(page.getByRole("heading", { name: "Recent trades" })).toBeVisible();
+  await expect(page.getByRole("table", { name: /trades withheld.*Settled as pZEC-USDC/ })).toBeVisible();
+  await expect(page.getByText("Withheld · pZEC-USDC")).toBeVisible();
   await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDC.").first()).toBeVisible();
 });
 
