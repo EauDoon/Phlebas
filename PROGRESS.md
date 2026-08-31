@@ -64,14 +64,15 @@ Last updated: 31-08-2026 after PRODUCT_SPEC UI flows: payout tour claims, settle
 - Wallet connect failures are visible. Gateway issue shows an issuing state.
 - Review repeats assets, fees, custody, and public-linkability (PRODUCT_SPEC §10).
 - Empty feed shows empty depth. Loading feed disables review.
+- `/api/status` never copies a remote operator URL. `intentCap` is 64 only when the gateway URL is loopback HTTP. `sequenceRoot` stays null without a fetched loopback matcher.
+- Blotter tables scroll inside the panel so the settlement column cannot blow the 320px page.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (blocked on a Vercel deploy token in this session; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
-- Status `/api/status` should surface `intentCap` and `sequenceRoot` only when a loopback operator is configured; public Vercel stays without those URLs
-- Keyboard: blotter Cancel and Invalidate older session orders from the tab order at 320px
-- Density: pack blotter settlement column on 320px without horizontal overflow
+- Playwright: IOC remainder cancel and FOK reject-in-full from the ticket
+- Keyboard: blotter Cancel from the tab order at 320px
 
 ## Blockers
 

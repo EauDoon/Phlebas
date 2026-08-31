@@ -75,6 +75,7 @@ export function OrderBlotter({
         openOrders.length === 0 ? (
           <p className={styles.emptyState}>No open session orders. Venue fixture levels remain on the book.</p>
         ) : (
+          <div className={styles.tableScroll}>
           <table className={styles.dataTable}>
             <caption className={styles.srOnly}>Resting session orders on the local {marketId} book, settled as {market.settlementPair}</caption>
             <thead>
@@ -104,6 +105,7 @@ export function OrderBlotter({
               ))}
             </tbody>
           </table>
+          </div>
         )
       )}
       {tab === "orders" && (
@@ -122,6 +124,7 @@ export function OrderBlotter({
         marketFills.length === 0 ? (
           <p className={styles.emptyState}>No session fills yet. Submitting a simulated order can trade against the fixture book.</p>
         ) : (
+          <div className={styles.tableScroll}>
           <table className={styles.dataTable}>
             <caption className={styles.srOnly}>Session fills for {marketId}, settled as {market.settlementPair}</caption>
             <thead>
@@ -147,6 +150,7 @@ export function OrderBlotter({
               ))}
             </tbody>
           </table>
+          </div>
         )
       )}
 
