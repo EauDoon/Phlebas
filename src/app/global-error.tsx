@@ -16,6 +16,7 @@ export default function GlobalError({
             column-gap: 8px;
             row-gap: 8px;
             box-sizing: border-box;
+            width: 100%;
             max-width: 100%;
             padding: 8px;
           }
