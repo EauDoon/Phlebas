@@ -2042,7 +2042,7 @@ a.skipLink:focus-visible {
     right: auto;
     bottom: auto;
     left: auto;
-    z-index: auto;
+    z-index: 1;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
