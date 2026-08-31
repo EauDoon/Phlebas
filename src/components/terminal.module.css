@@ -60,15 +60,15 @@
   scroll-margin-top: 12px;
 }
 
-#missing-route {
+:global(#missing-route) {
   min-height: 44px;
 }
 
-#missing-route p {
+:global(#missing-route) p {
   min-height: 44px;
 }
 
-#withheld-price {
+:global(#withheld-price) {
   min-height: 44px;
 }
 
