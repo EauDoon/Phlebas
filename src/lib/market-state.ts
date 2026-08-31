@@ -63,3 +63,43 @@ export function ticketGate(status: FeedStatus, bookEmpty: boolean): TicketGate {
     asOf: null,
   };
 }
+
+export function feedSurface(status: FeedStatus): {
+  showFixtures: boolean;
+  heading: string;
+  message: string;
+} {
+  if (status === "loading") {
+    return {
+      showFixtures: false,
+      heading: "Loading market data",
+      message: "Chart and 24h stats are waiting for a snapshot. Retry is safe.",
+    };
+  }
+  if (status === "unavailable") {
+    return {
+      showFixtures: false,
+      heading: "Market data unavailable",
+      message: "Chart and 24h stats are withheld. Integrity checks failed.",
+    };
+  }
+  if (status === "stale") {
+    return {
+      showFixtures: true,
+      heading: "Market data stale",
+      message: "Delayed illustrative series. As of 2026-08-30T16:32:08Z.",
+    };
+  }
+  if (status === "empty") {
+    return {
+      showFixtures: false,
+      heading: "Order book empty",
+      message: "No 24h stats or chart series. The local book has no resting depth.",
+    };
+  }
+  return {
+    showFixtures: true,
+    heading: "Illustrative",
+    message: "Repository fixtures. Not a live, delayed, or production feed.",
+  };
+}

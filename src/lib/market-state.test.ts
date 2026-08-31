@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isFeedStatus, ticketGate } from "./market-state.ts";
+import { feedSurface, isFeedStatus, ticketGate } from "./market-state.ts";
 
 test("illustrative data with a book can move from preview to confirm", () => {
   const gate = ticketGate("illustrative", false);
@@ -20,6 +20,16 @@ test("stale and unavailable feeds disable preview-to-sign", () => {
   assert.equal(ticketGate("stale", false).asOf, "2026-08-30T16:32:08Z");
   assert.equal(ticketGate("unavailable", false).canReview, false);
   assert.equal(ticketGate("loading", false).canReview, false);
+});
+
+test("chart and stats withhold fixtures for empty, loading, and unavailable feeds", () => {
+  assert.equal(feedSurface("illustrative").showFixtures, true);
+  assert.equal(feedSurface("stale").showFixtures, true);
+  assert.match(feedSurface("stale").message, /As of 2026-08-30T16:32:08Z/);
+  assert.equal(feedSurface("empty").showFixtures, false);
+  assert.equal(feedSurface("loading").showFixtures, false);
+  assert.equal(feedSurface("unavailable").showFixtures, false);
+  assert.match(feedSurface("unavailable").message, /withheld/);
 });
 
 test("allowlists only documented feed states", () => {
