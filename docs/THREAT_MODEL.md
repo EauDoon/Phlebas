@@ -567,3 +567,95 @@ Stop conditions that must halt the leg and surface to the user:
 * Cross-chain generalized message passing. The swap is a strict
   hash-and-deadline protocol.
 
+## 19. ZEC half of the atomic swap (transparent P2SH)
+
+The ZEC leg of the atomic swap uses a transparent P2SH output that holds
+ZEC until either the buyer reveals the preimage on the Zcash claim
+path or the seller refunds after the lock time. The design is fixed
+in [ADR 0005](adr/0005-zcash-p2sh-atomic-swap.md).
+
+### 19.1 Contract guarantees
+
+The atomic-swap script encodes two terminal outcomes of one fill. The
+claim branch reveals the preimage and signs with the buyer's key. The
+refund branch waits for the lock time and signs with the seller's key.
+The script is a single byte string that the matcher, the wallet
+adapter, and the offchain observers all reconstruct from the same
+fill terms; a divergence is a stop condition.
+
+The transparent address encoder uses the published testnet and mainnet
+version bytes. The Base58Check checksum fails closed on a wrong-network
+or corrupt address. The compressed secp256k1 public key parser rejects
+a wrong length, a wrong prefix, and a leading zero in the x coordinate.
+
+The wallet adapter is a typed interface. It returns an unsigned
+transaction and a transaction id. The signing surface is an injected
+callback. The interface never reads a key from disk and never holds a
+key in memory. The hash function used by the address encoder is the
+Node-native `ripemd160`; the browser path is a follow-up because Web
+Crypto does not expose `ripemd160`.
+
+### 19.2 Adversaries and required controls
+
+| Adversary | Goal | Required control |
+| --- | --- | --- |
+| Counterparty | Take the ZEC and skip the preimage reveal | The claim branch requires the preimage; the refund branch requires the lock time |
+| Frontend attacker | Trick the funder into sending ZEC to an attacker-controlled P2SH | The script hash and the address must match between the matcher, the wallet adapter, and the wallet display |
+| Pauser / governor | Pause and trap user funds | There is no admin role on the ZEC side. The ZEC lock surface has no admin transfer path. |
+| Reorg or chain split | Reverse a claim or refund | The offchain coordinator and the watchtower surface reorg events and freeze the swap |
+| Wrong script bytes | Lure the funder into a non-atomic P2SH | The script builder is deterministic and the script hash is replayed in the coordinator |
+| Wrong pubkey | Lure the buyer into signing the seller's P2PKH | The buyer pubkey and the seller pubkey must differ; the builder rejects equal pubkeys |
+
+### 19.3 Invariants and stop conditions
+
+The ZEC leg of every fill must satisfy the following invariants. A
+violation moves the fill to a disputed state and triggers a watcher
+alert.
+
+1. The script is a single byte string that round-trips through the
+   parser.
+2. The script hash is the same on the matcher, the wallet adapter,
+   and the offchain coordinator.
+3. The lock time is strictly later than the EVM refund deadline.
+4. The buyer pubkey and the seller pubkey are different.
+5. The 20-byte hash in the claim branch matches `RIPEMD160(SHA256(preimage))`.
+6. The hash function is `OP_HASH160` (which is
+   `RIPEMD160(SHA256(x))`). No other hash function is used.
+7. The signing surface is not active in this PR. The signing flag
+   stays off.
+
+Stop conditions that must halt the leg and surface to the user:
+
+* the script and the address diverge between the matcher and the wallet
+  adapter;
+* the lock time is not strictly later than the EVM refund deadline;
+* the buyer and seller pubkeys are equal;
+* the preimage revealed on the ZEC chain does not match the EVM hash;
+* the ZEC chain reorganizes above the configured confirmation depth
+  after a claim or refund;
+* the underlying Zcash node returns a wrong script, a wrong address,
+  or a wrong transaction;
+* a wallet is asked to sign a transaction whose outputs do not match
+  the agreed terms.
+
+### 19.4 Test coverage
+
+| Invariant | Test |
+| --- | --- |
+| 1 | `zcash-atomic-swap.test.ts::buildAtomicSwapScript produces a script that round-trips through parseAtomicSwapScript` |
+| 2 | `zcash-wallet-adapter.test.ts::hashAtomicSwapParams returns a deterministic hex string` |
+| 3 | `zcash-atomic-swap.test.ts::buildRefundBranch rejects a lock time out of uint32 range` |
+| 4 | `zcash-atomic-swap.test.ts::buildAtomicSwapScript rejects identical buyer and seller pubkeys` |
+| 5 | `preimage.test.ts::hashPreimage matches the pinned vector` |
+| 6 | `zcash-script.test.ts::OP table exports the canonical Bitcoin/Zcash opcodes` |
+| 7 | `docs/adr/0005-zcash-p2sh-atomic-swap.md` and the test-only signing-surface absence check |
+
+### 19.5 Out of scope for the ZEC leg
+
+* Shielded ZEC. The current lock surface uses the transparent pool.
+* Custodial or wrapped representations of ZEC. ADR 0001 is superseded.
+* Cross-chain generalized message passing. The swap is a strict
+  hash-and-deadline protocol.
+* A live wallet integration. The signing surface ships only with the
+  wallet adapter in a later PR.
+
