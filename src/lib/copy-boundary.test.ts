@@ -306,3 +306,31 @@ test("architecture and accounting no longer list pZEC as the candidate ERC-20 fo
   assert.match(await readFile(join(root, "src/lib/review-copy.ts"), "utf8"), /ZEC custody and redemption/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/review-copy.ts"), "utf8"), /pZEC/);
 });
+
+test("remaining docs no longer list pZEC as the candidate ERC-20 form", async () => {
+  const adr2 = await readFile(join(root, "docs/adr/0002-native-zec-usdc-usdt.md"), "utf8");
+  assert.match(adr2, /undeployed 8-decimal receipt symbol is `tZEC`/);
+  assert.match(adr2, /that name is not the current listed form/);
+  assert.doesNotMatch(adr2, /Custody-backed `pZEC` remains the candidate ERC-20 claim/);
+  const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
+  assert.match(journeys, /Section ID: `pairs`/);
+  assert.match(journeys, /Native labels are simulation names, not live settlement/);
+  assert.doesNotMatch(journeys, /### pZEC boundary/);
+  assert.doesNotMatch(journeys, /Section ID: `pzec`/);
+  assert.doesNotMatch(journeys, /understand_pzec/);
+  const threat = await readFile(join(root, "docs/THREAT_MODEL.md"), "utf8");
+  assert.match(threat, /represented on Arbitrum One as tZEC/);
+  assert.doesNotMatch(threat, /represented on Arbitrum One as pZEC/);
+  assert.doesNotMatch(threat, /The candidate ERC-20 form remains pZEC/);
+  const readme = await readFile(join(root, "README.md"), "utf8");
+  assert.match(readme, /Settlement ZEC \(`tZEC`\)/);
+  assert.doesNotMatch(readme, /ASSET_AND_ACCOUNTING\.md` \| pZEC/);
+  assert.doesNotMatch(await readFile(join(root, "docs/LAUNCH_PLAN.md"), "utf8"), /mint redeemable pZEC/);
+  assert.doesNotMatch(await readFile(join(root, "docs/LEGAL_AND_COMPLIANCE.md"), "utf8"), /mints or burns pZEC/);
+  assert.doesNotMatch(await readFile(join(root, "docs/OPERATIONS.md"), "utf8"), /pZEC supply plus pending deposit refunds/);
+  assert.doesNotMatch(await readFile(join(root, "docs/DELIVERY_PLAN.md"), "utf8"), /what pZEC means/);
+  const wallet = await readFile(join(root, "docs/WALLET_COMPATIBILITY.md"), "utf8");
+  assert.match(wallet, /mint redeemable `tZEC`/);
+  assert.doesNotMatch(wallet, /mint redeemable `pZEC`/);
+  assert.match(wallet, /which remains historical/);
+});
