@@ -52,7 +52,14 @@ test("landing and terminal banners stay simulation-only", async () => {
   );
   assert.match(landing, /Open status details/);
   assert.match(landing, /Legal and compliance/);
+  assert.match(landing, /Choose what to inspect/);
   assert.doesNotMatch(landing, /github.com/);
+  const journeys = await readFile(join(root, "src/lib/landing-journeys.ts"), "utf8");
+  assert.match(journeys, /Preview trading/);
+  assert.match(journeys, /Preview liquidity/);
+  assert.match(journeys, /Preview deposit states/);
+  assert.match(journeys, /Preview withdrawal states/);
+  assert.doesNotMatch(journeys, /^Deposit ZEC$/m);
 });
 
 test("robots and security headers keep the public app noindex", async () => {

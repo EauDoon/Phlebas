@@ -145,6 +145,9 @@ for (const width of viewports) {
           await expect(page.getByText("Deny by default", { exact: true })).toBeVisible();
           await expect(page.getByRole("link", { name: "Open status details" })).toBeVisible();
           await expect(page.getByRole("contentinfo").getByRole("link", { name: "Legal and compliance" })).toBeVisible();
+          await expect(page.getByRole("heading", { name: "Choose what to inspect." })).toBeVisible();
+          await expect(page.getByRole("tab", { name: "Trader" })).toBeVisible();
+          await expect(page.getByRole("tab", { name: "Withdrawal" })).toBeVisible();
         }
       }
 
@@ -175,7 +178,14 @@ for (const width of viewports) {
       )).toBeVisible();
 
       await page.goto("/", { waitUntil: "networkidle" });
-      const lpLink = page.getByRole("link", { name: "Open LP preview" });
+      const traderTab = page.getByRole("tab", { name: "Trader" });
+      await tabTo(page, traderTab);
+      await expectVisibleFocus(traderTab);
+      await page.keyboard.press("ArrowRight");
+      const lpTab = page.getByRole("tab", { name: "LP" });
+      await expectVisibleFocus(lpTab);
+      await page.keyboard.press("Enter");
+      const lpLink = page.getByRole("link", { name: "Preview liquidity" });
       await tabTo(page, lpLink);
       await expectVisibleFocus(lpLink);
       await page.keyboard.press("Enter");

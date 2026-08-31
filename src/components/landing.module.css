@@ -94,6 +94,9 @@
 }
 
 .desktopNav a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 570;
@@ -532,6 +535,73 @@
 
 .journeySection {
   grid-template-columns: minmax(260px, 0.55fr) minmax(0, 1.45fr);
+}
+
+.journeyChooser {
+  display: grid;
+  align-content: start;
+  gap: 0;
+}
+
+.journeyTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.journeyTabs button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.journeyTabs button[aria-selected="true"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.journeyPanel {
+  display: grid;
+  gap: 14px;
+  padding: 28px 0 8px;
+}
+
+.journeyPanel[hidden] {
+  display: none;
+}
+
+.journeyPanel h3 {
+  font-size: clamp(19px, 2vw, 28px);
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+
+.journeyPanel p {
+  max-width: 520px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.journeyPanel > a {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 44px;
+  align-items: center;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.journeyPanel > a span {
+  margin-left: 22px;
 }
 
 .journeyList {
