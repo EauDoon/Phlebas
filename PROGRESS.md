@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after skip-nav gutter shrink to 44px, 404/loading two-up, bridge leftover, architecture 320 ring, status 768 two-up, and word-break max-width.
+Last updated: 01-09-2026 after skip-nav 44px trailing lock, error and country-block two-up, architecture leftover at 390px, and loading/404/bridge two-up at 768px.
 
 ## Branch
 
@@ -307,16 +307,23 @@ Last updated: 01-09-2026 after skip-nav gutter shrink to 44px, 404/loading two-u
 - Architecture skip-nav at 320px stays two-up with the 2px ring inside the viewport
 - Status skip-nav at 768px stays two-up with the 2px ring inside the viewport
 - Playwright covers gutter 44px, 404/loading two-up, bridge leftover, architecture 320 ring, status 768, and word-break overflow
+- Trailing `max-width: 820px` skip-link rule keeps `min-width`/`min-height` 44px after skip-nav `min-width: 0`
+- Trailing skip-link `flex: 1 1 calc(50% - 4px)` keeps two-up after reduced-motion
+- Error-page skip-nav stays two-up at 320px
+- Country-block skip-nav stays two-up at 320px
+- Architecture skip links stay at least 44px at 390px
+- Loading, 404, and bridge skip-nav stay two-up at 768px with the 2px ring inside the viewport
+- Playwright covers error and country-block two-up, architecture 390 leftover, and 768 loading/404/bridge two-up
 
 ## Next
 
-- Error-page skip-nav should stay two-up at 320px
-- Country-block skip-nav (two links) should stay two-up at 320px
-- Architecture leftover skip links should stay at least 44px at 390px
-- Loading skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
-- 404 skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
-- Bridge skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
-- Skip-nav `min-width: 0` should not shrink skip links below 44px at 320px
+- Global-error skip-nav should keep 44px Retry and two-up skip links at 320px
+- Liquidity skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
+- Country-block skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
+- Architecture skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
+- Error-page skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
+- Legal skip-nav leftover should stay at least 44px at 390px
+- Skip-nav trailing two-up flex should not overflow the 320px viewport after the 8px column-gap
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
