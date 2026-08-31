@@ -88,6 +88,28 @@ test("LP pause notice names the newly selected pool after a switch while paused"
   );
 });
 
+test("LP lifted pause notice names the newly selected pool after a switch", () => {
+  assert.equal(markets["ZEC/USDC"].settlementPair, "pZEC-USDC");
+  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  const usdcLifted = lpPauseNoticeCopy(markets["ZEC/USDC"].settlementPair, false);
+  assert.equal(
+    usdcLifted,
+    "Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDC.",
+  );
+  assert.equal(isLpPauseNotice(usdcLifted), true);
+  const usdt0Lifted = lpPauseNoticeCopy(markets["ZEC/USDT"].settlementPair, false);
+  assert.equal(
+    usdt0Lifted,
+    "Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDT0.",
+  );
+  assert.equal(isLpPauseNotice(usdt0Lifted), true);
+  const minted = mintShares(seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms), 10_00000000n);
+  assert.equal(
+    isLpPauseNotice(lpMintNoticeCopy(minted.shares, markets["ZEC/USDC"].settlementPair)),
+    false,
+  );
+});
+
 test("LP pause notice names pZEC-USDT0 from a real USDT0 pool", () => {
   const pool = seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms);
   assert.ok(pool.totalShares > 0n);

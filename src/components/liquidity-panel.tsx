@@ -267,9 +267,7 @@ export function LiquidityPanel({
     }
   }
 
-  const liveNotice = isLpPauseNotice(notice) && tradingPaused
-    ? lpPauseNoticeCopy(markets[marketId].settlementPair, tradingPaused)
-    : notice;
+  const liveNotice = isLpPauseNotice(notice) ? lpPauseNoticeCopy(markets[marketId].settlementPair, tradingPaused) : notice;
 
   return (
     <div className={styles.featureGrid}>

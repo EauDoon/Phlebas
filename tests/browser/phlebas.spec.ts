@@ -541,6 +541,19 @@ test("LP pause notice names the newly selected pool after a pool switch", async 
   await expect(page.getByText("Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDT0.")).toBeVisible();
 });
 
+test("LP lifted pause notice names the newly selected pool after a pool switch", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Pause trading preview" }).click();
+  await expect(page.getByText("Trading paused. LP withdrawal remains available. Settled as pZEC-USDC.")).toBeVisible();
+  await page.getByRole("button", { name: "Resume trading preview" }).click();
+  await expect(page.getByText("Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDC.")).toBeVisible();
+  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
+  await expect(page.getByRole("button", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDT0.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeEnabled();
+});
+
 test("LP pause notice names pZEC-USDT0 on the USDT0 pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
@@ -748,7 +761,8 @@ test("connecting wallet title keeps the settlement pair", async ({ page }) => {
     Object.defineProperty(window, "ethereum", {
       configurable: true,
       value: {
-        request() {
+        request(args: { method: string }) {
+          void args;
           return new Promise(() => {});
         },
       },
@@ -770,7 +784,8 @@ test("connecting wallet title keeps settlement after switching market", async ({
     Object.defineProperty(window, "ethereum", {
       configurable: true,
       value: {
-        request() {
+        request(args: { method: string }) {
+          void args;
           return new Promise(() => {});
         },
       },
