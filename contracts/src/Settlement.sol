@@ -39,7 +39,7 @@ contract Settlement {
         uint8 allowedVenues;
     }
 
-    address public immutable pzec;
+    address public immutable zec;
     address public immutable usdc;
     address public immutable usdt;
     address public feeRecipient;
@@ -68,14 +68,14 @@ contract Settlement {
     error Transfer();
 
     constructor(
-        address pzec_,
+        address zec_,
         address usdc_,
         address usdt_,
         address feeRecipient_,
         address pauser_,
         address governor_
     ) {
-        pzec = pzec_;
+        zec = zec_;
         usdc = usdc_;
         usdt = usdt_;
         feeRecipient = feeRecipient_;
@@ -159,7 +159,7 @@ contract Settlement {
         _assertLiveOrder(makerOrder, makerSignature);
         _assertLiveOrder(takerOrder, takerSignature);
         if (makerOrder.side == takerOrder.side) revert Side();
-        if (makerOrder.baseAsset != pzec || takerOrder.baseAsset != pzec) revert Pair();
+        if (makerOrder.baseAsset != zec || takerOrder.baseAsset != zec) revert Pair();
         if (makerOrder.quoteAsset != takerOrder.quoteAsset) revert Pair();
         _assertQuote(makerOrder.quoteAsset);
         if (baseFillAmount == 0) revert Fill();
@@ -197,7 +197,7 @@ contract Settlement {
         filled[makerHash] += baseFillAmount;
         filled[takerHash] += baseFillAmount;
 
-        if (!_transfer(pzec, seller, buyerRecipient, baseFillAmount)) revert Transfer();
+        if (!_transfer(zec, seller, buyerRecipient, baseFillAmount)) revert Transfer();
         if (!_transfer(makerOrder.quoteAsset, buyer, sellerRecipient, sellerReceives - sellerFee)) revert Transfer();
         if (buyerFee + sellerFee > 0) {
             if (!_transfer(makerOrder.quoteAsset, buyer, feeRecipient, buyerFee + sellerFee + (buyerPays - sellerReceives))) {

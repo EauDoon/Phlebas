@@ -5,7 +5,7 @@ import {Pair} from "./Pair.sol";
 
 /// @notice Creates only the two approved testnet pairs. No fee switch. Non-upgradeable.
 contract Factory {
-    address public immutable pzec;
+    address public immutable zec;
     address public immutable usdc;
     address public immutable usdt;
 
@@ -16,10 +16,10 @@ contract Factory {
     error PairNotAllowed();
     error ZeroAddress();
 
-    constructor(address pzec_, address usdc_, address usdt_) {
-        if (pzec_ == address(0) || usdc_ == address(0) || usdt_ == address(0)) revert ZeroAddress();
-        if (pzec_ == usdc_ || pzec_ == usdt_ || usdc_ == usdt_) revert PairNotAllowed();
-        pzec = pzec_;
+    constructor(address zec_, address usdc_, address usdt_) {
+        if (zec_ == address(0) || usdc_ == address(0) || usdt_ == address(0)) revert ZeroAddress();
+        if (zec_ == usdc_ || zec_ == usdt_ || usdc_ == usdt_) revert PairNotAllowed();
+        zec = zec_;
         usdc = usdc_;
         usdt = usdt_;
     }
@@ -33,10 +33,10 @@ contract Factory {
 
     function createPair(address quote) external returns (address pair) {
         if (quote != usdc && quote != usdt) revert PairNotAllowed();
-        if (getPair[pzec][quote] != address(0)) revert PairExists();
-        pair = address(new Pair(pzec, quote));
-        getPair[pzec][quote] = pair;
-        getPair[quote][pzec] = pair;
+        if (getPair[zec][quote] != address(0)) revert PairExists();
+        pair = address(new Pair(zec, quote));
+        getPair[zec][quote] = pair;
+        getPair[quote][zec] = pair;
         allPairs[quote == usdc ? 0 : 1] = pair;
     }
 }
