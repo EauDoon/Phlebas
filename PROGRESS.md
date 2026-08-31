@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after session order expiry, market-IOC Playwright, and IL-versus-hold on `/liquidity`.
+Last updated: 31-08-2026 after matcher unix expiry, LP mint/swap review, rejected ticket panel, blotter tabpanels, and `/legal` `/security`.
 
 ## Branch
 
@@ -74,13 +74,23 @@ Last updated: 31-08-2026 after session order expiry, market-IOC Playwright, and 
 - Session ticket expiry is unix time or 0 for none. It binds the SHA-256 canonical encoding and the keccak typed order.
 - Playwright covers market-IOC worst price, expiry on review, IL versus hold, and `/status` intent-cap `unset`.
 - Ticket shows the next session nonce beside epoch. Invalid expiry keeps review closed.
+- Session blotter log line includes expiry when a ticket is confirmed. Nonce-bitmap helper matches Settlement.sol (`word = nonce >> 8`, `bit = 1 << uint8(nonce)`).
+- In-browser matcher rejects a taker whose unix expiry has passed and drops resting orders after that unix time. Replay still omits `nowUnix` so a logged submit reconstructs.
+- Ticket shows a rejected panel (role=alert) for expiry, matcher reject, inventory, and self-trade. Retry is safe.
+- LP mint and swap use review-and-confirm repeating PRODUCT_SPEC §10 (assets, worst price, fees, custody, public-linkability). Burn stays immediate.
+- Blotter tabs expose one tabpanel each, with arrow/Home/End keys.
+- `/legal` and `/security` simulation pages. Landing, terminal, status, and frame nav cross-link them.
 
 ## Next
 
-- Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
-- Redeploy the public Vercel UI after this PR merges (blocked on a Vercel deploy token in this session; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
+- Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
+- Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Session blotter log line includes expiry when a ticket is confirmed
+- Landing journey chooser as four manually activated tabs (Trader, LP, Deposit, Withdrawal)
+- ZIP 321 deposit QR is still copy-only; render a non-payable placeholder QR and keep the clipboard failure honest
+- Chart and 24h stats should name empty, stale, and unavailable feeds the way the ticket gate does
+- LP panel loading/empty/stale/unavailable states (PRODUCT_SPEC §10)
+- Playwright: unavailable-feed gate, blotter arrow keys, and clipboard failure on the destination inspector
 
 ## Blockers
 
