@@ -1162,6 +1162,10 @@
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
+    padding: 0;
+    gap: 0;
+    min-width: 0;
+    min-height: 0;
   }
 
   .skipNav:focus-within {
@@ -1172,5 +1176,7 @@
     height: auto;
     overflow: visible;
     clip-path: none;
+    padding: 4px;
+    gap: 4px;
   }
 }
