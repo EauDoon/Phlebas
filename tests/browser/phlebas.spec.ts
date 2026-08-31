@@ -3163,7 +3163,8 @@ test("education disabled Back sticky copy Continue ring leftover 390 768 and ski
   expect(copyBottomContent).toBeLessThanOrEqual(tourTop + 1);
 
   const continueButton = dialog.getByRole("button", { name: "Continue" });
-  await continueButton.focus();
+  await tabTo(page, continueButton);
+  await expect(continueButton).toBeFocused();
   const continueRing = await continueButton.evaluate((element) => {
     const style = getComputedStyle(element);
     const parent = element.closest("dialog");
