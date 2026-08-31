@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after status incident copy, review-locked ticket shortcuts, and pool-specific empty-share LP copy.
+Last updated: 31-08-2026 after the /status Architecture link keeps the demonstration label, /api/status incidents coverage, and empty-share copy that clears after mint.
 
 ## Branch
 
@@ -94,16 +94,17 @@ Last updated: 31-08-2026 after status incident copy, review-locked ticket shortc
 - Education dialog Continue and the incident select stay at least 44px tall at 320px.
 - `/status` and `/api/status` name incidents as `architecture-demonstration`. The page links to Architecture and says the copy is not a live outage.
 - Ticket G/I/F stay locked during review-and-confirm. Escape still leaves review.
-- Empty session LP shares name the selected pool (`pZEC/USDC` or `pZEC/USDT0`) and are not an order-book empty notice.
+- Empty session LP shares name the selected pool (`pZEC/USDC` or `pZEC/USDT0`) and are not an order-book empty notice. The notice clears after a mint.
+- `/status` Architecture link uses allowlisted `demo=incidents` and keeps the `architecture-demonstration` label on the incident panel.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Architecture incident select should be reachable from `/status` without losing the demonstration label
-- LP empty-share copy should clear after a successful mint, not only on pool switch
-- Playwright: `/api/status` incidents field and Architecture link from `/status`
+- Invalid `demo=` values should fall back without an error loop (already allowlisted; pin in Playwright)
+- Architecture view should keep `demo=incidents` in the URL when switching markets
+- Blotter empty-share analogue: open-orders empty copy still does not name the settlement pair
 
 ## Blockers
 
