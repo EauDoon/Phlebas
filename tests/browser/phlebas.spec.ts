@@ -331,6 +331,26 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   await expect(page.getByText("Simulation only", { exact: true })).toBeVisible();
 });
 
+test("/api/status publishes incidents as architecture-demonstration", async ({ page }) => {
+  const response = await page.request.get("/api/status");
+  expect(response.ok(), "/api/status response").toBe(true);
+  const body = await response.json() as { incidents?: string; liveFunds?: boolean; mode?: string };
+  expect(body.incidents).toBe("architecture-demonstration");
+  expect(body.liveFunds).toBe(false);
+  expect(body.mode).toBe("simulation");
+});
+
+test("status Architecture link keeps the demonstration label", async ({ page }) => {
+  await page.goto("/status", { waitUntil: "networkidle" });
+  await page.getByRole("link", { name: "Architecture incident demonstrations" }).click();
+  await expect(page).toHaveURL(/view=architecture/);
+  await expect(page).toHaveURL(/demo=incidents/);
+  await expect(page.getByText("architecture-demonstration")).toBeVisible();
+  await expect(page.getByText("State demonstration").first()).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Gateway incident demonstration" })).toBeVisible();
+  await expect(page.getByText("Labeled demonstration, not a live outage.")).toBeVisible();
+});
+
 test("public operator APIs stay unavailable without a loopback operator URL", async ({ page }) => {
   const gateway = await page.request.post("/api/deposit-intent");
   expect(gateway.status()).toBe(503);
@@ -652,6 +672,15 @@ test("LP empty-share copy names the selected pool", async ({ page }) => {
   await expect(page.getByText("No session LP shares in pZEC/USDT0.")).toBeVisible();
   await page.getByRole("button", { name: "Burn session shares" }).click();
   await expect(page.getByText("No session LP shares in pZEC/USDT0. Burn stays idle until a local mint.").first()).toBeVisible();
+});
+
+test("LP empty-share copy clears after a mint", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await expect(page.getByText("No session LP shares in pZEC/USDC.")).toBeVisible();
+  await page.getByRole("button", { name: "Review simulated mint" }).click();
+  await page.getByRole("button", { name: "Confirm simulated mint" }).click();
+  await expect(page.getByText(/Minted .* local LP shares/)).toBeVisible();
+  await expect(page.getByText("No session LP shares in pZEC/USDC.")).toHaveCount(0);
 });
 
 test("ticket G I F shortcuts set time in force and ignore an open dialog", async ({ page }) => {
