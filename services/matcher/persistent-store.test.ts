@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import type { TypedOrderIntent } from "../../src/lib/eip712-order.ts";
-import { createOrderDomain } from "../../src/lib/eip712-order.ts";
+import { createOrderDomain, hashOrderDomain } from "../../src/lib/eip712-order.ts";
 import { keccak256Text } from "../../src/lib/keccak.ts";
 import type { MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
 import { matcherStateRoot, type PersistentMatcherConfiguration, type PersistentMatcherEvent } from "../../src/lib/persistent-matcher.ts";
@@ -40,6 +40,7 @@ const configuration: PersistentMatcherConfiguration = {
     quoteRequiredConfirmations: 65,
   },
   solverQuotePolicy: {
+    matcherDomainHash: hashOrderDomain(domain),
     baseNetwork,
     baseAsset,
     quoteNetwork,

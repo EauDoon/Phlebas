@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { AtomicSwapPolicy, WalletSettlementAccounts } from "./atomic-swap-plan.ts";
-import { createOrderDomain, hashTypedOrder, type TypedOrderIntent } from "./eip712-order.ts";
+import { createOrderDomain, hashOrderDomain, hashTypedOrder, type TypedOrderIntent } from "./eip712-order.ts";
 import { keccak256Text } from "./keccak.ts";
 import { compareExecutableRoutes, type RestingRouteOrder } from "./matcher-routing.ts";
 import type { MatcherSignatureVerifier } from "./matcher-auth.ts";
@@ -31,6 +31,7 @@ const atomicSwapPolicy: AtomicSwapPolicy = {
   quoteRequiredConfirmations: 65,
 };
 const solverPolicy: SolverQuotePolicy = {
+  matcherDomainHash: hashOrderDomain(orderDomain),
   baseNetwork,
   baseAsset,
   quoteNetwork,
@@ -86,6 +87,7 @@ function solver(name: string, side: 0 | 1, price: bigint, capacity: bigint, sequ
     : `${quoteNetwork}:0x${(sequence + 300n).toString(16).padStart(40, "0")}`;
   const value: SolverQuote = {
     version: 1,
+    matcherDomainHash: hashOrderDomain(orderDomain),
     solverAccountId: accountIdentifier(sourceAccount),
     authorizedSignerId: accountIdentifier(`${quoteNetwork}:solver-signer-${name}`),
     recipientAccountId: accountIdentifier(recipientAccount),

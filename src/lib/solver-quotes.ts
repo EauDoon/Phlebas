@@ -25,6 +25,7 @@ export type SolverPricePolicy =
 
 export type SolverQuote = Readonly<{
   version: typeof SOLVER_QUOTE_VERSION;
+  matcherDomainHash: Hex32;
   solverAccountId: Hex32;
   authorizedSignerId: Hex32;
   recipientAccountId: Hex32;
@@ -46,6 +47,7 @@ export type SolverQuote = Readonly<{
 }>;
 
 export type SolverQuotePolicy = Readonly<{
+  matcherDomainHash: Hex32;
   baseNetwork: string;
   baseAsset: string;
   quoteNetwork: string;
@@ -131,6 +133,10 @@ function assertCurveSlippage(quote: SolverQuote, levels: readonly Readonly<{ pri
 
 export function assertSolverQuote(quote: SolverQuote, policy: SolverQuotePolicy, nowSeconds: bigint): void {
   if (quote.version !== SOLVER_QUOTE_VERSION) throw new Error("Solver quote version is unsupported");
+  if (normalizeHex32(quote.matcherDomainHash, "Solver matcher domain hash")
+    !== normalizeHex32(policy.matcherDomainHash, "Configured matcher domain hash")) {
+    throw new Error("Solver quote does not bind the configured matcher domain");
+  }
   if (quote.side !== 0 && quote.side !== 1) throw new RangeError("Solver quote side is invalid");
   assertCanonicalPair(quote, policy);
   if (quote.settlementProtocolVersion !== policy.settlementProtocolVersion
@@ -168,6 +174,7 @@ function quotePayload(quote: SolverQuote): string {
   return [
     "PhlebasSolverQuote",
     `version=${quote.version}`,
+    `matcherDomainHash=${normalizeHex32(quote.matcherDomainHash, "Solver matcher domain hash")}`,
     `solverAccountId=${normalizeHex32(quote.solverAccountId, "Solver account ID")}`,
     `authorizedSignerId=${normalizeHex32(quote.authorizedSignerId, "Solver authorized signer ID")}`,
     `recipientAccountId=${normalizeHex32(quote.recipientAccountId, "Solver recipient account ID")}`,

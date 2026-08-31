@@ -88,6 +88,7 @@ function serializedPricePolicy(policy: SolverPricePolicy): SerializedObject {
 function serializedQuote(quote: SolverQuote): SerializedObject {
   return {
     version: quote.version,
+    matcherDomainHash: quote.matcherDomainHash,
     solverAccountId: quote.solverAccountId,
     authorizedSignerId: quote.authorizedSignerId,
     recipientAccountId: quote.recipientAccountId,
@@ -241,7 +242,7 @@ function deserializePricePolicy(value: JournalValue | undefined): SolverPricePol
 function deserializeQuote(value: JournalValue | undefined): SolverQuote {
   const quote = objectValue(value, "Serialized solver quote");
   assertExactKeys(quote, [
-    "version", "solverAccountId", "authorizedSignerId", "recipientAccountId", "sourceAccount",
+    "version", "matcherDomainHash", "solverAccountId", "authorizedSignerId", "recipientAccountId", "sourceAccount",
     "recipientAccount", "baseNetwork", "baseAsset", "quoteNetwork", "quoteAsset", "side",
     "capacityBaseAtoms", "minimumFillBaseAtoms", "pricePolicy", "maximumSlippageBps", "feeBps",
     "nonce", "expirySeconds", "settlementProtocolVersion",
@@ -252,6 +253,7 @@ function deserializeQuote(value: JournalValue | undefined): SolverQuote {
   if (side !== 0 && side !== 1) throw new RangeError("Solver quote side is invalid");
   return {
     version,
+    matcherDomainHash: hex32Value(quote.matcherDomainHash, "Solver matcher domain hash"),
     solverAccountId: hex32Value(quote.solverAccountId, "Solver account ID"),
     authorizedSignerId: hex32Value(quote.authorizedSignerId, "Solver authorized signer ID"),
     recipientAccountId: hex32Value(quote.recipientAccountId, "Solver recipient account ID"),

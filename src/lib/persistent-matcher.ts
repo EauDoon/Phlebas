@@ -168,6 +168,9 @@ function assertConfiguration(configuration: PersistentMatcherConfiguration): voi
   if (hashOrderDomain(configuration.atomicSwapPolicy.orderDomain) !== hashOrderDomain(configuration.domain)) {
     throw new Error("Atomic-swap policy does not bind the matcher order domain");
   }
+  if (normalizeHex32(configuration.solverQuotePolicy.matcherDomainHash, "Solver matcher domain hash") !== hashOrderDomain(configuration.domain)) {
+    throw new Error("Solver quote policy does not bind the matcher order domain");
+  }
 }
 
 export function createPersistentMatcher(configuration: PersistentMatcherConfiguration): PersistentMatcherState {
@@ -555,6 +558,7 @@ export function matcherConfigurationHash(configuration: PersistentMatcherConfigu
     "PhlebasPersistentMatcherConfiguration",
     `version=${PERSISTENT_MATCHER_VERSION}`,
     `domain=${hashOrderDomain(configuration.domain)}`,
+    `solverDomain=${configuration.solverQuotePolicy.matcherDomainHash}`,
     `base=${pair.base.network}:${pair.base.asset}:${pair.base.environment}:${pair.base.decimals}`,
     `quote=${pair.quote.network}:${pair.quote.asset}:${pair.quote.environment}:${pair.quote.decimals}`,
     `protocol=${configuration.atomicSwapPolicy.settlementProtocolVersion}`,

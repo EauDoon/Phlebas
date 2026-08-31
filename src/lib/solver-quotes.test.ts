@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { MatcherSignatureVerifier } from "./matcher-auth.ts";
+import { keccak256Text } from "./keccak.ts";
 import { accountIdentifier } from "./order-domain.ts";
 import {
   acceptSolverQuote,
@@ -15,6 +16,7 @@ import {
 } from "./solver-quotes.ts";
 
 const policy: SolverQuotePolicy = {
+  matcherDomainHash: keccak256Text("matcher-domain"),
   baseNetwork: "bip122:00040fe8ec8471911baa1db1266ea15d",
   baseAsset: "bip122:00040fe8ec8471911baa1db1266ea15d/slip44:133",
   quoteNetwork: "eip155:42161",
@@ -30,6 +32,7 @@ const signerId = accountIdentifier("eip155:42161:0x22222222222222222222222222222
 function quote(overrides: Partial<SolverQuote> = {}): SolverQuote {
   return {
     version: 1,
+    matcherDomainHash: policy.matcherDomainHash,
     solverAccountId: accountIdentifier(sourceAccount),
     authorizedSignerId: signerId,
     recipientAccountId: accountIdentifier(recipientAccount),
@@ -94,6 +97,7 @@ test("rejects expired, excessive, misbound, and cross-asset quotes", () => {
   assert.throws(() => assertSolverQuote(quote({ sourceAccount: "zcash:mainnet:t3-attacker" }), policy, 10_000n), /source account/);
   assert.throws(() => assertSolverQuote(quote({ quoteAsset: "eip155:42161/erc20:0x3333333333333333333333333333333333333333" }), policy, 10_000n), /exact asset pair/);
   assert.throws(() => assertSolverQuote(quote({ feeBps: 31n }), policy, 10_000n), /fee/i);
+  assert.throws(() => assertSolverQuote(quote({ matcherDomainHash: keccak256Text("other-matcher") }), policy, 10_000n), /matcher domain/);
 });
 
 test("rejects non-monotonic curves and slippage beyond the signed bound", () => {
@@ -125,6 +129,7 @@ test("rejects non-monotonic curves and slippage beyond the signed bound", () => 
 test("quote hashes change on recipient, asset, price, capacity, or protocol changes", () => {
   const baseline = quote();
   for (const changed of [
+    quote({ matcherDomainHash: keccak256Text("other-matcher") }),
     quote({ recipientAccount: "eip155:42161:0x3333333333333333333333333333333333333333", recipientAccountId: accountIdentifier("eip155:42161:0x3333333333333333333333333333333333333333") }),
     quote({ capacityBaseAtoms: 400_000_000n, pricePolicy: { kind: "fixed", priceTicks: 5_000n } }),
     quote({ pricePolicy: { kind: "fixed", priceTicks: 5_001n } }),
