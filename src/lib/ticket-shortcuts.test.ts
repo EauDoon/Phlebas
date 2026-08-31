@@ -16,3 +16,10 @@ test("ticket shortcuts ignore open dialogs and typing targets", () => {
   const input = { tagName: "INPUT", isContentEditable: false } as unknown as EventTarget;
   assert.equal(interpretTicketKey("f", { target: input, dialogOpen: false }), null);
 });
+
+test("review-and-confirm keeps TIF until Escape", () => {
+  assert.equal(interpretTicketKey("i", { target: null, dialogOpen: false, reviewOpen: true }), null);
+  assert.equal(interpretTicketKey("g", { target: null, dialogOpen: false, reviewOpen: true }), null);
+  assert.equal(interpretTicketKey("b", { target: null, dialogOpen: false, reviewOpen: true }), null);
+  assert.equal(interpretTicketKey("Escape", { target: null, dialogOpen: false, reviewOpen: true }), "escape");
+});
