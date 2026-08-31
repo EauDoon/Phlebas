@@ -1247,3 +1247,41 @@ test("architecture skip link reaches the incident demonstration", async ({ page 
   await expect(page.locator("#incident-demonstration")).toBeFocused();
 });
 
+test("order-type view and blotter tabs stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const targets = [
+    page.getByRole("button", { name: "Limit" }),
+    page.getByRole("tab", { name: "Trade" }),
+    page.getByRole("tab", { name: "Open orders" }),
+  ];
+  for (const target of targets) {
+    await expect(target).toBeVisible();
+    const box = await target.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  }
+});
+
+test("liquidity skip link reaches pool tabs", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipPools = page.getByRole("link", { name: "Skip to pool tabs" });
+  await expect(skipPools).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#liquidity-pools")).toBeFocused();
+});
+
+test("bridge skip link reaches the destination inspector", async ({ page }) => {
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipInspector = page.getByRole("link", { name: "Skip to destination inspector" });
+  await expect(skipInspector).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#destination-inspector")).toBeFocused();
+  await expect(page.getByRole("textbox", { name: "Transparent destination to inspect" })).toBeVisible();
+});
+
