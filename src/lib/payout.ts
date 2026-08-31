@@ -61,7 +61,11 @@ export type PayoutClaimState =
   | "closed"
   | "burn-finalized"
   | "payable"
+  | "transaction_prepared"
   | "signed"
+  | "broadcast"
+  | "mined"
+  | "confirmed"
   | "refunded"
   | "unresolved";
 
@@ -140,8 +144,14 @@ export function rejectPayoutBeforeBurn(claim: PayoutClaim): PayoutClaim {
 }
 
 export function markPayoutUnresolved(claim: PayoutClaim): PayoutClaim {
-  if (claim.state !== "payable" && claim.state !== "burn-submitted") {
-    return { ...claim, state: "rejected", reason: "Only a burn-submitted or payable claim can become unresolved." };
+  if (
+    claim.state !== "payable"
+    && claim.state !== "burn-submitted"
+    && claim.state !== "signed"
+    && claim.state !== "broadcast"
+    && claim.state !== "mined"
+  ) {
+    return { ...claim, state: "rejected", reason: "Only a signed, broadcast, mined, payable, or burn-submitted claim can become unresolved." };
   }
   return {
     ...claim,
@@ -162,11 +172,61 @@ export function closePayoutWithoutFinalizedBurn(claim: PayoutClaim): PayoutClaim
   };
 }
 
-export function signPayoutClaim(claim: PayoutClaim): PayoutClaim {
+export function preparePayoutTransaction(claim: PayoutClaim): PayoutClaim {
   if (claim.state !== "payable") {
-    return { ...claim, state: "rejected", reason: "Only a payable claim can be signed." };
+    return { ...claim, state: "rejected", reason: "Only a payable claim can be prepared." };
+  }
+  return { ...claim, state: "transaction_prepared" };
+}
+
+export function signPayoutClaim(claim: PayoutClaim): PayoutClaim {
+  if (claim.state !== "payable" && claim.state !== "transaction_prepared") {
+    return { ...claim, state: "rejected", reason: "Only a payable or prepared claim can be signed." };
   }
   return { ...claim, state: "signed" };
+}
+
+export function broadcastPayoutClaim(claim: PayoutClaim): PayoutClaim {
+  if (claim.state !== "signed") {
+    return { ...claim, state: "rejected", reason: "Only a signed claim can be broadcast." };
+  }
+  return { ...claim, state: "broadcast" };
+}
+
+export function minePayoutClaim(claim: PayoutClaim): PayoutClaim {
+  if (claim.state !== "broadcast") {
+    return { ...claim, state: "rejected", reason: "Only a broadcast claim can be mined." };
+  }
+  return { ...claim, state: "mined" };
+}
+
+export function confirmPayoutClaim(claim: PayoutClaim): PayoutClaim {
+  if (claim.state !== "mined") {
+    return { ...claim, state: "rejected", reason: "Only a mined claim can be confirmed." };
+  }
+  return { ...claim, state: "confirmed" };
+}
+
+export function observeUnresolvedTransaction(claim: PayoutClaim): PayoutClaim {
+  if (claim.state !== "unresolved") {
+    return { ...claim, state: "rejected", reason: "Only an unresolved claim can recover from an observed transaction." };
+  }
+  return {
+    ...claim,
+    state: "broadcast",
+    reason: "Exact committed transaction observed. Claim returns to broadcast. Nothing is sent.",
+  };
+}
+
+export function restoreUnresolvedInputs(claim: PayoutClaim): PayoutClaim {
+  if (claim.state !== "unresolved") {
+    return { ...claim, state: "rejected", reason: "Only an unresolved claim can restore verified inputs." };
+  }
+  return {
+    ...claim,
+    state: "payable",
+    reason: "Verified input restoration returns the claim to payable. Nothing is sent.",
+  };
 }
 
 export function refundPayoutBeforeSignature(claim: PayoutClaim): PayoutClaim {
@@ -174,8 +234,8 @@ export function refundPayoutBeforeSignature(claim: PayoutClaim): PayoutClaim {
   if (claim.state === "signed") {
     return { ...claim, state: "rejected", reason: "Once a native transaction is signed, the claim cannot be refunded." };
   }
-  if (claim.state !== "payable" && claim.state !== "burn-finalized") {
-    return { ...claim, state: "rejected", reason: "Only a burn-finalized or payable claim can be refunded before signature." };
+  if (claim.state !== "payable" && claim.state !== "burn-finalized" && claim.state !== "transaction_prepared") {
+    return { ...claim, state: "rejected", reason: "Only a burn-finalized, payable, or prepared claim can be refunded before signature." };
   }
   return {
     ...claim,
@@ -198,6 +258,21 @@ export function payoutClaimForTourStep(stepId: string, destination: string): Pay
   if (stepId === "burn finalized" || claim.state === "rejected") return claim;
   claim = markPayoutPayable(claim);
   if (stepId === "refunded") return refundPayoutBeforeSignature(claim);
+  if (stepId === "payable") return claim;
+  claim = preparePayoutTransaction(claim);
+  if (stepId === "transaction_prepared") return claim;
+  claim = signPayoutClaim(claim);
+  if (stepId === "signed") return claim;
+  claim = broadcastPayoutClaim(claim);
+  if (stepId === "broadcast") return claim;
+  claim = minePayoutClaim(claim);
+  if (stepId === "mined") return claim;
   if (stepId === "unresolved") return markPayoutUnresolved(claim);
-  return claim;
+  if (stepId === "unresolved-observed") {
+    return observeUnresolvedTransaction(markPayoutUnresolved(claim));
+  }
+  if (stepId === "input-restored") {
+    return restoreUnresolvedInputs(markPayoutUnresolved(claim));
+  }
+  return confirmPayoutClaim(claim);
 }
