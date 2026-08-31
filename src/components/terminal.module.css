@@ -1610,6 +1610,14 @@ a.skipLink:focus-visible {
   margin: 18px 0 0;
 }
 
+@media (max-width: 820px) {
+  .educationDialog .tourNav {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+  }
+}
+
 .educationDialog .tourNav button {
   display: inline-flex;
   min-width: 44px;
