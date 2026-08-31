@@ -2856,3 +2856,68 @@ test("skip-nav error country-block architecture leftover and 768 loading 404 bri
   expect(bridge768.widths[bridge768.widths.length - 1] ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("skip-nav 768 liquidity country-block architecture error legal leftover and 320 overflow", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  async function expectTwoUp(path: string, viewportWidth: number, viewportHeight: number) {
+    await page.setViewportSize({ width: viewportWidth, height: viewportHeight });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element, width) => {
+      const links = [...element.querySelectorAll("a")].map((link) => link.getBoundingClientRect());
+      const style = getComputedStyle(element);
+      const navRect = element.getBoundingClientRect();
+      const first = links[0];
+      return {
+        wrap: style.flexWrap,
+        direction: style.flexDirection,
+        count: links.length,
+        firstTop: first?.top ?? 0,
+        secondTop: links[1]?.top ?? 0,
+        firstRight: first?.right ?? 0,
+        secondLeft: links[1]?.left ?? 0,
+        lastWidth: links[links.length - 1]?.width ?? 0,
+        lastHeight: links[links.length - 1]?.height ?? 0,
+        widths: links.map((link) => link.width),
+        navRight: navRect.right,
+        ringRight: (first?.right ?? 0) + 4,
+        ringLeft: (first?.left ?? 0) - 4,
+        ringTop: (first?.top ?? 0) - 4,
+        ringBottom: (first?.bottom ?? 0) + 4,
+        viewportWidth: width,
+      };
+    }, viewportWidth);
+    expect(layout.direction).toBe("row");
+    expect(layout.wrap).toBe("wrap");
+    expect(layout.count).toBeGreaterThanOrEqual(2);
+    expect(Math.abs(layout.firstTop - layout.secondTop)).toBeLessThan(2);
+    expect(layout.secondLeft).toBeGreaterThan(layout.firstRight);
+    for (const width of layout.widths) {
+      expect(width).toBeGreaterThanOrEqual(44);
+    }
+    expect(layout.navRight).toBeLessThanOrEqual(viewportWidth + 0.5);
+    expect(layout.ringLeft).toBeGreaterThanOrEqual(-0.5);
+    expect(layout.ringTop).toBeGreaterThanOrEqual(-0.5);
+    expect(layout.ringRight).toBeLessThanOrEqual(viewportWidth + 0.5);
+    expect(layout.ringBottom).toBeLessThanOrEqual(viewportHeight + 0.5);
+    return layout;
+  }
+
+  await expectTwoUp("/liquidity", 768, 1024);
+  await expectTwoUp("/trade?access=blocked", 768, 1024);
+  await expectTwoUp("/trade?view=architecture", 768, 1024);
+  await expectTwoUp("/trade?error=1", 768, 1024);
+
+  const legal390 = await expectTwoUp("/legal", 390, 844);
+  expect(legal390.count).toBe(2);
+  expect(legal390.lastWidth).toBeGreaterThanOrEqual(44);
+  expect(legal390.lastHeight).toBeGreaterThanOrEqual(44);
+
+  const overflow320 = await expectTwoUp("/", 320, 900);
+  expect(overflow320.navRight).toBeLessThanOrEqual(320.5);
+  expect(overflow320.ringRight).toBeLessThanOrEqual(320.5);
+});
+
