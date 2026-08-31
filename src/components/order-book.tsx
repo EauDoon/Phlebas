@@ -47,8 +47,8 @@ export function OrderBook({
         <thead>
           <tr>
             <th scope="col">Price {market.quote}</th>
-            <th scope="col">Size pZEC</th>
-            <th scope="col">Total pZEC</th>
+            <th scope="col">Size ZEC</th>
+            <th scope="col">Total ZEC</th>
           </tr>
         </thead>
         <tbody aria-label="Asks">

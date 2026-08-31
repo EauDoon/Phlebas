@@ -119,7 +119,7 @@ export function OrderBlotter({
               <tr>
                 <th scope="col">Side</th>
                 <th scope="col">Price {market.quote}</th>
-                <th scope="col">Remaining pZEC</th>
+                <th scope="col">Remaining ZEC</th>
                 <th scope="col">Settlement</th>
                 <th scope="col">Action</th>
               </tr>
@@ -169,7 +169,7 @@ export function OrderBlotter({
                 <th scope="col">Time</th>
                 <th scope="col">Side</th>
                 <th scope="col">Price {market.quote}</th>
-                <th scope="col">Size pZEC</th>
+                <th scope="col">Size ZEC</th>
                 <th scope="col">Settlement</th>
               </tr>
             </thead>
