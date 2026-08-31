@@ -1,0 +1,49 @@
+# Isolated local infra. Host ports bind 127.0.0.1 only.
+# Do not set PHLEBAS_GATEWAY_URL or PHLEBAS_MATCHER_URL on Vercel.
+
+name: phlebas-local
+
+services:
+  gateway:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+    command: ["node", "--experimental-strip-types", "services/gateway/server.ts"]
+    environment:
+      PHLEBAS_BIND: "0.0.0.0"
+      PHLEBAS_ALLOW_NON_LOOPBACK: "1"
+      PHLEBAS_PORT: "8787"
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - gateway-data:/app/services/gateway/.data
+
+  matcher:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+    command: ["node", "--experimental-strip-types", "services/matcher/server.ts"]
+    environment:
+      PHLEBAS_BIND: "0.0.0.0"
+      PHLEBAS_ALLOW_NON_LOOPBACK: "1"
+      PHLEBAS_PORT: "8788"
+    ports:
+      - "127.0.0.1:8788:8788"
+    volumes:
+      - matcher-data:/app/services/matcher/.data
+
+  observer:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+    command: ["node", "--experimental-strip-types", "services/observer/server.ts"]
+    environment:
+      PHLEBAS_BIND: "0.0.0.0"
+      PHLEBAS_ALLOW_NON_LOOPBACK: "1"
+      PHLEBAS_PORT: "8789"
+    ports:
+      - "127.0.0.1:8789:8789"
+
+volumes:
+  gateway-data:
+  matcher-data:

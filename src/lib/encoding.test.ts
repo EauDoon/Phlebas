@@ -35,6 +35,13 @@ test("digest is deterministic and 64 hex characters", async () => {
   assert.notEqual(digest, await digestCanonicalOrder({ ...sample, nonce: "2" }));
 });
 
+test("canonical digest changes when expiry is not none", async () => {
+  const none = await digestCanonicalOrder(sample);
+  const expiring = await digestCanonicalOrder({ ...sample, expiry: "1700000000" });
+  assert.match(encodeCanonicalOrder({ ...sample, expiry: "1700000000" }), /\nexpiry=1700000000\n/);
+  assert.notEqual(none, expiring);
+});
+
 test("allowed venues are part of the canonical encoding", () => {
   assert.match(encodeCanonicalOrder(sample), /\nallowedVenues=clob\n/);
   assert.match(

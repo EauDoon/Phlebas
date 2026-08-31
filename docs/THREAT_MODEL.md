@@ -1,6 +1,6 @@
 # Phlebas Threat Model
 
-> Status as of 30-08-2026: design document for a simulation-only project. None of the proposed bridge, custody, matching, settlement, routing, automated market maker, administration, monitoring, or incident controls are deployed or audited.
+> Status as of 31-08-2026: design document. The public app is a no-value simulation. Local loopback stubs exist for a textest gateway, matcher, and observer. None of the proposed production bridge, custody, matching, settlement, routing, automated market maker, administration, monitoring, or incident controls are deployed or audited.
 
 ## 1. Purpose and decision
 
@@ -15,9 +15,14 @@ The design is acceptable only for simulation, testnet, and a later strictly capp
 
 ## 2. Current repository reality
 
-The current repository contains a Next.js interface, static simulated markets and trades, and a local numerical constant-product quote helper. It has no wallet integration, live market feed, smart contracts, bridge, reserve, matcher, settlement service, custody service, or deployed infrastructure.
+The public Vercel app is a no-value simulation. Local optional stubs exist and are not production:
 
-Values shown for prices, depth, volume, total value locked, pool reserves, fees, and trades are simulation data. They are not evidence of a live market or asset backing.
+- In-browser session matcher, plus a loopback matcher operator that is never hosted on Vercel.
+- Undeployed Arbitrum Sepolia contract sources. The manifest stays `deployed: false` until a real Sepolia transaction is recorded.
+- Optional EIP-1193 wallet connection on Arbitrum Sepolia only. Default is sign-only.
+- Local `textest` gateway and observer stubs on `127.0.0.1`. No Zebra RPC, no mainnet TEX.
+
+Values shown for prices, depth, volume, total value locked, pool reserves, fees, and trades are simulation data. They are not evidence of a live market or asset backing. Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.
 
 ## 3. Proposed architecture
 

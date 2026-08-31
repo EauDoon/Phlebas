@@ -1,8 +1,8 @@
 # Phlebas Landing and User Journeys
 
-Status: the landing page, terminal shell, local matcher, LP preview, ZIP 321 deposit-shape preview, withdrawal state tour, destination inspector, and architecture explanation are implemented locally as no-value fixtures. Receivable TEX addresses, live wallets, and keccak signatures remain unimplemented.
+Status: the landing page, terminal shell, local matcher, LP preview, ZIP 321 deposit-shape preview, withdrawal state tour, destination inspector, and architecture explanation are implemented locally as no-value fixtures. Optional local loopback stubs exist for a textest gateway, matcher operator, and observer. They are never hosted on Vercel. The public app remains a no-value simulation.
 
-Phlebas currently has no wallet connection, contracts, live market data, deposits, withdrawals, orders, stablecoins, pZEC token, custody service, identity system, or matching service. Every value and state in the interface is illustrative. This specification does not authorize mainnet, custody, publication, or financial services.
+Phlebas currently does not accept live funds or operate custody. Optional Arbitrum Sepolia wallet connection is sign-only by default. Contract sources are undeployed. Market data is illustrative. This specification does not authorize mainnet, custody, publication, or financial services.
 
 The user-facing market aliases are `ZEC / USDC` and `ZEC / USDT`, matching the requested markets. Every market ticket, review, and history surface must also state the exact proposed settlement pair, `pZEC / USDC` or `pZEC / USDT0`. Pool labels use the settlement assets. Native `ZEC` refers only to Zcash that would enter or leave the transparent gateway.
 
@@ -42,7 +42,7 @@ Planning dials:
 | `/` | Landing page | Implemented locally, no wallet or asset action |
 | `/trade` | Terminal shell, defaults to trade | Implemented locally, simulation only |
 | `/trade?view=trade` | Trade preview | Implemented locally with illustrative order entry |
-| `/trade?view=trade&feed=stale` | Ticket gate | Allowlisted feed states: `illustrative`, `empty`, `stale`, `unavailable`. Invalid values return to illustrative. |
+| `/trade?view=trade&feed=stale` | Ticket gate | Allowlisted feed states: `illustrative`, `loading`, `empty`, `stale`, `unavailable`. Invalid values return to illustrative. |
 | `/trade?view=liquidity` | LP preview | Implemented locally with illustrative pool calculations |
 | `/trade?view=bridge` | Gateway boundary | Implemented locally as a deposit ZIP 321 preview and withdrawal state tour |
 | `/trade?view=architecture` | Product boundary | Implemented locally as a read-only explanation |
@@ -59,7 +59,7 @@ The banner is the first focusable content after the skip link and remains visibl
 
 Exact copy:
 
-> Simulation only. No wallets, real assets, live prices, contracts, deposits, withdrawals, or orders are connected.
+> Simulation only. No-value simulation. Optional Sepolia wallet and local testnet services stay off until started. No mainnet funds.
 
 The banner uses `role="status"` on initial load. It must not repeatedly announce on routine navigation. It cannot be dismissed.
 
@@ -70,7 +70,7 @@ Desktop order:
 1. Phlebas mark and wordmark, linked to `/`.
 2. Navigation: `Markets`, `Liquidity`, `Gateway`, `Architecture`.
 3. Status control: `No-value preview`.
-4. Primary action: `Enter simulation` on the landing page, or disabled `Wallets unavailable` in the preview.
+4. Primary action: `Enter simulation` on the landing page, or `Connect wallet` for optional Arbitrum Sepolia signing.
 
 Landing navigation targets:
 

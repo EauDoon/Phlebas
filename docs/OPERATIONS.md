@@ -1,6 +1,6 @@
 # Proposed operations model
 
-Status: reference plan only. None of these services is operational.
+Status: reference plan for a later licensed operator. The only runnable operator path in this repository is isolated loopback Compose. See [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md). Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.
 
 ## 1. Trust-zone separation
 

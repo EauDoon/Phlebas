@@ -1,15 +1,20 @@
 import Link from "next/link";
 
+import { COUNTRY_ACCESS } from "@/lib/country-access";
+
 import { LandingHeader } from "./landing-header";
 import styles from "./landing.module.css";
 
 const statusRows = [
   ["Application", "No-value simulation"],
-  ["Matcher", "In-browser local book"],
+  ["Matcher", "In-browser; local operator optional"],
   ["Market data", "Fixtures plus local fills"],
-  ["Wallets", "Not connected"],
-  ["Contracts", "Not deployed"],
+  ["Wallets", "Optional Arbitrum Sepolia"],
+  ["Contracts", "Source in repo, undeployed"],
   ["ZEC custody", "Not operating"],
+  ["Country access", COUNTRY_ACCESS.default === "deny" && COUNTRY_ACCESS.enabled.length === 0
+    ? "Deny by default"
+    : "Misconfigured"],
 ] as const;
 
 const journeys = [
@@ -33,7 +38,7 @@ const journeys = [
     number: "03",
     label: "Transparent ZEC gateway",
     title: "The custody boundary stays visible",
-    body: "Preview a ZIP 321 payment-request shape and the withdrawal state tour. This preview creates no address, receives no ZEC, and mints no pZEC.",
+    body: "Issue a local testnet TEX intent when the gateway is running. The public app still mints no pZEC and never shows a mainnet address.",
     href: "/trade?view=bridge",
     link: "See gateway design",
   },
@@ -45,7 +50,7 @@ export function LandingPage() {
       <a className={styles.skipLink} href="#main-content">Skip to main content</a>
       <div className={styles.simulationBanner} role="status">
         <strong>Simulation only</strong>
-        <span>No wallets, real assets, live prices, contracts, deposits, or withdrawals are connected. Orders stay in this browser.</span>
+        <span>No-value simulation. Optional Sepolia wallet and local testnet services stay off until started. No mainnet funds.</span>
       </div>
       <LandingHeader />
 
@@ -153,7 +158,14 @@ export function LandingPage() {
       <footer className={styles.footer}>
         <div className={styles.brand}><span className={styles.brandMark}>P</span><span>PHLEBAS</span></div>
         <p>Protocol preview, not a live exchange or an offer of financial services.</p>
-        <span>30-08-2026</span>
+        <p>
+          <Link href="/status">Status</Link>
+          {" · "}
+          <Link href="/legal">Legal</Link>
+          {" · "}
+          <Link href="/security">Security</Link>
+        </p>
+        <span>31-08-2026</span>
       </footer>
     </div>
   );

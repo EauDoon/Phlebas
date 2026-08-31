@@ -26,7 +26,7 @@ export function inspectTransparentDestination(value: string): DestinationInspect
     return {
       class: "tex",
       eligibleLater: false,
-      message: "TEX is for deposits. This simulation does not accept TEX payouts and never displays a receivable tex1 string.",
+      message: "TEX is for deposits. This interface does not accept TEX payouts.",
     };
   }
   if (/^[zu][a-z0-9]/i.test(destination)) {

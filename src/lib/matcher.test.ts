@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { cancelOrder, emptyBook, levelsFromBook, submitOrder } from "./matcher.ts";
+import { cancelOrder, emptyBook, expireRestingOrders, levelsFromBook, orderExpired, submitOrder } from "./matcher.ts";
 
 function seed() {
   let book = emptyBook(5284n);
@@ -174,4 +174,49 @@ test("cancels a dust-blocked GTC remainder instead of crossing the book", () => 
   assert.equal(result.book.bids.length, 0);
   assert.equal(result.book.asks[0]?.remainingAtoms, 3n);
   assert.match(result.reason ?? "", /Dust-blocked crossed remainder/);
+});
+
+test("unix expiry 0 or omitted never expires", () => {
+  assert.equal(orderExpired(undefined, 1_700_000_000n), false);
+  assert.equal(orderExpired(0n, 1_700_000_000n), false);
+  assert.equal(orderExpired(1_700_000_000n, undefined), false);
+  assert.equal(orderExpired(1_700_000_000n, 1_700_000_000n), false);
+  assert.equal(orderExpired(1_700_000_000n, 1_700_000_001n), true);
+});
+
+test("submitOrder rejects a taker whose unix expiry has passed", () => {
+  const result = submitOrder(seed(), {
+    id: "late",
+    side: "buy",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: 1_00000000n,
+    expiryUnix: 1_700_000_000n,
+    nowUnix: 1_700_000_001n,
+  });
+  assert.equal(result.status, "rejected");
+  assert.equal(result.reason, "Order expiry has passed");
+  assert.equal(result.fills.length, 0);
+  assert.equal(result.book.asks.length, seed().asks.length);
+});
+
+test("submitOrder rests an unexpired GTC and expireRestingOrders drops it later", () => {
+  const open = submitOrder(emptyBook(5284n), {
+    id: "maker",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: 1_00000000n,
+    expiryUnix: 1_700_000_000n,
+    nowUnix: 1_699_999_999n,
+  });
+  assert.equal(open.status, "open");
+  assert.equal(open.book.asks[0]?.expiryUnix, 1_700_000_000n);
+  const stillLive = expireRestingOrders(open.book, 1_700_000_000n);
+  assert.equal(stillLive.expired.length, 0);
+  assert.equal(stillLive.book.asks.length, 1);
+  const swept = expireRestingOrders(open.book, 1_700_000_001n);
+  assert.equal(swept.expired.length, 1);
+  assert.equal(swept.expired[0]?.id, "maker");
+  assert.equal(swept.book.asks.length, 0);
 });

@@ -7,7 +7,7 @@ export type CanonicalOrder = {
   limitPriceTicks: string;
   nonce: string;
   accountEpoch: string;
-  expiry: "0";
+  expiry: string;
   salt: string;
   recipient: "session";
   maximumFeeBps: "30";

@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
+import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
+import { sepoliaDomain, typedData, type TypedOrder } from "@/lib/eip712";
+import { getInjectedProvider, signTypedData } from "@/lib/evm-wallet";
+import { planTestnetSubmit, sendSettlement, sepoliaSubmitEnabled } from "@/lib/sepolia-submit";
+import { TESTNET } from "@/lib/testnet";
+import { parseExpiryUnix, settlementDigest, typedOrderFromTicket } from "@/lib/ticket-order";
 import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
@@ -92,6 +98,7 @@ export function TradeTicket({
   reserveQuoteAtoms,
   accountEpoch,
   feedStatus,
+  walletAddress = null,
   onRetryFeed,
   onSubmit,
 }: {
@@ -105,12 +112,14 @@ export function TradeTicket({
   reserveQuoteAtoms: bigint;
   accountEpoch: number;
   feedStatus: FeedStatus;
+  walletAddress?: string | null;
   onRetryFeed: () => void;
   onSubmit: (order: {
     side: Side;
     tif: TimeInForce;
     priceTicks: bigint;
     sizeAtoms: bigint;
+    expiryUnix: bigint;
   }) => string;
 }) {
   const noticeId = useId();
@@ -121,18 +130,23 @@ export function TradeTicket({
   const [price, setPrice] = useState(() => formatAtomicUnits(lastTicks, PRICE_DECIMALS, 2));
   const [size, setSize] = useState("10");
   const [slippagePercent, setSlippagePercent] = useState("0.50");
+  const [expiry, setExpiry] = useState("0");
   const [notice, setNotice] = useState("Local matcher only. Session inventory is not a wallet.");
+  const [rejected, setRejected] = useState<string | null>(null);
   const [appliedPriceNonce, setAppliedPriceNonce] = useState(0);
-  const nonceRef = useRef(1);
+  const [sessionNonce, setSessionNonce] = useState(1);
   const [review, setReview] = useState<{
     side: Side;
     priceTicks: bigint;
     sizeAtoms: bigint;
     tif: TimeInForce;
     digest: string;
+    eip712Digest?: string;
+    typed?: TypedOrder;
     comparison: RouteComparison;
     clobDebitAtoms: bigint;
     clobReservationAtoms: bigint;
+    expiryUnix: bigint;
   } | null>(null);
 
   if (priceSelection && priceSelection.nonce !== appliedPriceNonce) {
@@ -240,7 +254,7 @@ export function TradeTicket({
     setSize(formatAtomicUnits(nextSize, PZEC_DECIMALS));
   }
 
-  function preparedOrder(): { priceTicks: bigint; sizeAtoms: bigint; tif: TimeInForce } | string {
+  function preparedOrder(): { priceTicks: bigint; sizeAtoms: bigint; tif: TimeInForce; expiryUnix: bigint } | string {
     if (inputError) {
       return inputError;
     }
@@ -263,14 +277,21 @@ export function TradeTicket({
     if (priceTicks <= 0n) {
       return "Price and size must be positive.";
     }
+    let expiryUnix = 0n;
+    try {
+      expiryUnix = parseExpiryUnix(expiry);
+    } catch (error) {
+      return error instanceof Error ? error.message : "Expiry must be a whole unix time, or 0 for none.";
+    }
     return {
       priceTicks,
       sizeAtoms: sizeAtoms.atoms,
       tif: orderType === "market" ? "IOC" : tif,
+      expiryUnix,
     };
   }
 
-  async function reviewSimulatedOrder() {
+  async function reviewSimulatedOrder(nowUnix: bigint) {
     if (!gate.canReview) {
       setNotice(gate.message);
       setReview(null);
@@ -296,7 +317,16 @@ export function TradeTicket({
       tif: prepared.tif,
       priceTicks: prepared.priceTicks,
       sizeAtoms: prepared.sizeAtoms,
+      expiryUnix: prepared.expiryUnix,
+      nowUnix,
     });
+    if (clobPreview.status === "rejected" && clobPreview.reason === "Order expiry has passed") {
+      setRejected(`Rejected. ${clobPreview.reason}`);
+      setNotice(clobPreview.reason);
+      setReview(null);
+      return;
+    }
+    setRejected(null);
     const filledPzecAtoms = clobPreview.fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
     const clobDebitAtoms = side === "buy"
       ? quoteAtomsForFills(clobPreview.fills, "up")
@@ -313,9 +343,9 @@ export function TradeTicket({
       quoteAsset: market.quote,
       baseAmountAtoms: prepared.sizeAtoms.toString(),
       limitPriceTicks: prepared.priceTicks.toString(),
-      nonce: String(nonceRef.current),
+      nonce: String(sessionNonce),
       accountEpoch: String(accountEpoch),
-      expiry: "0",
+      expiry: prepared.expiryUnix.toString(),
       salt: prepared.tif,
       recipient: "session",
       maximumFeeBps: "30",
@@ -323,15 +353,77 @@ export function TradeTicket({
       chainId: "42161",
       verifyingContract: "not-deployed",
     };
-    nonceRef.current += 1;
+    setSessionNonce(sessionNonce + 1);
+    let eip712 = undefined as string | undefined;
+    let typed = undefined as TypedOrder | undefined;
+    if (walletAddress) {
+      typed = typedOrderFromTicket({
+        maker: walletAddress,
+        side,
+        quote: market.quote,
+        sizeAtoms: prepared.sizeAtoms,
+        priceTicks: prepared.priceTicks,
+        nonce: BigInt(canonical.nonce),
+        accountEpoch: BigInt(accountEpoch),
+        tif: prepared.tif,
+        expiry: prepared.expiryUnix,
+      });
+      eip712 = settlementDigest(typed);
+    }
     setReview({
       ...prepared,
       side,
-      digest: await digestCanonicalOrder(canonical),
+      digest: eip712 ?? await digestCanonicalOrder(canonical),
+      eip712Digest: eip712,
+      typed,
       comparison,
       clobDebitAtoms,
       clobReservationAtoms,
     });
+  }
+
+  async function signTestnetOrder() {
+    if (!review?.typed || !walletAddress) {
+      return;
+    }
+    const provider = getInjectedProvider();
+    if (!provider) {
+      setNotice("No injected EVM wallet.");
+      return;
+    }
+    try {
+      const domain = sepoliaDomain(TESTNET.settlement);
+      const signature = await signTypedData(
+        provider,
+        walletAddress,
+        typedData(domain, review.typed),
+      );
+      const plan = planTestnetSubmit({
+        counterpart: null,
+        taker: review.typed,
+        takerSignature: signature,
+        fillAtoms: review.sizeAtoms,
+      });
+      if (plan.action === "settle") {
+        const hash = await sendSettlement(provider, walletAddress, plan);
+        setNotice(`Submitted Sepolia settlement ${hash.slice(0, 10)}… Testnet only.`);
+        return;
+      }
+      if (plan.action === "sequence" && sepoliaSubmitEnabled()) {
+        await fetch("/api/matcher", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            ...typedData(domain, review.typed).message,
+            signature,
+            tif: review.tif,
+          }),
+        }).catch(() => undefined);
+      }
+      setNotice(`${plan.reason} Signature ${signature.slice(0, 10)}…`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Testnet signing failed.");
+    }
   }
 
   function confirmSimulatedOrder() {
@@ -342,12 +434,18 @@ export function TradeTicket({
       }
       return;
     }
-    setNotice(onSubmit({
+    const result = onSubmit({
       side: review.side,
       tif: review.tif,
       priceTicks: review.priceTicks,
       sizeAtoms: review.sizeAtoms,
-    }));
+      expiryUnix: review.expiryUnix,
+    });
+    const isRejected = result.startsWith("Rejected.")
+      || result.includes("insufficient")
+      || result.startsWith("Self-trade");
+    setRejected(isRejected ? result : null);
+    setNotice(result);
     setReview(null);
   }
 
@@ -369,6 +467,12 @@ export function TradeTicket({
           <button type="button" className={styles.textButton} onClick={onRetryFeed}>
             Retry illustrative feed
           </button>
+        </div>
+      )}
+      {rejected && gate.canReview && (
+        <div className={styles.ticketBlocked} role="alert">
+          <strong>Order rejected</strong>
+          <p>{rejected} Retry is safe; nothing was submitted.</p>
         </div>
       )}
 
@@ -474,6 +578,21 @@ export function TradeTicket({
         </div>
       </label>
 
+      <label className={styles.inputLabel}>
+        <span>Expiry</span>
+        <div className={styles.inputShell}>
+          <input
+            inputMode="numeric"
+            value={expiry}
+            onChange={(event) => setExpiry(event.target.value)}
+            aria-label="Order expiry unix time"
+            aria-describedby={noticeId}
+          />
+          <span>unix</span>
+        </div>
+      </label>
+      <p className={styles.inlineNotice}>0 means no expiry. This session never sends a live order.</p>
+
       <div
         className={styles.percentRow}
         role="group"
@@ -509,7 +628,19 @@ export function TradeTicket({
         </div>
         <div>
           <dt>Trading fee</dt>
-          <dd>Proposed 5 / 15 bps; not deducted here</dd>
+          <dd>Proposed {MAKER_FEE_BPS} / {TAKER_FEE_BPS} bps; not deducted here</dd>
+        </div>
+        <div>
+          <dt>Account epoch</dt>
+          <dd>{accountEpoch}</dd>
+        </div>
+        <div>
+          <dt>Session nonce</dt>
+          <dd>{sessionNonce}</dd>
+        </div>
+        <div>
+          <dt>Expiry</dt>
+          <dd>{expiry.trim() === "" || expiry.trim() === "0" ? "none" : expiry.trim()}</dd>
         </div>
       </dl>
 
@@ -519,6 +650,22 @@ export function TradeTicket({
             pZEC is a custody receipt, not native ZEC. This fill is public in the simulation. The matcher is not trustless.
           </p>
           <dl className={styles.ticketSummary}>
+            <div>
+              <dt>Leaves the session</dt>
+              <dd>
+                {review.side === "buy"
+                  ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote} on Arbitrum Sepolia`
+                  : `${formatAtomicUnits(review.clobDebitAtoms, PZEC_DECIMALS)} pZEC on Arbitrum Sepolia`}
+              </dd>
+            </div>
+            <div>
+              <dt>Arrives in the session</dt>
+              <dd>
+                {review.side === "buy"
+                  ? `pZEC on Arbitrum Sepolia, settled as ${market.settlementPair}`
+                  : `${market.quote} on Arbitrum Sepolia, settled as ${market.settlementPair}`}
+              </dd>
+            </div>
             <div>
               <dt>Immediate CLOB debit</dt>
               <dd>
@@ -542,14 +689,25 @@ export function TradeTicket({
               <dd>{formatAtomicUnits(review.priceTicks, PRICE_DECIMALS, 2)} {market.quote}</dd>
             </div>
             <div>
+              <dt>Expiry</dt>
+              <dd>{review.expiryUnix === 0n ? "none" : review.expiryUnix.toString()}</dd>
+            </div>
+            <div>
+              <dt>Fees</dt>
+              <dd>{feeEnvelopeCopy()}</dd>
+            </div>
+            <div>
               <dt>CLOB vs AMM</dt>
               <dd>{describeRoute(review.comparison, market.quote)}</dd>
             </div>
             <div>
-              <dt>Simulation digest</dt>
+              <dt>{review.eip712Digest ? "Keccak EIP-712" : "Session digest"}</dt>
               <dd>{review.digest.slice(0, 16)}…</dd>
             </div>
           </dl>
+          <p className={styles.inlineNotice}>
+            Transparent Zcash and this Arbitrum fill are publicly linkable. pZEC redemption depends on the gateway.
+          </p>
           <p className={styles.inlineNotice}>
             Confirm submits only the local CLOB. Split and AMM figures are comparison quotes, not an executed router fill.
           </p>
@@ -560,6 +718,11 @@ export function TradeTicket({
           >
             Confirm simulated {review.side}
           </button>
+          {review.typed && (
+            <button type="button" className={styles.textButton} onClick={() => void signTestnetOrder()}>
+              {sepoliaSubmitEnabled() ? "Sign and submit testnet settlement" : "Sign testnet typed data"}
+            </button>
+          )}
           <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
             Back
           </button>
@@ -568,7 +731,7 @@ export function TradeTicket({
         <button
           type="button"
           className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
-          onClick={() => void reviewSimulatedOrder()}
+          onClick={() => void reviewSimulatedOrder(BigInt(Math.floor(Date.now() / 1000)))}
           disabled={!gate.canReview}
         >
           Review simulated {side}
@@ -577,7 +740,7 @@ export function TradeTicket({
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
         {inputError ?? notionalError ?? notice}
       </p>
-      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type. Click a book price to copy it here. SHA-256 digest is a simulation encoding, not an Ethereum signature.</p>
+      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type. Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
     </section>
   );
 }

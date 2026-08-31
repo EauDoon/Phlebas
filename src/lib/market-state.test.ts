@@ -24,6 +24,7 @@ test("stale and unavailable feeds disable preview-to-sign", () => {
 
 test("allowlists only documented feed states", () => {
   assert.equal(isFeedStatus("illustrative"), true);
+  assert.equal(isFeedStatus("loading"), true);
   assert.equal(isFeedStatus("empty"), true);
   assert.equal(isFeedStatus("stale"), true);
   assert.equal(isFeedStatus("unavailable"), true);

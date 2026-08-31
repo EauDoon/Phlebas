@@ -2,7 +2,7 @@
 
 Phlebas is a production-minded protocol design and no-value interface simulation for ZEC markets against USDC and USDT. The interface uses the familiar market labels `ZEC/USDC` and `ZEC/USDT`, while the proposed Arbitrum settlement assets are `pZEC-USDC` and `pZEC-USDT0`.
 
-> Status: design and simulation only. Phlebas has no deployed contracts, live market data, wallet connection, deposit address, custody system, or real assets. The matcher in this repository is an in-browser simulation, not the proposed production operator. It is not an exchange and is not an offer of financial services.
+> Status: no-value simulation with optional local testnet services. Contracts are in-repo and undeployed. The public matcher is in-browser. A local operator, testnet TEX gateway, and Arbitrum Sepolia wallet connector exist and do not move mainnet funds. It is not an exchange and is not an offer of financial services.
 
 ## Product boundary
 
@@ -19,18 +19,20 @@ This is a hybrid DEX design. The AMM and trade settlement can be onchain, but th
 - A responsive trading terminal for `ZEC/USDC` and `ZEC/USDT`
 - An original landing page with explicit system-status disclosures
 - An in-browser price-time matcher (GTC, IOC, FOK) with session inventory, open orders, fills, and an append-only replay log
-- Canonical PRODUCT_SPEC order encoding with a SHA-256 simulation digest (not an Ethereum signature)
-- Integer CLOB vs AMM split-route comparison and LP share mint/burn previews
-- Integer seed books, empty/stale/unavailable ticket gates, and a transparent-destination inspector
+- Canonical PRODUCT_SPEC order encoding with a SHA-256 simulation digest and a keccak EIP-712 typed-data hash
+- Integer CLOB vs AMM split-route comparison and LP share mint/burn previews, including IL versus hold at 4x and 1/4x
+- Integer seed books, empty/loading/stale/unavailable ticket gates, and a transparent-destination inspector
 - Click-to-price depth, local last/spread, and slippage-bounded market orders as IOC
 - Integer constant-product quotes and local add/swap previews for `pZEC/USDC` and `pZEC/USDT0`
-- ZIP 321 deposit-shape preview and PRODUCT_SPEC withdrawal state tour
+- ZIP 321 testnet TEX issuance through a local gateway, plus the PRODUCT_SPEC withdrawal state tour
 - `/status` and `/api/status`, branded 404/error surfaces, and production `noindex`
 - Executable withdrawal-coverage checks after a finalized burn; mint, pause, and settlement remain design-only
 - Threat model, operational controls, compliance gates, and staged launch plan
 - Explicit Vercel boundary for a public, non-custodial interface
 
-Wallet handoff, receivable TEX addresses, live testnet integrations, the proposed production matcher, and contracts in the delivery documents remain acceptance targets, not implemented features.
+- No-value Arbitrum Sepolia contracts (`contracts/`), a local matcher operator (`services/matcher`), and a local TEX gateway (`services/gateway`)
+
+The public Vercel app still does not deploy those contracts, hold spend keys, or run the authoritative matcher.
 
 ## Design direction
 
@@ -42,7 +44,10 @@ The terminal takes structural cues from [Hyperliquid](https://app.hyperliquid.xy
 | --- | --- |
 | `src/app` | Next.js application shell and global styles |
 | `src/components` | Trading, liquidity, gateway, and architecture views |
-| `src/lib` | Matcher, integer AMM, session inventory, ZIP 321, reserve coverage, fixtures |
+| `src/lib` | Matcher, integer AMM, keccak EIP-712, TEX, session inventory, ZIP 321, fixtures |
+| `contracts/` | No-value Arbitrum Sepolia sources |
+| `services/` | Isolated local Compose: gateway, matcher, observer stubs. Never on Vercel. |
+| `infra/testnet` | Undeployed Sepolia manifest |
 | `docs/PRODUCT_SPEC.md` | Markets, order semantics, LP scope, and user flows |
 | `docs/DELIVERY_PLAN.md` | Agent Team workstreams, PR sequence, and release protocol |
 | `docs/BROWSER_ACCEPTANCE.md` | Reproducible responsive, keyboard, and reduced-motion checks |
@@ -52,6 +57,8 @@ The terminal takes structural cues from [Hyperliquid](https://app.hyperliquid.xy
 | `docs/WALLET_COMPATIBILITY.md` | Current ZEC wallet evidence and executable Testnet qualification |
 | `docs/THREAT_MODEL.md` | Abuse cases, invariants, tests, and stop conditions |
 | `docs/OPERATIONS.md` | Proposed services, observability, and incident control |
+| `docs/OPERATOR_RUNBOOK.md` | Loopback Compose start, health, and stop for gateway, matcher, observer |
+| `docs/LICENSE_CHOICE.md` | Why Apache-2.0, and that it is not MIT |
 | `docs/LEGAL_AND_COMPLIANCE.md` | Regulatory questions and jurisdiction gates |
 | `docs/LAUNCH_PLAN.md` | Testnet to restricted-mainnet sequencing |
 | `docs/SOURCES.md` | Primary technical and regulatory references |
@@ -75,6 +82,17 @@ Run the full local validation:
 ```bash
 npm run check
 ```
+
+Foundry is required for `npm run test:contracts`. Local testnet services:
+
+```bash
+npm run gateway
+npm run matcher
+```
+
+Set `PHLEBAS_GATEWAY_URL=http://127.0.0.1:8787` and `PHLEBAS_MATCHER_URL=http://127.0.0.1:8788` only on a machine that is supposed to reach those processes. Do not set them on Vercel. Isolated Compose is documented in [services/README.md](services/README.md).
+
+Arbitrum Sepolia contract deploy is documented in [contracts/README.md](contracts/README.md). `infra/testnet/arbitrum-sepolia.json` stays `"deployed": false` until a real Sepolia transaction is recorded. Wallet submit of `settle()` stays off unless `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1` is set locally.
 
 Run the production browser checks after installing Chromium once:
 
@@ -110,7 +128,7 @@ Vercel may host the public, stateless interface, documentation, read-only public
 
 ## Licensing and publication
 
-No software license has been selected. Repository visibility, license, GitHub publication, and Vercel deployment require an explicit release decision after final-byte review.
+The software in this repository is licensed under the Apache License 2.0. See `LICENSE` and [the license choice note](docs/LICENSE_CHOICE.md). That choice does not make Phlebas an exchange, a live-funds service, or an audited product.
 
 ## Read next
 

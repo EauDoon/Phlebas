@@ -4,11 +4,13 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
+
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
 import { type FeedStatus } from "@/lib/market-state";
 import type { SessionLogEvent } from "@/lib/replay";
-import { cancelOrder, submitOrder, type TimeInForce } from "@/lib/matcher";
+import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingOrder, type TimeInForce } from "@/lib/matcher";
 import {
   applySubmit,
   availablePzec,
@@ -19,6 +21,7 @@ import {
   releaseRestingOrder,
   seedBook,
   seedPaperAccount,
+  USER_ORDER_PREFIX,
   userOrders,
   wouldSelfTrade,
   type PaperAccount,
@@ -33,6 +36,7 @@ import { OrderBlotter } from "./order-blotter";
 import { OrderBook } from "./order-book";
 import { PriceChart } from "./price-chart";
 import { TradeTicket } from "./trade-ticket";
+import { WalletBar } from "./wallet-bar";
 import styles from "./terminal.module.css";
 
 type View = "trade" | "liquidity" | "bridge" | "architecture";
@@ -90,11 +94,13 @@ export function TradingTerminal({
   const [events, setEvents] = useState<SessionLogEvent[]>([]);
   const [accountEpoch, setAccountEpoch] = useState(0);
   const [priceSelection, setPriceSelection] = useState<{ ticks: bigint; nonce: number } | null>(null);
+  const [wallet, setWallet] = useState<WalletState>(disconnectedWallet);
   const nextOrderId = useRef(1);
   const nextPriceNonce = useRef(1);
   const nextFillId = useRef(1);
   const market = markets[marketId];
   const book = books[marketId];
+  const displayedBook = feedStatus === "empty" ? emptyBook(book.lastTicks) : book;
   const account = accounts[marketId];
 
   function selectView(nextView: View) {
@@ -112,13 +118,35 @@ export function TradingTerminal({
     router.replace(viewUrl(view, marketId, nextFeed), { scroll: false });
   }
 
+  function sweepExpired(sourceBook = book, sourceAccount = account) {
+    const nowUnix = BigInt(Math.floor(Date.now() / 1000));
+    const { book: nextBook, expired } = expireRestingOrders(sourceBook, nowUnix);
+    const userExpired = expired.filter((order) => order.id.startsWith(USER_ORDER_PREFIX));
+    let nextAccount = sourceAccount;
+    for (const resting of userExpired) {
+      nextAccount = releaseRestingOrder(nextAccount, resting);
+    }
+    return { nowUnix, nextBook, nextAccount, userExpired };
+  }
+
+  function expireEvents(userExpired: RestingOrder[]): SessionLogEvent[] {
+    return userExpired.map((resting) => ({ kind: "cancel" as const, marketId, orderId: resting.id }));
+  }
+
   function submitUserOrder(order: {
     side: "buy" | "sell";
     tif: TimeInForce;
     priceTicks: bigint;
     sizeAtoms: bigint;
+    expiryUnix: bigint;
   }): string {
-    if (!canCover(account, order.side, order.sizeAtoms, order.priceTicks)) {
+    const { nowUnix, nextBook, nextAccount, userExpired } = sweepExpired();
+    if (!canCover(nextAccount, order.side, order.sizeAtoms, order.priceTicks)) {
+      if (userExpired.length > 0) {
+        setBooks({ ...books, [marketId]: nextBook });
+        setAccounts({ ...accounts, [marketId]: nextAccount });
+        setEvents((current) => [...current, ...expireEvents(userExpired)]);
+      }
       return order.side === "buy"
         ? "Session quote inventory is insufficient."
         : "Session pZEC inventory is insufficient.";
@@ -126,19 +154,30 @@ export function TradingTerminal({
 
     const id = `user-${nextOrderId.current}`;
     nextOrderId.current += 1;
-    const result = submitOrder(book, { id, ...order });
+    const { expiryUnix, ...matcherOrder } = order;
+    const result = submitOrder(nextBook, { id, ...matcherOrder, expiryUnix, nowUnix });
     if (wouldSelfTrade(result.fills)) {
+      if (userExpired.length > 0) {
+        setBooks({ ...books, [marketId]: nextBook });
+        setAccounts({ ...accounts, [marketId]: nextAccount });
+        setEvents((current) => [...current, ...expireEvents(userExpired)]);
+      }
       return "Self-trade prevented. Cancel the resting session order or choose another price.";
     }
 
-    const applied = applySubmit(account, order, result);
+    const applied = applySubmit(nextAccount, order, result);
     if (applied.blockedReason) {
+      if (userExpired.length > 0) {
+        setBooks({ ...books, [marketId]: nextBook });
+        setAccounts({ ...accounts, [marketId]: nextAccount });
+        setEvents((current) => [...current, ...expireEvents(userExpired)]);
+      }
       return applied.blockedReason;
     }
 
     setBooks({ ...books, [marketId]: result.book });
     setAccounts({ ...accounts, [marketId]: applied.account });
-    setEvents((current) => [...current, { kind: "submit", marketId, id, ...order }]);
+    setEvents((current) => [...current, ...expireEvents(userExpired), { kind: "submit", marketId, id, ...order }]);
     if (result.fills.length > 0) {
       const time = formatFillTime();
       setFills((current) => [
@@ -197,7 +236,7 @@ export function TradingTerminal({
       <a className={styles.skipLink} href="#main-content">Skip to main content</a>
       <div className={styles.simulationBanner} role="status">
         <strong>Protocol preview</strong>
-        <span>Local in-browser matcher only. No wallets, real assets, live prices, contracts, or deposits are connected. This matcher is not the proposed production operator and is not trustless.</span>
+        <span>Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless.</span>
       </div>
 
       <header className={styles.topbar}>
@@ -218,10 +257,7 @@ export function TradingTerminal({
             </button>
           ))}
         </nav>
-        <div className={styles.headerActions}>
-          <span className={styles.network}><i />Arbitrum design</span>
-          <button type="button" className={styles.connectButton} disabled>Wallets unavailable</button>
-        </div>
+        <WalletBar wallet={wallet} onChange={setWallet} />
       </header>
 
       <main id="main-content" tabIndex={-1}>
@@ -252,6 +288,7 @@ export function TradingTerminal({
                     onChange={(event) => selectFeed(event.target.value as FeedStatus)}
                   >
                     <option value="illustrative">Illustrative</option>
+                    <option value="loading">Loading</option>
                     <option value="empty">Empty</option>
                     <option value="stale">Stale</option>
                     <option value="unavailable">Unavailable</option>
@@ -290,7 +327,7 @@ export function TradingTerminal({
 
               <OrderBook
                 marketId={marketId}
-                book={book}
+                book={displayedBook}
                 onPriceSelect={(ticks) => {
                   setPriceSelection({ ticks, nonce: nextPriceNonce.current });
                   nextPriceNonce.current += 1;
@@ -299,7 +336,7 @@ export function TradingTerminal({
               <TradeTicket
                 key={`${marketId}:${feedStatus}`}
                 market={market}
-                book={book}
+                book={displayedBook}
                 lastTicks={book.lastTicks}
                 priceSelection={priceSelection}
                 availablePzecAtoms={availablePzec(account)}
@@ -308,6 +345,7 @@ export function TradingTerminal({
                 reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
                 accountEpoch={accountEpoch}
                 feedStatus={feedStatus}
+                walletAddress={wallet.address}
                 onRetryFeed={() => selectFeed("illustrative")}
                 onSubmit={submitUserOrder}
               />
@@ -318,7 +356,7 @@ export function TradingTerminal({
                   <span className={styles.miniLabel}>{sessionTape.length > 0 ? "Session + fixture" : "Fixture tape"}</span>
                 </div>
                 <table className={styles.dataTable}>
-                  <caption className={styles.srOnly}>Recent {marketId} trades. Session fills appear first.</caption>
+                  <caption className={styles.srOnly}>Recent {marketId} trades settled as {market.settlementPair}. Session fills appear first.</caption>
                   <thead>
                     <tr><th scope="col">Price {market.quote}</th><th scope="col">Size pZEC</th><th scope="col">Time</th></tr>
                   </thead>
@@ -357,6 +395,7 @@ export function TradingTerminal({
                 onCancel={cancelUserOrder}
                 onCancelAll={cancelAllUserOrders}
                 onReset={resetSession}
+                accountEpoch={accountEpoch}
               />
             </div>
           </>
@@ -370,6 +409,8 @@ export function TradingTerminal({
       <footer className={styles.footer}>
         <span>Phlebas protocol preview, 31-08-2026</span>
         <Link href="/status">Status</Link>
+        <Link href="/legal">Legal</Link>
+        <Link href="/security">Security</Link>
         <span>Research repository candidate, not a live exchange or an offer of financial services</span>
       </footer>
     </div>
