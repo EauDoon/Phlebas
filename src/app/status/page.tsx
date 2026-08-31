@@ -35,7 +35,7 @@ export default function StatusPage() {
       <p>
         Incident copy on Architecture is a labeled demonstration, not a live outage.
         {" "}
-        <a href="/trade?view=architecture">Architecture incident demonstrations</a>
+        <a href="/trade?view=architecture&demo=incidents#incident-demo">Architecture incident demonstrations</a>
       </p>
       <p>
         Machine-readable copy: <a href="/api/status">/api/status</a>
