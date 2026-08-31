@@ -35,12 +35,24 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(terminal, /is audited/);
   const bridge = await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8");
   assert.match(bridge, /Preview withdrawal states, not Withdraw ZEC/);
+  assert.match(bridge, /Preview deposit states, not Deposit ZEC/);
   assert.match(bridge, /payoutClaimForTourStep/);
   assert.match(bridge, /Nothing is sent/);
   assert.match(
     await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"),
     /not a return or profit projection/i,
   );
+  assert.match(
+    await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"),
+    /Review simulated mint/,
+  );
+  assert.match(
+    await readFile(join(root, "src/lib/preview-education.ts"), "utf8"),
+    /not native ZEC, shielded ZEC, or a trustless bridge asset/,
+  );
+  assert.match(landing, /Open status details/);
+  assert.match(landing, /Legal and compliance/);
+  assert.doesNotMatch(landing, /github.com/);
 });
 
 test("robots and security headers keep the public app noindex", async () => {

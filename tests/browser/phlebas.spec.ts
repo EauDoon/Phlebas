@@ -20,6 +20,16 @@ const routes = [
     disclosure: "Protocol preview",
     marker: "Provide liquidity",
   },
+  {
+    path: "/legal",
+    disclosure: "Simulation only",
+    marker: "product copy, not legal advice",
+  },
+  {
+    path: "/security",
+    disclosure: "Simulation only",
+    marker: "no production support commitment",
+  },
 ] as const;
 
 function captureRuntimeErrors(page: Page) {
@@ -133,6 +143,8 @@ for (const width of viewports) {
             { exact: true },
           )).toBeVisible();
           await expect(page.getByText("Deny by default", { exact: true })).toBeVisible();
+          await expect(page.getByRole("link", { name: "Open status details" })).toBeVisible();
+          await expect(page.getByRole("contentinfo").getByRole("link", { name: "Legal and compliance" })).toBeVisible();
         }
       }
 
@@ -401,18 +413,21 @@ test("LP preview shows integer IL versus hold", async ({ page }) => {
   await expect(stats.getByText("IL vs hold at 4x pZEC/quote")).toBeVisible();
   await expect(stats.getByText("IL vs hold at 1/4x pZEC/quote")).toBeVisible();
   await expect(page.getByText("Not a return or profit projection.")).toBeVisible();
-  await page.getByRole("button", { name: "Simulate mint" }).click();
+  await page.getByRole("button", { name: "Review simulated mint" }).click();
+  await expect(page.getByText("pZEC is a custody receipt, not native ZEC.")).toBeVisible();
+  await page.getByRole("button", { name: "Confirm simulated mint" }).click();
   await expect(page.getByText(/Minted .* local LP shares/)).toBeVisible();
   await expect(stats.getByText("Session IL vs hold")).toBeVisible();
 });
 
 test("LP burn stays available after a trading pause", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Simulate mint" }).click();
+  await page.getByRole("button", { name: "Review simulated mint" }).click();
+  await page.getByRole("button", { name: "Confirm simulated mint" }).click();
   await expect(page.getByText(/Minted .* local LP shares/)).toBeVisible();
   await page.getByRole("button", { name: "Pause trading preview" }).click();
-  await expect(page.getByRole("button", { name: "Simulate mint" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Simulate swap" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
   await page.getByRole("button", { name: "Burn session shares" }).click();
   await expect(page.getByText(/Burned session shares/)).toBeVisible();
@@ -496,4 +511,66 @@ test("connect wallet without a provider shows a visible rejection", async ({ pag
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
   await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only.")).toBeVisible();
+});
+
+test("first-session education can be completed by keyboard", async ({ page }) => {
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeFocused();
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  await expect(dialog.getByRole("heading", { name: "pZEC would depend on custody." })).toBeVisible();
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  await expect(dialog.getByRole("heading", { name: "Preview actions stay in this browser." })).toBeVisible();
+  await dialog.getByRole("button", { name: "Enter simulation" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+});
+
+test("country-blocked demonstration hides trading controls", async ({ page }) => {
+  await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Phlebas is not available in this location." })).toBeVisible();
+  await expect(page.getByText("State demonstration")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Read the architecture" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Return home" })).toBeVisible();
+});
+
+test("deposit tour never shows a receivable address", async ({ page }) => {
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await expect(page.getByText("Preview deposit states, not Deposit ZEC.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Eligibility", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await expect(page.getByText("No address generated in simulation.")).toBeVisible();
+  await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
+  await page.getByRole("button", { name: "Next state" }).click();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await expect(page.getByText("State demonstration complete. No native ZEC was received and no pZEC was minted.")).toBeVisible();
+});
+
+test("unavailable feed retry returns to illustrative", async ({ page }) => {
+  await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
+  await expect(page.getByText("Market data unavailable", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await page.getByRole("button", { name: "Retry illustrative feed" }).click();
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeEnabled();
+});
+
+test("architecture incident demonstrations stay labeled", async ({ page }) => {
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  await page.getByLabel("Gateway incident demonstration").selectOption("unplanned-maintenance");
+  const demo = page.getByRole("region", { name: "Blocked, review, reorg, and maintenance copy" });
+  await expect(demo.getByRole("strong")).toHaveText("This service is temporarily unavailable.");
+  await expect(demo.getByText("These screens are labeled demonstrations.")).toBeVisible();
+});
+
+test("legal and security pages stay simulation-only", async ({ page }) => {
+  await page.goto("/legal", { waitUntil: "load" });
+  await expect(page.getByRole("heading", { name: "Legal and compliance" })).toBeVisible();
+  await expect(page.getByText("No licensed entity is operating this interface.")).toBeVisible();
+  await page.goto("/security", { waitUntil: "load" });
+  await expect(page.getByRole("heading", { name: "Security" })).toBeVisible();
+  await expect(page.getByText("Do not send ZEC, pZEC, USDC, USDT0, or any other asset")).toBeVisible();
 });
