@@ -22,6 +22,7 @@
 
 .skipNav:focus-within {
   transform: none;
+  min-height: 44px;
 }
 
 .skipLink {
