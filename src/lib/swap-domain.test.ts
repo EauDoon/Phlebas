@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { keccak256Text } from "./keccak.ts";
-import { roleForParty, validateSwapTerms, type SwapTermsV1 } from "./swap-domain.ts";
+import {
+  encodeSwapTerms,
+  hashSwapTerms,
+  roleForParty,
+  swapIdForTerms,
+  validateSwapTerms,
+  type SwapTermsV1,
+} from "./swap-domain.ts";
 
 const hex20 = (byte: string) => `0x${byte.repeat(40)}` as `0x${string}`;
 
@@ -70,4 +77,24 @@ test("rejects zero destinations and hashes", () => {
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, evmEscrowContract: hex20("0") }), /cannot be zero/);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, secretHash: `0x${"00".repeat(32)}` }), /cannot be zero/);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, zcashClaimPubKeyHash: hex20("0") }), /nonzero/);
+});
+
+test("derives frozen SHA-256 terms and swap identifiers", () => {
+  assert.match(encodeSwapTerms(sampleSwapTerms), /^PhlebasSwapTerms\nversion=1\nfillId=/);
+  assert.equal(hashSwapTerms(sampleSwapTerms), "0x855e97de0698ae747091095613dcec09601fae78ef944ec5d84c94d411ceda75");
+  assert.equal(swapIdForTerms(sampleSwapTerms), "0xefa4d481056f0fe46e2912b24b0e59cef5315b471d291e70e4441aacb7bb6609");
+});
+
+test("binds every signed field and distinguishes equal-sized partial fills", () => {
+  const baseline = hashSwapTerms(sampleSwapTerms);
+  for (const changed of [
+    { ...sampleSwapTerms, fillIndex: 1n },
+    { ...sampleSwapTerms, quoteAmountAtoms: sampleSwapTerms.quoteAmountAtoms + 1n },
+    { ...sampleSwapTerms, evmClaimRecipient: hex20("7") },
+    { ...sampleSwapTerms, evmRefundTime: sampleSwapTerms.evmRefundTime + 1n },
+    { ...sampleSwapTerms, observerPolicyId: keccak256Text("different-observer-policy") },
+  ]) {
+    assert.notEqual(hashSwapTerms(changed), baseline);
+    assert.notEqual(swapIdForTerms(changed), swapIdForTerms(sampleSwapTerms));
+  }
 });

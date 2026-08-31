@@ -1,4 +1,5 @@
 import { UINT64_MAX, normalizeAddress, normalizeHex32, type Hex32, type HexAddress } from "./order-domain.ts";
+import { sha256Hex } from "./sha256.ts";
 
 export const SWAP_TERMS_VERSION = 1 as const;
 export const MAX_SWAP_FEE_BPS = 30n;
@@ -143,4 +144,27 @@ export function roleForParty(terms: SwapTermsV1, partyId: Hex32): SwapRole {
   if (normalized === terms.zecSellerId) return "zec-seller";
   if (normalized === terms.stablecoinSellerId) return "stablecoin-seller";
   throw new Error("Party is not authorized by these swap terms");
+}
+
+const CANONICAL_FIELDS: readonly (keyof SwapTermsV1)[] = [
+  "version", "fillId", "fillIndex", "zecOrderHash", "stablecoinOrderHash",
+  "zecSellerId", "stablecoinSellerId", "zecChain", "zecAsset", "quoteChain", "quoteAsset",
+  "zecAmountZatoshis", "quoteAmountAtoms", "executionPriceTicks", "protocolFeeQuoteAtoms", "maximumFeeBps",
+  "zcashClaimPubKeyHash", "zcashRefundPubKeyHash", "evmFunder", "evmClaimRecipient", "evmRefundRecipient",
+  "evmEscrowContract", "secretHash", "authorizationDeadline", "zecFundBy", "evmFundBy",
+  "evmClaimSafetyCutoff", "evmRefundTime", "zecRefundTime", "timeoutPolicyId", "observerPolicyId",
+  "zecFinalityPolicyId", "evmFinalityPolicyId",
+] as const;
+
+export function encodeSwapTerms(terms: SwapTermsV1): string {
+  const validated = validateSwapTerms(terms);
+  return ["PhlebasSwapTerms", ...CANONICAL_FIELDS.map((field) => `${field}=${validated[field]}`)].join("\n");
+}
+
+export function hashSwapTerms(terms: SwapTermsV1): Hex32 {
+  return sha256Hex(encodeSwapTerms(terms));
+}
+
+export function swapIdForTerms(terms: SwapTermsV1): Hex32 {
+  return sha256Hex(`PhlebasSwapId\nversion=${SWAP_TERMS_VERSION}\ntermsHash=${hashSwapTerms(terms)}`);
 }
