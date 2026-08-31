@@ -80,3 +80,11 @@ These interface references inform hierarchy and density only. Phlebas uses its o
 - [Zcash light-clientd reference](https://github.com/zcash/lightwalletd)
 - [Google SRE book, chapter on alert design](https://sre.google/sre-book/monitoring-distributed-systems/)
 - [Elastic Common Schema (ECS) field reference for observability](https://www.elastic.co/guide/en/ecs/current/ecs-reference.html)
+
+## Public market data references
+
+- [O'Reilly "Designing Data-Intensive Applications" chapter on stream processing](https://dataintensive.net/)
+- [WebSocket API (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
+- [Server-Sent Events (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)
+- [Coinbase Exchange public market data API reference](https://docs.cdp.coinbase.com/exchange/docs/rest-overview)
+- [Binance public market data WebSocket reference](https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams)
