@@ -293,7 +293,7 @@ test("local matcher fills a buy against the fixture ask", async ({ page }) => {
   await page.getByRole("button", { name: "Ask 52.91" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByText("pZEC is a custody receipt, not native ZEC.")).toBeVisible();
+  await expect(page.getByText("This preview labels native ZEC. It is not live settlement.")).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText(/Filled against the local ZEC\/USDC book/)).toBeVisible();
   await expect(page.getByRole("tab", { name: "Fills" })).toBeVisible();
@@ -502,8 +502,8 @@ test("USDT market names USDT settlement and empty feed shows no depth", async ({
 test("LP preview shows integer IL versus hold", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
   const stats = page.getByRole("group", { name: "Pool stats and impermanent loss versus hold" });
-  await expect(stats.getByText("IL vs hold at 4x pZEC/quote")).toBeVisible();
-  await expect(stats.getByText("IL vs hold at 1/4x pZEC/quote")).toBeVisible();
+  await expect(stats.getByText("IL vs hold at 4x ZEC/quote")).toBeVisible();
+  await expect(stats.getByText("IL vs hold at 1/4x ZEC/quote")).toBeVisible();
   await expect(page.getByText("Not a return or profit projection.")).toBeVisible();
   await page.getByRole("button", { name: "Review simulated mint" }).click();
   await expect(page.getByText("Leaves the session")).toBeVisible();
@@ -673,8 +673,8 @@ test("invalidate-epoch control is keyboard focusable", async ({ page }) => {
 
 test("liquidity previews integer IL versus hold without a return claim", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await expect(page.getByText("IL vs hold at 4x pZEC/quote")).toBeVisible();
-  await expect(page.getByText("IL vs hold at 1/4x pZEC/quote")).toBeVisible();
+  await expect(page.getByText("IL vs hold at 4x ZEC/quote")).toBeVisible();
+  await expect(page.getByText("IL vs hold at 1/4x ZEC/quote")).toBeVisible();
   await expect(page.getByText("Not a return or profit projection.")).toBeVisible();
 });
 
@@ -1147,7 +1147,7 @@ test("first-session education can be completed by keyboard", async ({ page }) =>
   await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeFocused();
   await expect(dialog.getByText("Education, not consent.")).toBeVisible();
   await dialog.getByRole("button", { name: "Continue" }).click();
-  await expect(dialog.getByRole("heading", { name: "pZEC would depend on custody." })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Pairs are native ZEC against USDC and USDT." })).toBeVisible();
   await dialog.getByRole("button", { name: "Continue" }).click();
   await expect(dialog.getByRole("heading", { name: "Preview actions stay in this browser." })).toBeVisible();
   await dialog.getByRole("button", { name: "Enter simulation" }).click();
