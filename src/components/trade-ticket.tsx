@@ -11,6 +11,7 @@ import { TESTNET } from "@/lib/testnet";
 import { parseExpiryUnix, settlementDigest, typedOrderFromTicket } from "@/lib/ticket-order";
 import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
+import { interpretTicketKey } from "@/lib/ticket-shortcuts";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
 import { compareVenues, type RouteComparison } from "@/lib/router";
 import {
@@ -157,17 +158,21 @@ export function TradeTicket({
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      const target = event.target;
-      if (
-        target instanceof HTMLElement
-        && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA" || target.isContentEditable)
-      ) {
+      const action = interpretTicketKey(event.key, {
+        target: event.target,
+        dialogOpen: Boolean(document.querySelector("dialog[open]")),
+      });
+      if (action === "escape") {
+        setReview(null);
         return;
       }
-      if (event.key === "b" || event.key === "B") setSide("buy");
-      if (event.key === "s" || event.key === "S") setSide("sell");
-      if (event.key === "l" || event.key === "L") setOrderType("limit");
-      if (event.key === "m" || event.key === "M") setOrderType("market");
+      if (action === "buy") setSide("buy");
+      if (action === "sell") setSide("sell");
+      if (action === "limit") setOrderType("limit");
+      if (action === "market") setOrderType("market");
+      if (action === "gtc") setTif("GTC");
+      if (action === "ioc") setTif("IOC");
+      if (action === "fok") setTif("FOK");
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -740,7 +745,7 @@ export function TradeTicket({
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
         {inputError ?? notionalError ?? notice}
       </p>
-      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type. Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
+      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type, G/I/F time in force. Escape leaves review. Shortcuts ignore an open dialog. Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
     </section>
   );
 }
