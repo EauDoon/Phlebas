@@ -357,6 +357,22 @@ test("architecture keeps demo=incidents when the market changes", async ({ page 
   await expect(page.getByText("architecture-demonstration")).toBeVisible();
 });
 
+test("leaving Architecture for Trade drops demo=incidents and return restores it", async ({ page }) => {
+  await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
+  await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Primary navigation" });
+  await nav.getByRole("button", { name: "Trade" }).click();
+  await expect(page).toHaveURL(/view=trade/);
+  await expect(page).not.toHaveURL(/demo=incidents/);
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await expect(page.getByText("Status field architecture-demonstration.")).toHaveCount(0);
+  await nav.getByRole("button", { name: "Architecture" }).click();
+  await expect(page).toHaveURL(/view=architecture/);
+  await expect(page).toHaveURL(/demo=incidents/);
+  await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
+  await expect(page.getByText("Labeled demonstration, not a live outage.")).toBeVisible();
+});
+
 test("status Architecture link keeps the demonstration label", async ({ page }) => {
   await page.goto("/status", { waitUntil: "networkidle" });
   await page.getByRole("link", { name: "Architecture incident demonstrations" }).click();
@@ -592,6 +608,19 @@ test("blotter tabs expose a selected tabpanel", async ({ page }) => {
   await expect(page.getByRole("tabpanel", { name: "Open orders" })).toContainText("Settled as pZEC-USDT0");
   await page.getByRole("tab", { name: "Inventory" }).click();
   await expect(page.getByRole("tabpanel", { name: "Inventory" })).toContainText("Account epoch");
+});
+
+test("blotter event log empty copy names the settlement pair", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("tab", { name: "Event log" }).click();
+  await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText(
+    "No session events yet. Settled as pZEC-USDC.",
+  );
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText("Settled as pZEC-USDT0");
+  await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText(
+    "Replaying this log reconstructs the book and balances.",
+  );
 });
 
 test("landing journey tabs select LP without a page reload", async ({ page }) => {
