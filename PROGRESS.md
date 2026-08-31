@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the product-UI view-tabs, LP errors, fixture labels, and unresolved-withdrawal slice.
+Last updated: 31-08-2026 after the ticket-group, gateway-journey, preview-fixture, and status-skip slice.
 
 ## Branch
 
@@ -119,15 +119,21 @@ Last updated: 31-08-2026 after the product-UI view-tabs, LP errors, fixture labe
 - Withdrawal tour includes an unresolved demonstration; stub claim stays unresolved and nothing is sent
 - Chart SVG pixel coordinates are documented display floats; axis labels stay integer ticks
 - Playwright covers view-tab arrows, LP field errors, fixture-labeled volume, shortcut region, and unresolved withdrawal
+- Ticket side, type, and time-in-force groups move focus with arrows and select with Enter/Space
+- Size percent shortcuts are 44px on desktop
+- Gateway deposit/withdrawal journey buttons move with arrows
+- Landing terminal preview depth names last, price, and size as Fixture
+- Status skip link reaches the status ledger
+- Playwright covers ticket-group arrows, 44px size shortcuts, gateway journey arrows, preview fixture labels, and status skip
 
 ## Next
 
-- Ticket side, type, and time-in-force groups should move with arrows the way blotter tabs do
-- Size percent shortcuts stay 27px on desktop; they should be 44px
-- Gateway deposit/withdrawal journey buttons should move with arrows
-- Landing terminal preview depth should name its figures as fixtures the same way as 24h volume
-- Status page should skip to the ledger the way the terminal skips to the ticket
-- Playwright: ticket group arrows, 44px size shortcuts, gateway journey arrows, preview fixture labels, status skip
+- Feed-state and market selectors should move with arrows the way blotter tabs do
+- Review Back and ticket primary actions should stay 44px at desktop, not only under 820px
+- LP mint/swap/burn tour buttons should be 44px on desktop
+- Legal and security pages should skip to the article the way status skips to the ledger
+- Architecture incident demonstrations should keep the selected copy in a named region
+- Playwright: market/feed arrows, desktop 44px review Back, LP tour targets, legal skip, incident region
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
