@@ -18,7 +18,7 @@ export default function GlobalError({
             row-gap: 8px;
             box-sizing: border-box;
             max-width: 100%;
-            padding: 6px;
+            padding: 8px;
           }
           nav[aria-label="Skip links"] a {
             box-sizing: border-box;
