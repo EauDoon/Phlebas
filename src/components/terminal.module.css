@@ -116,6 +116,10 @@
   min-height: 44px;
 }
 
+:global(#order-book) {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
