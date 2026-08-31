@@ -6,15 +6,15 @@ Status: design and no-value simulation, dated 30-08-2026.
 
 Phlebas is a hybrid spot DEX design for two market labels:
 
-- `ZEC/USDC`, settled as `pZEC-USDC`
-- `ZEC/USDT`, settled as `pZEC-USDT0`
+- `ZEC/USDC`, settled as `ZEC-USDC`
+- `ZEC/USDT`, settled as `ZEC-USDT`
 
-It combines signed order intents and atomic onchain settlement with small-scope constant product liquidity pools. A separate transparent-Zcash gateway would hold native ZEC and issue pZEC.
+It combines signed order intents and atomic onchain settlement with small-scope constant product liquidity pools. Settlement assets are native ZEC, native USDC, and native USDT. USDT0 is abandoned. This remains a no-value simulation.
 
 ## 2. Goals
 
 1. Give ZEC holders a compact, professional spot-trading experience.
-2. Let users keep quote assets and pZEC in their wallets until settlement.
+2. Let users keep quote assets and ZEC in their wallets until settlement.
 3. Add simple LP positions without farms, leverage, or exotic hooks. Mainnet contract-access policy remains unresolved.
 4. Make the ZEC custody and privacy boundary visible at every relevant decision.
 5. Make reserves, liabilities, sequencing, governance changes, and incidents independently observable.
@@ -45,7 +45,7 @@ It combines signed order intents and atomic onchain settlement with small-scope 
 
 ## 5. Market presentation
 
-The UI may show familiar market labels, but every order ticket, confirmation, fill, and history record must also name the settlement pair. `ZEC/USDT` must disclose that the proposed Arbitrum quote asset is USDT0.
+Every order ticket, confirmation, fill, and history record names the settlement pair `ZEC-USDC` or `ZEC-USDT`. Those pairs are native ZEC against native USDC or native USDT. USDT0 is not a listed quote asset.
 
 Market data states are explicit:
 
@@ -82,7 +82,7 @@ verifying contract
 
 Contract wallets use ERC-1271 signature validation. A market order is represented as IOC with a user-signed worst acceptable price. There is no unbounded market-order instruction.
 
-The reference ticket uses a `0.01` quote-price tick, one pZEC atom (`0.00000001 pZEC`) as the base-size step, and one quote-token atom (`0.000001 USDC` or `USDT0`) as the minimum displayed notional. It rejects extra precision, underflow, and values outside the exact preview range. A market worst price rounds outward to the next tick, up for buys and down for sells. Production parameters must be versioned and enforced identically in the matcher and settlement contract.
+The reference ticket uses a `0.01` quote-price tick, one ZEC atom (`0.00000001 ZEC`) as the base-size step, and one quote-token atom (`0.000001 USDC` or `USDT`) as the minimum displayed notional. It rejects extra precision, underflow, and values outside the exact preview range. A market worst price rounds outward to the next tick, up for buys and down for sells. Production parameters must be versioned and enforced identically in the matcher and settlement contract.
 
 ### 6.2 Matching
 
@@ -129,8 +129,8 @@ Any allowed fee change requires a seven-day timelock. Version 1 has no rebates b
 
 Phlebas specifies only two constant product pools:
 
-- `pZEC/USDC`
-- `pZEC/USDT0`
+- `ZEC/USDC`
+- `ZEC/USDT`
 
 Each swap enforces the fee-adjusted constant-product inequality, and the fixed 30 basis point input fee remains in the pool for LPs. Consequently, the reserve product after a valid swap is at least the reserve product before it, subject to exact integer-rounding rules. The version 1 pair and router surface is limited to add liquidity, remove liquidity, swap, permit, and reserve queries.
 

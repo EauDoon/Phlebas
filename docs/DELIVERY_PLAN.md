@@ -9,7 +9,7 @@ Build and verify Phlebas as a GitHub and Vercel project with:
 - An original landing and onboarding experience
 - A professional `ZEC/USDC` and `ZEC/USDT` trading terminal
 - A deterministic order-book simulation and, later, testnet settlement contracts
-- Small-scope `pZEC/USDC` and `pZEC/USDT0` constant product pools
+- Small-scope `ZEC/USDC` and `ZEC/USDT` constant product pools
 - Transparent-ZEC wallet-compatible deposit and withdrawal journeys
 - Zcash testnet observers, a single-use deposit ledger, withdrawal state machine, and reserve proofs
 - Security, compliance, monitoring, incident, and release controls
@@ -144,7 +144,7 @@ Deliverables:
 Acceptance:
 
 - Conservation, minimum output, rounding, reserve, and LP-share properties pass.
-- Only `pZEC/USDC` and `pZEC/USDT0` are constructible.
+- Only `ZEC/USDC` and `ZEC/USDT` are constructible.
 - The router is stateless and cannot retain user value.
 
 ### PR 5: Arbitrum testnet contracts

@@ -18,10 +18,10 @@ The target product has two displayed markets:
 
 The candidate settlement assets on Arbitrum One are:
 
-* `pZEC/USDC`
-* `pZEC/USDT0`
+* `ZEC/USDC`
+* `ZEC/USDT`
 
-`pZEC` means Phlebas ZEC. It would be an 8-decimal ERC-20 claim backed one for one by transparent native ZEC held by a custody operator. It would not be native ZEC, shielded ZEC, a privacy asset, or a trustless bridge asset.
+The product UI now settles `ZEC-USDC` and `ZEC-USDT` as native ZEC against native USDC and native USDT. USDT0 is abandoned. Shielded ZEC stays out of scope. The public app is still a no-value simulation.
 
 Phlebas would accept transparent Zcash deposits only. Transparent Zcash exposes transaction and balance information publicly, as described by [Zcash's comparison of transparent and shielded ZEC](https://z.cash/learn/what-is-the-difference-between-shielded-and-transparent-zcash/).
 
@@ -34,7 +34,7 @@ The candidate design uses custody-backed `pZEC` because both requested market st
 
 Native transparent ZEC can support bilateral hash time-locked swaps. [ZIP 300](https://zips.z.cash/zip-0300) specifies a proposed transparent P2SH atomic-swap protocol. It remains Proposed and says the approach had not achieved widespread adoption. A native ZEC atomic-swap lane could settle matched orders, but it cannot by itself create a single-state Uniswap v2 pool. Phlebas therefore treats atomic swaps as a possible later settlement route, not the base for the LP system.
 
-The chain and asset choice is recorded in [ADR 0001](adr/0001-arbitrum-and-pzec.md).
+The chain and custody-backed ERC-20 form are recorded in [ADR 0001](adr/0001-arbitrum-and-pzec.md). Product settlement labels are recorded in [ADR 0002](adr/0002-native-zec-usdc-usdt.md).
 
 ## Current system
 
@@ -45,7 +45,7 @@ The current repository contains a Next.js no-value simulation, undeployed Arbitr
 | Web application | Local or Vercel-compatible simulation (noindex) | Public interface with explicit network and asset disclosures |
 | Market data | Static sample values plus session fills | Indexed contract events and signed service responses |
 | Order book | In-browser matcher; optional loopback operator stubs | Off-chain order intake and matching with on-chain settlement |
-| LP pools | In-memory constant-product calculation | Audited `pZEC/USDC` and `pZEC/USDT0` contracts |
+| LP pools | In-memory constant-product calculation | Audited `ZEC/USDC` and `ZEC/USDT` contracts |
 | Zcash deposits | Local textest gateway stub, off by default | Fresh per-intent TEX addresses with final-transaction transparency checks |
 | Zcash withdrawals | Tour-only payout stub; nothing is sent | Burn-authorized transparent withdrawals |
 | `pZEC` | Display label; undeployed contract source | Custody-backed ERC-20 with controlled mint and burn |
@@ -143,14 +143,14 @@ Transparent P2SH multisig exists on the network, but current wallet standardizat
 
 ## Arbitrum settlement
 
-Arbitrum One is the candidate settlement chain, not a deployed environment. The [Arbitrum documentation](https://docs.arbitrum.io/) supports Solidity contracts and ERC-20 transfers and was last updated 18-08-2026. The official [USDT0 deployment registry](https://docs.usdt0.to/technical-documentation/deployments) identifies Arbitrum One as chain ID `42161`.
+Arbitrum One is the candidate settlement chain, not a deployed environment. The [Arbitrum documentation](https://docs.arbitrum.io/) supports Solidity contracts and ERC-20 transfers and was last updated 18-08-2026.
 
 The candidate quote assets are:
 
-| Product label | Candidate settlement asset | Source checked on 30-08-2026 |
+| Product label | Candidate settlement asset | Source checked on 31-08-2026 |
 | --- | --- | --- |
 | `ZEC/USDC` | Native Circle USDC on Arbitrum | [Circle USDC address registry](https://developers.circle.com/stablecoins/usdc-contract-addresses) |
-| `ZEC/USDT` | USDT0 integration using the Arbitrum token entry | [USDT0 deployment registry](https://docs.usdt0.to/technical-documentation/deployments) |
+| `ZEC/USDT` | Native USDT. USDT0 is abandoned. | Issuer-native USDT at the mainnet gate. No address is approved by this document. |
 
 Contract addresses are intentionally not configuration in the current application. The mainnet gate must reverify chain ID, bytecode, proxy and admin structure, token decimals, issuer documentation, and exact addresses from primary sources before any deployment.
 

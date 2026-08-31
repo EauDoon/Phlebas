@@ -6,12 +6,12 @@
 
 Phlebas is intended to become a hybrid exchange for two markets:
 
-- `pZEC-USDC`
-- `pZEC-USDT0`
+- `ZEC-USDC`
+- `ZEC-USDT`
 
 The design combines an offchain central limit order book, onchain atomic settlement, and two constrained Uniswap v2-style liquidity pools. Transparent ZEC enters through a federated gateway and is represented on Arbitrum One as pZEC.
 
-The design is acceptable only for simulation, testnet, and a later strictly capped beta. The pZEC gateway is the dominant risk. Phlebas must not be described as fully decentralized, trustless, shielded, private, or native-ZEC trading.
+The design is acceptable only for simulation, testnet, and a later strictly capped beta. The pZEC gateway is the dominant risk. Phlebas must not be described as fully decentralized, trustless, shielded, private, or live native-ZEC execution. Product labels may say native ZEC against native USDC and native USDT. USDT0 is abandoned.
 
 ## 2. Current repository reality
 
@@ -33,8 +33,8 @@ Transparent ZEC deposit
   -> pZEC mint on Arbitrum One
   -> user wallet
        -> signed order -> offchain CLOB -> onchain settlement
-       -> pZEC/USDC pool
-       -> pZEC/USDT0 pool
+       -> ZEC/USDC pool
+       -> ZEC/USDT pool
        -> atomic route across CLOB and AMM
 
 pZEC redemption request
@@ -76,12 +76,12 @@ Only exact, revalidated token addresses may be enabled:
 | --- | --- | --- |
 | pZEC | New Phlebas contract, address not assigned | 8 |
 | Native USDC on Arbitrum | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` | 6 |
-| Canonical USDT0 on Arbitrum | `0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9` | 6 |
+| Native USDT on Arbitrum | Address not assigned. USDT0 is abandoned. Reverify issuer-native USDT at the mainnet gate. | 6 |
 | LP tokens | One token per constrained pair | 18 |
 
 Reject bridged USDC variants, lookalike tokens, arbitrary pairs, rebasing tokens, and fee-on-transfer tokens. Token address, code hash, decimals, symbol, issuer documentation, and runtime behavior must be checked again at the release gate.
 
-The canonical API and contract market names are `pZEC-USDC` and `pZEC-USDT0`. A display label such as `ZEC/USDT` must identify both the pZEC receipt and USDT0 settlement asset. It must not imply native ZEC or native Ethereum USDT.
+The canonical API and contract market names are `ZEC-USDC` and `ZEC-USDT`. Those pairs are native ZEC against native USDC or native USDT. USDT0 is abandoned. The interface remains a no-value simulation and must not claim live funds.
 
 ## 5. Assets and security objectives
 
@@ -89,7 +89,7 @@ The canonical API and contract market names are `pZEC-USDC` and `pZEC-USDT0`. A 
 
 - Transparent ZEC reserve UTXOs.
 - pZEC mint and burn authority.
-- User pZEC, USDC, USDT0, and LP positions.
+- User ZEC, USDC, USDT, and LP positions. The candidate ERC-20 form remains pZEC.
 - Signed orders, nonces, allowances, limits, and cancellation state.
 - Matcher sequence records and fill submissions.
 - Attester, custody, guardian, governance, deployer, and treasury keys.
@@ -119,7 +119,7 @@ Phlebas depends on the following trusted or governed parties:
 - The matcher controls availability and practical order priority. Publishing sequence roots makes behavior auditable but does not enforce fairness onchain.
 - Arbitrum sequencing and governance affect ordering, availability, finality, and contract execution.
 - Circle controls USDC minting, pausing, blacklisting, and upgrades.
-- USDT0 depends on its lock-and-mint or Legacy Mesh design, LayerZero messaging, verifiers, and governed contracts.
+- Native USDT depends on Tether issuer, blacklist, freeze, and contract controls. USDT0 is abandoned and is not a listed quote.
 - Vercel and the domain provider can censor or replace one interface.
 
 Accurate claim: Phlebas is planned as a hybrid exchange with onchain settlement and constrained AMM contracts. Whether mainnet contracts may be called without an approved eligibility mechanism remains unresolved.
@@ -270,8 +270,8 @@ Anyone with two compatible valid orders may relay a valid fill if the protocol e
 
 The proposed factory creates exactly two pairs:
 
-- pZEC/USDC
-- pZEC/USDT0
+- ZEC/USDC
+- ZEC/USDT
 
 No arbitrary pair creation, dynamic fee, farm, gauge, lending adapter, leverage, flash swap, or callback is included in v1.
 
@@ -326,7 +326,7 @@ pZEC logic, settlement, route execution, AMM factory, and AMM pairs should be no
 
 The gateway may change signer membership and bounded risk parameters through the timelock, but not replace its logic through a proxy. A gateway logic defect requires mint pause, a new token or controller design, independent review, and explicit migration.
 
-Stablecoin contracts remain outside Phlebas control. Circle documents pause, blacklist, mint, and upgrade roles for USDC. USDT0 has separate governed token and messaging components. Phlebas must isolate an affected market and disclose the dependency rather than claiming immutable stablecoin settlement.
+Stablecoin contracts remain outside Phlebas control. Circle documents pause, blacklist, mint, and upgrade roles for USDC. Native USDT remains subject to Tether issuer and contract controls. Phlebas must isolate an affected market and disclose the dependency rather than claiming immutable stablecoin settlement. USDT0 is abandoned.
 
 ## 13. Threats and required controls
 
@@ -459,8 +459,8 @@ No such review or deployment is claimed here.
 - [Arbitrum chain information](https://docs.arbitrum.io/for-devs/dev-tools-and-resources/chain-info)
 - [Circle USDC contract addresses](https://developers.circle.com/stablecoins/usdc-contract-addresses)
 - [Circle FiatToken design](https://github.com/circlefin/stablecoin-evm/blob/master/doc/tokendesign.md)
-- [USDT0 on Arbitrum](https://usdt0.to/ecosystem/arbitrum)
-- [USDT0 technical documentation](https://docs.usdt0.to/technical-documentation/developer/)
+- [Tether legal](https://tether.to/en/legal/)
+- USDT0 sources are retained only as the abandoned listing path: [USDT0 on Arbitrum](https://usdt0.to/ecosystem/arbitrum), [USDT0 technical documentation](https://docs.usdt0.to/technical-documentation/developer/)
 - [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf)
 - [Zcash transparent and shielded address documentation](https://zcash.readthedocs.io/en/latest/rtd_pages/addresses.html)
 - [Zcashd deprecation and Zebra migration status](https://z.cash/support/zcashd-deprecation/)

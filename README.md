@@ -1,6 +1,6 @@
 # Phlebas
 
-Phlebas is a production-minded protocol design and no-value interface simulation for ZEC markets against USDC and USDT. The interface uses the familiar market labels `ZEC/USDC` and `ZEC/USDT`, while the proposed Arbitrum settlement assets are `pZEC-USDC` and `pZEC-USDT0`.
+Phlebas is a production-minded protocol design and no-value interface simulation for native ZEC markets against native USDC and native USDT. Settlement pairs are `ZEC-USDC` and `ZEC-USDT`. USDT0 is abandoned.
 
 > Status: no-value simulation with optional local testnet services. Contracts are in-repo and undeployed. The public matcher is in-browser. A local operator, testnet TEX gateway, and Arbitrum Sepolia wallet connector exist and do not move mainnet funds. It is not an exchange and is not an offer of financial services.
 
@@ -9,10 +9,10 @@ Phlebas is a production-minded protocol design and no-value interface simulation
 Native ZEC is not an ERC-20 token and cannot sit directly inside an EVM constant product pool. The reference design therefore separates three systems:
 
 1. A transparent-Zcash gateway observes confirmed native ZEC deposits and would issue a fully reserved, 8-decimal `pZEC` receipt.
-2. Arbitrum contracts would settle signed order-book trades and host constrained constant product pools for `pZEC/USDC` and `pZEC/USDT0`.
+2. Arbitrum contracts would settle signed order-book trades and host constrained constant product pools for `ZEC/USDC` and `ZEC/USDT`.
 3. A public web interface presents markets and prepares user-signed actions without holding custody keys or operating the authoritative matcher.
 
-This is a hybrid DEX design. The AMM and trade settlement can be onchain, but the proposed ZEC gateway is custodial and the order matcher is an offchain operator. The project must not be described as trustless, private, shielded, or native-ZEC settlement.
+This is a hybrid DEX design. The AMM and trade settlement can be onchain, but the matcher is an offchain operator. The project must not be described as trustless, private, or shielded. The preview labels native ZEC, USDC, and USDT; it still moves no live funds.
 
 ## Included in this candidate
 
@@ -23,7 +23,7 @@ This is a hybrid DEX design. The AMM and trade settlement can be onchain, but th
 - Integer CLOB vs AMM split-route comparison and LP share mint/burn previews, including IL versus hold at 4x and 1/4x
 - Integer seed books, empty/loading/stale/unavailable ticket gates, and a transparent-destination inspector
 - Click-to-price depth, local last/spread, and slippage-bounded market orders as IOC
-- Integer constant-product quotes and local add/swap previews for `pZEC/USDC` and `pZEC/USDT0`
+- Integer constant-product quotes and local add/swap previews for `ZEC/USDC` and `ZEC/USDT`
 - ZIP 321 testnet TEX issuance through a local gateway, plus the PRODUCT_SPEC withdrawal state tour
 - `/status` and `/api/status`, branded 404/error surfaces, and production `noindex`
 - Executable withdrawal-coverage checks after a finalized burn; mint, pause, and settlement remain design-only
@@ -106,7 +106,7 @@ The [browser acceptance guide](docs/BROWSER_ACCEPTANCE.md) defines the routes, v
 ## Proposed production decisions
 
 - Network: Arbitrum One, chain ID `42161`
-- Quote assets: native Circle USDC first, USDT0 only after a separate issuer and jurisdiction gate
+- Quote assets: native USDC and native USDT. USDT0 is abandoned.
 - ZEC representation: non-upgradeable `pZEC`, 8 decimals, mint and burn restricted to the gateway
 - Orders: EIP-712 signed intents, atomic onchain settlement, maker cancellation bitmap and account epoch
 - Matcher: offchain price-time priority with append-only sequencing evidence
