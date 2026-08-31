@@ -8,6 +8,7 @@ import {
   disconnectedWallet,
   getInjectedProvider,
   missingProviderCopy,
+  retargetSettlementCopy,
   walletConnectFailureCopy,
   walletConnectTitle,
   walletDisconnectLabel,
@@ -28,6 +29,7 @@ export function WalletBar({
 }) {
   const [busy, setBusy] = useState(false);
   const provider = getInjectedProvider();
+  const errorCopy = wallet.error ? retargetSettlementCopy(wallet.error, settlementPair) : null;
 
   async function connect() {
     if (!provider) {
@@ -75,13 +77,13 @@ export function WalletBar({
         onClick={() => void connect()}
         disabled={busy}
         aria-label="Connect Arbitrum Sepolia wallet"
-        title={wallet.error ?? walletConnectTitle(settlementPair, busy)}
+        title={errorCopy ?? walletConnectTitle(settlementPair, busy)}
       >
         {busy ? "Connecting" : "Connect wallet"}
       </button>
-      {wallet.error && (
+      {errorCopy && (
         <span className={styles.inlineNotice} role="status">
-          {wallet.error}
+          {errorCopy}
         </span>
       )}
     </div>
