@@ -101,7 +101,9 @@ Acceptance:
 * an independent reviewer finds no unresolved P0, P1, or P2 issue;
 * the exact PR commit has a working Vercel preview before merge.
 
-### PR 20: native swap state machine and UI journey
+### Native swap state machine and UI journey
+
+Status: implementation batch in progress. The eventual GitHub PR number is assigned at publication time and is not encoded into the architecture.
 
 Deliverables:
 
@@ -111,7 +113,7 @@ Deliverables:
 * claim, refund, replacement, and reorganization transitions;
 * deterministic replay;
 * a no-value lock, claim, and refund journey in the trading UI;
-* removal of active pZEC deposit, withdrawal, mint, burn, and platform-balance language.
+* explicit separation of the native target from remaining legacy pZEC simulation language.
 
 Acceptance:
 
@@ -122,7 +124,7 @@ Acceptance:
 * stale or disagreeing observations move the workflow to a disputed state;
 * browser tests cover every user action and unsafe state.
 
-### PR 21: Zcash transparent transaction lab
+### Zcash transparent transaction lab
 
 Deliverables:
 

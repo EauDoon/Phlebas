@@ -67,25 +67,24 @@ The dotted relationship is data, not custody. Both legs bind the same approved h
 
 ## Fill and settlement lifecycle
 
-One fill creates one immutable swap workflow:
+One fill creates one immutable, independently replayable swap workflow. The reference domain uses these derived phases:
 
 ```text
-matched
-  -> terms accepted
-  -> first leg funding prepared
-  -> first leg funded
-  -> first leg confirmed
-  -> second leg funding prepared
-  -> both legs funded
-  -> redeemable
+awaiting authorizations
+  -> awaiting ZEC funding
+  -> awaiting ZEC confirmation
+  -> awaiting EVM funding
+  -> awaiting EVM confirmation
+  -> awaiting EVM claim
+  -> secret observed
+  -> awaiting ZEC claim
   -> settled
 
-first leg funded -> first leg refundable -> first leg refunded
-both legs funded -> second leg refundable -> second leg refunded
-any observed state -> disputed
+funded leg -> refund recovery -> refunded
+unsafe or conflicting evidence -> disputed
 ```
 
-Each partial fill creates a separate workflow. A match is never presented as settled.
+Each partial fill has a unique fill index and creates a separate swap identifier. A match is never presented as settled. Exact terms are separately authorized by both swap parties because an order signature does not authorize per-fill hashlocks, deadlines, destinations, or contract identities.
 
 The candidate funding order is:
 
@@ -96,7 +95,9 @@ The candidate funding order is:
 5. The stablecoin seller uses that preimage to claim native ZEC.
 6. If progress stops, each funder uses its own wallet-controlled refund path after the applicable deadline.
 
-The exact funding order and deadline margin require current protocol analysis and adversarial Testnet evidence. The local state machine must treat them as versioned policy.
+The local state machine enforces strict deadline ordering and a configurable minimum safety margin. Fixture durations are synthetic. Production durations remain unset until current protocol analysis and adversarial Testnet evidence approve a versioned timeout policy.
+
+The hashlock is SHA-256 with a 32-byte preimage. The canonical terms digest, swap identifier, event chain, and snapshot root also use SHA-256. A successful canonical EVM claim reveals the authoritative preimage. Failed calls and unconfirmed or conflicting observations do not. Once publicly revealed, the secret remains known even if the reveal transaction reorganizes.
 
 ## Zcash leg
 
@@ -194,7 +195,9 @@ Every observation binds:
 
 The coordinator stores an append-only journal and derives the current state by deterministic replay. It recommends a wallet action but cannot sign it.
 
-Observer disagreement, staleness, wrong-chain evidence, wrong-asset evidence, duplicate evidence, replacement, or reorganization moves the workflow to `disputed`. Automatic progress stops until a versioned recovery rule has enough evidence.
+Observer disagreement, staleness, wrong-chain evidence, wrong-asset evidence, conflicting replacement, or reorganization moves the workflow to `disputed`. Exact duplicate events are idempotent. Automatic funding and claim progress stops until a versioned recovery rule has enough evidence. A refund deadline is derived chain-time eligibility, not proof that an output remains unspent or that a refund occurred.
+
+Every journal receipt binds the swap identifier, terms hash, global sequence, previous event hash, semantic slot, prior state root, and next state root. A snapshot binds the complete journal head and replayed state. Missing, truncated, reordered, conflicting, or root-mismatched persistence fails closed.
 
 ## Service and deployment boundaries
 

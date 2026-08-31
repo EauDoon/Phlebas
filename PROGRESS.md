@@ -2,7 +2,7 @@
 
 Read this first on every continuation. Update it after each merged batch.
 
-Updated: 31-08-2026 after PR #19 and PR #20 merged to `main` at `a2569b35963ff46f2ab628059c7a997f6929d7d7`.
+Updated: 31-08-2026 after PR #21 merged to `main` at `84a3224645e5ef8e3d95b49eb98345fa8fd3eb16`.
 
 ## Goal
 
@@ -10,7 +10,7 @@ Build a live, fully functioning, non-custodial exchange for native transparent Z
 
 ## Current branch
 
-`feat/native-zec-swap-domain`, rebased from `main` at `a2569b35963ff46f2ab628059c7a997f6929d7d7`.
+`feat/native-swap-state-machine`, based on `main` at `84a3224645e5ef8e3d95b49eb98345fa8fd3eb16`.
 
 The next PR contains at least eight meaningful commits, an independent current-byte review, a Vercel preview for the exact head, and production verification after merge.
 
@@ -30,39 +30,39 @@ The next PR contains at least eight meaningful commits, an independent current-b
 
 Current-main release evidence:
 
-* 203 unit and service tests
+* 261 unit and service tests
 * 22 Foundry tests
 * lint and type checking
-* secret-pattern scan across 170 files
+* secret-pattern scan across 185 files
 * production build
 * 46 Chromium browser tests
-* GitHub Verify run `33389882770`
-* successful production Vercel deployment for merge `a2569b3`
+* GitHub Verify run `33395000049`
+* successful production Vercel deployment `4eyFnx8i7LjWoJUs4RTgdRzQrBEr` for merge `84a3224`
 
 The pZEC gateway, reserve, mint, burn, payout, passive AMM, and Sepolia contract surfaces are retained as legacy simulation and testnet code. They do not define the production target.
 
 ## Active batch
 
-* Supersede the custody-backed pZEC target with native-ZEC atomic settlement
-* Define exact Zcash and EVM chain and asset identities
-* Add a versioned EIP-712 native order intent
-* Add strict order policy, nonce and epoch cancellation, chained intake receipts, and price-time plans
-* Add deterministic settlement accounting, replay snapshots, and adversarial persistence checks
-* Bind every current surface to simulation and no-live-funds product truth
-* Preserve the no-key and no-chain boundary for this batch
+* Define immutable per-fill native swap terms, SHA-256 digest, and unique swap identifier
+* Enforce ZEC-first funding and a versioned, strictly ordered timeout policy
+* Model exact Zcash and EVM funding, claim, refund, conflict, and reorganization evidence
+* Keep claim and refund mutually exclusive while preserving a wallet-controlled recovery path
+* Chain idempotent journal receipts with prior and next state roots
+* Restore only complete digest-bound replay snapshots
+* Add a deterministic fixture-only settlement ticket and unsafe-state browser journeys
+* Preserve the no-key, no-RPC, no-broadcast, and no-live-funds boundary
 
-The pre-rebase branch passed an independent P0/P1 review and an independent Foundry EIP-712 digest comparison. After rebasing onto merged `main`, integration tree `fcb34d5` passed lint, type checking, 259 unit and service tests, 22 Foundry tests, a 185-file secret-pattern scan, the production build, and all 46 Chromium browser tests. The subsequent snapshot-integrity repair passes the same gates with 261 unit and service tests. Publication still requires a clean final-head review plus fresh GitHub Verify and Vercel results for that exact head.
+The protocol domain and adversarial suite pass locally. Publication still requires the integrated UI, full repository checks, an independent exact-head review, fresh GitHub Verify, and a Vercel preview for that exact head.
 
 ## Next batches
 
-1. Native two-chain swap state machine and lock, claim, refund UI
-2. Zcash transparent P2SH transaction lab and wallet adapter
-3. EVM exact-token conditional-lock contracts on local chains
-4. Read-only observers, persistent coordinator, and watchtower
-5. Approved Testnet wallet execution
-6. Persistent matcher and public market data
-7. Wallet-held solver liquidity
-8. Operations and production hardening
+1. Zcash transparent P2SH transaction lab and wallet adapter
+2. EVM exact-token conditional-lock contracts on local chains
+3. Read-only observers, persistent coordinator, and watchtower
+4. Approved Testnet wallet execution
+5. Persistent matcher and public market data
+6. Wallet-held solver liquidity
+7. Operations and production hardening
 
 ## Gates
 

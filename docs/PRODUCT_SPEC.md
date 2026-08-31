@@ -140,21 +140,21 @@ One fill creates immutable terms for two legs:
 | Native | Transparent ZEC | Zcash P2SH conditional lock | ZEC seller | Stablecoin seller | Later deadline |
 | Quote | USDC or selected USDT | EVM exact-token conditional lock | Stablecoin seller | ZEC seller | Earlier deadline |
 
-Both legs bind the same hash. The exact deadline margin is a versioned policy.
+Both legs bind the same SHA-256 hash over a 32-byte secret. The exact deadline margin is a versioned policy. The local walkthrough uses synthetic times and does not approve production durations.
 
-The workflow states are:
+The reference domain derives these workflow phases:
 
 ```text
-matched
-terms accepted
-first funding prepared
-first funded
-first confirmed
-second funding prepared
-both funded
-redeemable
+awaiting authorizations
+awaiting ZEC funding
+awaiting ZEC confirmation
+awaiting EVM funding
+awaiting EVM confirmation
+awaiting EVM claim
+secret observed
+awaiting ZEC claim
 settled
-refundable
+refund recovery
 refunded
 disputed
 ```
@@ -171,6 +171,10 @@ Required invariants:
 * wrong-chain, wrong-asset, stale, or reorganized evidence moves the workflow to disputed;
 * every incomplete funded swap retains a wallet-controlled refund path;
 * deterministic replay yields the same state and next safe action.
+
+Both parties separately authorize the exact per-fill terms digest. Signed terms include the fill and order identities, party roles, chains, assets, amounts, price, fees, Zcash script identities, EVM addresses and escrow identity, shared hash, all cutoffs and refund times, and the timeout, observer, and finality policy identifiers. Terms cannot change after authorization.
+
+The append-only journal binds every event to the swap and prior state root. Exact duplicate events are idempotent. A different event in an occupied semantic slot is a conflict. Restart accepts only a complete valid journal and matching snapshot root; it never silently initializes over malformed persistence.
 
 ## 9. Liquidity
 
@@ -225,6 +229,8 @@ Every ticket shows:
 * public-linkability warning for transparent ZEC.
 
 The ticket never asks the user to deposit into Phlebas.
+
+The public no-value settlement walkthrough renders a deterministic projection of this domain. It prepares no transaction, connects no wallet, calls no chain service, and moves no asset. Unsafe fixtures must disable funding and claim controls while keeping the refund-path status visible.
 
 ## 12. Wallet behavior
 
