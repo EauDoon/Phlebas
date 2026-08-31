@@ -581,6 +581,10 @@ export function TradeTicket({
           <dt>Trading fee</dt>
           <dd>Proposed 5 / 15 bps; not deducted here</dd>
         </div>
+        <div>
+          <dt>Account epoch</dt>
+          <dd>{accountEpoch}</dd>
+        </div>
       </dl>
 
       {review ? (

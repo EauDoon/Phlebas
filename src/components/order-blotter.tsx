@@ -24,6 +24,7 @@ export function OrderBlotter({
   onCancel,
   onCancelAll,
   onReset,
+  accountEpoch,
 }: {
   marketId: MarketId;
   account: PaperAccount;
@@ -34,6 +35,7 @@ export function OrderBlotter({
   onCancel: (orderId: string) => void;
   onCancelAll: () => void;
   onReset: () => void;
+  accountEpoch: number;
 }) {
   const [tab, setTab] = useState<BlotterTab>("orders");
   const market = markets[marketId];
@@ -104,9 +106,15 @@ export function OrderBlotter({
           </table>
         )
       )}
-      {tab === "orders" && openOrders.length > 0 && (
+      {tab === "orders" && (
         <p className={styles.emptyState}>
-          <button type="button" className={styles.textButton} onClick={onCancelAll}>Cancel all session orders</button>
+          {openOrders.length > 0 && (
+            <button type="button" className={styles.textButton} onClick={onCancelAll}>Cancel all session orders</button>
+          )}
+          {" "}
+          <button type="button" className={styles.textButton} onClick={onCancelAll}>
+            Invalidate older session orders
+          </button>
         </p>
       )}
 
@@ -169,6 +177,10 @@ export function OrderBlotter({
             <dd className={pnl >= 0n ? styles.buyText : styles.sellText}>
               {pnl >= 0n ? "+" : "−"}{formatAtomicUnits(pnl < 0n ? -pnl : pnl, QUOTE_DECIMALS, 2)} {market.quote}
             </dd>
+          </div>
+          <div>
+            <dt>Account epoch</dt>
+            <dd>{accountEpoch}</dd>
           </div>
         </dl>
       )}

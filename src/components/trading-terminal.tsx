@@ -359,6 +359,7 @@ export function TradingTerminal({
                 onCancel={cancelUserOrder}
                 onCancelAll={cancelAllUserOrders}
                 onReset={resetSession}
+                accountEpoch={accountEpoch}
               />
             </div>
           </>
