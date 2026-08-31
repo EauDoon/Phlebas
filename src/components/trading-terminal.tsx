@@ -380,7 +380,10 @@ export function TradingTerminal({
     <div className={styles.shell}>
       <nav className={styles.skipNav} aria-label="Skip links">
         <a className={styles.skipLink} href="#main-content">Skip to main content</a>
-        {view === "trade" ? (
+        {initialAccess === "blocked" ? (
+          <a className={styles.skipLink} href="#country-block">Skip to country-block notice</a>
+        ) : null}
+        {initialAccess === "open" && view === "trade" ? (
           <>
             <a className={styles.skipLink} href="#order-ticket">Skip to order ticket</a>
             <a className={styles.skipLink} href="#price-chart">Skip to price chart</a>
@@ -389,16 +392,16 @@ export function TradingTerminal({
             <a className={styles.skipLink} href="#recent-trades">Skip to recent trades</a>
           </>
         ) : null}
-        {view === "architecture" ? (
+        {initialAccess === "open" && view === "architecture" ? (
           <a className={styles.skipLink} href="#incident-demonstration">Skip to incident demonstration</a>
         ) : null}
-        {view === "liquidity" ? (
+        {initialAccess === "open" && view === "liquidity" ? (
           <>
             <a className={styles.skipLink} href="#liquidity-pools">Skip to pool tabs</a>
             <a className={styles.skipLink} href="#pool-stats">Skip to pool stats</a>
           </>
         ) : null}
-        {view === "bridge" ? (
+        {initialAccess === "open" && view === "bridge" ? (
           <a className={styles.skipLink} href="#destination-inspector">Skip to destination inspector</a>
         ) : null}
       </nav>
