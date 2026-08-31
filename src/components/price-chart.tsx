@@ -21,7 +21,7 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
   if (!surface.showFixtures) {
     return (
       <div className={styles.chartWrap}>
-        <p className={styles.emptyState} role="status">
+        <p className={styles.emptyState} role="status" aria-label="Chart empty state">
           <strong>{surface.heading}. </strong>
           {surface.message}
         </p>
