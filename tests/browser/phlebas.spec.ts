@@ -348,10 +348,11 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   await expect(page.getByText("live funds", { exact: false })).toBeVisible();
   await expect(page.getByText("deny-default", { exact: true })).toBeVisible();
   await expect(page.getByText("unset", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Legal and compliance" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Security" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Architecture" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Launch gates" })).toBeVisible();
+  const boundary = page.locator("main#main-content");
+  await expect(boundary.getByRole("link", { name: "Legal and compliance" })).toBeVisible();
+  await expect(boundary.getByRole("link", { name: "Security" })).toBeVisible();
+  await expect(boundary.getByRole("link", { name: "Architecture" })).toBeVisible();
+  await expect(boundary.getByRole("link", { name: "Launch gates" })).toBeVisible();
 
   const missing = await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "load" });
   expect(missing?.status(), "404 status").toBe(404);
