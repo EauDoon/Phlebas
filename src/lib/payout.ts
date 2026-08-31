@@ -52,3 +52,73 @@ export function attestPayout(
     amountZatoshis: screen.amountZatoshis,
   };
 }
+
+export type PayoutClaimState =
+  | "requested"
+  | "screened"
+  | "rejected"
+  | "burn-submitted"
+  | "payable"
+  | "unresolved";
+
+export type PayoutClaim = {
+  burnId: string;
+  destination: string;
+  amountZatoshis: string;
+  state: PayoutClaimState;
+  reason?: string;
+};
+
+export function requestPayout(input: { burnId: string; destination: string; amountZatoshis: bigint }): PayoutClaim {
+  return {
+    burnId: input.burnId.trim(),
+    destination: input.destination.trim(),
+    amountZatoshis: input.amountZatoshis.toString(),
+    state: "requested",
+  };
+}
+
+export function screenPayoutClaim(claim: PayoutClaim): PayoutClaim {
+  if (claim.state !== "requested") {
+    return { ...claim, state: "rejected", reason: "Only a requested claim can be screened." };
+  }
+  const screen = screenPayout(claim.destination, BigInt(claim.amountZatoshis));
+  if (screen.state === "rejected") {
+    return { ...claim, state: "rejected", reason: screen.reason };
+  }
+  return {
+    ...claim,
+    destination: screen.destination,
+    amountZatoshis: screen.amountZatoshis,
+    state: "screened",
+  };
+}
+
+export function submitPayoutBurn(claim: PayoutClaim, spent: PayoutLedger): PayoutClaim {
+  if (claim.state !== "screened") {
+    return { ...claim, state: "rejected", reason: "Only a screened claim can submit a burn." };
+  }
+  const attestation = attestPayout({
+    burnId: claim.burnId,
+    destination: claim.destination,
+    amountZatoshis: BigInt(claim.amountZatoshis),
+  }, spent);
+  if (attestation.status === "rejected") {
+    return { ...claim, state: "rejected", reason: attestation.reason };
+  }
+  return { ...claim, state: "burn-submitted" };
+}
+
+export function markPayoutPayable(claim: PayoutClaim): PayoutClaim {
+  if (claim.state !== "burn-submitted") {
+    return { ...claim, state: "rejected", reason: "Only a submitted burn can become payable." };
+  }
+  return { ...claim, state: "payable" };
+}
+
+export function markPayoutUnresolved(claim: PayoutClaim): PayoutClaim {
+  if (claim.state !== "payable" && claim.state !== "burn-submitted") {
+    return { ...claim, state: "rejected", reason: "Only a burn-submitted or payable claim can become unresolved." };
+  }
+  return { ...claim, state: "unresolved" };
+}

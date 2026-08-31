@@ -11,8 +11,7 @@ import { createGateway, issueTestnetIntent } from "./issuer.ts";
 import { masterKeyHex, newMasterKey } from "./keys.ts";
 
 const root = dirname(fileURLToPath(import.meta.url));
-const dataDir = join(root, ".data");
-const masterPath = join(dataDir, "master.key");
+const defaultDataDir = join(root, ".data");
 
 function send(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { "content-type": "application/json" });
@@ -28,23 +27,49 @@ async function readJson(request: IncomingMessage): Promise<Record<string, unknow
   return JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
 }
 
-export async function loadGateway() {
-  await mkdir(dataDir, { recursive: true });
-  let masterHex: string;
+export async function loadGateway(directory = defaultDataDir) {
+  await mkdir(directory, { recursive: true });
+  const masterPath = join(directory, "master.key");
+  const issuedPath = join(directory, "issued");
+  let masterHex: string | undefined;
   try {
     masterHex = (await readFile(masterPath, "utf8")).trim();
   } catch {
+    masterHex = undefined;
+  }
+  let issuedRaw: string | undefined;
+  try {
+    issuedRaw = (await readFile(issuedPath, "utf8")).trim();
+  } catch {
+    issuedRaw = undefined;
+  }
+  const masterExisted = masterHex !== undefined;
+  if (!masterHex) {
     masterHex = masterKeyHex(newMasterKey());
     await writeFile(masterPath, `${masterHex}\n`, { encoding: "utf8", mode: 0o600 });
   }
-  return createGateway(hexToBytes(masterHex));
+  const state = createGateway(hexToBytes(masterHex));
+  if (!masterExisted && issuedRaw === undefined) {
+    return state;
+  }
+  if (masterExisted && issuedRaw !== undefined && /^[0-9]+$/.test(issuedRaw)) {
+    state.sequence = Number.parseInt(issuedRaw, 10);
+    return state;
+  }
+  state.sequence = Number.MAX_SAFE_INTEGER;
+  return state;
 }
 
-export function startGateway(options: { host?: string; port?: number; maxIntents?: number } = {}) {
+async function persistIssued(directory: string, sequence: number) {
+  await writeFile(join(directory, "issued"), `${sequence}\n`, { encoding: "utf8", mode: 0o600 });
+}
+
+export function startGateway(options: { host?: string; port?: number; maxIntents?: number; dataDir?: string } = {}) {
   const host = listenHost(options.host);
   const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8787);
   const maxIntents = options.maxIntents ?? Number(process.env.PHLEBAS_GATEWAY_MAX_INTENTS ?? 64);
-  const ready = loadGateway();
+  const directory = options.dataDir ?? defaultDataDir;
+  const ready = loadGateway(directory);
 
   const server = createServer((request, response) => {
     void (async () => {
@@ -64,6 +89,7 @@ export function startGateway(options: { host?: string; port?: number; maxIntents
           ? SYNTHETIC_DEPOSIT_ZATOSHIS
           : BigInt(String(body.amountZatoshis));
         const intent = issueTestnetIntent(state, amount);
+        await persistIssued(directory, state.sequence);
         send(response, 201, intent);
         return;
       }

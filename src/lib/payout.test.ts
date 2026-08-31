@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { attestPayout, emptyPayoutLedger, screenPayout } from "./payout.ts";
+import {
+  attestPayout,
+  emptyPayoutLedger,
+  markPayoutPayable,
+  markPayoutUnresolved,
+  requestPayout,
+  screenPayout,
+  screenPayoutClaim,
+  submitPayoutBurn,
+} from "./payout.ts";
 
 const DEST = "t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc";
 
@@ -41,4 +50,37 @@ test("invalid burn id and non-positive amount cannot create a payout", () => {
   assert.equal(attestPayout({ burnId: "ok", destination: DEST, amountZatoshis: 0n }, spent).status, "rejected");
   assert.equal(attestPayout({ burnId: "ok", destination: DEST, amountZatoshis: -1n }, spent).status, "rejected");
   assert.equal(spent.size, 0);
+});
+
+test("payout claim walks requested, screened, burn-submitted, payable and never sends", () => {
+  const spent = emptyPayoutLedger();
+  const requested = requestPayout({ burnId: "burn-2", destination: DEST, amountZatoshis: 50n });
+  assert.equal(requested.state, "requested");
+  const screened = screenPayoutClaim(requested);
+  assert.equal(screened.state, "screened");
+  assert.equal(submitPayoutBurn(requested, spent).state, "rejected");
+  const submitted = submitPayoutBurn(screened, spent);
+  assert.equal(submitted.state, "burn-submitted");
+  assert.equal(spent.size, 1);
+  const payable = markPayoutPayable(submitted);
+  assert.equal(payable.state, "payable");
+  assert.equal(markPayoutUnresolved(payable).state, "unresolved");
+  assert.equal(submitPayoutBurn(screened, spent).state, "rejected");
+});
+
+test("shielded request is rejected at screen and does not spend a burn", () => {
+  const spent = emptyPayoutLedger();
+  const screened = screenPayoutClaim(requestPayout({
+    burnId: "burn-3",
+    destination: "zs1notreal",
+    amountZatoshis: 1n,
+  }));
+  assert.equal(screened.state, "rejected");
+  assert.equal(submitPayoutBurn(screened, spent).state, "rejected");
+  assert.equal(spent.size, 0);
+  assert.equal(markPayoutPayable(requestPayout({
+    burnId: "burn-3",
+    destination: DEST,
+    amountZatoshis: 1n,
+  })).state, "rejected");
 });

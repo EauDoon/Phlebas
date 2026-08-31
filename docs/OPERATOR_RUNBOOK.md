@@ -84,7 +84,7 @@ Direct processes: interrupt the three Node jobs. Data directories under `service
 
 ## Data
 
-Gateway master key: `services/gateway/.data/master.key`. Matcher persist: `services/matcher/.data/state.json`. Both are gitignored. `writeFile` requests mode `0o600` for the master key; Windows ignores POSIX mode bits, so do not copy that directory onto another host, into git, or onto Vercel.
+Gateway master key: `services/gateway/.data/master.key`. Issued count: `services/gateway/.data/issued`. Matcher persist: `services/matcher/.data/state.json`. Those paths are gitignored. `writeFile` requests mode `0o600`; Windows ignores POSIX mode bits, so do not copy that directory onto another host, into git, or onto Vercel. The issued count is what the intent cap survives a process restart on.
 
 ## Incidents
 

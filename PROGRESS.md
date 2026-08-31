@@ -54,12 +54,14 @@ Last updated: 31-08-2026 after loopback allowlist, sequence root, production CSP
 - Matcher `GET /sequence?after=N` is the receipt cursor. Observer `/attest` fails closed when a supplied reserve snapshot is uncovered.
 - Gateway loopback issue cap defaults to 64 intents (`PHLEBAS_GATEWAY_MAX_INTENTS`). Further issues are 429.
 - Persist restore keeps the same sequence root. Operator runbook notes Windows ignores POSIX `0o600` on the gateway master key.
+- Payout claim stub walks requested → screened → burn-submitted → payable / unresolved. Nothing is sent.
+- Gateway issued count persists under `services/gateway/.data/issued`, so the intent cap survives a process restart. Corrupt issued files and a master key without `issued` fail closed at the cap.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
-- Payout states after screened (burn submitted, payable, unresolved) without sending native ZEC
-- Intent cap survives gateway process restart (persist issued count, not only in-memory sequence)
+- Wire payout claim states into the withdrawal tour without changing the tour copy
+- Matcher persist and gateway issued files use the same fail-closed pair rule (state.json without a matching sequence root is ignored)
 
 ## Blockers
 
