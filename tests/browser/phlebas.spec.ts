@@ -527,6 +527,20 @@ test("LP burn stays available after a trading pause", async ({ page }) => {
   await expect(page.getByText("Local pool reserves restored. Settled as pZEC-USDC.")).toBeVisible();
 });
 
+test("LP pause notice names the newly selected pool after a pool switch", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Pause trading preview" }).click();
+  await expect(page.getByText("Trading paused. LP withdrawal remains available. Settled as pZEC-USDC.")).toBeVisible();
+  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
+  await expect(page.getByRole("button", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Trading paused. LP withdrawal remains available. Settled as pZEC-USDT0.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
+  await page.getByRole("button", { name: "Resume trading preview" }).click();
+  await expect(page.getByText("Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDT0.")).toBeVisible();
+});
+
 test("LP pause notice names pZEC-USDT0 on the USDT0 pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();

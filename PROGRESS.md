@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after missing-provider, disconnect, and USDT0 pause/burn/reset name the settlement pair.
+Last updated: 31-08-2026 after LP pause notice names the newly selected pool if trading stays paused after a switch.
 
 ## Branch
 
@@ -134,6 +134,7 @@ Last updated: 31-08-2026 after missing-provider, disconnect, and USDT0 pause/bur
 - LP pause notice on the USDT0 pool uses `lpPauseNoticeCopy` from `pools[1]` and names `pZEC-USDT0`. Burn stays available.
 - LP burn success on USDT0 uses `lpBurnNoticeCopy` from a real mint-then-burn and names `pZEC-USDT0`. Local preview only.
 - LP reset-pool notice on USDT0 uses `lpResetNoticeCopy` from a real mint then restore and names `pZEC-USDT0`.
+- LP pause notice names the newly selected pool if trading stays paused after a pool switch. Derived from `lpPauseNoticeCopy` when `isLpPauseNotice` and `tradingPaused`; mint/burn/swap notices stay on the pool they ran on.
 
 ## Next
 
@@ -142,7 +143,6 @@ Last updated: 31-08-2026 after missing-provider, disconnect, and USDT0 pause/bur
 - Public Vercel UI still serves the last merged production build until a deploy token is available
 - Ticket sign missing-provider copy should name the selected market settlement pair
 - Missing-provider error should keep the settlement pair if the market switches after a failed connect
-- LP pause notice should name the newly selected pool if trading stays paused after a pool switch
 
 ## Blockers
 

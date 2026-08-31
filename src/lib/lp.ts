@@ -25,6 +25,10 @@ export function lpPauseNoticeCopy(
     : `Trading pause lifted. Mint and swap are available again. Settled as ${settlementPair}.`;
 }
 
+export function isLpPauseNotice(copy: string): boolean {
+  return copy.startsWith("Trading paused.") || copy.startsWith("Trading pause lifted.");
+}
+
 export function lpResetNoticeCopy(settlementPair: Market["settlementPair"]): string {
   return `Local pool reserves restored. Settled as ${settlementPair}.`;
 }

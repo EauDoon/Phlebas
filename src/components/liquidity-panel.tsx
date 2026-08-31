@@ -7,6 +7,7 @@ import { AMM_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import {
   burnShares,
   emptyShareCopy,
+  isLpPauseNotice,
   lpPauseNoticeCopy,
   lpBurnNoticeCopy,
   lpMintNoticeCopy,
@@ -266,6 +267,10 @@ export function LiquidityPanel({
     }
   }
 
+  const liveNotice = isLpPauseNotice(notice) && tradingPaused
+    ? lpPauseNoticeCopy(markets[marketId].settlementPair, tradingPaused)
+    : notice;
+
   return (
     <div className={styles.featureGrid}>
       <section className={`${styles.panel} ${styles.featurePrimary}`} aria-labelledby="liquidity-title">
@@ -446,7 +451,7 @@ export function LiquidityPanel({
             Reset pool
           </button>
         </div>
-        <p className={styles.inlineNotice} aria-live="polite">{notice}</p>
+        <p className={styles.inlineNotice} aria-live="polite">{liveNotice}</p>
         <button type="button" className={styles.primaryAction} disabled>
           Wallet actions disabled in simulation
         </button>
