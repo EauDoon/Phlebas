@@ -53,7 +53,7 @@ The terminal takes structural cues from [Hyperliquid](https://app.hyperliquid.xy
 | `docs/BROWSER_ACCEPTANCE.md` | Reproducible responsive, keyboard, and reduced-motion checks |
 | `docs/LANDING_AND_USER_JOURNEYS.md` | Landing, trader, LP, deposit, and withdrawal experience |
 | `docs/ARCHITECTURE.md` | System boundaries and proposed production topology |
-| `docs/ASSET_AND_ACCOUNTING.md` | pZEC, reserves, liabilities, and reconciliation |
+| `docs/ASSET_AND_ACCOUNTING.md` | Settlement ZEC (`tZEC`), reserves, liabilities, and reconciliation |
 | `docs/WALLET_COMPATIBILITY.md` | Current ZEC wallet evidence and executable Testnet qualification |
 | `docs/THREAT_MODEL.md` | Abuse cases, invariants, tests, and stop conditions |
 | `docs/OPERATIONS.md` | Proposed services, observability, and incident control |
