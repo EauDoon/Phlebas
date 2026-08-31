@@ -154,6 +154,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /Legal and compliance/);
   assert.match(landing, /Choose what to inspect/);
   assert.match(landing, /A working preview, bounded on purpose/);
+  assert.match(landing, /What exists today/);
+  assert.match(landing, /role="listitem"/);
   assert.match(landing, /Not cleared for real assets/);
   assert.doesNotMatch(landing, /github.com/);
   const journeys = await readFile(join(root, "src/lib/landing-journeys.ts"), "utf8");

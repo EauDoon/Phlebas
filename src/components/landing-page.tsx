@@ -83,9 +83,9 @@ export function LandingPage() {
             <span className={styles.eyebrow}>What exists today</span>
             <h2 id="exists-title">A working preview, bounded on purpose.</h2>
           </div>
-          <div className={styles.evidenceList}>
+          <div className={styles.evidenceList} role="list" aria-label="What exists today">
             {LANDING_EVIDENCE.map((row, index) => (
-              <article key={row.title}>
+              <article key={row.title} role="listitem">
                 <span className={styles.journeyNumber}>{String(index + 1).padStart(2, "0")}</span>
                 <div>
                   <h3>{row.title}</h3>
