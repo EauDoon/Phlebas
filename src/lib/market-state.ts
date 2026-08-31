@@ -1,3 +1,6 @@
+import type { Market } from "./market-data.ts";
+import { markets, type MarketId } from "./market-data.ts";
+
 export const FEED_STATUSES = ["illustrative", "loading", "empty", "stale", "unavailable"] as const;
 
 export type FeedStatus = (typeof FEED_STATUSES)[number];
@@ -102,4 +105,18 @@ export function feedSurface(status: FeedStatus): {
     heading: "Illustrative",
     message: "Repository fixtures. Not a live, delayed, or production feed.",
   };
+}
+
+export function depthEmptyCopy(settlementPair: Market["settlementPair"]): string {
+  return `No resting depth. The local book is empty. Settled as ${settlementPair}.`;
+}
+
+export function feedWithheldCopy(status: FeedStatus, settlementPair: Market["settlementPair"]): string {
+  const surface = feedSurface(status);
+  return `${surface.heading}. ${surface.message} Settled as ${settlementPair}.`;
+}
+
+export function orderBookCaptionCopy(marketId: MarketId): string {
+  const market = markets[marketId];
+  return `Local ${marketId} order book, settled as ${market.settlementPair}. Totals are cumulative pZEC depth from the best price. Click a price to copy it into the ticket.`;
 }
