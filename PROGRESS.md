@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after first-session education, country-block demo, chart range tablist, and feed-named depth/tape.
+Last updated: 31-08-2026 after ticket G/I/F shortcuts, architecture incident demonstrations, and the deposit Eligibility-through-Complete tour.
 
 ## Branch
 
@@ -88,17 +88,20 @@ Last updated: 31-08-2026 after first-session education, country-block demo, char
 - Country-blocked state demonstration via allowlisted `?access=blocked`. Never infers location.
 - Chart range is a tablist. Depth and tape name loading and unavailable feeds, not only empty.
 - Landing Liquidity nav selects `#journey-lp`. Journey tabs use manual activation: arrows move focus, Enter selects.
+- Ticket keyboard G/I/F sets time in force. Escape leaves review. Shortcuts ignore an open dialog.
+- Architecture labeled incident demonstrations: blocked, review, reorg, planned and unplanned maintenance. Copy is a demonstration, not a live outage.
+- Deposit tour walks Eligibility through Complete. Address request never shows a receivable address, QR, or URI.
+- Education dialog Continue and the incident select stay at least 44px tall at 320px.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Ticket keyboard G/I/F time in force, with shortcuts ignored while a dialog is open
-- Architecture labeled incident demonstrations (blocked, review, reorg, planned and unplanned maintenance)
-- Deposit state tour: Eligibility through Complete, and the address request never shows a receivable address
-- Touch-target pass on the education dialog and incident select at 320px
-- Status page already cross-links `/legal` and `/security`; keep those current when incident copy lands
+- Status page should name the architecture incident demonstrations
+- Ticket shortcuts should ignore review-and-confirm until Escape leaves it, not only native dialogs
+- LP panel empty/loading/stale/unavailable still shares the market-data feed; add pool-specific empty-share copy
+- Playwright: G/I/F from `/liquidity` education dialog, and incident select keyboard focus at 320px
 
 ## Blockers
 
