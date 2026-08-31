@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after loading/stale/unavailable ticket gates, withheld tape caption, and session-last stats label name the settlement pair.
+Last updated: 31-08-2026 after chart range tabs, wallet connect-failure copy, and LP pause notice name the settlement pair.
 
 ## Branch
 
@@ -108,15 +108,18 @@ Last updated: 31-08-2026 after loading/stale/unavailable ticket gates, withheld 
 - Ticket loading, stale, and unavailable gates use `ticketGateCopy` and name the settlement pair the way the empty-book gate does.
 - Withheld tape caption names the settlement pair and does not claim fixture fills appear. The tape mini-label is `Withheld · pZEC-USDC` when fixtures are off.
 - Session-last 24h stats label names the settlement pair when fixtures are shown.
+- Chart range tab accessible names include the settlement pair (`4H · pZEC-USDC`). Visible labels stay 1H/4H/1D so 320px does not overflow.
+- Wallet connect-failure copy (`missingProviderCopy` / `walletConnectFailureCopy`) names the settlement pair. Still Arbitrum Sepolia only. Nothing is sent.
+- LP pause and resume notices name the selected market settlement pair. Burn stays available while paused.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Chart range tab labels should name the settlement pair for the selected market
-- Wallet bar connect-failure copy should name the settlement pair
-- LP pause notice should name the selected pool settlement pair
+- Chart panel heading should name the settlement pair next to the market id
+- Wallet wrong-chain copy should stay wrapped with settlement when the provider returns an error object
+- LP reset-pool notice should name the selected pool settlement pair
 
 ## Blockers
 
