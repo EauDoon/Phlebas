@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after education disabled Back 44px, sticky tourNav copy clearance, Continue focus ring, leftover 44px liquidity 390 and bridge/country-block 768, and skip-nav ring at 390px.
+Last updated: 01-09-2026 after education Enter simulation in 320px, copy padding not pushing Continue, Continue ring #f4c95d, leftover 44px status/security 320 and loading/404 768.
 
 ## Branch
 
@@ -349,16 +349,22 @@ Last updated: 01-09-2026 after education disabled Back 44px, sticky tourNav copy
 - Bridge and country-block leftover skip links stay at least 44px at 768px
 - Skip-nav 8px padding keeps the 2px ring inside overflow-y auto at 390px
 - Playwright covers disabled Back, sticky copy clearance, Continue ring, leftover 390/768, and skip-nav ring at 390px
+- Education dialog is a column at 820px; tourNav `margin-top: auto` keeps Enter simulation in the 320px viewport
+- Education copy padding-bottom is 8px so Continue is not pushed below 320px
+- Education Continue ring is `#f4c95d` against global `button:focus-visible`
+- Status and security leftover skip links stay at least 44px at 320px
+- Loading and 404 leftover skip links stay at least 44px at 768px
+- Playwright covers Enter simulation in 320px, Continue `#f4c95d`, and leftover 320/768
 
 ## Next
 
-- Education Enter simulation should stay inside the 320px viewport on the last step
-- Education copy padding-bottom should not push Continue below the 320px viewport
-- Status leftover skip link should stay at least 44px at 320px
-- Security leftover skip link should stay at least 44px at 320px
-- Loading leftover skip link should stay at least 44px at 768px
-- 404 leftover skip link should stay at least 44px at 768px
-- Education Continue focus ring should stay `#f4c95d` against global `button:focus-visible`
+- Education Back should stay inside the 320px viewport on the last step
+- Education sticky tourNav `z-index: 1` should not cover the heading 2px ring
+- Legal leftover skip link should stay at least 44px at 320px
+- Architecture leftover skip links should stay at least 44px at 320px
+- Error-page leftover skip link should stay at least 44px at 768px
+- Country-block leftover skip link should stay at least 44px at 320px
+- Education dialog flex column should keep the heading scroll-margin inside overflow-y auto
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
