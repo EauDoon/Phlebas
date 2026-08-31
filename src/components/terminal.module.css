@@ -855,8 +855,9 @@
 
 .featureGrid {
   display: grid;
+  min-width: 0;
   min-height: calc(100vh - 128px);
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
   gap: 1px;
   padding: 1px;
   background: var(--border);
@@ -1282,6 +1283,8 @@
 }
 
 .incidentDemo {
+  min-width: 0;
+  max-width: 100%;
   margin: 18px 16px 22px;
   padding-bottom: 12px;
   border-top: 1px solid var(--border);
@@ -1296,11 +1299,23 @@
   font-weight: 650;
 }
 
+.incidentDemo .inputLabel,
+.incidentDemo .inputShell {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .incidentDemo .inputShell,
 .incidentDemo select {
   width: 100%;
-  min-width: 44px;
+  max-width: 100%;
+  min-width: 0;
   min-height: 44px;
+}
+
+.incidentDemo select {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .footer {
