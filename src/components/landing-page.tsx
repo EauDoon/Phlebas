@@ -54,7 +54,7 @@ export function LandingPage() {
 
           <div className={styles.heroActions}>
             <Link href="/trade?view=trade" className={styles.primaryCta}>Enter simulation <span>↗</span></Link>
-            <a href="#pzec" className={styles.secondaryCta}>Understand pZEC</a>
+            <a href="#pairs" className={styles.secondaryCta}>Understand native pairs</a>
           </div>
         </section>
 
@@ -78,10 +78,10 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className={styles.pzecSection} id="pzec" aria-labelledby="pzec-title">
+        <section className={styles.pzecSection} id="pairs" aria-labelledby="pairs-title">
           <div className={styles.pzecCopy}>
             <span className={styles.eyebrow}>Native assets</span>
-            <h2 id="pzec-title">Native ZEC against native USDC and USDT.</h2>
+            <h2 id="pairs-title">Native ZEC against native USDC and USDT.</h2>
             <p>
               The simulation now labels settlement as ZEC-USDC and ZEC-USDT. It does not wrap ZEC as pZEC and it does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.
             </p>
