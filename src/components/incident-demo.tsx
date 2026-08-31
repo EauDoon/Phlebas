@@ -33,7 +33,12 @@ export function IncidentDemo() {
           </select>
         </div>
       </label>
-      <div className={styles.uriBlock} aria-live="polite">
+      <div
+        className={styles.uriBlock}
+        role="region"
+        aria-label="Selected incident demonstration"
+        aria-live="polite"
+      >
         <span className={styles.eyebrow}>State demonstration</span>
         <strong>{incident.title}</strong>
         <p>{incident.body}</p>

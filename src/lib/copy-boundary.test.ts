@@ -66,6 +66,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /parseExpiryUnix/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /Order expiry unix time/);
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /never hosted on Vercel/);
+  assert.match(await readFile(join(root, "src/components/incident-demo.tsx"), "utf8"), /Selected incident demonstration/);
   assert.doesNotMatch(landing, /is audited/);
   assert.doesNotMatch(terminal, /is audited/);
   const bridge = await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8");
