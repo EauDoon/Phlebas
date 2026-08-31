@@ -135,7 +135,7 @@ export function LandingPage() {
           </div>
           <div className={styles.gateCopy}>
             <p>Real assets stay blocked until entity, licensing, custody, reserve, signer, audit, market-integrity, jurisdiction, insurance, monitoring, and incident gates have current written evidence.</p>
-            <ul>
+            <ul aria-label="Mainnet launch gates">
               {LANDING_MAINNET_GATES.map((gate) => (
                 <li key={gate}>
                   <span>{gate}</span>
