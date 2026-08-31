@@ -2,6 +2,7 @@
   "name": "phlebas",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "engines": {
     "node": ">=24 <25"
@@ -19,6 +20,7 @@
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "gateway": "node --experimental-strip-types services/gateway/server.ts",
     "matcher": "node --experimental-strip-types services/matcher/server.ts",
+    "observer": "node --experimental-strip-types services/observer/server.ts",
     "check": "npm run lint && npm run typecheck && npm run test && npm run test:contracts && npm run scan:secrets && npm run build",
     "check:browser": "npm run check && npm run test:browser"
   },

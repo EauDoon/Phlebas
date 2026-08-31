@@ -40,8 +40,8 @@ export async function loadGateway() {
 }
 
 export function startGateway(options: { host?: string; port?: number } = {}) {
-  const host = options.host ?? "127.0.0.1";
-  const port = options.port ?? 8787;
+  const host = options.host ?? process.env.PHLEBAS_BIND ?? "127.0.0.1";
+  const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8787);
   const ready = loadGateway();
 
   const server = createServer((request, response) => {

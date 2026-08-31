@@ -48,8 +48,8 @@ export function createMatcherService(verifyingContract = ZERO, lastTicks = 5291n
 }
 
 export function startMatcher(options: { host?: string; port?: number; operator?: MatcherOperator; persistPath?: string } = {}) {
-  const host = options.host ?? "127.0.0.1";
-  const port = options.port ?? 8788;
+  const host = options.host ?? process.env.PHLEBAS_BIND ?? "127.0.0.1";
+  const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8788);
   const persistPath = options.persistPath ?? dataPath;
   let operator = options.operator;
 

@@ -46,8 +46,7 @@ The terminal takes structural cues from [Hyperliquid](https://app.hyperliquid.xy
 | `src/components` | Trading, liquidity, gateway, and architecture views |
 | `src/lib` | Matcher, integer AMM, keccak EIP-712, TEX, session inventory, ZIP 321, fixtures |
 | `contracts/` | No-value Arbitrum Sepolia sources |
-| `services/gateway` | Local testnet TEX issuer (127.0.0.1) |
-| `services/matcher` | Local sequenced matcher operator (127.0.0.1) |
+| `services/` | Isolated local Compose: gateway, matcher, observer stubs. Never on Vercel. |
 | `infra/testnet` | Undeployed Sepolia manifest |
 | `docs/PRODUCT_SPEC.md` | Markets, order semantics, LP scope, and user flows |
 | `docs/DELIVERY_PLAN.md` | Agent Team workstreams, PR sequence, and release protocol |
@@ -89,7 +88,7 @@ npm run gateway
 npm run matcher
 ```
 
-Set `PHLEBAS_GATEWAY_URL=http://127.0.0.1:8787` and `PHLEBAS_MATCHER_URL=http://127.0.0.1:8788` only on a machine that is supposed to reach those processes. Do not set them on Vercel.
+Set `PHLEBAS_GATEWAY_URL=http://127.0.0.1:8787` and `PHLEBAS_MATCHER_URL=http://127.0.0.1:8788` only on a machine that is supposed to reach those processes. Do not set them on Vercel. Isolated Compose is documented in [services/README.md](services/README.md).
 
 Arbitrum Sepolia contract deploy is documented in [contracts/README.md](contracts/README.md). `infra/testnet/arbitrum-sepolia.json` stays `"deployed": false` until a real Sepolia transaction is recorded. Wallet submit of `settle()` stays off unless `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1` is set locally.
 
@@ -127,7 +126,7 @@ Vercel may host the public, stateless interface, documentation, read-only public
 
 ## Licensing and publication
 
-No software license has been selected. Repository visibility, license, GitHub publication, and Vercel deployment require an explicit release decision after final-byte review.
+The software in this repository is licensed under the Apache License 2.0. See `LICENSE`. That choice does not make Phlebas an exchange, a live-funds service, or an audited product.
 
 ## Read next
 

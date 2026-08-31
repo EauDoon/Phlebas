@@ -43,6 +43,7 @@ yarn-error.log*
 # local testnet services
 /services/gateway/.data
 /services/matcher/.data
+/services/observer/.data
 
 # vercel
 .vercel

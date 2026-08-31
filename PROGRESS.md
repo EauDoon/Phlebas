@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after Sepolia deploy scripts, keccak settlement tickets, gated submit, and matcher persist.
+Last updated: 31-08-2026 after local Compose infra, textest observer stubs, and Apache-2.0.
 
 ## Branch
 
@@ -31,13 +31,13 @@ Last updated: 31-08-2026 after Sepolia deploy scripts, keccak settlement tickets
 - Session tickets bind keccak EIP-712 to settlement when a wallet is connected. SHA-256 remains the session-only simulation encoding.
 - Wallet sign-and-submit is behind `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1`. Default is sign-only. Zero settlement address cannot send a tx.
 - Matcher persists book, receipts, recover, and sequence under `services/matcher/.data` on 127.0.0.1.
+- Isolated local Compose under `services/` for gateway, matcher, and observer. Host ports bind `127.0.0.1`. Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.
+- Zebra observer and mint-attestation stubs: textest only, 10 confirmations, one outpoint one mint. No Zebra RPC.
+- License: Apache License 2.0 (`LICENSE`). Not MIT. Product language unchanged.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
-- Hosted gateway and matcher on isolated infra, not Vercel
-- Zebra observers and mint attestation for testnet TEX
-- License pick
 
 ## Blockers
 

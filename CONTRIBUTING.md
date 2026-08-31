@@ -30,4 +30,4 @@ Do not disclose a suspected vulnerability in a public issue. Follow the private 
 
 ## License
 
-No software license has been selected. Contributions cannot be accepted until the repository owner chooses contribution and licensing terms.
+Apache License 2.0. See `LICENSE`.
