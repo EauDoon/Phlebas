@@ -84,7 +84,7 @@ function parseSizeAtoms(value: string): { atoms: bigint; error: string | null } 
 
 function describeRoute(comparison: RouteComparison, quote: string): string {
   if (comparison.better === "split") {
-    return `Split: CLOB ${formatAtomicUnits(comparison.split.clobFilledAtoms, PZEC_DECIMALS)} pZEC and AMM ${formatAtomicUnits(comparison.split.ammFilledAtoms, PZEC_DECIMALS)} pZEC for ${formatAtomicUnits(comparison.split.quoteAtoms, QUOTE_DECIMALS, 2)} ${quote}`;
+    return `Split: CLOB ${formatAtomicUnits(comparison.split.clobFilledAtoms, PZEC_DECIMALS)} ZEC and AMM ${formatAtomicUnits(comparison.split.ammFilledAtoms, PZEC_DECIMALS)} ZEC for ${formatAtomicUnits(comparison.split.quoteAtoms, QUOTE_DECIMALS, 2)} ${quote}`;
   }
   if (comparison.better === "none") {
     return "neither venue fills in full inside the signed bound";
@@ -100,7 +100,7 @@ export function TradeTicket({
   book,
   lastTicks,
   priceSelection,
-  availablePzecAtoms,
+  availableZecAtoms,
   availableQuoteAtoms,
   reservePzecAtoms,
   reserveQuoteAtoms,
@@ -114,7 +114,7 @@ export function TradeTicket({
   book: Book;
   lastTicks: bigint;
   priceSelection: { ticks: bigint; nonce: number } | null;
-  availablePzecAtoms: bigint;
+  availableZecAtoms: bigint;
   availableQuoteAtoms: bigint;
   reservePzecAtoms: bigint;
   reserveQuoteAtoms: bigint;
@@ -245,7 +245,7 @@ export function TradeTicket({
   function applyPercent(percent: 25 | 50 | 75 | 100) {
     const share = BigInt(percent);
     if (side === "sell") {
-      const nextSize = (availablePzecAtoms * share) / 100n;
+      const nextSize = (availableZecAtoms * share) / 100n;
       if (nextSize <= 0n) {
         setNotice("Session ZEC inventory is empty.");
         return;
@@ -586,7 +586,7 @@ export function TradeTicket({
             aria-invalid={!sizeIsValid || Boolean(notionalError)}
             aria-describedby={noticeId}
           />
-          <span>pZEC</span>
+          <span>ZEC</span>
         </div>
       </label>
 
@@ -618,7 +618,7 @@ export function TradeTicket({
         ))}
       </div>
       <p id={shortcutsReasonId} className={styles.inlineNotice}>
-        Shortcuts use session inventory ({formatAtomicUnits(availablePzecAtoms, PZEC_DECIMALS)} pZEC, {formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} {market.quote}). Not a wallet.
+        Shortcuts use session inventory ({formatAtomicUnits(availableZecAtoms, PZEC_DECIMALS)} ZEC, {formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} {market.quote}). Not a wallet.
       </p>
 
       <dl className={styles.ticketSummary}>
@@ -667,14 +667,14 @@ export function TradeTicket({
               <dd>
                 {review.side === "buy"
                   ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote} on Arbitrum Sepolia`
-                  : `${formatAtomicUnits(review.clobDebitAtoms, PZEC_DECIMALS)} pZEC on Arbitrum Sepolia`}
+                  : `${formatAtomicUnits(review.clobDebitAtoms, PZEC_DECIMALS)} ZEC on Arbitrum Sepolia`}
               </dd>
             </div>
             <div>
               <dt>Arrives in the session</dt>
               <dd>
                 {review.side === "buy"
-                  ? `pZEC on Arbitrum Sepolia, settled as ${market.settlementPair}`
+                  ? `ZEC on Arbitrum Sepolia, settled as ${market.settlementPair}`
                   : `${market.quote} on Arbitrum Sepolia, settled as ${market.settlementPair}`}
               </dd>
             </div>
@@ -683,7 +683,7 @@ export function TradeTicket({
               <dd>
                 {review.side === "buy"
                   ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`
-                  : `${formatAtomicUnits(review.clobDebitAtoms, PZEC_DECIMALS)} pZEC`}
+                  : `${formatAtomicUnits(review.clobDebitAtoms, PZEC_DECIMALS)} ZEC`}
               </dd>
             </div>
             <div>
@@ -693,7 +693,7 @@ export function TradeTicket({
                   ? "none"
                   : review.side === "buy"
                     ? `${formatAtomicUnits(review.clobReservationAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`
-                    : `${formatAtomicUnits(review.clobReservationAtoms, PZEC_DECIMALS)} pZEC`}
+                    : `${formatAtomicUnits(review.clobReservationAtoms, PZEC_DECIMALS)} ZEC`}
               </dd>
             </div>
             <div>
@@ -718,7 +718,7 @@ export function TradeTicket({
             </div>
           </dl>
           <p className={styles.inlineNotice}>
-            Transparent Zcash and this Arbitrum fill are publicly linkable. pZEC redemption depends on the gateway.
+            Transparent Zcash and this Arbitrum fill are publicly linkable. Redemption, if ever offered, would depend on a gateway.
           </p>
           <p className={styles.inlineNotice}>
             Confirm submits only the local CLOB. Split and AMM figures are comparison quotes, not an executed router fill.

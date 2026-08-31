@@ -32,7 +32,7 @@ import type { SessionLogEvent } from "@/lib/replay";
 import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingOrder, type TimeInForce } from "@/lib/matcher";
 import {
   applySubmit,
-  availablePzec,
+  availableZec,
   availableQuote,
   canCover,
   describeSubmit,
@@ -419,7 +419,7 @@ export function TradingTerminal({
                 book={displayedBook}
                 lastTicks={book.lastTicks}
                 priceSelection={priceSelection}
-                availablePzecAtoms={availablePzec(account)}
+                availableZecAtoms={availableZec(account)}
                 availableQuoteAtoms={availableQuote(account)}
                 reservePzecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
                 reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}

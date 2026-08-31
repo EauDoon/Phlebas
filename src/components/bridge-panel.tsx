@@ -45,7 +45,7 @@ const withdrawalTour = [
   { id: "signed", title: "Signed", body: "The exact bytes and transaction ID are committed. They cannot be swapped for a different payout." },
   { id: "broadcast", title: "Broadcast", body: "Only those committed bytes may be rebroadcast. Transparent activity is public." },
   { id: "mined", title: "Mined", body: "The payout is in a Zcash block. The close threshold has not been met." },
-  { id: "confirmed", title: "Confirmed", body: "State demonstration complete. No pZEC was burned and no native ZEC was sent." },
+  { id: "confirmed", title: "Confirmed", body: "State demonstration complete. Nothing was burned and no native ZEC was sent." },
 ] as const;
 
 export function BridgePanel({

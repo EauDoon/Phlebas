@@ -314,7 +314,7 @@ export function LiquidityPanel({
 
         <div className={styles.depositStack}>
           <label className={styles.assetInput}>
-            <span>pZEC amount</span>
+            <span>ZEC amount</span>
             <input
               inputMode="decimal"
               value={amount}
@@ -323,7 +323,7 @@ export function LiquidityPanel({
               aria-invalid={!amountPreview.valid}
               aria-describedby={amountHelpId}
             />
-            <strong>pZEC</strong>
+            <strong>ZEC</strong>
           </label>
           <span className={styles.plusMark}>+</span>
           <div className={styles.assetInput}>
@@ -340,7 +340,7 @@ export function LiquidityPanel({
 
         <dl className={styles.statGrid} role="group" aria-label="Pool stats and impermanent loss versus hold">
           <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
-          <div><dt>pZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reservePzecAtoms, PZEC_DECIMALS, 2)}</dd></div>
+          <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reservePzecAtoms, PZEC_DECIMALS, 2)}</dd></div>
           <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
           <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
           <div>
@@ -368,7 +368,7 @@ export function LiquidityPanel({
         </p>
 
         <p className={styles.inlineNotice}>
-          The 0.30% pool fee applies to swaps, not the exactly balanced add. Swap fee paid in pZEC: {amountPreview.swapFee}.
+          The 0.30% pool fee applies to swaps, not the exactly balanced add. Swap fee paid in ZEC: {amountPreview.swapFee}.
           {amountPreview.swapNote ? ` ${amountPreview.swapNote}` : ""}
         </p>
 
@@ -382,8 +382,8 @@ export function LiquidityPanel({
                 <dt>Leaves the session</dt>
                 <dd>
                   {review.kind === "mint"
-                    ? `${formatAtomicUnits(review.zecAtoms, PZEC_DECIMALS)} pZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} on Arbitrum Sepolia`
-                    : `${formatAtomicUnits(review.zecAtoms, PZEC_DECIMALS)} pZEC on Arbitrum Sepolia`}
+                    ? `${formatAtomicUnits(review.zecAtoms, PZEC_DECIMALS)} ZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} on Arbitrum Sepolia`
+                    : `${formatAtomicUnits(review.zecAtoms, PZEC_DECIMALS)} ZEC on Arbitrum Sepolia`}
                 </dd>
               </div>
               <div>
@@ -404,11 +404,11 @@ export function LiquidityPanel({
               </div>
               <div>
                 <dt>Fees</dt>
-                <dd>{feeEnvelopeCopy()} AMM swap fee paid in pZEC: {review.swapFee}.</dd>
+                <dd>{feeEnvelopeCopy()} AMM swap fee paid in ZEC: {review.swapFee}.</dd>
               </div>
             </dl>
             <p className={styles.inlineNotice}>
-              Transparent Zcash and this Arbitrum LP action are publicly linkable. pZEC redemption depends on the gateway.
+              Transparent Zcash and this Arbitrum LP action are publicly linkable. Redemption, if ever offered, would depend on a gateway.
             </p>
             <p className={styles.inlineNotice}>
               Confirm runs the local integer pool preview. Wallet actions stay disabled.

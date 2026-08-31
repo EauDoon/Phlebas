@@ -14,7 +14,7 @@ import { markets } from "@/lib/market-data";
 import type { RestingOrder } from "@/lib/matcher";
 import type { SessionLogEvent } from "@/lib/replay";
 import type { PaperAccount, UserFill } from "@/lib/session";
-import { availablePzec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
+import { availableZec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
 import { PZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -196,12 +196,12 @@ export function OrderBlotter({
         <div role="tabpanel" id="blotter-panel-inventory" aria-labelledby="blotter-tab-inventory">
         <dl className={styles.statGrid}>
           <div>
-            <dt>Available pZEC</dt>
-            <dd>{formatAtomicUnits(availablePzec(account), PZEC_DECIMALS)}</dd>
+            <dt>Available ZEC</dt>
+            <dd>{formatAtomicUnits(availableZec(account), PZEC_DECIMALS)}</dd>
           </div>
           <div>
-            <dt>Reserved pZEC</dt>
-            <dd>{formatAtomicUnits(account.reservedPzecAtoms, PZEC_DECIMALS)}</dd>
+            <dt>Reserved ZEC</dt>
+            <dd>{formatAtomicUnits(account.reservedZecAtoms, PZEC_DECIMALS)}</dd>
           </div>
           <div>
             <dt>Available {market.quote}</dt>
