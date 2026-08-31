@@ -94,6 +94,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminal, /Skip to order book/);
   assert.match(terminal, /Skip to incident demonstration/);
   assert.match(terminal, /Skip to pool tabs/);
+  assert.match(terminal, /Skip to destination inspector/);
   assert.match(await readFile(join(root, "src/components/incident-demo.tsx"), "utf8"), /id="incident-demonstration"/);
   assert.match(await readFile(join(root, "src/components/price-chart.tsx"), "utf8"), /chartDisplayGeometry/);
   assert.match(await readFile(join(root, "src/lib/chart-display.ts"), "utf8"), /display exception/);
