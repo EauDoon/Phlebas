@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after skip-nav overflow-wrap, 768px two-up, gutter max-width, stretched row height, Menu clearance, and terminal 390px two-up.
+Last updated: 01-09-2026 after skip-nav 8px row-gap, 8px skip-link padding, leftover 44px, banner stacking, 768px brand and terminal two-up, and legal/security two-up.
 
 ## Branch
 
@@ -282,16 +282,24 @@ Last updated: 01-09-2026 after skip-nav overflow-wrap, 768px two-up, gutter max-
 - Focused skip-nav `z-index: auto` at 820px so it does not cover the landing Menu button
 - Terminal skip-nav at 390px stays two-up with the 2px ring inside the viewport
 - Playwright covers 768px two-up, overflow-wrap, gutter max-width, stretched row height, Menu clearance, and terminal 390px two-up
+- Skip-nav `row-gap: 8px` so 2px rings plus offset do not clip between wrapped rows
+- Two-up skip-link `padding: 8px` and `box-sizing: border-box` keep overflow-wrap labels inside the 44px target
+- Two-up skip links use `flex: 1 0` so a leftover odd link stays at least 44px
+- Focused skip-nav `z-index: 1` at 820px so skip links stay above the simulation banner
+- Focused skip-nav at 768px does not cover the landing header brand
+- Terminal skip-nav at 768px stays two-up with the 2px ring inside the viewport
+- Simulation-frame skip-nav on `/legal` and `/security` stays two-up at 320px
+- Playwright covers row-gap rings, leftover 44px, 768px brand, terminal 768 two-up, legal/security two-up, and banner stacking
 
 ## Next
 
-- Skip-nav row-gap should keep the 2px ring from clipping between wrapped rows
-- Skip-link padding should keep overflow-wrap labels inside the 44px target
-- Focused skip-nav at 768px should not cover the landing header brand
-- Terminal skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
-- A leftover odd skip link should stay at least 44px after `max-width: calc(50% - 2px)`
-- Simulation-frame skip-nav on `/legal` and `/security` should stay two-up at 320px
-- Skip-nav `z-index: auto` should not hide skip links under the simulation banner
+- Skip-nav column-gap should keep the 2px ring from overlapping two-up neighbors
+- Focused skip-nav at 768px should not cover the landing Menu button
+- `/status` simulation-frame skip-nav should stay two-up at 320px
+- Liquidity skip-nav leftover (three links) should stay at least 44px at 320px
+- Skip-link 8px padding should still leave a 44px min-height after overflow-wrap
+- Focused skip-nav z-index 1 should not cover the landing header after wrap at 320px
+- Security skip-link overflow-wrap should stay inside the two-up cell at 320px
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
