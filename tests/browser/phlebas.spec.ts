@@ -1823,3 +1823,39 @@ test("tour buttons retry copy and country-block skip stay 44px on desktop", asyn
   expect((await skipBlock.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("architecture liquidity and bridge skip links stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipLayers = page.getByRole("link", { name: "Skip to architecture layers" });
+  await expect(skipLayers).toBeFocused();
+  expect((await skipLayers.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Tab");
+  const skipHonesty = page.getByRole("link", { name: "Skip to honesty bar" });
+  await expect(skipHonesty).toBeFocused();
+  expect((await skipHonesty.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipPools = page.getByRole("link", { name: "Skip to pool tabs" });
+  await expect(skipPools).toBeFocused();
+  expect((await skipPools.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Tab");
+  const skipStats = page.getByRole("link", { name: "Skip to pool stats" });
+  await expect(skipStats).toBeFocused();
+  expect((await skipStats.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipInspector = page.getByRole("link", { name: "Skip to destination inspector" });
+  await expect(skipInspector).toBeFocused();
+  expect((await skipInspector.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Tab");
+  const skipPrivacy = page.getByRole("link", { name: "Skip to privacy callouts" });
+  await expect(skipPrivacy).toBeFocused();
+  expect((await skipPrivacy.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
