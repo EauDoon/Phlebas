@@ -1,11 +1,11 @@
 # Phlebas Architecture
 
 Status: Simulation only
-As of: 30-08-2026
+As of: 31-08-2026
 
-Phlebas is a user interface and protocol design for ZEC markets. It does not accept deposits, hold assets, place real orders, execute swaps, mint tokens, or submit blockchain transactions today.
+Phlebas is a user interface and protocol design for ZEC markets. The public app does not accept live deposits, hold assets, or move mainnet funds. Optional loopback stubs exist for a textest gateway, matcher, and observer. They are never hosted on Vercel.
 
-No Phlebas contracts are deployed. No Zcash node, wallet, signer, reserve account, bridge, matching service, or custody process is operating. Every balance, order, trade, pool, price, and transaction shown by the current application is simulated.
+No Phlebas contracts are deployed. No Zcash node, signer, reserve account, or custody process is operating. Every balance, order, trade, pool, price, and transaction shown by the public application is simulated.
 
 The candidate mainnet design remains gated by the controls in [Mainnet gate](#mainnet-gate). This document does not authorize deployment or custody.
 
@@ -38,18 +38,19 @@ The chain and asset choice is recorded in [ADR 0001](adr/0001-arbitrum-and-pzec.
 
 ## Current system
 
-The current repository contains a Next.js application with deterministic sample market data and a constant-product quote function. It has no database, wallet connection, chain client, RPC integration, contract package, secrets, or production API.
+The current repository contains a Next.js no-value simulation, undeployed Arbitrum Sepolia contract sources, and optional loopback operator stubs. Public Vercel must not run the gateway, matcher, or observer.
 
 | Component | Current state | Candidate gated state |
 | --- | --- | --- |
-| Web application | Local or Vercel-compatible simulation | Public interface with explicit network and asset disclosures |
-| Market data | Static sample values | Indexed contract events and signed service responses |
-| Order book | Sample bids, asks, and trades | Off-chain order intake and matching with on-chain settlement |
+| Web application | Local or Vercel-compatible simulation (noindex) | Public interface with explicit network and asset disclosures |
+| Market data | Static sample values plus session fills | Indexed contract events and signed service responses |
+| Order book | In-browser matcher; optional loopback operator stubs | Off-chain order intake and matching with on-chain settlement |
 | LP pools | In-memory constant-product calculation | Audited `pZEC/USDC` and `pZEC/USDT0` contracts |
-| Zcash deposits | None | Fresh per-intent TEX addresses with final-transaction transparency checks |
-| Zcash withdrawals | None | Burn-authorized transparent withdrawals |
-| `pZEC` | Display label only | Custody-backed ERC-20 with controlled mint and burn |
+| Zcash deposits | Local textest gateway stub, off by default | Fresh per-intent TEX addresses with final-transaction transparency checks |
+| Zcash withdrawals | Tour-only payout stub; nothing is sent | Burn-authorized transparent withdrawals |
+| `pZEC` | Display label; undeployed contract source | Custody-backed ERC-20 with controlled mint and burn |
 | Custody | None | Approved operator, threshold policy, reserve ledger, and recovery plan |
+| Wallets | Optional EIP-1193 on Arbitrum Sepolia, signing disabled until verified deployment | Production wallet path after launch gates |
 
 ## Candidate topology
 

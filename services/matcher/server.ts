@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,10 +8,13 @@ import {
   createMatcherOperator,
   intakeSignedOrder,
   restoreOperator,
+  sequenceRoot,
   snapshotOperator,
   type MatcherOperator,
 } from "../../src/lib/matcher-operator.ts";
+import { listenHost } from "../../src/lib/operator-url.ts";
 import { TESTNET } from "../../src/lib/testnet.ts";
+import { atomicWriteFile } from "../durable-file.ts";
 import { readOperator, writeOperator } from "./persist.ts";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -56,36 +60,89 @@ function parseOrder(body: Record<string, unknown>): TypedOrder & { tif: "GTC" | 
   };
 }
 
-export function createMatcherService(verifyingContract = ZERO, lastTicks = 5291n): MatcherOperator {
-  return createMatcherOperator(sepoliaDomain(verifyingContract), lastTicks, {
+export function createMatcherService(verifyingContract?: string, lastTicks = 5291n): MatcherOperator {
+  const settlement = verifyingContract ?? (TESTNET.deployed ? TESTNET.settlement : ZERO);
+  return createMatcherOperator(sepoliaDomain(settlement), lastTicks, {
     baseAsset: TESTNET.pzec,
     quoteAssets: [TESTNET.usdc, TESTNET.usdt0],
   });
 }
 
+function isConfiguredDomain(operator: MatcherOperator): boolean {
+  return TESTNET.deployed
+    && operator.domain.chainId === TESTNET.chainId
+    && operator.domain.verifyingContract === TESTNET.settlement;
+}
+
 export function startMatcher(options: { host?: string; port?: number; operator?: MatcherOperator; persistPath?: string } = {}) {
-  const host = options.host ?? process.env.PHLEBAS_BIND ?? "127.0.0.1";
+  const host = listenHost(options.host);
   const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8788);
   const persistPath = options.persistPath ?? dataPath;
+  const initializedPath = `${persistPath}.initialized`;
+  const startedAt = Date.now();
+  let lastSequenceAt = startedAt;
   let operator = options.operator;
   let mutation = Promise.resolve();
 
   const ready = (async () => {
     if (operator) return;
-    operator = await readOperator(persistPath) ?? createMatcherService();
+    const loaded = await readOperator(persistPath);
+    if (loaded) {
+      const expected = createMatcherService().domain;
+      if (
+        loaded.domain.name !== expected.name
+        || loaded.domain.version !== expected.version
+        || loaded.domain.chainId !== expected.chainId
+        || loaded.domain.verifyingContract !== expected.verifyingContract
+      ) {
+        throw new Error("Persisted matcher domain does not match the configured settlement manifest");
+      }
+      operator = loaded;
+      return;
+    }
+    try {
+      const marker = await readFile(initializedPath, "utf8");
+      if (marker.trim() === "initialized") {
+        throw new Error("Matcher state is missing after initialization; refusing replay reset");
+      }
+      throw new Error("Matcher initialization marker is invalid");
+    } catch (error: unknown) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    operator = createMatcherService();
+    await writeOperator(persistPath, operator);
+    await atomicWriteFile(initializedPath, "initialized\n");
   })();
 
   const server = createServer((request, response) => {
     void (async () => {
       await ready;
-      if (!operator) operator = createMatcherService();
+      if (!operator) throw new Error("Matcher failed to initialize");
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
       if (request.method === "GET" && url.pathname === "/health") {
-        send(response, 200, { ok: true, sequence: operator.sequence, matcher: "local-operator" });
+        send(response, 200, {
+          ok: true,
+          sequence: operator.sequence,
+          sequenceRoot: sequenceRoot(operator),
+          matcher: "local-operator",
+          persist: persistPath,
+          startedAt,
+          lastSequenceAt,
+          acceptingOrders: isConfiguredDomain(operator),
+        });
         return;
       }
       if (request.method === "GET" && url.pathname === "/sequence") {
-        send(response, 200, { sequence: operator.sequence, receipts: operator.receipts });
+        const after = Number(url.searchParams.get("after") ?? "0");
+        const receipts = Number.isInteger(after) && after > 0
+          ? operator.receipts.filter((receipt) => receipt.sequence > after)
+          : operator.receipts;
+        send(response, 200, {
+          sequence: operator.sequence,
+          sequenceRoot: sequenceRoot(operator),
+          after: Number.isInteger(after) && after > 0 ? after : 0,
+          receipts,
+        });
         return;
       }
       if (request.method === "GET" && url.pathname === "/book") {
@@ -97,12 +154,17 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
           send(response, 415, { ok: false, reason: "content-type-must-be-application-json" });
           return;
         }
+        if (!isConfiguredDomain(operator)) {
+          send(response, 503, { ok: false, reason: "settlement-domain-unavailable" });
+          return;
+        }
         const order = parseOrder(await readJson(request));
         const issued = mutation.then(async () => {
           const candidate = restoreOperator(snapshotOperator(operator!), { verify: false });
           const receipt = intakeSignedOrder(candidate, order);
           await writeOperator(persistPath, candidate);
           operator = candidate;
+          lastSequenceAt = Date.now();
           return receipt;
         });
         mutation = issued.then(() => undefined, () => undefined);

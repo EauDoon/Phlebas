@@ -1,8 +1,8 @@
 # Phlebas Landing and User Journeys
 
-Status: the landing page, terminal shell, local matcher, LP preview, withdrawal state tour, destination inspector, optional Sepolia wallet signing, keccak EIP-712, and local testnet TEX issuance are implemented for no-value use. Contracts and services remain undeployed and no live-funds path exists.
+Status: the landing page, terminal shell, local matcher, LP preview, withdrawal state tour, destination inspector, optional Sepolia wallet signing, keccak EIP-712, and local textest services are implemented for no-value use. The loopback services are never hosted on Vercel. Contracts remain undeployed and no live-funds path exists.
 
-Phlebas currently has no live market data, deployed contract, real deposit, withdrawal, order, stablecoin, pZEC, custody, identity, or authoritative matching service. Every value and state in the public interface is illustrative; optional wallet signing and local services use only undeployed or testnet identities. This specification does not authorize mainnet, custody, publication, or financial services.
+Phlebas currently has no live market data, deployed contract, real deposit, withdrawal, order, stablecoin, pZEC, custody, identity, or authoritative matching service. Every value and state in the public interface is illustrative. Wallet signing stays disabled while the verified testnet deployment manifest is undeployed. This specification does not authorize mainnet, custody, publication, or financial services.
 
 The user-facing market aliases are `ZEC / USDC` and `ZEC / USDT`, matching the requested markets. Every market ticket, review, and history surface must also state the exact proposed settlement pair, `pZEC / USDC` or `pZEC / USDT0`. Pool labels use the settlement assets. Native `ZEC` refers only to Zcash that would enter or leave the transparent gateway.
 
@@ -42,7 +42,7 @@ Planning dials:
 | `/` | Landing page | Implemented locally, no wallet or asset action |
 | `/trade` | Terminal shell, defaults to trade | Implemented locally, simulation only |
 | `/trade?view=trade` | Trade preview | Implemented locally with illustrative order entry |
-| `/trade?view=trade&feed=stale` | Ticket gate | Allowlisted feed states: `illustrative`, `empty`, `stale`, `unavailable`. Invalid values return to illustrative. |
+| `/trade?view=trade&feed=stale` | Ticket gate | Allowlisted feed states: `illustrative`, `loading`, `empty`, `stale`, `unavailable`. Invalid values return to illustrative. |
 | `/trade?view=liquidity` | LP preview | Implemented locally with illustrative pool calculations |
 | `/trade?view=bridge` | Gateway boundary | Implemented locally as a deposit ZIP 321 preview and withdrawal state tour |
 | `/trade?view=architecture` | Product boundary | Implemented locally as a read-only explanation |

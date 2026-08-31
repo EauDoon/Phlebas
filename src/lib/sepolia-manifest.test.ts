@@ -9,6 +9,7 @@ const TX = `0x${"ab".repeat(32)}`;
 function completeBroadcast() {
   return {
     chain: 421614,
+    receipts: [{ transactionHash: TX, status: "0x1" }],
     transactions: [
       { contractName: "PZec", contractAddress: address(1), hash: TX, transactionType: "CREATE" },
       { contractName: "QuoteToken", contractAddress: address(2), transactionType: "CREATE" },
@@ -20,6 +21,10 @@ function completeBroadcast() {
       { contractName: "Settlement", contractAddress: address(8), transactionType: "CREATE" },
     ],
   };
+}
+
+function completeCode() {
+  return Object.fromEntries(Array.from({ length: 8 }, (_, index) => [address(index + 1), "0x6000"]));
 }
 
 test("recording a broadcast never sets deployed without an explicit mark", () => {
@@ -42,12 +47,29 @@ test("mark-deployed requires a complete broadcast, commit, and Sepolia chain id"
     transactions: [{ contractName: "PZec", contractAddress: address(1), hash: TX, transactionType: "CREATE" }],
   }, { markDeployed: true, commit: "deadbeef" }), /every contract/);
   assert.throws(
-    () => recordBroadcast(emptyManifest(), completeBroadcast(), { markDeployed: true }),
+    () => recordBroadcast(emptyManifest(), completeBroadcast(), { markDeployed: true, deployedCode: completeCode() }),
     /git commit/,
+  );
+  assert.throws(
+    () => recordBroadcast(emptyManifest("deadbeef"), { ...completeBroadcast(), receipts: [] }, {
+      markDeployed: true,
+      commit: "deadbeef",
+      deployedCode: completeCode(),
+    }),
+    /successful Sepolia receipt/,
+  );
+  assert.throws(
+    () => recordBroadcast(emptyManifest("deadbeef"), completeBroadcast(), {
+      markDeployed: true,
+      commit: "deadbeef",
+      deployedCode: { ...completeCode(), [address(8)]: "0x" },
+    }),
+    /verified bytecode/,
   );
   const marked = recordBroadcast(emptyManifest("deadbeef"), completeBroadcast(), {
     markDeployed: true,
     commit: "deadbeef",
+    deployedCode: completeCode(),
   });
   assert.equal(marked.deployed, true);
   assert.equal(marked.commit, "deadbeef");

@@ -132,6 +132,7 @@ for (const width of viewports) {
             "pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.",
             { exact: true },
           )).toBeVisible();
+          await expect(page.getByText("Deny by default", { exact: true })).toBeVisible();
         }
       }
 
@@ -278,6 +279,8 @@ test("gateway preview is not a receivable deposit", async ({ page }) => {
   await expect(page.getByText("Screened", { exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("zs1notreal");
   await expect(page.getByText("Shielded and unified addresses are out of scope.")).toBeVisible();
+  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
+  await expect(page.getByText("Payout stub would accept this destination shape. Nothing is sent.")).toBeVisible();
 });
 
 test("local matcher fills a buy against the fixture ask", async ({ page }) => {
@@ -313,11 +316,24 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "Simulation status" })).toBeVisible();
   await expect(page.getByText("in-browser", { exact: true })).toBeVisible();
   await expect(page.getByText("live funds", { exact: false })).toBeVisible();
+  await expect(page.getByText("deny-default", { exact: true })).toBeVisible();
 
   const missing = await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "load" });
   expect(missing?.status(), "404 status").toBe(404);
   await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
   await expect(page.getByText("Simulation only", { exact: true })).toBeVisible();
+});
+
+test("public operator APIs stay unavailable without a loopback operator URL", async ({ page }) => {
+  const gateway = await page.request.post("/api/deposit-intent");
+  expect(gateway.status()).toBe(503);
+  expect((await gateway.json()).reason).toBe("gateway-unavailable");
+  const matcher = await page.request.get("/api/matcher");
+  expect(matcher.status()).toBe(503);
+  expect((await matcher.json()).reason).toBe("matcher-unavailable");
+  const matcherPost = await page.request.post("/api/matcher", { data: {} });
+  expect(matcherPost.status()).toBe(503);
+  expect((await matcherPost.json()).reason).toBe("matcher-unavailable");
 });
 
 test("ZIP 321 copy stays disabled without a gateway", async ({ page }) => {
@@ -347,4 +363,92 @@ test("review names the cheaper venue before confirm", async ({ page }) => {
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByText("CLOB cheaper for a full fill", { exact: true })).toBeVisible();
   await expect(page.getByText("Confirm submits only the local CLOB")).toBeVisible();
+  await expect(page.getByText("Leaves the session")).toBeVisible();
+  await expect(page.getByText("publicly linkable", { exact: false })).toBeVisible();
+  await expect(page.getByText("Proposed taker 15 bps", { exact: false })).toBeVisible();
+});
+
+test("GTC remainder can be cancelled and epoch invalidation is visible", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
+  await expect(page.getByRole("table", { name: /Resting session orders on the local ZEC\/USDC book, settled as pZEC-USDC/ })).toBeVisible();
+  await page.getByRole("button", { name: "Invalidate older session orders" }).click();
+  await expect(page.getByText("No open session orders", { exact: false })).toBeVisible();
+  await page.getByRole("tab", { name: "Inventory" }).click();
+  const blotter = page.getByRole("region", { name: "Open orders, fills, inventory" });
+  await expect(blotter.getByText("Account epoch")).toBeVisible();
+});
+
+test("USDT market names USDT0 settlement and empty feed shows no depth", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(page.getByText("settles pZEC-USDT0")).toBeVisible();
+  await page.getByRole("combobox", { name: "Market data state" }).selectOption("empty");
+  await expect(page.getByText("No resting depth. The local book is empty.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await page.getByRole("combobox", { name: "Market data state" }).selectOption("loading");
+  await expect(page.getByText("Loading market data", { exact: true })).toBeVisible();
+});
+
+test("LP burn stays available after a trading pause", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Simulate mint" }).click();
+  await expect(page.getByText(/Minted .* local LP shares/)).toBeVisible();
+  await page.getByRole("button", { name: "Pause trading preview" }).click();
+  await expect(page.getByRole("button", { name: "Simulate mint" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Simulate swap" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
+  await page.getByRole("button", { name: "Burn session shares" }).click();
+  await expect(page.getByText(/Burned session shares/)).toBeVisible();
+});
+
+test("withdrawal tour drives a stub claim without changing tour copy", async ({ page }) => {
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Withdrawal states" }).click();
+  await expect(page.getByText("Amount, transparent destination, network fee, service fee, and net output would be reviewed before any burn.")).toBeVisible();
+  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
+  await expect(page.getByText("Stub claim: requested. Nothing is sent.")).toBeVisible();
+  await page.getByRole("button", { name: "Next state" }).click();
+  await expect(page.getByText("Screened", { exact: true })).toBeVisible();
+  await expect(page.getByText("Stub claim: screened. Nothing is sent.")).toBeVisible();
+});
+
+test("IOC cancels an unfilled remainder and FOK rejects a full miss", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "IOC" }).click();
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await expect(page.getByText(/Unfilled size was cancelled/)).toBeVisible();
+
+  await page.getByRole("button", { name: "FOK" }).click();
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("52.91");
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("100");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await expect(page.getByText("Fill-or-kill could not fill in full")).toBeVisible();
+});
+
+test("invalidate-epoch control is keyboard focusable", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const invalidate = page.getByRole("button", { name: "Invalidate older session orders" });
+  await invalidate.focus();
+  await expect(invalidate).toBeFocused();
+});
+
+test("architecture view keeps Vercel off the matcher", async ({ page }) => {
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  await expect(page.getByText("Loopback gateway and matcher never hosted on Vercel")).toBeVisible();
+  await expect(page.getByText("The matcher is not trustless.")).toBeVisible();
+});
+
+test("connect wallet without a provider shows a visible rejection", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
+  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only.")).toBeVisible();
 });

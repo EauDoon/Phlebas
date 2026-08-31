@@ -6,6 +6,11 @@ export type PoolShares = {
   totalShares: bigint;
 };
 
+export function lpOperationAllowed(operation: "mint" | "swap" | "burn", tradingPaused: boolean): boolean {
+  if (operation === "burn") return true;
+  return !tradingPaused;
+}
+
 export function seedPool(reservePzecAtoms: bigint, reserveQuoteAtoms: bigint): PoolShares {
   if (reservePzecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
     throw new Error("Pool reserves must be positive");

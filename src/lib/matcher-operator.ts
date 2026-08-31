@@ -6,6 +6,7 @@ import {
   type Eip712Domain,
   type TypedOrder,
 } from "./eip712.ts";
+import { keccak256Hex } from "./keccak.ts";
 import { emptyBook, submitOrder, type Book, type Fill, type RestingOrder, type TimeInForce } from "./matcher.ts";
 import { recoverAddress } from "./secp256k1.ts";
 
@@ -47,6 +48,7 @@ export type OperatorSnapshot = {
   sequence: number;
   baseAsset: string | null;
   quoteAssets: string[];
+  sequenceRoot: string;
   book: {
     bids: SerializedOrder[];
     asks: SerializedOrder[];
@@ -82,6 +84,10 @@ export function createMatcherOperator(
     quoteAssets: new Set(options.quoteAssets?.map((address) => assertAddress(address, "quoteAsset")) ?? []),
     now: options.now ?? (() => BigInt(Math.floor(Date.now() / 1_000))),
   };
+}
+
+export function sequenceRoot(operator: Pick<MatcherOperator, "sequence" | "receipts">): string {
+  return keccak256Hex(`${operator.sequence}:${operator.receipts.map((receipt) => receipt.digest).join(":")}`);
 }
 
 export function verifyMakerSignature(digest: string, signature: string, maker: string): void {
@@ -164,8 +170,9 @@ export function snapshotOperator(operator: MatcherOperator): OperatorSnapshot {
       chainId: operator.domain.chainId.toString(),
     },
     sequence: operator.sequence,
-    baseAsset: operator.baseAsset,
-    quoteAssets: [...operator.quoteAssets],
+  baseAsset: operator.baseAsset,
+  quoteAssets: [...operator.quoteAssets],
+    sequenceRoot: sequenceRoot(operator),
     book: {
       bids: operator.book.bids.map(serializeResting),
       asks: operator.book.asks.map(serializeResting),
@@ -227,6 +234,9 @@ export function restoreOperator(snapshot: OperatorSnapshot, options: { verify?: 
     for (const receipt of operator.receipts) {
       verifyMakerSignature(receipt.digest, receipt.signature, receipt.maker);
     }
+  }
+  if (snapshot.sequenceRoot !== sequenceRoot(operator)) {
+    throw new Error("Persisted sequence root does not match restored receipts");
   }
   return operator;
 }

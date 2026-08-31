@@ -103,3 +103,9 @@ export function agreeObservations(observations: ObservedOutpoint[]): ObservedOut
   }
   return { ...first, confirmations: Math.min(...observations.map((observation) => observation.confirmations)) };
 }
+
+export function applyReorg(observation: ObservedOutpoint, stillOnChain: boolean): "drop" | "keep" {
+  if (!stillOnChain) return "drop";
+  if (observation.confirmations < TESTNET_MIN_CONFIRMATIONS) return "drop";
+  return "keep";
+}

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { hexToBytes } from "./keccak.ts";
-import { agreeObservations, confirmationsAtTip, parseStubObservation } from "./observer.ts";
+import { agreeObservations, applyReorg, confirmationsAtTip, parseStubObservation } from "./observer.ts";
 import { encodeTex } from "./tex.ts";
 
 const TEX = encodeTex(hexToBytes("00112233445566778899aabbccddeeff00112233"));
@@ -60,4 +60,22 @@ test("disagreement stops minting", () => {
   assert.throws(() => agreeObservations([first, second]), /disagreement/);
   assert.throws(() => agreeObservations([first, { ...first, shieldedBundle: true }]), /disagreement/);
   assert.equal(agreeObservations([first, { ...first, confirmations: 9 }]).confirmations, 9);
+});
+
+test("reorg drops observations that leave the chain", () => {
+  const observed = parseStubObservation({
+    txid: TXID,
+    vout: 0,
+    amountZatoshis: 1n,
+    tex: TEX,
+    blockHeight: 1,
+    blockHash: BLOCK,
+    tipHeight: 20,
+    transparentInputsOnly: true,
+    transparentOutputsOnly: true,
+    shieldedBundle: false,
+  });
+  assert.equal(applyReorg(observed, false), "drop");
+  assert.equal(applyReorg(observed, true), "keep");
+  assert.equal(applyReorg({ ...observed, confirmations: 1 }, true), "drop");
 });

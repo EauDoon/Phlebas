@@ -10,7 +10,7 @@ import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
 import { type FeedStatus } from "@/lib/market-state";
 import type { SessionLogEvent } from "@/lib/replay";
-import { cancelOrder, submitOrder, type TimeInForce } from "@/lib/matcher";
+import { cancelOrder, emptyBook, submitOrder, type TimeInForce } from "@/lib/matcher";
 import {
   applySubmit,
   availablePzec,
@@ -99,6 +99,7 @@ export function TradingTerminal({
   const nextFillId = useRef(1);
   const market = markets[marketId];
   const book = books[marketId];
+  const displayedBook = feedStatus === "empty" ? emptyBook(book.lastTicks) : book;
   const account = accounts[marketId];
 
   function selectView(nextView: View) {
@@ -253,6 +254,7 @@ export function TradingTerminal({
                     onChange={(event) => selectFeed(event.target.value as FeedStatus)}
                   >
                     <option value="illustrative">Illustrative</option>
+                    <option value="loading">Loading</option>
                     <option value="empty">Empty</option>
                     <option value="stale">Stale</option>
                     <option value="unavailable">Unavailable</option>
@@ -291,7 +293,7 @@ export function TradingTerminal({
 
               <OrderBook
                 marketId={marketId}
-                book={book}
+                book={displayedBook}
                 onPriceSelect={(ticks) => {
                   setPriceSelection({ ticks, nonce: nextPriceNonce.current });
                   nextPriceNonce.current += 1;
@@ -300,7 +302,7 @@ export function TradingTerminal({
               <TradeTicket
                 key={`${marketId}:${feedStatus}`}
                 market={market}
-                book={book}
+                book={displayedBook}
                 lastTicks={book.lastTicks}
                 priceSelection={priceSelection}
                 availablePzecAtoms={availablePzec(account)}
@@ -320,7 +322,7 @@ export function TradingTerminal({
                   <span className={styles.miniLabel}>{sessionTape.length > 0 ? "Session + fixture" : "Fixture tape"}</span>
                 </div>
                 <table className={styles.dataTable}>
-                  <caption className={styles.srOnly}>Recent {marketId} trades. Session fills appear first.</caption>
+                  <caption className={styles.srOnly}>Recent {marketId} trades settled as {market.settlementPair}. Session fills appear first.</caption>
                   <thead>
                     <tr><th scope="col">Price {market.quote}</th><th scope="col">Size pZEC</th><th scope="col">Time</th></tr>
                   </thead>
@@ -359,6 +361,7 @@ export function TradingTerminal({
                 onCancel={cancelUserOrder}
                 onCancelAll={cancelAllUserOrders}
                 onReset={resetSession}
+                accountEpoch={accountEpoch}
               />
             </div>
           </>

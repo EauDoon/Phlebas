@@ -1,11 +1,12 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { mkdir, open, readFile, rename } from "node:fs/promises";
+import { mkdir, open, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "node:crypto";
 
 import { hexToBytes } from "../../src/lib/keccak.ts";
+import { listenHost } from "../../src/lib/operator-url.ts";
 import { SYNTHETIC_DEPOSIT_ZATOSHIS } from "../../src/lib/zip321.ts";
+import { atomicWriteFile } from "../durable-file.ts";
 
 import { createGateway, issueTestnetIntent, snapshotGateway, type GatewayState } from "./issuer.ts";
 import { masterKeyHex, newMasterKey } from "./keys.ts";
@@ -56,8 +57,14 @@ async function loadOrCreateMaster(masterPath: string): Promise<{ masterHex: stri
   return { masterHex, created: false };
 }
 
-export async function loadGateway(options: { dataDirectory?: string } = {}) {
-  const dataDirectory = options.dataDirectory ?? defaultDataDir;
+type GatewayOptions = { dataDirectory?: string; dataDir?: string };
+
+function gatewayDirectory(options: GatewayOptions): string {
+  return options.dataDirectory ?? options.dataDir ?? defaultDataDir;
+}
+
+export async function loadGateway(options: GatewayOptions = {}) {
+  const dataDirectory = gatewayDirectory(options);
   const masterPath = join(dataDirectory, "master.key");
   const statePath = join(dataDirectory, "state.json");
   await mkdir(dataDirectory, { recursive: true, mode: 0o700 });
@@ -76,29 +83,16 @@ export async function loadGateway(options: { dataDirectory?: string } = {}) {
   return state;
 }
 
-export async function saveGateway(state: GatewayState, options: { dataDirectory?: string } = {}) {
-  const dataDirectory = options.dataDirectory ?? defaultDataDir;
+export async function saveGateway(state: GatewayState, options: GatewayOptions = {}) {
+  const dataDirectory = gatewayDirectory(options);
   const statePath = join(dataDirectory, "state.json");
-  const temporaryPath = join(dataDirectory, `state-${process.pid}-${randomUUID()}.tmp`);
-  const handle = await open(temporaryPath, "wx", 0o600);
-  try {
-    await handle.writeFile(`${JSON.stringify(snapshotGateway(state))}\n`, "utf8");
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-  await rename(temporaryPath, statePath);
-  const directory = await open(dataDirectory, "r");
-  try {
-    await directory.sync();
-  } finally {
-    await directory.close();
-  }
+  await atomicWriteFile(statePath, `${JSON.stringify(snapshotGateway(state))}\n`);
 }
 
-export function startGateway(options: { host?: string; port?: number; dataDirectory?: string } = {}) {
-  const host = options.host ?? process.env.PHLEBAS_BIND ?? "127.0.0.1";
+export function startGateway(options: { host?: string; port?: number; maxIntents?: number; dataDirectory?: string; dataDir?: string } = {}) {
+  const host = listenHost(options.host);
   const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8787);
+  const maxIntents = options.maxIntents ?? Number(process.env.PHLEBAS_GATEWAY_MAX_INTENTS ?? 64);
   const ready = loadGateway(options);
   let mutation = Promise.resolve();
 
@@ -112,7 +106,7 @@ export function startGateway(options: { host?: string; port?: number; dataDirect
       }
       if (request.method === "POST" && url.pathname === "/intents") {
         const contentType = request.headers["content-type"]?.split(";", 1)[0];
-        if (contentType && contentType !== "application/json") {
+        if (contentType !== "application/json") {
           send(response, 415, { ok: false, reason: "content-type-must-be-application-json" });
           return;
         }
@@ -121,6 +115,7 @@ export function startGateway(options: { host?: string; port?: number; dataDirect
           ? SYNTHETIC_DEPOSIT_ZATOSHIS
           : BigInt(String(body.amountZatoshis));
         const issued = mutation.then(async () => {
+          if (state.sequence >= maxIntents) throw new RangeError("intent-cap");
           const candidate = createGateway(state.master, snapshotGateway(state));
           const intent = issueTestnetIntent(candidate, amount);
           await saveGateway(candidate, options);
@@ -129,7 +124,16 @@ export function startGateway(options: { host?: string; port?: number; dataDirect
           return intent;
         });
         mutation = issued.then(() => undefined, () => undefined);
-        const intent = await issued;
+        let intent;
+        try {
+          intent = await issued;
+        } catch (error: unknown) {
+          if (error instanceof RangeError && error.message === "intent-cap") {
+            send(response, 429, { ok: false, reason: "intent-cap" });
+            return;
+          }
+          throw error;
+        }
         send(response, 201, intent);
         return;
       }

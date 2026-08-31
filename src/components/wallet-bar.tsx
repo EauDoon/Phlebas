@@ -63,7 +63,11 @@ export function WalletBar({
       >
         {busy ? "Connecting" : "Connect wallet"}
       </button>
-      {wallet.error && <span className={styles.srOnly}>{wallet.error}</span>}
+      {wallet.error && (
+        <span className={styles.inlineNotice} role="status">
+          {wallet.error}
+        </span>
+      )}
     </div>
   );
 }

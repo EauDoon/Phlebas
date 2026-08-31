@@ -21,7 +21,7 @@ export type SepoliaManifest = {
 
 export type FoundryBroadcast = {
   chain?: number;
-  receipts?: Array<{ transactionHash?: string; contractAddress?: string }>;
+  receipts?: Array<{ transactionHash?: string; contractAddress?: string; status?: string | number }>;
   transactions?: Array<{
     contractName?: string;
     contractAddress?: string;
@@ -63,7 +63,7 @@ export function isOnchainAddress(value: string | null | undefined): value is str
 export function recordBroadcast(
   current: SepoliaManifest,
   broadcast: FoundryBroadcast,
-  options: { commit?: string; markDeployed?: boolean } = {},
+  options: { commit?: string; markDeployed?: boolean; deployedCode?: Record<string, string> } = {},
 ): SepoliaManifest {
   if (broadcast.chain !== SEPOLIA_CHAIN_ID) {
     throw new Error("Broadcast is not Arbitrum Sepolia (421614)");
@@ -107,6 +107,20 @@ export function recordBroadcast(
     }
     if (!/^[0-9a-f]{7,40}$/i.test(next.commit)) {
       throw new Error("Cannot mark deployed without the deployed git commit");
+    }
+    const successfulReceipt = broadcast.receipts?.some((receipt) => {
+      const status = receipt.status;
+      return receipt.transactionHash?.toLowerCase() === hash.toLowerCase()
+        && (status === 1 || status === "1" || status === "0x1");
+    });
+    if (!successfulReceipt) {
+      throw new Error("Cannot mark deployed without a successful Sepolia receipt");
+    }
+    for (const address of Object.values(next.contracts)) {
+      const code = address ? options.deployedCode?.[address.toLowerCase()] : undefined;
+      if (!code || !/^0x[0-9a-fA-F]{2,}$/.test(code) || /^0x0*$/.test(code)) {
+        throw new Error("Cannot mark deployed without verified bytecode at every contract address");
+      }
     }
     next.deployed = true;
   }

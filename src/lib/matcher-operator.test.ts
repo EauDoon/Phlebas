@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { sepoliaDomain, type TypedOrder } from "./eip712.ts";
-import { createMatcherOperator, intakeSignedOrder, type IntakeOrder, type MatcherOperator } from "./matcher-operator.ts";
+import { createMatcherOperator, intakeSignedOrder, sequenceRoot, type IntakeOrder, type MatcherOperator } from "./matcher-operator.ts";
 
 const MAKER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const TAKER = "0x0000000000000000000000000000000000000004";
@@ -34,9 +34,13 @@ function intake(operator: MatcherOperator, value: IntakeOrder) {
 
 test("operator sequences before matching and is deterministic", () => {
   const operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);
+  const emptyRoot = sequenceRoot(operator);
+  assert.equal(emptyRoot.length, 64);
+  assert.equal(emptyRoot, sequenceRoot(createMatcherOperator(sepoliaDomain(ZERO), 5291n)));
   const first = intake(operator, { ...order(), tif: "GTC", signature: "0x" });
   assert.equal(first.sequence, 1);
   assert.equal(first.digest, "23cf06d636047955c46b031bd1e5e788d74321da1c19d01ee562b2e194cdc4e9");
+  assert.notEqual(sequenceRoot(operator), emptyRoot);
   const second = intake(operator, {
     ...order({ nonce: 2n, side: 1, limitPriceTicks: 5300n }),
     tif: "GTC",
@@ -57,6 +61,7 @@ test("snapshot restore preserves book, sequence, and recovers stored signatures"
   assert.equal(restored.book.bids.length, operator.book.bids.length);
   assert.equal(restored.book.lastTicks, operator.book.lastTicks);
   assert.equal(restored.receipts[0]?.digest, operator.receipts[0]?.digest);
+  assert.equal(sequenceRoot(restored), sequenceRoot(operator));
 });
 
 test("frozen EIP-712 signature recovers the order maker", async () => {

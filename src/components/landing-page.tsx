@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { COUNTRY_ACCESS } from "@/lib/country-access";
+
 import { LandingHeader } from "./landing-header";
 import styles from "./landing.module.css";
 
@@ -10,6 +12,9 @@ const statusRows = [
   ["Wallets", "Optional Arbitrum Sepolia"],
   ["Contracts", "Source in repo, undeployed"],
   ["ZEC custody", "Not operating"],
+  ["Country access", COUNTRY_ACCESS.default === "deny" && COUNTRY_ACCESS.enabled.length === 0
+    ? "Deny by default"
+    : "Misconfigured"],
 ] as const;
 
 const journeys = [

@@ -1,14 +1,12 @@
-const GATEWAY_URL = process.env.PHLEBAS_GATEWAY_URL;
+import { isLoopbackOperatorUrl, operatorUnavailable } from "@/lib/operator-url";
 
 export async function POST() {
-  if (!GATEWAY_URL) {
-    return Response.json(
-      { ok: false, reason: "gateway-unavailable" },
-      { status: 503, headers: { "Cache-Control": "no-store" } },
-    );
+  const gatewayUrl = process.env.PHLEBAS_GATEWAY_URL;
+  if (!isLoopbackOperatorUrl(gatewayUrl)) {
+    return operatorUnavailable("gateway-unavailable");
   }
 
-  const response = await fetch(new URL("/intents", GATEWAY_URL), { method: "POST" });
+  const response = await fetch(new URL("/intents", gatewayUrl), { method: "POST" });
   const body = await response.text();
   return new Response(body, {
     status: response.status,

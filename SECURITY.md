@@ -1,6 +1,6 @@
 # Security Policy
 
-> Status as of 31-08-2026: Phlebas is a no-value simulation with undeployed Sepolia contract sources and optional local testnet services. It is not a deployed exchange, bridge, automated market maker, or custody service. It must not be used with real funds.
+> Status as of 31-08-2026: Phlebas is a no-value simulation with undeployed Sepolia contract sources and optional local testnet services. It is not a deployed exchange, bridge, automated market maker, or custody service. It must not be used with real funds or mainnet TEX.
 
 ## Supported versions
 
@@ -11,13 +11,15 @@ Phlebas has no production release and no production security support commitment.
 | `0.1.x` | Local simulation and no-value testnet development only |
 | Any public preview | Demonstration only, no real assets |
 
-The current repository uses static market data and includes an optional Sepolia wallet connector, local matcher and testnet TEX issuer, plus undeployed testnet contracts. It does not contain or operate:
+The public Vercel app is a no-value interface. Local optional stubs exist and are not production:
 
-- Any deployed contract or live-funds transaction path.
-- A production Zcash gateway, reserve, mint, or redemption service.
-- A hosted authoritative matcher, sequencer, or settlement submitter.
-- Live Arbitrum, Zcash, USDC, or USDT0 integrations.
-- Custody, attester, governance, deployer, or treasury keys.
+- In-browser session matcher, plus a loopback matcher operator that is never hosted on Vercel.
+- Undeployed Arbitrum Sepolia contract sources. The manifest stays `deployed: false` until a real Sepolia transaction is recorded.
+- Optional EIP-1193 wallet connection on Arbitrum Sepolia only. Signing stays disabled until the manifest is backed by a successful Sepolia receipt and verified deployed bytecode.
+- Local `textest` gateway and observer stubs on `127.0.0.1`. No Zebra RPC, no mainnet TEX.
+- No custody, attester, governance, deployer, or treasury keys in Vercel or git.
+
+Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel. Public API routes refuse any operator URL that is not loopback HTTP.
 
 Do not send ZEC, pZEC, USDC, USDT0, or any other asset to an address presented by an unverified Phlebas build.
 

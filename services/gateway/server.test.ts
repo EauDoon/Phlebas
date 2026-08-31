@@ -1,0 +1,138 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { once } from "node:events";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { AddressInfo } from "node:net";
+
+import { isTestnetTex } from "../../src/lib/tex.ts";
+
+import { startGateway } from "./server.ts";
+
+function requestIntent(port: number) {
+  return fetch(`http://127.0.0.1:${port}/intents`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+}
+
+test("gateway HTTP issues unique textest intents on loopback", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "phlebas-gateway-"));
+  const server = startGateway({ host: "127.0.0.1", port: 0, dataDir: dir });
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  assert.equal(address.address, "127.0.0.1");
+  const { port } = address;
+  try {
+    const health = await fetch(`http://127.0.0.1:${port}/health`);
+    const healthBody = await health.json() as { network: string };
+    assert.equal(health.ok, true);
+    assert.equal(healthBody.network, "testnet");
+
+    const missingContentType = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
+    assert.equal(missingContentType.status, 415);
+    const first = await requestIntent(port);
+    const firstBody = await first.json() as { tex: string; request: string };
+    assert.equal(first.status, 201);
+    assert.equal(isTestnetTex(firstBody.tex), true);
+    assert.match(firstBody.request, new RegExp(`zcash:${firstBody.tex}`));
+    assert.doesNotMatch(firstBody.tex, /^tex1/);
+
+    const second = await requestIntent(port);
+    const secondBody = await second.json() as { tex: string };
+    assert.notEqual(secondBody.tex, firstBody.tex);
+
+    const missing = await fetch(`http://127.0.0.1:${port}/nope`);
+    assert.equal(missing.status, 404);
+  } finally {
+    server.close();
+    await once(server, "close");
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("gateway HTTP refuses further intents after the local cap", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "phlebas-gateway-cap-"));
+  const server = startGateway({ host: "127.0.0.1", port: 0, maxIntents: 1, dataDir: dir });
+  await once(server, "listening");
+  const { port } = server.address() as AddressInfo;
+  try {
+    const first = await requestIntent(port);
+    assert.equal(first.status, 201);
+    const second = await requestIntent(port);
+    const body = await second.json() as { reason: string };
+    assert.equal(second.status, 429);
+    assert.equal(body.reason, "intent-cap");
+  } finally {
+    server.close();
+    await once(server, "close");
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("gateway issued count survives process restart and still respects the cap", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "phlebas-gateway-persist-"));
+  const firstServer = startGateway({ host: "127.0.0.1", port: 0, maxIntents: 1, dataDir: dir });
+  await once(firstServer, "listening");
+  const { port: firstPort } = firstServer.address() as AddressInfo;
+  try {
+    const issued = await requestIntent(firstPort);
+    assert.equal(issued.status, 201);
+  } finally {
+    firstServer.close();
+    await once(firstServer, "close");
+  }
+
+  const secondServer = startGateway({ host: "127.0.0.1", port: 0, maxIntents: 1, dataDir: dir });
+  await once(secondServer, "listening");
+  const { port } = secondServer.address() as AddressInfo;
+  try {
+    const blocked = await requestIntent(port);
+    const body = await blocked.json() as { reason: string };
+    assert.equal(blocked.status, 429);
+    assert.equal(body.reason, "intent-cap");
+  } finally {
+    secondServer.close();
+    await once(secondServer, "close");
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("corrupt gateway state fails closed", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "phlebas-gateway-corrupt-"));
+  await writeFile(join(dir, "master.key"), `${"11".repeat(32)}\n`);
+  await writeFile(join(dir, "state.json"), "not-json");
+  const server = startGateway({ host: "127.0.0.1", port: 0, maxIntents: 64, dataDir: dir });
+  await once(server, "listening");
+  const { port } = server.address() as AddressInfo;
+  try {
+    const blocked = await requestIntent(port);
+    const body = await blocked.json() as { reason: string };
+    assert.equal(blocked.status, 500);
+    assert.match(body.reason, /JSON/);
+  } finally {
+    server.close();
+    await once(server, "close");
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("master key without gateway state fails closed so addresses are not reissued", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "phlebas-gateway-orphan-"));
+  await writeFile(join(dir, "master.key"), `${"11".repeat(32)}\n`);
+  const server = startGateway({ host: "127.0.0.1", port: 0, maxIntents: 64, dataDir: dir });
+  await once(server, "listening");
+  const { port } = server.address() as AddressInfo;
+  try {
+    const blocked = await requestIntent(port);
+    const body = await blocked.json() as { reason: string };
+    assert.equal(blocked.status, 500);
+    assert.match(body.reason, /state is missing/);
+  } finally {
+    server.close();
+    await once(server, "close");
+    await rm(dir, { recursive: true, force: true });
+  }
+});
