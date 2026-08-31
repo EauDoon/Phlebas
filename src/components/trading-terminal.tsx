@@ -17,7 +17,14 @@ import { terminalUrl } from "@/lib/terminal-url";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
-import { feedSurface, feedWithheldCopy, type FeedStatus } from "@/lib/market-state";
+import {
+  feedSurface,
+  feedWithheldCopy,
+  sessionLastStatLabel,
+  tapeCaptionCopy,
+  tapeMiniLabel,
+  type FeedStatus,
+} from "@/lib/market-state";
 import type { SessionLogEvent } from "@/lib/replay";
 import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingOrder, type TimeInForce } from "@/lib/matcher";
 import {
@@ -329,7 +336,7 @@ export function TradingTerminal({
               </div>
               <dl className={styles.marketStats} aria-label="Market statistics">
                 <div className={styles.priceStat}>
-                  <dt>Session last</dt>
+                  <dt>{sessionLastStatLabel(market.settlementPair, statsSurface.showFixtures)}</dt>
                   <dd>{statsSurface.showFixtures ? formatAtomicUnits(book.lastTicks, PRICE_DECIMALS, 2) : "—"}</dd>
                 </div>
                 <div>
@@ -420,10 +427,12 @@ export function TradingTerminal({
               <section className={`${styles.panel} ${styles.tradesPanel}`} aria-labelledby="recent-trades-title">
                 <div className={styles.panelHeader}>
                   <h2 id="recent-trades-title">Recent trades</h2>
-                  <span className={styles.miniLabel}>{sessionTape.length > 0 ? "Session + fixture" : "Fixture tape"}</span>
+                  <span className={styles.miniLabel}>
+                    {tapeMiniLabel(sessionTape.length > 0, statsSurface.showFixtures, market.settlementPair)}
+                  </span>
                 </div>
                 <table className={styles.dataTable}>
-                  <caption className={styles.srOnly}>Recent {marketId} trades settled as {market.settlementPair}. Session fills appear first.</caption>
+                  <caption className={styles.srOnly}>{tapeCaptionCopy(marketId, !statsSurface.showFixtures)}</caption>
                   <thead>
                     <tr><th scope="col">Price {market.quote}</th><th scope="col">Size pZEC</th><th scope="col">Time</th></tr>
                   </thead>
