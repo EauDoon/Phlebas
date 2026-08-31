@@ -1,6 +1,6 @@
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { chartSeries, markets } from "@/lib/market-data";
-import { feedSurface, feedWithheldCopy, type FeedStatus } from "@/lib/market-state";
+import { feedSurface, feedWithheldCopy, priceChartLabelCopy, type FeedStatus } from "@/lib/market-state";
 import { PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -41,10 +41,10 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
         className={styles.chart}
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label={`Illustrative ${range} price chart for ${marketId}`}
+        aria-label={priceChartLabelCopy(marketId, range)}
         preserveAspectRatio="none"
       >
-        <title>{`Illustrative ${range} price chart for ${marketId}`}</title>
+        <title>{priceChartLabelCopy(marketId, range)}</title>
         <defs>
           <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="#f4c95d" stopOpacity="0.2" />
