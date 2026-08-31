@@ -6,6 +6,7 @@ import {
   burnShares,
   emptyShareCopy,
   lpPauseNoticeCopy,
+  lpBurnNoticeCopy,
   lpMintNoticeCopy,
   lpResetNoticeCopy,
   hypotheticalImpermanentLoss,
@@ -15,6 +16,7 @@ import {
   seedPool,
 } from "./lp.ts";
 import { markets, pools } from "./market-data.ts";
+import { PZEC_DECIMALS, formatAtomicUnits } from "./units.ts";
 
 test("mint then burn returns the added reserves on a fresh pool ratio", () => {
   const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
@@ -91,6 +93,20 @@ test("LP mint notice names the settlement pair from a real mint", () => {
   );
   assert.match(lpMintNoticeCopy(minted.shares, markets["ZEC/USDT"].settlementPair), /pZEC-USDT0/);
   assert.doesNotMatch(lpMintNoticeCopy(minted.shares, "pZEC-USDC"), /native ZEC/);
+});
+
+test("LP burn notice names the settlement pair from a real mint then burn", () => {
+  const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
+  const minted = mintShares(pool, 10_00000000n);
+  const burned = burnShares(minted.pool, minted.shares);
+  assert.equal(burned.pzecAtoms, 10_00000000n);
+  const pzecLabel = formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS);
+  assert.equal(
+    lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDC"].settlementPair),
+    `Burned session shares for ${pzecLabel} pZEC. Local preview only. Settled as pZEC-USDC.`,
+  );
+  assert.match(lpBurnNoticeCopy(pzecLabel, markets["ZEC/USDT"].settlementPair), /pZEC-USDT0/);
+  assert.doesNotMatch(lpBurnNoticeCopy(pzecLabel, "pZEC-USDC"), /native ZEC/);
 });
 
 test("hypothetical 4x IL equals the deposited quote on an even size", () => {
