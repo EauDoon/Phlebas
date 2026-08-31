@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after merging origin/main (PR #20 mainnet-readiness) onto the product UI branch.
+Last updated: 31-08-2026 after the product-UI keyboard, feed-surface, and honest-copy slice.
 
 ## Branch
 
-`feat/simulation-hardening` off `origin/main` at `a2569b3` (PR #20). Next PR is the remaining product UI. Do not force-push the diverged origin branch.
+`feat/simulation-hardening` off `origin/main` at `a2569b3` (PR #20). Origin `feat/simulation-hardening` has diverged; do not force-push it. Open or push the remaining product UI as a new PR.
 
 ## Done
 
@@ -101,16 +101,27 @@ Last updated: 31-08-2026 after merging origin/main (PR #20 mainnet-readiness) on
 - Matcher, gateway, and observer mutations are serialized and use file fsync plus atomic rename. Corrupt or unexpectedly missing replay state fails closed. Windows lacks a portable directory-fsync barrier, which is documented without weakening file fsync or rename.
 - Sepolia deployment requires distinct roles. The manifest is wired into runtime configuration and cannot be marked deployed without a complete, commit-bound successful Sepolia receipt and verified bytecode at every address.
 - CI pins the Foundry action and toolchain. Contract invariants include 10,000-case AMM-product and settlement-rounding fuzz runs in the release check.
+- Chart, 24h stats, depth, and LP mint/swap reuse ticket-gate feed names. Empty, loading, and unavailable withhold fixtures. Chart panel keeps height. Stale still shows delayed fixtures.
+- ZIP 321 placeholder QR is labeled not payable. Clipboard failure and missing clipboard stay honest. Nothing is sent.
+- Ticket G/I/F stay idle while review is open. Escape leaves review. Shortcuts ignore native dialogs.
+- Status names architecture incident demonstrations and is not an incident feed. Terminal and simulation-frame footers include Launch gates.
+- Chart range and LP pool choice are radiogroups with arrow/Home/End keys.
+- Skip links reach the order ticket, price chart, order book, and blotter.
+- Ticket validation errors sit beside price, size, slippage, and expiry, with `aria-errormessage`.
+- Review sheets repeat the later listing gate for `ZEC/USDT` and `pZEC/USDT0`.
+- App Router `loading.tsx` names a simulation and withholds prices. Open Graph and Twitter cards say no-value simulation.
+- Local fill copy says nothing was signed or submitted to a chain. Simulation error Retry uses the primary action style.
+- Playwright covers feed surfaces, placeholder QR, clipboard failure, G/I/F during review, skip-to-chart, chart-range arrows, field errors, USDT review listing-gate, LP pool arrows, and OG metadata.
 
 ## Next
 
-- Chart and 24h stats should name empty, stale, and unavailable feeds the way the ticket gate does, and withhold fixtures off illustrative
-- LP panel loading/empty/stale/unavailable states (PRODUCT_SPEC §10); empty-share copy when the session holds none
-- ZIP 321 deposit QR is still copy-only; render a non-payable placeholder QR and keep the clipboard failure honest
-- Ticket G/I/F should ignore review-and-confirm until Escape leaves it, not only native dialogs
-- Status page should name the architecture incident demonstrations
-- Terminal and simulation-frame footers should include Launch gates
-- Playwright: feed surfaces, placeholder QR, clipboard failure, G/I/F during review, incident select at 320px
+- Terminal view tabs (Trade, Liquidity, Gateway, Architecture) should move with arrows the way blotter tabs do
+- LP amount field errors should be linked to the field the way ticket errors are
+- 24h volume and LP TVL strings still look like live dollars; label them as fixtures in the visible value
+- Keyboard shortcut copy on the ticket is a trailing notice; promote it to a named region with a 44px target
+- Withdrawal tour still walks the happy path only; add an unresolved demonstration that does not invent a payout
+- Chart SVG still uses display floats for pixel coordinates; keep financial ticks integer and document the display exception
+- Playwright: view-tab arrows, LP field errors, fixture-labeled volume, shortcut region, unresolved withdrawal
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
