@@ -373,6 +373,20 @@ test("leaving Architecture for Trade drops demo=incidents and return restores it
   await expect(page.getByText("Labeled demonstration, not a live outage.")).toBeVisible();
 });
 
+test("leaving Architecture for the ZEC gateway drops demo=incidents and return restores it", async ({ page }) => {
+  await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
+  await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Primary navigation" });
+  await nav.getByRole("button", { name: "ZEC gateway" }).click();
+  await expect(page).toHaveURL(/view=bridge/);
+  await expect(page).not.toHaveURL(/demo=incidents/);
+  await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
+  await nav.getByRole("button", { name: "Architecture" }).click();
+  await expect(page).toHaveURL(/view=architecture/);
+  await expect(page).toHaveURL(/demo=incidents/);
+  await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
+});
+
 test("leaving Architecture for Liquidity drops demo=incidents and return restores it", async ({ page }) => {
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
@@ -601,6 +615,7 @@ test("confirmed ticket writes expiry onto the blotter event log", async ({ page 
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await page.getByRole("tab", { name: "Event log" }).click();
   await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText("expiry 4102444800");
+  await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText("Settled as pZEC-USDC.");
 });
 
 test("status, legal, and security pages cross-link", async ({ page }) => {
