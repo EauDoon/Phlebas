@@ -88,7 +88,7 @@ export function OrderBlotter({
   }
 
   return (
-    <section className={`${styles.panel} ${styles.blotter}`} aria-labelledby="blotter-title">
+    <section id="session-blotter" tabIndex={-1} className={`${styles.panel} ${styles.blotter}`} aria-labelledby="blotter-title">
       <div className={styles.panelHeader}>
         <div>
           <span className={styles.eyebrow}>Session blotter</span>

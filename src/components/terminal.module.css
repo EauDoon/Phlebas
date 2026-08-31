@@ -3,16 +3,26 @@
   color: var(--text);
 }
 
-.skipLink {
+.skipNav {
   position: fixed;
-  display: inline-flex;
   z-index: 50;
   top: 8px;
   left: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transform: translateY(-220%);
+}
+
+.skipNav:focus-within {
+  transform: none;
+}
+
+.skipLink {
+  display: inline-flex;
   min-height: 44px;
   align-items: center;
   padding: 9px 12px;
-  transform: translateY(-160%);
   border-radius: 5px;
   color: #15140d;
   background: var(--accent);
@@ -21,7 +31,14 @@
 }
 
 .skipLink:focus {
-  transform: translateY(0);
+  outline: 2px solid #15140d;
+  outline-offset: 2px;
+}
+
+#main-content,
+#order-ticket,
+#session-blotter {
+  scroll-margin-top: 12px;
 }
 
 .srOnly {
@@ -1154,6 +1171,26 @@
   color: var(--text-secondary);
   font-size: 11px;
   line-height: 1.55;
+}
+
+.placeholderQr {
+  display: grid;
+  width: min(100%, 168px);
+  gap: 8px;
+  margin: 4px 0 0;
+}
+
+.placeholderQr svg {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  background: #f4f1e6;
+}
+
+.placeholderQr figcaption {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .tourNav {

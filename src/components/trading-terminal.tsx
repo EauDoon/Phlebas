@@ -9,7 +9,7 @@ import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
-import { type FeedStatus } from "@/lib/market-state";
+import { feedSurface, type FeedStatus } from "@/lib/market-state";
 import type { SessionLogEvent } from "@/lib/replay";
 import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingOrder, type TimeInForce } from "@/lib/matcher";
 import {
@@ -107,7 +107,8 @@ export function TradingTerminal({
   const nextFillId = useRef(1);
   const market = markets[marketId];
   const book = books[marketId];
-  const displayedBook = feedStatus === "empty" ? emptyBook(book.lastTicks) : book;
+  const feed = feedSurface(feedStatus);
+  const displayedBook = feed.showFixtures ? book : emptyBook(book.lastTicks);
   const account = accounts[marketId];
 
   function selectView(nextView: View) {
@@ -237,10 +238,19 @@ export function TradingTerminal({
   }
 
   const sessionTape = fills.filter((fill) => fill.marketId === marketId).slice(0, 6);
+  const fixtureTape = feed.showFixtures ? recentTrades[marketId] : [];
 
   return (
     <div className={styles.shell}>
-      <a className={styles.skipLink} href="#main-content">Skip to main content</a>
+      <nav className={styles.skipNav} aria-label="Skip links">
+        <a className={styles.skipLink} href="#main-content">Skip to main content</a>
+        {view === "trade" ? (
+          <>
+            <a className={styles.skipLink} href="#order-ticket">Skip to order ticket</a>
+            <a className={styles.skipLink} href="#session-blotter">Skip to blotter</a>
+          </>
+        ) : null}
+      </nav>
       <div className={styles.simulationBanner} role="status">
         <strong>Protocol preview</strong>
         <span>Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless.</span>
@@ -312,32 +322,34 @@ export function TradingTerminal({
                 </div>
                 <div>
                   <dt>24h change</dt>
-                  <dd className={market.changeBps >= 0 ? styles.buyText : styles.sellText}>
-                    {formatSignedChange(market.changeBps)}
+                  <dd className={feed.showFixtures ? (market.changeBps >= 0 ? styles.buyText : styles.sellText) : undefined}>
+                    {feed.showFixtures ? formatSignedChange(market.changeBps) : "—"}
                   </dd>
                 </div>
-                <div><dt>24h high</dt><dd>{formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2)}</dd></div>
-                <div><dt>24h low</dt><dd>{formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2)}</dd></div>
-                <div><dt>24h volume</dt><dd>{market.volume}</dd></div>
+                <div><dt>24h high</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
+                <div><dt>24h low</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
+                <div><dt>24h volume</dt><dd>{feed.showFixtures ? market.volume : "—"}</dd></div>
               </dl>
+              <p className={styles.inlineNotice}>{feed.statsNote}</p>
             </section>
 
             <div className={styles.tradeGrid}>
               <section className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
                 <div className={styles.panelHeader}>
-                  <div><span className={styles.eyebrow}>Illustrative market data</span><h2 id="chart-title">{marketId}</h2></div>
+                  <div><span className={styles.eyebrow}>{feed.eyebrow}</span><h2 id="chart-title">{marketId}</h2></div>
                   <div className={styles.rangeTabs} role="group" aria-label="Chart range">
                     {(["1H", "4H", "1D"] as ChartRange[]).map((item) => (
                       <button type="button" key={item} aria-pressed={range === item} className={range === item ? styles.textActive : undefined} onClick={() => setRange(item)}>{item}</button>
                     ))}
                   </div>
                 </div>
-                <PriceChart marketId={marketId} range={range} />
+                <PriceChart marketId={marketId} range={range} feedStatus={feedStatus} />
               </section>
 
               <OrderBook
                 marketId={marketId}
                 book={displayedBook}
+                feedStatus={feedStatus}
                 onPriceSelect={(ticks) => {
                   setPriceSelection({ ticks, nonce: nextPriceNonce.current });
                   nextPriceNonce.current += 1;
@@ -363,7 +375,11 @@ export function TradingTerminal({
               <section className={`${styles.panel} ${styles.tradesPanel}`} aria-labelledby="recent-trades-title">
                 <div className={styles.panelHeader}>
                   <h2 id="recent-trades-title">Recent trades</h2>
-                  <span className={styles.miniLabel}>{sessionTape.length > 0 ? "Session + fixture" : "Fixture tape"}</span>
+                  <span className={styles.miniLabel}>
+                    {sessionTape.length > 0
+                      ? (feed.showFixtures ? "Session + fixture" : "Session tape")
+                      : (feed.showFixtures ? "Fixture tape" : feed.eyebrow)}
+                  </span>
                 </div>
                 <table className={styles.dataTable}>
                   <caption className={styles.srOnly}>Recent {marketId} trades settled as {market.settlementPair}. Session fills appear first.</caption>
@@ -381,7 +397,7 @@ export function TradingTerminal({
                         <td>{trade.time}</td>
                       </tr>
                     ))}
-                    {recentTrades[marketId].map((trade) => (
+                    {fixtureTape.map((trade) => (
                       <tr key={`fixture-${trade.time}-${trade.priceTicks.toString()}`}>
                         <th scope="row" className={trade.side === "buy" ? styles.buyText : styles.sellText}>
                           <span className={styles.srOnly}>{trade.side === "buy" ? "Buy" : "Sell"} </span>
@@ -391,6 +407,13 @@ export function TradingTerminal({
                         <td>{trade.time}</td>
                       </tr>
                     ))}
+                    {sessionTape.length === 0 && fixtureTape.length === 0 && (
+                      <tr>
+                        <td colSpan={3}>
+                          <p className={styles.emptyState}>{feed.heading}. {feed.message}</p>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </section>
@@ -411,7 +434,15 @@ export function TradingTerminal({
           </>
         )}
 
-        {initialAccess === "open" && view === "liquidity" && <LiquidityPanel marketId={marketId} onMarketChange={selectMarket} />}
+        {initialAccess === "open" && view === "liquidity" && (
+          <LiquidityPanel
+            marketId={marketId}
+            feedStatus={feedStatus}
+            onMarketChange={selectMarket}
+            onFeedChange={selectFeed}
+            onRetryFeed={() => selectFeed("illustrative")}
+          />
+        )}
         {initialAccess === "open" && view === "bridge" && <BridgePanel />}
         {initialAccess === "open" && view === "architecture" && <ArchitecturePanel />}
       </main>
@@ -421,6 +452,7 @@ export function TradingTerminal({
         <nav aria-label="Footer">
           <Link href="/trade?view=architecture">Architecture</Link>
           <Link href="/legal">Legal and compliance</Link>
+          <Link href="/#launch-gates">Launch gates</Link>
           <Link href="/security">Security</Link>
           <Link href="/status">Status</Link>
         </nav>
