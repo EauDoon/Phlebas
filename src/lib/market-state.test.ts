@@ -10,8 +10,14 @@ import {
   feedSurface,
   feedWithheldCopy,
   isFeedStatus,
+  loadingGateCopy,
   orderBookCaptionCopy,
+  sessionLastStatLabel,
+  staleGateCopy,
+  tapeCaptionCopy,
+  tapeMiniLabel,
   ticketGate,
+  unavailableGateCopy,
 } from "./market-state.ts";
 
 test("illustrative data with a book can move from preview to confirm", () => {
@@ -49,6 +55,25 @@ test("stale and unavailable feeds disable preview-to-sign", () => {
   assert.equal(ticketGate("loading", false).canReview, false);
 });
 
+test("loading stale and unavailable ticket gates name the settlement pair", () => {
+  const usdc = markets["ZEC/USDC"].settlementPair;
+  const usdt = markets["ZEC/USDT"].settlementPair;
+  const loading = ticketGate("loading", false, usdc);
+  assert.equal(loading.canReview, false);
+  assert.equal(loading.message, loadingGateCopy(usdc));
+  assert.match(loading.message, /Settled as pZEC-USDC/);
+  const stale = ticketGate("stale", false, usdt);
+  assert.equal(stale.canReview, false);
+  assert.equal(stale.asOf, "2026-08-30T16:32:08Z");
+  assert.equal(stale.message, staleGateCopy(usdt));
+  assert.match(stale.message, /Settled as pZEC-USDT0/);
+  const unavailable = ticketGate("unavailable", false, usdc);
+  assert.equal(unavailable.canReview, false);
+  assert.equal(unavailable.message, unavailableGateCopy(usdc));
+  assert.doesNotMatch(unavailableGateCopy(usdc), /native ZEC/);
+  assert.doesNotMatch(staleGateCopy(usdt), /live feed/);
+});
+
 test("chart and stats withhold fixtures for empty, loading, and unavailable feeds", () => {
   assert.equal(feedSurface("illustrative").showFixtures, true);
   assert.equal(feedSurface("stale").showFixtures, true);
@@ -80,6 +105,16 @@ test("depth and tape empty copy names the settlement pair", () => {
     depthSessionLastCopy("pZEC-USDT0", "0.13"),
     "session last · pZEC-USDT0 · spread 0.13",
   );
+  assert.equal(
+    tapeCaptionCopy("ZEC/USDC", true),
+    "Recent ZEC/USDC trades withheld. Settled as pZEC-USDC. Fixture tape is not shown.",
+  );
+  assert.match(tapeCaptionCopy("ZEC/USDT", false), /settled as pZEC-USDT0/);
+  assert.equal(sessionLastStatLabel("pZEC-USDC", true), "Session last · pZEC-USDC");
+  assert.equal(sessionLastStatLabel("pZEC-USDT0", false), "Session last");
+  assert.equal(tapeMiniLabel(false, true, "pZEC-USDC"), "Fixture tape");
+  assert.equal(tapeMiniLabel(false, false, "pZEC-USDT0"), "Withheld · pZEC-USDT0");
+  assert.equal(tapeMiniLabel(true, false, "pZEC-USDC"), "Session + fixture");
 });
 
 test("allowlists only documented feed states", () => {
