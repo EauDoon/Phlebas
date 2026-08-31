@@ -112,6 +112,10 @@
   min-height: 44px;
 }
 
+:global(#price-chart) {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
