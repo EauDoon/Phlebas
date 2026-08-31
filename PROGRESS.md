@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after blotter log empty copy names the settlement pair and Architecture→Trade/Liquidity restore demo=incidents from session storage.
+Last updated: 31-08-2026 after filled blotter log rows name settlement and Architecture→gateway restores demo=incidents.
 
 ## Branch
 
@@ -98,18 +98,18 @@ Last updated: 31-08-2026 after blotter log empty copy names the settlement pair 
 - `/status` Architecture link uses allowlisted `demo=incidents` and keeps the `architecture-demonstration` label on the incident panel. Switching the Architecture market keeps `demo=incidents` in the URL.
 - Blotter empty orders and empty fills name the settlement pair (`pZEC-USDC` or `pZEC-USDT0`).
 - Blotter empty event log names the settlement pair (`pZEC-USDC` or `pZEC-USDT0`). Replay copy stays honest.
-- Leaving Architecture for Trade or Liquidity drops `demo=incidents` from the URL. Returning to Architecture restores it from tab session storage (`phlebas.incidentDemo`). A new tab or a refresh without the query starts without the highlight.
+- Leaving Architecture for Trade, Liquidity, or the ZEC gateway drops `demo=incidents` from the URL. Returning to Architecture restores it from tab session storage (`phlebas.incidentDemo`). A new tab or a refresh without the query starts without the highlight.
+- Filled blotter event-log submit and cancel rows name the event market's settlement pair. Reset stays session-wide. The log caption names the current market.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Filled blotter event-log rows should name the settlement pair the way empty copy does
-- Event-log caption should name the current market's settlement pair when events exist
 - Ticket reject copy should name the settlement pair on inventory and self-trade failures
 - Depth and tape empty copy should name the settlement pair the way the blotter does
-- Architecture→ZEC gateway round-trip should restore `demo=incidents` the same way Trade and Liquidity do
+- Order-book caption should name the settlement pair the way the blotter log does
+- Chart withheld copy should name the selected market's settlement pair
 
 ## Blockers
 
