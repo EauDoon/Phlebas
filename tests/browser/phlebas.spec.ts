@@ -693,6 +693,9 @@ test("landing without JavaScript still shows four journey descriptions", async (
     await expect(page.getByRole("link", { name: /Preview liquidity/ })).toBeVisible();
     await expect(page.getByRole("link", { name: /Preview deposit states/ })).toBeVisible();
     await expect(page.getByRole("link", { name: /Preview withdrawal states/ })).toBeVisible();
+    const journeyCard = page.getByRole("list", { name: "Preview journeys" }).getByRole("listitem").first();
+    await expect(journeyCard).toBeVisible();
+    expect((await journeyCard.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
     await expect(page.getByText(
       "pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.",
       { exact: true },
@@ -1591,5 +1594,35 @@ test("landing mobile menu links stay 44px", async ({ page }) => {
   const enter = dialog.getByRole("link", { name: "Enter simulation" });
   await expect(enter).toBeVisible();
   expect((await enter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("landing nav footer pZEC flow and current-system ledger stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const nav = page.getByRole("navigation", { name: "Landing navigation" }).getByRole("link", { name: "Markets" });
+  await expect(nav).toBeVisible();
+  expect((await nav.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const footer = page.getByRole("navigation", { name: "Footer" }).getByRole("link", { name: "Status" });
+  await expect(footer).toBeVisible();
+  expect((await footer.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const flow = page.getByRole("list", { name: "Proposed ZEC to market flow" }).getByRole("listitem").first();
+  await expect(flow).toBeVisible();
+  expect((await flow.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const ledger = page.getByRole("list", { name: "Current system" }).getByRole("listitem").first();
+  await expect(ledger).toBeVisible();
+  expect((await ledger.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("simulation-frame and terminal footer links stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/status", { waitUntil: "networkidle" });
+  const statusFooter = page.getByRole("navigation", { name: "Footer" }).getByRole("link", { name: "Status" });
+  await expect(statusFooter).toBeVisible();
+  expect((await statusFooter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const tradeFooter = page.getByRole("navigation", { name: "Footer" }).getByRole("link", { name: "Status" });
+  await expect(tradeFooter).toBeVisible();
+  expect((await tradeFooter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
