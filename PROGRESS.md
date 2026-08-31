@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after skip-nav overflow-y 8px padding, education dialog below skip-nav, leftover 44px on security/status/liquidity/bridge, and education skip-nav focus guard.
+Last updated: 01-09-2026 after education Continue in 320px, leftover 44px on security/status 768 and country-block/404/loading 390, and 8px skip-nav padding keeping two-up at 44px.
 
 ## Branch
 
@@ -328,16 +328,22 @@ Last updated: 01-09-2026 after skip-nav overflow-y 8px padding, education dialog
 - Bridge leftover skip link stays at least 44px at 390px
 - Global-error skip-nav is two-up at every width, including 768px
 - Playwright covers leftover 44px, education clearance, and overflow-y ring padding
+- Education dialog `max-height: calc(100vh - min(40vh, 17.5rem) - 12px)` and `overflow-y: auto` keep Continue inside 320px
+- Education `.tourNav` is sticky at the bottom of the 320px dialog
+- Security and status leftover skip links stay at least 44px at 768px
+- Country-block, 404, and loading leftover skip links stay at least 44px at 390px
+- First and trailing 820px skip-nav padding is 8px so two-up links stay 44px at 320px after the gutter
+- Playwright covers education Continue in 320px, leftover 44px, and 8px padding two-up
 
 ## Next
 
-- Education Continue should stay inside the 320px viewport after the skip-nav margin-top
-- Security leftover skip link should stay at least 44px at 768px
-- Status leftover skip link should stay at least 44px at 768px
-- Country-block leftover skip link should stay at least 44px at 390px
-- 404 leftover skip link should stay at least 44px at 390px
-- Loading leftover skip link should stay at least 44px at 390px
-- Skip-nav 8px padding should not shrink two-up links below 44px at 320px after the scrollbar gutter
+- Education Back should stay inside the 320px viewport with sticky tourNav
+- Education Enter simulation should stay 44px after the skip-nav margin-top
+- Legal leftover skip link should stay at least 44px at 768px
+- Architecture leftover skip links should stay at least 44px at 768px
+- Error-page leftover skip link should stay at least 44px at 390px
+- Skip-nav 8px padding should keep the 2px ring inside overflow-y auto at 768px
+- Education dialog max-height should not clip the 2px heading focus ring
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
