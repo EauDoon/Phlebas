@@ -27,6 +27,10 @@ contract TestBase {
         require(left == right, "bytes32 neq");
     }
 
+    function assertEq(string memory left, string memory right) internal pure {
+        require(keccak256(bytes(left)) == keccak256(bytes(right)), "string neq");
+    }
+
     function assertGt(uint256 left, uint256 right) internal pure {
         require(left > right, "not gt");
     }

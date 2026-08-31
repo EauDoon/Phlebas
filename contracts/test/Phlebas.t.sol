@@ -93,6 +93,12 @@ contract PhlebasTest is TestBase {
         assertEq(uint256(uint32(selector)), uint256(0xf753db5f));
     }
 
+    function testZecTokenNameAndSymbol() public view {
+        assertEq(pzec.name(), "Phlebas Testnet ZEC");
+        assertEq(pzec.symbol(), "tZEC");
+        assertEq(uint256(pzec.decimals()), 8);
+    }
+
     function testPzecMinterAndPauseBoundaries() public {
         vm.prank(taker);
         vm.expectRevert(PZec.NotMinter.selector);
