@@ -33,6 +33,10 @@ export default function StatusPage() {
       </dl>
       <p>
         Machine-readable copy: <a href="/api/status">/api/status</a>
+        {" · "}
+        <a href="/legal">Legal</a>
+        {" · "}
+        <a href="/security">Security</a>
       </p>
     </SimulationFrame>
   );
