@@ -201,10 +201,10 @@ export function hypotheticalImpermanentLoss(
     throw new Error("Price multiple must be a ratio of perfect squares");
   }
 
-  const lpPzecAtoms = (entryZecAtoms * sqrtDen) / sqrtNum;
+  const lpZecAtoms = (entryZecAtoms * sqrtDen) / sqrtNum;
   const lpQuoteAtoms = (entryQuoteAtoms * sqrtNum) / sqrtDen;
   const hodlQuoteAtoms = entryQuoteAtoms + (entryQuoteAtoms * priceMultipleNumerator) / priceMultipleDenominator;
   const positionQuoteAtoms = lpQuoteAtoms
-    + (lpPzecAtoms * entryQuoteAtoms * priceMultipleNumerator) / (entryZecAtoms * priceMultipleDenominator);
+    + (lpZecAtoms * entryQuoteAtoms * priceMultipleNumerator) / (entryZecAtoms * priceMultipleDenominator);
   return lossVersusHold(hodlQuoteAtoms, positionQuoteAtoms);
 }

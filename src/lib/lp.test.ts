@@ -291,19 +291,19 @@ test("IL-versus-hold labels use ZEC/quote", () => {
 });
 
 test("hypothetical 4x IL equals the deposited quote on an even size", () => {
-  const entryPzec = 10_00000000n;
+  const entryZec = 10_00000000n;
   const entryQuote = 5_284000n;
-  const fourX = hypotheticalImpermanentLoss(entryPzec, entryQuote, 4n, 1n);
+  const fourX = hypotheticalImpermanentLoss(entryZec, entryQuote, 4n, 1n);
   assert.equal(fourX.hodlQuoteAtoms, entryQuote * 5n);
   assert.equal(fourX.positionQuoteAtoms, entryQuote * 4n);
   assert.equal(fourX.lossQuoteAtoms, entryQuote);
 
-  const quarter = hypotheticalImpermanentLoss(entryPzec, entryQuote, 1n, 4n);
+  const quarter = hypotheticalImpermanentLoss(entryZec, entryQuote, 1n, 4n);
   assert.equal(quarter.hodlQuoteAtoms, entryQuote + entryQuote / 4n);
   assert.equal(quarter.positionQuoteAtoms, entryQuote);
   assert.equal(quarter.lossQuoteAtoms, entryQuote / 4n);
 
-  const unchanged = hypotheticalImpermanentLoss(entryPzec, entryQuote, 1n, 1n);
+  const unchanged = hypotheticalImpermanentLoss(entryZec, entryQuote, 1n, 1n);
   assert.equal(unchanged.lossQuoteAtoms, 0n);
 });
 
