@@ -109,6 +109,7 @@
 .brand {
   display: flex;
   width: fit-content;
+  min-height: 44px;
   align-items: center;
   gap: 10px;
   border: 0;
