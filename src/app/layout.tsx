@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     template: "%s | Phlebas",
   },
   description:
-    "A simulation and protocol plan for ZEC/USDC and ZEC/USDT, settled as pZEC against USDC and USDT0.",
+    "A simulation and protocol plan for native ZEC against native USDC and native USDT.",
   robots: {
     index: false,
     follow: false,

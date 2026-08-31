@@ -62,17 +62,17 @@ export function LandingPage() {
           <div className={styles.sectionIntro}>
             <span className={styles.eyebrow}>Two focused markets</span>
             <h2 id="markets-title">Familiar labels.<br />Exact settlement.</h2>
-            <p>Phlebas keeps the requested market names while disclosing the receipt and quote token used by the proposed Arbitrum settlement layer.</p>
+            <p>Phlebas presents native ZEC against native USDC and native USDT. This preview still moves no live funds.</p>
           </div>
           <div className={styles.marketCards}>
             <article>
               <span className={styles.marketIndex}>01</span>
-              <div><span>Primary design</span><h3>ZEC / USDC</h3><p>Settles pZEC / USDC</p></div>
+              <div><span>Native pair</span><h3>ZEC / USDC</h3><p>Settles ZEC / USDC</p></div>
               <Link href={{ pathname: "/trade", query: { view: "trade", market: "ZEC/USDC" } }}>Preview market <span>→</span></Link>
             </article>
             <article>
               <span className={styles.marketIndex}>02</span>
-              <div><span>Later listing gate</span><h3>ZEC / USDT</h3><p>Settles pZEC / USDT0</p></div>
+              <div><span>Native pair</span><h3>ZEC / USDT</h3><p>Settles ZEC / USDT</p></div>
               <Link href={{ pathname: "/trade", query: { view: "trade", market: "ZEC/USDT" } }}>Preview market <span>→</span></Link>
             </article>
           </div>
@@ -80,17 +80,17 @@ export function LandingPage() {
 
         <section className={styles.pzecSection} id="pzec" aria-labelledby="pzec-title">
           <div className={styles.pzecCopy}>
-            <span className={styles.eyebrow}>Why pZEC exists</span>
-            <h2 id="pzec-title">Native ZEC cannot sit inside an EVM pool.</h2>
+            <span className={styles.eyebrow}>Native assets</span>
+            <h2 id="pzec-title">Native ZEC against native USDC and USDT.</h2>
             <p>
-              Phlebas therefore specifies pZEC, an 8-decimal custody receipt intended to be backed one for one by eligible transparent native ZEC. That choice enables common settlement, but it introduces reserve, signer, redemption, legal, and operator risk.
+              The simulation now labels settlement as ZEC-USDC and ZEC-USDT. It does not wrap ZEC as pZEC and it does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.
             </p>
-            <strong>pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.</strong>
+            <strong>This is a no-value simulation. It is not a live exchange and not a shielded market.</strong>
           </div>
           <ol className={styles.assetFlow} aria-label="Proposed ZEC to market flow">
             <li><span>01</span><div><strong>Transparent ZEC</strong><small>Unique TEX deposit intent</small></div></li>
             <li><span>02</span><div><strong>Gateway controls</strong><small>Observation, screening, finality</small></div></li>
-            <li><span>03</span><div><strong>pZEC on Arbitrum</strong><small>Fully reserved custody receipt</small></div></li>
+            <li><span>03</span><div><strong>Native ZEC settlement</strong><small>ZEC-USDC and ZEC-USDT pairs</small></div></li>
             <li><span>04</span><div><strong>Trade or LP</strong><small>Offchain matcher, onchain settlement or pool swap</small></div></li>
           </ol>
         </section>
@@ -105,8 +105,8 @@ export function LandingPage() {
           <div className={styles.gateCopy}>
             <p>Real assets stay blocked until entity, licensing, custody, reserve, signer, audit, market-integrity, jurisdiction, insurance, monitoring, and incident gates have current written evidence.</p>
             <ul>
-              <li>USDC is the first proposed quote asset.</li>
-              <li>USDT0 requires a separate later listing decision.</li>
+              <li>USDC and USDT are both native quote assets in this preview.</li>
+              <li>USDT0 is abandoned. It is not a listed settlement asset.</li>
               <li>Shielded deposits, leverage, lending, and token incentives remain out of scope.</li>
             </ul>
             <Link href="/trade?view=architecture">Inspect the architecture <span>→</span></Link>

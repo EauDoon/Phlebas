@@ -10,7 +10,7 @@ const layers = [
   {
     label: "Trading network",
     title: "Matcher and Arbitrum contracts",
-    items: ["Offchain matcher, not trustless", "Onchain atomic settlement", "Constrained constant product pools", "USDT0 is a later listing gate"],
+    items: ["Offchain matcher, not trustless", "Onchain atomic settlement", "Constrained constant product pools", "Native ZEC, native USDC, native USDT"],
   },
   {
     label: "Zcash gateway",
