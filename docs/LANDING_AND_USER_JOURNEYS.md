@@ -482,9 +482,10 @@ The entry action is `Preview deposit states`, not `Deposit ZEC`.
 2. The page states: `A production gateway would accept eligible transparent native ZEC and issue tZEC. No address is generated in this simulation.`
 3. The page repeats that tZEC would be custody-backed, transparent activity may be publicly linkable, and shielded deposits are not supported.
 4. The visitor selects `Walk through states`.
-5. A deterministic state tour displays Eligibility, Address request, Observed, Screening, Confirming, Mint queued, and Complete.
+5. A deterministic state tour displays Eligibility, Address request, Observed, Unavailable, Screening, Rejected, Confirming, Stale, Mint queued, and Complete.
 6. The Address request state shows a neutral placeholder panel with `No address generated in simulation`. It must not display an address-like fixture, QR code, copy control, URI, or scannable data.
-7. The Complete state says: `State demonstration complete. No native ZEC was received and nothing was minted.`
+7. Unavailable, Rejected, and Stale are fail-closed demonstration steps. Unavailable: `Observers unavailable or disagree. Fail closed. Nothing is minted.` Rejected: `Deposit failed screening or is ineligible. Nothing was minted. Nothing is sent.` Stale: `Observation or proof is stale. Fail closed. Nothing is minted.` Nothing is minted. No receivable address.
+8. The Complete state says: `State demonstration complete. No native ZEC was received and nothing was minted.`
 
 The simulation does not accept a Zcash address, EVM address, transaction hash, amount tied to a wallet, identity document, country, name, email, or screening input.
 
