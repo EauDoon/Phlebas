@@ -1,7 +1,7 @@
 import type { Hex32 } from "./order-domain.ts";
 import { sha256Hex } from "./sha256.ts";
 import { encodeSwapTerms } from "./swap-domain.ts";
-import type { SwapState } from "./swap-state.ts";
+import { assertSwapStateIntegrity, type SwapState } from "./swap-state.ts";
 
 function canonicalValue(value: unknown): string {
   if (typeof value === "bigint") return `{"$bigint":"${value}"}`;
@@ -19,6 +19,7 @@ function canonicalValue(value: unknown): string {
 }
 
 export function encodeSwapState(state: SwapState): string {
+  assertSwapStateIntegrity(state);
   return canonicalValue({
     swapId: state.swapId,
     termsHash: state.termsHash,
@@ -35,5 +36,5 @@ export function encodeSwapState(state: SwapState): string {
 }
 
 export function swapStateRoot(state: SwapState): Hex32 {
-  return sha256Hex(`PhlebasSwapState\nversion=1\nstate=${encodeSwapState(state)}`);
+  return sha256Hex(`PhlebasSwapState\nversion=2\nstate=${encodeSwapState(state)}`);
 }

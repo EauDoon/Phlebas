@@ -25,7 +25,7 @@ test("binds canonical terms into every state root and transition", () => {
   });
   const changedTerms = { ...initial.terms, zecRefundTime: initial.terms.zecRefundTime + 1n };
   const tampered = { ...initial, terms: changedTerms };
-  assert.notEqual(swapStateRoot(tampered), swapStateRoot(initial));
+  assert.throws(() => swapStateRoot(tampered), /signed terms hash/);
   assert.throws(
     () => authorizeSwapTerms(tampered, initial.terms.zecSellerId, initial.termsHash, 1n),
     /signed terms hash/,
@@ -37,7 +37,7 @@ test("binds canonical terms into every state root and transition", () => {
       termsHash: initial.termsHash,
       occurredAtSeconds: 1n,
     }),
-    /journal head/,
+    /signed terms hash/,
   );
 });
 
