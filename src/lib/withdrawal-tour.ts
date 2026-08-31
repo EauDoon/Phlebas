@@ -6,6 +6,7 @@ export const WITHDRAWAL_TOUR = [
   { id: "expired", title: "Expired evidence", body: "Burn evidence expired or was reorganized. Closed without a finalized burn. Nothing is sent. This is not live settlement." },
   { id: "burn finalized", title: "Burn finalized", body: "After Arbitrum finality the burn is consumed once and a native payout claim exists." },
   { id: "payable", title: "Payable", body: "The ledger owes transparent ZEC. No Zcash transaction has been signed." },
+  { id: "refunded", title: "Refunded", body: "Unrecoverable pre-signature failure. A single-use refund restores tZEC and permanently cancels the unpaid claim. Nothing is sent. This is not live settlement." },
   { id: "transaction_prepared", title: "Transaction prepared", body: "One claim maps to one native transaction. No completion time is promised." },
   { id: "signed", title: "Signed", body: "The exact bytes and transaction ID are committed. They cannot be swapped for a different payout." },
   { id: "broadcast", title: "Broadcast", body: "Only those committed bytes may be rebroadcast. Transparent activity is public." },

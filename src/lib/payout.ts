@@ -61,6 +61,8 @@ export type PayoutClaimState =
   | "closed"
   | "burn-finalized"
   | "payable"
+  | "signed"
+  | "refunded"
   | "unresolved";
 
 export type PayoutClaim = {
@@ -160,6 +162,28 @@ export function closePayoutWithoutFinalizedBurn(claim: PayoutClaim): PayoutClaim
   };
 }
 
+export function signPayoutClaim(claim: PayoutClaim): PayoutClaim {
+  if (claim.state !== "payable") {
+    return { ...claim, state: "rejected", reason: "Only a payable claim can be signed." };
+  }
+  return { ...claim, state: "signed" };
+}
+
+export function refundPayoutBeforeSignature(claim: PayoutClaim): PayoutClaim {
+  if (claim.state === "refunded") return claim;
+  if (claim.state === "signed") {
+    return { ...claim, state: "rejected", reason: "Once a native transaction is signed, the claim cannot be refunded." };
+  }
+  if (claim.state !== "payable" && claim.state !== "burn-finalized") {
+    return { ...claim, state: "rejected", reason: "Only a burn-finalized or payable claim can be refunded before signature." };
+  }
+  return {
+    ...claim,
+    state: "refunded",
+    reason: "Unrecoverable pre-signature failure. Single-use refund cancelled the unpaid claim and restored tZEC. Nothing is sent.",
+  };
+}
+
 export function payoutClaimForTourStep(stepId: string, destination: string): PayoutClaim {
   const spent = emptyPayoutLedger();
   let claim = requestPayout({ burnId: "tour-preview", destination, amountZatoshis: 1n });
@@ -173,6 +197,7 @@ export function payoutClaimForTourStep(stepId: string, destination: string): Pay
   claim = finalizePayoutBurn(claim);
   if (stepId === "burn finalized" || claim.state === "rejected") return claim;
   claim = markPayoutPayable(claim);
+  if (stepId === "refunded") return refundPayoutBeforeSignature(claim);
   if (stepId === "unresolved") return markPayoutUnresolved(claim);
   return claim;
 }
