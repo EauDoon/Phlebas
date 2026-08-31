@@ -11,28 +11,28 @@ import {
 
 test("blotter empty copy names the settlement pair", () => {
   assert.equal(
-    blotterEmptyOrdersCopy("pZEC-USDC"),
-    "No open session orders. Settled as pZEC-USDC. Venue fixture levels remain on the book.",
+    blotterEmptyOrdersCopy("ZEC-USDC"),
+    "No open session orders. Settled as ZEC-USDC. Venue fixture levels remain on the book.",
   );
   assert.equal(
-    blotterEmptyOrdersCopy("pZEC-USDT0"),
-    "No open session orders. Settled as pZEC-USDT0. Venue fixture levels remain on the book.",
+    blotterEmptyOrdersCopy("ZEC-USDT"),
+    "No open session orders. Settled as ZEC-USDT. Venue fixture levels remain on the book.",
   );
-  assert.match(blotterEmptyFillsCopy("pZEC-USDC"), /pZEC-USDC/);
-  assert.doesNotMatch(blotterEmptyOrdersCopy("pZEC-USDC"), /native ZEC/);
+  assert.match(blotterEmptyFillsCopy("ZEC-USDC"), /ZEC-USDC/);
+  assert.doesNotMatch(blotterEmptyOrdersCopy("ZEC-USDC"), /native ZEC/);
 });
 
 test("blotter log empty copy names the settlement pair", () => {
   assert.equal(
-    blotterEmptyLogCopy("pZEC-USDC"),
-    "No session events yet. Settled as pZEC-USDC. Replaying this log reconstructs the book and balances.",
+    blotterEmptyLogCopy("ZEC-USDC"),
+    "No session events yet. Settled as ZEC-USDC. Replaying this log reconstructs the book and balances.",
   );
   assert.equal(
-    blotterEmptyLogCopy("pZEC-USDT0"),
-    "No session events yet. Settled as pZEC-USDT0. Replaying this log reconstructs the book and balances.",
+    blotterEmptyLogCopy("ZEC-USDT"),
+    "No session events yet. Settled as ZEC-USDT. Replaying this log reconstructs the book and balances.",
   );
-  assert.doesNotMatch(blotterEmptyLogCopy("pZEC-USDC"), /native ZEC/);
-  assert.doesNotMatch(blotterEmptyLogCopy("pZEC-USDT0"), /live/);
+  assert.doesNotMatch(blotterEmptyLogCopy("ZEC-USDC"), /native ZEC/);
+  assert.doesNotMatch(blotterEmptyLogCopy("ZEC-USDT"), /live/);
 });
 
 test("blotter log event copy names the event market settlement pair", () => {
@@ -47,7 +47,7 @@ test("blotter log event copy names the event market settlement pair", () => {
       sizeAtoms: 1_00000000n,
       expiryUnix: 4102444800n,
     }),
-    "buy GTC user-1 expiry 4102444800. Settled as pZEC-USDC.",
+    "buy GTC user-1 expiry 4102444800. Settled as ZEC-USDC.",
   );
   assert.equal(
     blotterLogEventCopy({
@@ -59,16 +59,16 @@ test("blotter log event copy names the event market settlement pair", () => {
       priceTicks: 5279n,
       sizeAtoms: 1_00000000n,
     }),
-    "sell IOC user-2 expiry none. Settled as pZEC-USDT0.",
+    "sell IOC user-2 expiry none. Settled as ZEC-USDT.",
   );
   assert.equal(
     blotterLogEventCopy({ kind: "cancel", marketId: "ZEC/USDT", orderId: "user-2" }),
-    "user-2. Settled as pZEC-USDT0.",
+    "user-2. Settled as ZEC-USDT.",
   );
   assert.equal(blotterLogEventCopy({ kind: "reset" }), "session reset");
   assert.equal(
-    blotterLogCaptionCopy("pZEC-USDC"),
-    "Append-only session event log. Current market settles as pZEC-USDC.",
+    blotterLogCaptionCopy("ZEC-USDC"),
+    "Append-only session event log. Current market settles as ZEC-USDC.",
   );
   assert.doesNotMatch(blotterLogEventCopy({
     kind: "submit",

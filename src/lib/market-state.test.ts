@@ -38,18 +38,18 @@ test("an empty book disables preview-to-sign and names the settlement pair", () 
   assert.equal(bookEmpty, true);
   assert.equal(gate.status, "empty");
   assert.equal(gate.canReview, false);
-  assert.equal(gate.message, emptyBookGateCopy("pZEC-USDC"));
-  assert.match(gate.message, /Settled as pZEC-USDC/);
-  assert.match(depthEmptyCopy("pZEC-USDC"), /Settled as pZEC-USDC/);
+  assert.equal(gate.message, emptyBookGateCopy("ZEC-USDC"));
+  assert.match(gate.message, /Settled as ZEC-USDC/);
+  assert.match(depthEmptyCopy("ZEC-USDC"), /Settled as ZEC-USDC/);
   assert.equal(
-    emptyBookGateCopy("pZEC-USDT0"),
-    "No resting depth. Review is disabled until the local book has size. Settled as pZEC-USDT0.",
+    emptyBookGateCopy("ZEC-USDT"),
+    "No resting depth. Review is disabled until the local book has size. Settled as ZEC-USDT.",
   );
   assert.equal(
-    ticketGate("empty", false, "pZEC-USDT0").message,
-    emptyBookGateCopy("pZEC-USDT0"),
+    ticketGate("empty", false, "ZEC-USDT").message,
+    emptyBookGateCopy("ZEC-USDT"),
   );
-  assert.doesNotMatch(emptyBookGateCopy("pZEC-USDC"), /native ZEC/);
+  assert.doesNotMatch(emptyBookGateCopy("ZEC-USDC"), /native ZEC/);
 });
 
 test("stale and unavailable feeds disable preview-to-sign", () => {
@@ -65,12 +65,12 @@ test("loading stale and unavailable ticket gates name the settlement pair", () =
   const loading = ticketGate("loading", false, usdc);
   assert.equal(loading.canReview, false);
   assert.equal(loading.message, loadingGateCopy(usdc));
-  assert.match(loading.message, /Settled as pZEC-USDC/);
+  assert.match(loading.message, /Settled as ZEC-USDC/);
   const stale = ticketGate("stale", false, usdt);
   assert.equal(stale.canReview, false);
   assert.equal(stale.asOf, "2026-08-30T16:32:08Z");
   assert.equal(stale.message, staleGateCopy(usdt));
-  assert.match(stale.message, /Settled as pZEC-USDT0/);
+  assert.match(stale.message, /Settled as ZEC-USDT/);
   const unavailable = ticketGate("unavailable", false, usdc);
   assert.equal(unavailable.canReview, false);
   assert.equal(unavailable.message, unavailableGateCopy(usdc));
@@ -88,11 +88,11 @@ test("chart and stats withhold fixtures for empty, loading, and unavailable feed
   assert.match(feedSurface("unavailable").message, /withheld/);
 });
 
-test("unavailable withheld copy names pZEC-USDT0 from real market state", () => {
-  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+test("unavailable withheld copy names ZEC-USDT from real market state", () => {
+  assert.equal(markets["ZEC/USDT"].settlementPair, "ZEC-USDT");
   assert.equal(
     feedWithheldCopy("unavailable", markets["ZEC/USDT"].settlementPair),
-    "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDT0.",
+    "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as ZEC-USDT.",
   );
   assert.doesNotMatch(
     feedWithheldCopy("unavailable", markets["ZEC/USDT"].settlementPair),
@@ -108,14 +108,14 @@ test("unavailable withheld copy retargets settlement after a market switch", () 
   const usdc = feedWithheldCopy("unavailable", markets["ZEC/USDC"].settlementPair);
   assert.equal(
     usdc,
-    "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDC.",
+    "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as ZEC-USDC.",
   );
-  assert.equal(markets["ZEC/USDC"].settlementPair, "pZEC-USDC");
-  assert.equal(markets["ZEC/USDT"].settlementPair, "pZEC-USDT0");
+  assert.equal(markets["ZEC/USDC"].settlementPair, "ZEC-USDC");
+  assert.equal(markets["ZEC/USDT"].settlementPair, "ZEC-USDT");
   const usdt = feedWithheldCopy("unavailable", markets["ZEC/USDT"].settlementPair);
   assert.equal(
     usdt,
-    "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDT0.",
+    "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as ZEC-USDT.",
   );
   assert.notEqual(usdc, usdt);
   assert.doesNotMatch(usdt, /native ZEC/);
@@ -124,41 +124,41 @@ test("unavailable withheld copy retargets settlement after a market switch", () 
 
 test("depth and tape empty copy names the settlement pair", () => {
   assert.equal(
-    depthEmptyCopy("pZEC-USDC"),
-    "No resting depth. The local book is empty. Settled as pZEC-USDC.",
+    depthEmptyCopy("ZEC-USDC"),
+    "No resting depth. The local book is empty. Settled as ZEC-USDC.",
   );
   assert.equal(
-    depthEmptyCopy("pZEC-USDT0"),
-    "No resting depth. The local book is empty. Settled as pZEC-USDT0.",
+    depthEmptyCopy("ZEC-USDT"),
+    "No resting depth. The local book is empty. Settled as ZEC-USDT.",
   );
-  assert.match(feedWithheldCopy("unavailable", "pZEC-USDC"), /pZEC-USDC/);
-  assert.match(feedWithheldCopy("unavailable", "pZEC-USDT0"), /pZEC-USDT0/);
-  assert.match(feedWithheldCopy("empty", "pZEC-USDC"), /No 24h stats or chart series/);
-  assert.match(orderBookCaptionCopy("ZEC/USDC"), /settled as pZEC-USDC/);
-  assert.match(orderBookCaptionCopy("ZEC/USDT"), /settled as pZEC-USDT0/);
-  assert.doesNotMatch(depthEmptyCopy("pZEC-USDC"), /native ZEC/);
-  assert.doesNotMatch(feedWithheldCopy("loading", "pZEC-USDC"), /live feed/);
-  assert.equal(depthSessionLastCopy("pZEC-USDC", null), "session last · pZEC-USDC");
+  assert.match(feedWithheldCopy("unavailable", "ZEC-USDC"), /ZEC-USDC/);
+  assert.match(feedWithheldCopy("unavailable", "ZEC-USDT"), /ZEC-USDT/);
+  assert.match(feedWithheldCopy("empty", "ZEC-USDC"), /No 24h stats or chart series/);
+  assert.match(orderBookCaptionCopy("ZEC/USDC"), /settled as ZEC-USDC/);
+  assert.match(orderBookCaptionCopy("ZEC/USDT"), /settled as ZEC-USDT/);
+  assert.doesNotMatch(depthEmptyCopy("ZEC-USDC"), /native ZEC/);
+  assert.doesNotMatch(feedWithheldCopy("loading", "ZEC-USDC"), /live feed/);
+  assert.equal(depthSessionLastCopy("ZEC-USDC", null), "session last · ZEC-USDC");
   assert.equal(
-    depthSessionLastCopy("pZEC-USDT0", "0.13"),
-    "session last · pZEC-USDT0 · spread 0.13",
+    depthSessionLastCopy("ZEC-USDT", "0.13"),
+    "session last · ZEC-USDT · spread 0.13",
   );
   assert.equal(
     tapeCaptionCopy("ZEC/USDC", true),
-    "Recent ZEC/USDC trades withheld. Settled as pZEC-USDC. Fixture tape is not shown.",
+    "Recent ZEC/USDC trades withheld. Settled as ZEC-USDC. Fixture tape is not shown.",
   );
-  assert.match(tapeCaptionCopy("ZEC/USDT", false), /settled as pZEC-USDT0/);
-  assert.equal(sessionLastStatLabel("pZEC-USDC", true), "Session last · pZEC-USDC");
-  assert.equal(sessionLastStatLabel("pZEC-USDT0", false), "Session last");
-  assert.equal(tapeMiniLabel(false, true, "pZEC-USDC"), "Fixture tape");
-  assert.equal(tapeMiniLabel(false, false, "pZEC-USDT0"), "Withheld · pZEC-USDT0");
-  assert.equal(tapeMiniLabel(true, false, "pZEC-USDC"), "Session + fixture");
-  assert.equal(chartRangeTabLabel("4H", markets["ZEC/USDC"].settlementPair), "4H · pZEC-USDC");
-  assert.equal(chartRangeTabLabel("1D", markets["ZEC/USDT"].settlementPair), "1D · pZEC-USDT0");
-  assert.doesNotMatch(chartRangeTabLabel("1H", "pZEC-USDC"), /native ZEC/);
-  assert.equal(chartPanelHeadingCopy("ZEC/USDC"), "ZEC/USDC · pZEC-USDC");
-  assert.equal(chartPanelHeadingCopy("ZEC/USDT"), "ZEC/USDT · pZEC-USDT0");
-  assert.equal(chartPanelEyebrowCopy(markets["ZEC/USDC"].settlementPair), "Illustrative market data · pZEC-USDC");
+  assert.match(tapeCaptionCopy("ZEC/USDT", false), /settled as ZEC-USDT/);
+  assert.equal(sessionLastStatLabel("ZEC-USDC", true), "Session last · ZEC-USDC");
+  assert.equal(sessionLastStatLabel("ZEC-USDT", false), "Session last");
+  assert.equal(tapeMiniLabel(false, true, "ZEC-USDC"), "Fixture tape");
+  assert.equal(tapeMiniLabel(false, false, "ZEC-USDT"), "Withheld · ZEC-USDT");
+  assert.equal(tapeMiniLabel(true, false, "ZEC-USDC"), "Session + fixture");
+  assert.equal(chartRangeTabLabel("4H", markets["ZEC/USDC"].settlementPair), "4H · ZEC-USDC");
+  assert.equal(chartRangeTabLabel("1D", markets["ZEC/USDT"].settlementPair), "1D · ZEC-USDT");
+  assert.doesNotMatch(chartRangeTabLabel("1H", "ZEC-USDC"), /native ZEC/);
+  assert.equal(chartPanelHeadingCopy("ZEC/USDC"), "ZEC/USDC · ZEC-USDC");
+  assert.equal(chartPanelHeadingCopy("ZEC/USDT"), "ZEC/USDT · ZEC-USDT");
+  assert.equal(chartPanelEyebrowCopy(markets["ZEC/USDC"].settlementPair), "Illustrative market data · ZEC-USDC");
   assert.doesNotMatch(chartPanelHeadingCopy("ZEC/USDC"), /native ZEC/);
 });
 
@@ -166,18 +166,18 @@ test("price chart label names the settlement pair from real market state", () =>
   const marketId = "ZEC/USDC" as const;
   const range = "4H" as const;
   assert.ok(chartSeries[marketId][range].length > 0);
-  assert.equal(markets[marketId].settlementPair, "pZEC-USDC");
+  assert.equal(markets[marketId].settlementPair, "ZEC-USDC");
   assert.equal(
     priceChartLabelCopy(marketId, range),
-    "Illustrative 4H price chart for ZEC/USDC, settled as pZEC-USDC",
+    "Illustrative 4H price chart for ZEC/USDC, settled as ZEC-USDC",
   );
   assert.equal(
     priceChartLabelCopy("ZEC/USDT", "1D"),
-    "Illustrative 1D price chart for ZEC/USDT, settled as pZEC-USDT0",
+    "Illustrative 1D price chart for ZEC/USDT, settled as ZEC-USDT",
   );
   assert.equal(
     priceChartLabelCopy(marketId, "1H"),
-    "Illustrative 1H price chart for ZEC/USDC, settled as pZEC-USDC",
+    "Illustrative 1H price chart for ZEC/USDC, settled as ZEC-USDC",
   );
   assert.ok(chartSeries[marketId]["1H"].length > 0);
   assert.ok(chartSeries[marketId]["1D"].length > 0);
@@ -185,11 +185,11 @@ test("price chart label names the settlement pair from real market state", () =>
   assert.ok(chartSeries["ZEC/USDT"]["1D"].length > 0);
   assert.equal(
     priceChartLabelCopy("ZEC/USDT", "1H"),
-    "Illustrative 1H price chart for ZEC/USDT, settled as pZEC-USDT0",
+    "Illustrative 1H price chart for ZEC/USDT, settled as ZEC-USDT",
   );
   assert.equal(
     priceChartLabelCopy("ZEC/USDT", "1D"),
-    "Illustrative 1D price chart for ZEC/USDT, settled as pZEC-USDT0",
+    "Illustrative 1D price chart for ZEC/USDT, settled as ZEC-USDT",
   );
   assert.doesNotMatch(priceChartLabelCopy(marketId, range), /native ZEC/);
   assert.doesNotMatch(priceChartLabelCopy(marketId, range), /live/);

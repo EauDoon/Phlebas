@@ -46,7 +46,7 @@ for (const marketId of Object.keys(markets) as MarketId[]) {
 
 test("pool quote reserves stay within one quote atom of last * pZEC reserve", () => {
   for (const pool of pools) {
-    const marketId = pool.id === "pZEC/USDT0" ? "ZEC/USDT" : "ZEC/USDC";
+    const marketId = pool.id === "ZEC/USDT" ? "ZEC/USDT" : "ZEC/USDC";
     const impliedQuote = (pool.reserveZecAtoms * markets[marketId].lastTicks) / 10_000n;
     const delta = impliedQuote > pool.reserveQuoteAtoms
       ? impliedQuote - pool.reserveQuoteAtoms

@@ -193,16 +193,16 @@ test("describeSubmit names settlement on a real FOK miss", () => {
   assert.equal(result.status, "rejected");
   assert.equal(
     describeSubmit(result, "ZEC/USDC"),
-    "Rejected. Fill-or-kill could not fill in full. Settled as pZEC-USDC.",
+    "Rejected. Fill-or-kill could not fill in full. Settled as ZEC-USDC.",
   );
   assert.equal(
     describeSubmit(result, "ZEC/USDT"),
-    "Rejected. Fill-or-kill could not fill in full. Settled as pZEC-USDT0.",
+    "Rejected. Fill-or-kill could not fill in full. Settled as ZEC-USDT.",
   );
   assert.equal(isTicketRejectCopy(describeSubmit(result, "ZEC/USDC")), true);
 });
 
-test("ticket reject copy follows the selected market after a switch", () => {
+test("FOK reject copy follows the selected market after a switch", () => {
   const book = seedBook("ZEC/USDC");
   const result = submitOrder(book, {
     id: "taker",
@@ -214,8 +214,8 @@ test("ticket reject copy follows the selected market after a switch", () => {
   assert.equal(result.status, "rejected");
   const usdc = describeSubmit(result, "ZEC/USDC");
   const usdt = describeSubmit(result, "ZEC/USDT");
-  assert.equal(usdc, "Rejected. Fill-or-kill could not fill in full. Settled as pZEC-USDC.");
-  assert.equal(usdt, "Rejected. Fill-or-kill could not fill in full. Settled as pZEC-USDT0.");
+  assert.equal(usdc, "Rejected. Fill-or-kill could not fill in full. Settled as ZEC-USDC.");
+  assert.equal(usdt, "Rejected. Fill-or-kill could not fill in full. Settled as ZEC-USDT.");
   assert.equal(isTicketRejectCopy(usdc), true);
   assert.equal(
     retargetSettlementCopy(usdc, markets["ZEC/USDT"].settlementPair),
@@ -233,16 +233,16 @@ test("inventory reject copy starts from session seed inventory", () => {
   assert.equal(canCover(account, "buy", 1_000_00000000n, 5291n), false);
   assert.equal(
     inventoryRejectCopy("buy", "ZEC/USDC"),
-    "Rejected. Session quote inventory is insufficient. Settled as pZEC-USDC.",
+    "Rejected. Session quote inventory is insufficient. Settled as ZEC-USDC.",
   );
   assert.equal(canCover(account, "sell", 10_00000000n, 5278n), true);
   assert.equal(
     inventoryRejectCopy("sell", "ZEC/USDT"),
-    "Rejected. Session pZEC inventory is insufficient. Settled as pZEC-USDT0.",
+    "Rejected. Session ZEC inventory is insufficient. Settled as ZEC-USDT.",
   );
   assert.equal(
     selfTradeRejectCopy("ZEC/USDC"),
-    "Rejected. Self-trade prevented. Cancel the resting session order or choose another price. Settled as pZEC-USDC.",
+    "Rejected. Self-trade prevented. Cancel the resting session order or choose another price. Settled as ZEC-USDC.",
   );
   assert.equal(isTicketRejectCopy(ticketRejectCopy("Order expiry has passed", "ZEC/USDC")), true);
   assert.doesNotMatch(inventoryRejectCopy("buy", "ZEC/USDC"), /native ZEC/);
