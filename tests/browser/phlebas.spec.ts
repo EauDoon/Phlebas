@@ -4473,3 +4473,26 @@ test("education heading flex alignment leftover odd shrink and Continue at 390",
   expect(headingBox?.height ?? 0).toBeGreaterThanOrEqual(44);
   expect(headingBox?.width ?? 0).toBeGreaterThanOrEqual(44);
 });
+test("education Continue stays in a 320x568 viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  const continueButton = dialog.getByRole("button", { name: "Continue" });
+  await expect(continueButton).toBeVisible();
+  const continueBox = await continueButton.boundingBox();
+  expect(continueBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(continueBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((continueBox?.y ?? 0) + (continueBox?.height ?? 0)).toBeLessThanOrEqual(568);
+  expect((continueBox?.x ?? 0) + (continueBox?.width ?? 0)).toBeLessThanOrEqual(320);
+  await continueButton.click();
+  await continueButton.click();
+  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  await expect(enter).toBeVisible();
+  const enterBox = await enter.boundingBox();
+  expect(enterBox?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(enterBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(enterBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((enterBox?.y ?? 0) + (enterBox?.height ?? 0)).toBeLessThanOrEqual(568);
+  expect((enterBox?.x ?? 0) + (enterBox?.width ?? 0)).toBeLessThanOrEqual(320);
+});
