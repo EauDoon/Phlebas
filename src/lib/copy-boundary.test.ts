@@ -84,8 +84,9 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /lpSwapNoticeCopy/);
   assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletConnectIdleTitle/);
   assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletConnectBusyTitle/);
+  assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletConnectTitle/);
   assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /lpSwapNoticeCopy/);
-  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletConnectBusyTitle/);
+  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletConnectTitle/);
   assert.match(await readFile(join(root, "src/components/price-chart.tsx"), "utf8"), /priceChartLabelCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /market\.settlementPair/);
   const blotter = await readFile(join(root, "src/components/order-blotter.tsx"), "utf8");
