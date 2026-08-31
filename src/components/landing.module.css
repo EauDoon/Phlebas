@@ -974,6 +974,7 @@
     left: auto;
     width: auto;
     max-width: none;
+    flex-direction: row;
   }
 
   .simulationBanner {
