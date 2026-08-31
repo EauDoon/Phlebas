@@ -393,7 +393,10 @@ export function TradingTerminal({
           <a className={styles.skipLink} href="#incident-demonstration">Skip to incident demonstration</a>
         ) : null}
         {view === "liquidity" ? (
-          <a className={styles.skipLink} href="#liquidity-pools">Skip to pool tabs</a>
+          <>
+            <a className={styles.skipLink} href="#liquidity-pools">Skip to pool tabs</a>
+            <a className={styles.skipLink} href="#pool-stats">Skip to pool stats</a>
+          </>
         ) : null}
         {view === "bridge" ? (
           <a className={styles.skipLink} href="#destination-inspector">Skip to destination inspector</a>
