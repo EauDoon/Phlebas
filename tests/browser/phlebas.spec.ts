@@ -391,6 +391,15 @@ test("stale market data disables preview-to-sign and retries to illustrative", a
   await expect(page).toHaveURL(/\/trade/);
 });
 
+test("Escape leaves review without confirming a session order", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+});
+
 test("review names the cheaper venue before confirm", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Ask 52.91" }).click();
