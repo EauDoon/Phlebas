@@ -39,7 +39,9 @@ export function encodeSwapState(state: SwapState): string {
     observedSecretFactId: state.observedSecretFactId,
     confirmedSecret: state.confirmedSecret,
     confirmedSecretFactId: state.confirmedSecretFactId,
+    terminal: state.terminal,
     disputes: state.disputes,
+    resolutions: state.resolutions,
     retractedEvidenceIds: state.retractedEvidenceIds,
   });
 }

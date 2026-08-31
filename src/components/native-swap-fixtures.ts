@@ -616,6 +616,7 @@ export function nativeSwapPhaseCopy(session: NativeSwapFixtureSession): Readonly
     };
   }
   if (phase === "settled") return { phase, title: "Fixture settled", body: "Fixture journey complete. No asset moved.", stage: 5 };
+  if (phase === "expired") return { phase, title: "Fixture expired", body: "No chain funding was observed before the signed deadline.", stage: 5 };
   return { phase, title: "Fixture refunded", body: "Fixture refund complete. No transaction was submitted.", stage: 5 };
 }
 

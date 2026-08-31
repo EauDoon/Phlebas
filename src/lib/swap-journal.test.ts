@@ -4,11 +4,14 @@ import test from "node:test";
 import { keccak256Text } from "./keccak.ts";
 import {
   authorizedSwap,
+  fixtureSecretHash,
+  fundedSwap,
   fundingEvidence,
   sampleEvidencePolicies,
   sampleMarketPolicy,
   sampleSwapTerms,
   sampleTimingPolicy,
+  spendEvidence,
 } from "./swap-test-fixtures.ts";
 import {
   appendSwapEvent,
@@ -173,4 +176,59 @@ test("journals two independent observers that agree on one funding fact", () => 
   });
   assert.equal(second.state.zec.fundingAttestations?.length, 2);
   assert.equal(verifySwapJournal(second.journal), true);
+});
+
+test("journals artifact abandonment and terminal expiry", () => {
+  const artifactHash = keccak256Text("journal-abandon-artifact");
+  const prepared = prepareSwapFunding(authorizedSwap(), "zec", artifactHash, sampleSwapTerms.zecFundBy - 1n);
+  const empty = emptySwapJournal(prepared);
+  const abandoned = appendSwapEvent(empty, prepared, {
+    kind: "abandon-funding",
+    leg: "zec",
+    artifactHash,
+    occurredAtSeconds: sampleSwapTerms.zecFundBy - 1n,
+  });
+  const expired = appendSwapEvent(abandoned.journal, abandoned.state, {
+    kind: "expire-swap",
+    occurredAtSeconds: sampleSwapTerms.zecFundBy,
+    reason: "Signed funding window elapsed",
+  });
+  assert.equal(expired.state.terminal?.kind, "expired");
+  assert.equal(verifySwapJournal(expired.journal), true);
+});
+
+test("replays a retracted spend attestation replacement with its audit record", () => {
+  const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
+  const initial = fundedSwap(terms);
+  const firstEvidence = spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms, 0);
+  const observed = appendSwapEvent(emptySwapJournal(initial), initial, {
+    kind: "observe-spend",
+    evidence: firstEvidence,
+  });
+  const retracted = appendSwapEvent(observed.journal, observed.state, {
+    kind: "retract-evidence",
+    evidenceId: firstEvidence.attestation.evidenceId,
+    detail: "Observer claim report left the canonical view",
+  });
+  const replacement = {
+    ...firstEvidence,
+    attestation: {
+      ...firstEvidence.attestation,
+      evidenceId: keccak256Text("journal-replacement-claim-attestation"),
+      tipBlockHash: keccak256Text("journal-replacement-claim-tip"),
+    },
+  };
+  const recovered = appendSwapEvent(retracted.journal, retracted.state, {
+    kind: "replace-spend-attestation",
+    leg: "evm",
+    retractedEvidenceId: firstEvidence.attestation.evidenceId,
+    replacement,
+    resolutionId: keccak256Text("journal-claim-resolution"),
+    occurredAtSeconds: replacement.attestation.observedAtSeconds,
+    detail: "Accepted a fresh approved report for the same canonical claim fact",
+  });
+  assert.equal(recovered.state.disputes.length, 0);
+  assert.equal(recovered.state.resolutions.length, 1);
+  assert.equal(recovered.state.retractedEvidenceIds[firstEvidence.attestation.evidenceId], true);
+  assert.equal(verifySwapJournal(recovered.journal), true);
 });

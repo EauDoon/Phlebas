@@ -1,7 +1,7 @@
 # Phlebas Product Specification
 
 Status: native-settlement target, no-value implementation
-Updated: 31-08-2026
+Updated: 01-09-2026
 
 ## 1. Product statement
 
@@ -157,6 +157,7 @@ settled
 refund recovery
 refunded
 disputed
+expired
 ```
 
 Required invariants:
@@ -170,11 +171,13 @@ Required invariants:
 * duplicate or conflicting evidence fails closed;
 * wrong-chain, wrong-asset, stale, or reorganized evidence moves the workflow to disputed;
 * every incomplete funded swap retains a wallet-controlled refund path;
+* a swap expires only after its active signed deadline and only when no chain evidence exists;
+* an unconfirmed retracted observer report can be replaced only for the same canonical fact, with the full audit history retained;
 * deterministic replay yields the same state and next safe action.
 
-Both parties separately authorize the exact per-fill terms digest. Signed terms include the fill and order identities, party roles, chains, assets, amounts, price, fees, Zcash script identities, EVM addresses and escrow identity, shared hash, all cutoffs and refund times, and the timeout, observer, and finality policy identifiers. Terms cannot change after authorization.
+Both parties separately authorize the exact per-fill terms digest. Signed terms include the deterministically derived fill identity, order identities, party roles, chains, assets, amounts, execution price, exact quote relation, fee amount, fee recipient, fee cap, Zcash script identities, EVM addresses and escrow identity, shared hash, all cutoffs and refund times, and the market, timeout, observer, and finality policy identifiers. Terms cannot change after authorization.
 
-The append-only journal binds every event to the swap and prior state root. Exact duplicate events are idempotent. A different event in an occupied semantic slot is a conflict. Restart accepts only a complete valid journal and matching snapshot root; it never silently initializes over malformed persistence.
+The append-only journal binds every event to the swap and prior state root. It accepts only known event kinds with exact runtime fields. Exact duplicate events are idempotent. A different event in an occupied semantic slot is a conflict. Restart accepts only a complete semantically replayable journal and matching snapshot root, including dispute, retraction, resolution, and terminal state. It never silently initializes over malformed persistence.
 
 ## 9. Liquidity
 
@@ -207,7 +210,7 @@ The router compares complete executable routes only. It may choose an order-book
 7. Each fill opens a settlement ticket.
 8. The ticket shows the next safe wallet action and the evidence supporting it.
 9. The user signs funding, claim, or refund transactions only after reviewing exact terms.
-10. The ticket ends as settled, refunded, or disputed.
+10. The ticket ends as settled, refunded, expired without chain evidence, or disputed.
 
 ## 11. Settlement ticket
 
@@ -258,7 +261,7 @@ The UI must represent:
 * EVM observers agreeing, stale, or conflicting;
 * contract identity verified, unresolved, paused, or mismatched;
 * wallet unsupported, disconnected, wrong network, ready, rejected, or failed;
-* swap matched, funding, both funded, redeemable, refundable, settled, refunded, or disputed;
+* swap matched, funding, both funded, redeemable, refundable, settled, refunded, expired without chain evidence, or disputed;
 * incident active and recovery pending.
 
 No unsafe state may enable a signing action.

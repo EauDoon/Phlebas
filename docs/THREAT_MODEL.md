@@ -4,7 +4,7 @@ Status: native atomic-settlement threat model, no-value implementation
 
 The active target is [ADR 0002](adr/0002-native-zec-atomic-settlement.md): native transparent ZEC remains on Zcash, the exact stablecoin remains on its EVM chain, and one two-chain atomic swap settles each fill. Phlebas cannot sign, claim, refund, redirect, or custody either leg.
 
-> Status as of 31-08-2026: design document for a no-value simulation with undeployed Sepolia contract sources and optional local textest services. No production bridge, custody, contract, matching, routing, monitoring, or incident control is deployed or audited.
+> Status as of 01-09-2026: design document and key-independent reference domain for a no-value simulation with undeployed Sepolia contract sources and optional local textest services. No production contract, native transaction path, wallet execution, matching, routing, monitoring, or incident control is deployed or audited.
 
 ## Active native-settlement threats
 
@@ -13,12 +13,13 @@ The active target is [ADR 0002](adr/0002-native-zec-atomic-settlement.md): nativ
 | Terms substitution | A party funds different assets, amounts, recipients, hashes, deadlines, or contracts | Both parties authorize one canonical per-fill terms digest; wallets independently review exact transaction bytes |
 | Funding-order violation | Stablecoin is locked before the ZEC leg has approved confidence | EVM funding is disabled until exact ZEC funding evidence is confirmed under the signed policy |
 | Unsafe timeout margin | One party lacks enough time to claim or refund across chains | Strictly ordered cutoffs, a versioned minimum safety window, chain-time checks, and Testnet approval of production durations |
-| False secret evidence | Mempool calldata or a failed EVM call is treated as a reveal | Only successful canonical claim execution can create authoritative reveal evidence; the preimage must match SHA-256 |
-| Reveal reorganization | The EVM claim leaves the best chain after exposing the preimage | Secret knowledge is monotonic, the swap becomes disputed, and normal signing recommendations stop |
+| False secret evidence | Mempool calldata, a failed EVM call, or one observer report is treated as claim authority | A successful canonical claim fact may record the observed preimage, but only signed-policy quorum and finality create confirmed claim authority; the preimage must match SHA-256 |
+| Reveal reorganization | The EVM claim leaves the best chain after exposing the preimage | Secret knowledge is monotonic, confirmed authority is invalidated by dispute, and normal signing recommendations stop |
 | Claim and refund race | Competing branches spend the same lock | Per-leg terminal outcomes are mutually exclusive; eligibility is not finality; observers track the exact outpoint or contract slot |
-| Observer compromise or staleness | Wrong-chain, wrong-asset, stale, or conflicting evidence advances the swap | Exact semantic matching, independent policy-bound sources, watermarks, and fail-closed dispute state |
-| Replacement ambiguity | Different transactions claim the same semantic event | One semantic slot accepts one exact payload; conflicting content is rejected or disputed |
-| Journal rollback or corruption | Restart loses or rewrites an accepted event | Hash-chained receipts bind prior and next state roots; complete deterministic replay and snapshot roots are required |
+| Observer compromise or staleness | Wrong-chain, wrong-asset, stale, or conflicting evidence advances the swap | Content-addressed facts, exact outpoint or escrow binding, signed source allowlist, source quorum, confirmation depth, execution age, freshness, and fail-closed dispute state |
+| Replacement ambiguity | A replacement changes the accepted chain fact or erases its history | Replacement is limited to a retracted unconfirmed attestation for the same canonical fact; retraction and resolution records remain rooted and replayable |
+| Journal rollback or corruption | Restart loses, rewrites, or invents an accepted event | Strict event kinds and fields, hash-chained receipts, semantic replay, prior and next state roots, and complete snapshot roots are required |
+| Unsafe expiry | A coordinator discards an active or funded swap | Expiry requires the active signed deadline and no observed chain evidence; funded swaps remain in claim or refund recovery |
 | Wallet adapter mismatch | A wallet signs bytes that differ from the reviewed artifact | Adapter and release allowlists, explicit inspection, executed compatibility tests, and no compatibility claim before evidence |
 | Stablecoin controls | Issuer pause, blacklist, upgrade, or token mismatch freezes a leg | Exact token and contract identity, affected-market stop, issuer-state monitoring, and no USDT/USDT0 substitution |
 | Transparent-chain privacy | Cross-chain addresses and timing link the parties | Persistent public-linkability warning; no privacy or shielded-settlement claim |

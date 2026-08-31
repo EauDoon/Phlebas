@@ -39,7 +39,8 @@ export type SwapPhase =
   | "awaiting-zec-claim"
   | "settled"
   | "refund-recovery"
-  | "refunded";
+  | "refunded"
+  | "expired";
 
 export type FundingFact = Readonly<{
   factId: Hex32;
@@ -127,7 +128,9 @@ export type SwapState = Readonly<{
   observedSecretFactId?: Hex32;
   confirmedSecret?: `0x${string}`;
   confirmedSecretFactId?: Hex32;
+  terminal?: Readonly<{ kind: "expired"; occurredAtSeconds: bigint; reason: string }>;
   disputes: readonly SwapDispute[];
+  resolutions: readonly SwapEvidenceResolution[];
   retractedEvidenceIds: Readonly<Record<string, true>>;
 }>;
 
@@ -136,6 +139,14 @@ export type SwapDisputeReason = "observer-conflict" | "observer-stale" | "reorga
 export type SwapDispute = Readonly<{
   reason: SwapDisputeReason;
   evidenceId?: Hex32;
+  detail: string;
+}>;
+
+export type SwapEvidenceResolution = Readonly<{
+  resolutionId: Hex32;
+  retractedEvidenceId: Hex32;
+  replacementEvidenceId: Hex32;
+  occurredAtSeconds: bigint;
   detail: string;
 }>;
 
@@ -213,6 +224,7 @@ function allAuthorized(state: SwapState): boolean {
 
 function assertNotDisputed(state: SwapState): void {
   assertSwapStateIntegrity(state);
+  if (state.terminal) throw new Error("Swap is terminal; no further transitions are allowed");
   if (state.disputes.length > 0) throw new Error("Swap is disputed; funding and claim actions are disabled");
 }
 
@@ -222,6 +234,44 @@ export function assertSwapStateIntegrity(state: SwapState): SwapState {
   assertSwapEvidencePolicies(validated, state.evidencePolicies);
   if (hashSwapTerms(validated) !== state.termsHash) throw new Error("Swap state terms do not match the signed terms hash");
   if (swapIdForTerms(validated) !== state.swapId) throw new Error("Swap state terms do not match the swap ID");
+  if (!Array.isArray(state.disputes) || !Array.isArray(state.resolutions)) {
+    throw new TypeError("Swap recovery metadata must use canonical arrays");
+  }
+  if (!state.retractedEvidenceIds || typeof state.retractedEvidenceIds !== "object" || Array.isArray(state.retractedEvidenceIds)) {
+    throw new TypeError("Retracted evidence IDs must use a canonical record");
+  }
+  for (const [evidenceId, retracted] of Object.entries(state.retractedEvidenceIds)) {
+    canonicalHex32(evidenceId, "Retracted evidence ID");
+    if (retracted !== true) throw new TypeError("Retracted evidence records must contain true values");
+  }
+  const resolutionIds = new Set<string>();
+  for (const resolution of state.resolutions) {
+    const resolutionId = canonicalHex32(resolution.resolutionId, "Resolution ID");
+    const retractedEvidenceId = canonicalHex32(resolution.retractedEvidenceId, "Resolved evidence ID");
+    const replacementEvidenceId = canonicalHex32(resolution.replacementEvidenceId, "Replacement evidence ID");
+    if (resolutionIds.has(resolutionId)) throw new Error("Resolution IDs must be unique");
+    if (retractedEvidenceId === replacementEvidenceId) throw new Error("Replacement evidence must use a new evidence ID");
+    if (!state.retractedEvidenceIds[retractedEvidenceId]) throw new Error("A resolution must reference retracted evidence");
+    uint64(resolution.occurredAtSeconds, "Resolution time");
+    canonicalDetail(resolution.detail, "Resolution detail");
+    resolutionIds.add(resolutionId);
+  }
+  if (state.terminal) {
+    if (state.terminal.kind !== "expired") throw new Error("Unknown terminal swap state");
+    uint64(state.terminal.occurredAtSeconds, "Swap expiry time");
+    canonicalDetail(state.terminal.reason, "Expiry reason");
+    const deadline = allAuthorized(state) ? state.terms.zecFundBy : state.terms.authorizationDeadline;
+    if (state.terminal.occurredAtSeconds < deadline) throw new Error("Expired swap predates its active signed deadline");
+    if (state.zec.phase !== "unfunded" || state.evm.phase !== "unfunded") {
+      throw new Error("Expired swap cannot retain funding or spend state");
+    }
+    if (state.disputes.length > 0 || state.resolutions.length > 0) {
+      throw new Error("Expired swap cannot retain dispute recovery metadata");
+    }
+    if (state.observedSecret || state.observedSecretFactId || state.confirmedSecret || state.confirmedSecretFactId) {
+      throw new Error("Expired swap cannot retain observed or confirmed secret state");
+    }
+  }
   return state;
 }
 
@@ -275,6 +325,7 @@ export function createSwapState(
     zec: EMPTY_LEG,
     evm: EMPTY_LEG,
     disputes: Object.freeze([]),
+    resolutions: Object.freeze([]),
     retractedEvidenceIds: Object.freeze({}),
   });
 }
@@ -286,6 +337,7 @@ export function authorizeSwapTerms(
   nowSeconds: bigint,
 ): SwapState {
   assertSwapStateIntegrity(state);
+  if (state.terminal) throw new Error("Swap is terminal; no further transitions are allowed");
   uint64(nowSeconds, "Authorization time");
   if (nowSeconds >= state.terms.authorizationDeadline) throw new Error("Swap authorization deadline has passed");
   if (canonicalHex32(termsHash, "Authorized terms hash") !== state.termsHash) throw new Error("Authorized terms hash does not match");
@@ -319,6 +371,43 @@ export function prepareSwapFunding(
   return Object.freeze({
     ...state,
     [leg]: Object.freeze({ phase: "funding-prepared", fundingArtifactHash: canonicalHex32(artifactHash, "Funding artifact hash") }),
+  });
+}
+
+export function abandonSwapFunding(
+  state: SwapState,
+  leg: SwapLeg,
+  artifactHash: Hex32,
+  occurredAtSeconds: bigint,
+): SwapState {
+  assertNotDisputed(state);
+  uint64(occurredAtSeconds, "Funding abandonment time");
+  const current = state[leg];
+  if (current.phase !== "funding-prepared" || !current.fundingArtifactHash) {
+    throw new Error(`${leg.toUpperCase()} has no unbroadcast funding artifact to abandon`);
+  }
+  if (canonicalHex32(artifactHash, "Funding artifact hash") !== current.fundingArtifactHash) {
+    throw new Error("Funding abandonment does not match the prepared artifact");
+  }
+  return Object.freeze({ ...state, [leg]: EMPTY_LEG });
+}
+
+export function expireSwap(state: SwapState, occurredAtSeconds: bigint, reason: string): SwapState {
+  assertNotDisputed(state);
+  uint64(occurredAtSeconds, "Swap expiry time");
+  if (reason.length === 0 || reason.length > 500 || reason.trim() !== reason) {
+    throw new TypeError("Expiry reason must be a non-empty canonical message");
+  }
+  const hasChainEvidence = [state.zec.phase, state.evm.phase]
+    .some((phase) => phase !== "unfunded" && phase !== "funding-prepared");
+  if (hasChainEvidence) throw new Error("A swap with observed chain evidence must use claim or refund recovery");
+  const deadline = allAuthorized(state) ? state.terms.zecFundBy : state.terms.authorizationDeadline;
+  if (occurredAtSeconds < deadline) throw new Error("Swap cannot expire before its active signed deadline");
+  return Object.freeze({
+    ...state,
+    zec: EMPTY_LEG,
+    evm: EMPTY_LEG,
+    terminal: Object.freeze({ kind: "expired", occurredAtSeconds, reason }),
   });
 }
 
@@ -614,6 +703,124 @@ export function confirmSwapSpend(
   return nextState;
 }
 
+function canonicalDetail(detail: string, label: string): string {
+  if (detail.length === 0 || detail.length > 500 || detail.trim() !== detail) {
+    throw new TypeError(`${label} must be a non-empty canonical message`);
+  }
+  return detail;
+}
+
+function resolutionContext(
+  state: SwapState,
+  retractedEvidenceId: Hex32,
+  resolutionId: Hex32,
+  replacementEvidenceId: Hex32,
+  occurredAtSeconds: bigint,
+  detail: string,
+): Readonly<{ cleared: SwapState; resolution: SwapEvidenceResolution }> {
+  assertSwapStateIntegrity(state);
+  if (state.terminal) throw new Error("Swap is terminal; evidence cannot be replaced");
+  const retracted = canonicalHex32(retractedEvidenceId, "Retracted evidence ID");
+  if (!state.retractedEvidenceIds[retracted]) throw new Error("Only retracted observer evidence can be replaced");
+  const relevant = state.disputes.filter((dispute) => dispute.evidenceId === retracted && dispute.reason === "reorganization");
+  if (relevant.length === 0 || relevant.length !== state.disputes.length) {
+    throw new Error("Replacement cannot clear unrelated or unresolved disputes");
+  }
+  const id = canonicalHex32(resolutionId, "Resolution ID");
+  if (state.resolutions.some((resolution) => resolution.resolutionId === id)) throw new Error("Resolution ID has already been used");
+  const replacement = canonicalHex32(replacementEvidenceId, "Replacement evidence ID");
+  if (state.retractedEvidenceIds[replacement]) throw new Error("Replacement evidence is already retracted");
+  uint64(occurredAtSeconds, "Evidence replacement time");
+  const resolution = Object.freeze({
+    resolutionId: id,
+    retractedEvidenceId: retracted,
+    replacementEvidenceId: replacement,
+    occurredAtSeconds,
+    detail: canonicalDetail(detail, "Resolution detail"),
+  });
+  return { cleared: Object.freeze({ ...state, disputes: Object.freeze([]) }), resolution };
+}
+
+export function replaceSwapFundingAttestation(
+  state: SwapState,
+  leg: SwapLeg,
+  retractedEvidenceId: Hex32,
+  replacement: FundingEvidence,
+  resolutionId: Hex32,
+  occurredAtSeconds: bigint,
+  detail: string,
+): SwapState {
+  const current = state[leg];
+  if (current.phase !== "funding-seen" || !current.funding) {
+    throw new Error("Only unconfirmed funding observations can be replaced");
+  }
+  const old = current.fundingAttestations?.find((item) => item.evidenceId === retractedEvidenceId);
+  if (!old) throw new Error("Retracted funding attestation is not present");
+  if (replacement.fact.factId !== current.funding.factId) {
+    throw new Error("Replacement funding attestation must bind the same canonical fact");
+  }
+  const context = resolutionContext(
+    state,
+    retractedEvidenceId,
+    resolutionId,
+    replacement.attestation.evidenceId,
+    occurredAtSeconds,
+    detail,
+  );
+  if (occurredAtSeconds < replacement.attestation.observedAtSeconds) {
+    throw new Error("Evidence replacement cannot precede its observer report");
+  }
+  const withoutOld: SwapState = Object.freeze({
+    ...context.cleared,
+    [leg]: Object.freeze({
+      ...current,
+      fundingAttestations: Object.freeze((current.fundingAttestations ?? []).filter((item) => item.evidenceId !== old.evidenceId)),
+    }),
+  });
+  const recovered = observeSwapFunding(withoutOld, replacement);
+  return Object.freeze({ ...recovered, resolutions: Object.freeze([...state.resolutions, context.resolution]) });
+}
+
+export function replaceSwapSpendAttestation(
+  state: SwapState,
+  leg: SwapLeg,
+  retractedEvidenceId: Hex32,
+  replacement: SpendEvidence,
+  resolutionId: Hex32,
+  occurredAtSeconds: bigint,
+  detail: string,
+): SwapState {
+  const current = state[leg];
+  if ((current.phase !== "claim-seen" && current.phase !== "refund-seen") || !current.spend) {
+    throw new Error("Only unconfirmed spend observations can be replaced");
+  }
+  const old = current.spendAttestations?.find((item) => item.evidenceId === retractedEvidenceId);
+  if (!old) throw new Error("Retracted spend attestation is not present");
+  if (replacement.fact.factId !== current.spend.factId) {
+    throw new Error("Replacement spend attestation must bind the same canonical fact");
+  }
+  const context = resolutionContext(
+    state,
+    retractedEvidenceId,
+    resolutionId,
+    replacement.attestation.evidenceId,
+    occurredAtSeconds,
+    detail,
+  );
+  if (occurredAtSeconds < replacement.attestation.observedAtSeconds) {
+    throw new Error("Evidence replacement cannot precede its observer report");
+  }
+  const withoutOld: SwapState = Object.freeze({
+    ...context.cleared,
+    [leg]: Object.freeze({
+      ...current,
+      spendAttestations: Object.freeze((current.spendAttestations ?? []).filter((item) => item.evidenceId !== old.evidenceId)),
+    }),
+  });
+  const recovered = observeSwapSpend(withoutOld, replacement);
+  return Object.freeze({ ...recovered, resolutions: Object.freeze([...state.resolutions, context.resolution]) });
+}
+
 export function flagSwapDispute(
   state: SwapState,
   reason: SwapDisputeReason,
@@ -621,9 +828,8 @@ export function flagSwapDispute(
   evidenceId?: Hex32,
 ): SwapState {
   assertSwapStateIntegrity(state);
-  if (detail.length === 0 || detail.length > 500 || detail.trim() !== detail) {
-    throw new TypeError("Dispute detail must be a non-empty canonical message");
-  }
+  if (state.terminal) throw new Error("Swap is terminal; disputes cannot be added");
+  canonicalDetail(detail, "Dispute detail");
   const normalizedEvidenceId = evidenceId === undefined ? undefined : canonicalHex32(evidenceId, "Disputed evidence ID");
   const duplicate = state.disputes.some((item) => (
     item.reason === reason && item.detail === detail && item.evidenceId === normalizedEvidenceId
@@ -663,6 +869,7 @@ export function retractSwapEvidence(
 
 export function swapPhase(state: SwapState): SwapPhase {
   assertSwapStateIntegrity(state);
+  if (state.terminal?.kind === "expired") return "expired";
   if (state.disputes.length > 0) return "disputed";
   if (state.zec.phase === "claimed-confirmed" && state.evm.phase === "claimed-confirmed") return "settled";
   const refundStarted = state.zec.phase.startsWith("refund") || state.evm.phase.startsWith("refund");

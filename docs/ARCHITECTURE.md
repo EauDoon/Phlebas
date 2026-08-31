@@ -1,7 +1,7 @@
 # Phlebas Architecture
 
 Status: native-settlement target, simulation implementation
-Updated: 31-08-2026
+Updated: 01-09-2026
 
 Phlebas is being built as a non-custodial exchange for native transparent ZEC against USDC and USDT. The current public application is a no-value browser simulation. Optional loopback stubs exist for a textest gateway, matcher, and observer, and an optional wallet connector is limited to undeployed Arbitrum Sepolia terms. Those services are never hosted on Vercel and do not move mainnet funds.
 
@@ -82,6 +82,7 @@ awaiting authorizations
 
 funded leg -> refund recovery -> refunded
 unsafe or conflicting evidence -> disputed
+no chain evidence after the active signed deadline -> expired
 ```
 
 Each partial fill has a unique fill index and creates a separate swap identifier. A match is never presented as settled. Exact terms are separately authorized by both swap parties because an order signature does not authorize per-fill hashlocks, deadlines, destinations, or contract identities.
@@ -97,7 +98,7 @@ The candidate funding order is:
 
 The local state machine enforces strict deadline ordering and a configurable minimum safety margin. Fixture durations are synthetic. Production durations remain unset until current protocol analysis and adversarial Testnet evidence approve a versioned timeout policy.
 
-The hashlock is SHA-256 with a 32-byte preimage. The canonical terms digest, swap identifier, event chain, and snapshot root also use SHA-256. A successful canonical EVM claim reveals the authoritative preimage. Failed calls and unconfirmed or conflicting observations do not. Once publicly revealed, the secret remains known even if the reveal transaction reorganizes.
+The hashlock is SHA-256 with a 32-byte preimage. The canonical terms digest, swap identifier, event chain, and snapshot root also use SHA-256. A successful canonical EVM claim observation records the public preimage, but it becomes claim authority only after the exact chain fact satisfies the signed observer and finality policies. Failed calls and conflicting observations do not create claim authority. Once publicly revealed, the secret remains known even if the reveal transaction reorganizes.
 
 ## Zcash leg
 
@@ -181,7 +182,7 @@ The [Zallet PCZT interface](https://zcash.github.io/zallet/rpc/index.html) separ
 
 At least two independent Zcash observations and two independent EVM observations feed the coordinator. The exact provider and node diversity policy remains a release decision.
 
-Every observation binds:
+Chain facts are content-addressed separately from observer attestations. A funding or spend fact binds:
 
 * network and chain identity;
 * block height or number;
@@ -190,14 +191,17 @@ Every observation binds:
 * output or log index;
 * contract or script identity;
 * amount;
-* confirmations or finality state;
-* observation time and observer identity.
+* execution time;
+* exact funded outpoint or escrow record;
+* action, recipient, and preimage when applicable.
+
+Each attestation then binds one fact ID, observer source, signed observer policy, signed chain-specific finality policy, observation time, and observed chain tip. Confirmation is derived from the policy's source quorum, confirmation depth, execution age, and freshness limits. No boolean observer field can declare a fact final.
 
 The coordinator stores an append-only journal and derives the current state by deterministic replay. It recommends a wallet action but cannot sign it.
 
-Observer disagreement, staleness, wrong-chain evidence, wrong-asset evidence, conflicting replacement, or reorganization moves the workflow to `disputed`. Exact duplicate events are idempotent. Automatic funding and claim progress stops until a versioned recovery rule has enough evidence. A refund deadline is derived chain-time eligibility, not proof that an output remains unspent or that a refund occurred.
+Observer disagreement, staleness, wrong-chain evidence, wrong-asset evidence, conflicting replacement, or reorganization moves the workflow to `disputed`. Exact duplicate events are idempotent. Automatic funding and claim progress stops until a versioned recovery rule has enough evidence. An unbroadcast funding artifact may be abandoned. A swap with no observed chain evidence may expire after its active signed deadline. A retracted unconfirmed observer report may be replaced only by a new approved attestation for the same canonical fact, with the retraction and resolution retained in the state root and journal. Confirmed or conflicting chain facts require manual recovery and cannot use this replacement path. A refund deadline is derived chain-time eligibility, not proof that an output remains unspent or that a refund occurred.
 
-Every journal receipt binds the swap identifier, terms hash, global sequence, previous event hash, semantic slot, prior state root, and next state root. A snapshot binds the complete journal head and replayed state. Missing, truncated, reordered, conflicting, or root-mismatched persistence fails closed.
+Every journal receipt binds the swap identifier, terms hash, global sequence, previous event hash, semantic slot, prior state root, and next state root. Event payloads use strict known discriminants and exact runtime fields. A snapshot binds the complete journal head and replayed state, including terminal, dispute, retraction, and resolution metadata. Missing, truncated, reordered, unknown, conflicting, unreplayable, or root-mismatched persistence fails closed.
 
 ## Service and deployment boundaries
 

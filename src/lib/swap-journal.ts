@@ -2,6 +2,7 @@ import { UINT64_MAX, normalizeHex32, type Hex32 } from "./order-domain.ts";
 import { sha256Hex } from "./sha256.ts";
 import { swapStateRoot } from "./swap-root.ts";
 import {
+  abandonSwapFunding,
   authorizeSwapTerms,
   confirmSwapFunding,
   confirmSwapSpend,
@@ -9,6 +10,9 @@ import {
   observeSwapFunding,
   observeSwapSpend,
   prepareSwapFunding,
+  expireSwap,
+  replaceSwapFundingAttestation,
+  replaceSwapSpendAttestation,
   retractSwapEvidence,
   type FundingEvidence,
   type SpendEvidence,
@@ -23,12 +27,32 @@ export const SWAP_EVENT_GENESIS = `0x${"00".repeat(32)}` as Hex32;
 export type SwapEventPayload =
   | Readonly<{ kind: "authorize-terms"; partyId: Hex32; termsHash: Hex32; occurredAtSeconds: bigint }>
   | Readonly<{ kind: "prepare-funding"; leg: SwapLeg; artifactHash: Hex32; occurredAtSeconds: bigint }>
+  | Readonly<{ kind: "abandon-funding"; leg: SwapLeg; artifactHash: Hex32; occurredAtSeconds: bigint }>
+  | Readonly<{ kind: "expire-swap"; occurredAtSeconds: bigint; reason: string }>
   | Readonly<{ kind: "observe-funding"; evidence: FundingEvidence }>
   | Readonly<{ kind: "confirm-funding"; leg: SwapLeg; factId: Hex32; qualifiedAtSeconds: bigint }>
   | Readonly<{ kind: "observe-spend"; evidence: SpendEvidence }>
   | Readonly<{ kind: "confirm-spend"; leg: SwapLeg; factId: Hex32; qualifiedAtSeconds: bigint }>
   | Readonly<{ kind: "flag-dispute"; reason: SwapDisputeReason; detail: string; evidenceId?: Hex32 }>
-  | Readonly<{ kind: "retract-evidence"; evidenceId: Hex32; detail: string }>;
+  | Readonly<{ kind: "retract-evidence"; evidenceId: Hex32; detail: string }>
+  | Readonly<{
+    kind: "replace-funding-attestation";
+    leg: SwapLeg;
+    retractedEvidenceId: Hex32;
+    replacement: FundingEvidence;
+    resolutionId: Hex32;
+    occurredAtSeconds: bigint;
+    detail: string;
+  }>
+  | Readonly<{
+    kind: "replace-spend-attestation";
+    leg: SwapLeg;
+    retractedEvidenceId: Hex32;
+    replacement: SpendEvidence;
+    resolutionId: Hex32;
+    occurredAtSeconds: bigint;
+    detail: string;
+  }>;
 
 export type SwapEventReceipt = Readonly<{
   version: typeof SWAP_EVENT_VERSION;
@@ -57,12 +81,16 @@ export type SwapJournal = Readonly<{
 const EVENT_KEYS: Readonly<Record<SwapEventPayload["kind"], readonly string[]>> = Object.freeze({
   "authorize-terms": ["kind", "partyId", "termsHash", "occurredAtSeconds"],
   "prepare-funding": ["kind", "leg", "artifactHash", "occurredAtSeconds"],
+  "abandon-funding": ["kind", "leg", "artifactHash", "occurredAtSeconds"],
+  "expire-swap": ["kind", "occurredAtSeconds", "reason"],
   "observe-funding": ["kind", "evidence"],
   "confirm-funding": ["kind", "leg", "factId", "qualifiedAtSeconds"],
   "observe-spend": ["kind", "evidence"],
   "confirm-spend": ["kind", "leg", "factId", "qualifiedAtSeconds"],
   "flag-dispute": ["kind", "reason", "detail", "evidenceId"],
   "retract-evidence": ["kind", "evidenceId", "detail"],
+  "replace-funding-attestation": ["kind", "leg", "retractedEvidenceId", "replacement", "resolutionId", "occurredAtSeconds", "detail"],
+  "replace-spend-attestation": ["kind", "leg", "retractedEvidenceId", "replacement", "resolutionId", "occurredAtSeconds", "detail"],
 });
 
 const FUNDING_FACT_KEYS = [
@@ -113,10 +141,16 @@ function assertSwapEventPayload(payload: unknown): asserts payload is SwapEventP
     throw new TypeError("Swap event payload is missing required fields");
   }
   if (actual.some((key) => record[key] === undefined)) throw new TypeError("Swap event payload cannot contain undefined fields");
-  if (record.kind === "observe-funding" || record.kind === "observe-spend") {
-    assertExactObject(record.evidence, "Swap event evidence", ["fact", "attestation"]);
-    const evidence = record.evidence;
-    if (record.kind === "observe-funding") {
+  if (
+    record.kind === "observe-funding"
+    || record.kind === "observe-spend"
+    || record.kind === "replace-funding-attestation"
+    || record.kind === "replace-spend-attestation"
+  ) {
+    const candidate = record.kind.startsWith("replace-") ? record.replacement : record.evidence;
+    assertExactObject(candidate, "Swap event evidence", ["fact", "attestation"]);
+    const evidence = candidate;
+    if (record.kind === "observe-funding" || record.kind === "replace-funding-attestation") {
       assertExactObject(evidence.fact, "Funding fact", FUNDING_FACT_KEYS);
     } else {
       assertExactObject(evidence.fact, "Spend fact", SPEND_FACT_KEYS, ["preimage"]);
@@ -156,6 +190,8 @@ export function swapEventSemanticSlot(payload: SwapEventPayload): string {
   assertSwapEventPayload(payload);
   if (payload.kind === "authorize-terms") return `${payload.kind}:${payload.partyId}`;
   if (payload.kind === "prepare-funding") return `${payload.kind}:${payload.leg}`;
+  if (payload.kind === "abandon-funding") return `${payload.kind}:${payload.leg}:${payload.artifactHash}`;
+  if (payload.kind === "expire-swap") return `${payload.kind}:${payload.occurredAtSeconds}`;
   if (payload.kind === "observe-funding") {
     const evidence = payload.evidence;
     return `${payload.kind}:${evidence.fact.leg}:${evidence.fact.factId}:${evidence.attestation.sourceId}`;
@@ -168,6 +204,9 @@ export function swapEventSemanticSlot(payload: SwapEventPayload): string {
     return `${payload.kind}:${evidence.fact.leg}:${evidence.fact.action}:${evidence.fact.factId}:${evidence.attestation.sourceId}`;
   }
   if (payload.kind === "retract-evidence") return `${payload.kind}:${payload.evidenceId}`;
+  if (payload.kind === "replace-funding-attestation" || payload.kind === "replace-spend-attestation") {
+    return `${payload.kind}:${payload.leg}:${payload.retractedEvidenceId}:${payload.resolutionId}`;
+  }
   if (payload.kind === "flag-dispute") {
     return `${payload.kind}:${payload.reason}:${payload.evidenceId ?? "none"}:${payload.detail}`;
   }
@@ -212,6 +251,10 @@ export function applySwapEvent(state: SwapState, payload: SwapEventPayload): Swa
   if (payload.kind === "prepare-funding") {
     return prepareSwapFunding(state, payload.leg, payload.artifactHash, payload.occurredAtSeconds);
   }
+  if (payload.kind === "abandon-funding") {
+    return abandonSwapFunding(state, payload.leg, payload.artifactHash, payload.occurredAtSeconds);
+  }
+  if (payload.kind === "expire-swap") return expireSwap(state, payload.occurredAtSeconds, payload.reason);
   if (payload.kind === "observe-funding") return observeSwapFunding(state, payload.evidence);
   if (payload.kind === "confirm-funding") {
     return confirmSwapFunding(state, payload.leg, payload.factId, payload.qualifiedAtSeconds);
@@ -221,6 +264,28 @@ export function applySwapEvent(state: SwapState, payload: SwapEventPayload): Swa
     return confirmSwapSpend(state, payload.leg, payload.factId, payload.qualifiedAtSeconds);
   }
   if (payload.kind === "retract-evidence") return retractSwapEvidence(state, payload.evidenceId, payload.detail);
+  if (payload.kind === "replace-funding-attestation") {
+    return replaceSwapFundingAttestation(
+      state,
+      payload.leg,
+      payload.retractedEvidenceId,
+      payload.replacement,
+      payload.resolutionId,
+      payload.occurredAtSeconds,
+      payload.detail,
+    );
+  }
+  if (payload.kind === "replace-spend-attestation") {
+    return replaceSwapSpendAttestation(
+      state,
+      payload.leg,
+      payload.retractedEvidenceId,
+      payload.replacement,
+      payload.resolutionId,
+      payload.occurredAtSeconds,
+      payload.detail,
+    );
+  }
   if (payload.kind === "flag-dispute") {
     return flagSwapDispute(state, payload.reason, payload.detail, payload.evidenceId);
   }

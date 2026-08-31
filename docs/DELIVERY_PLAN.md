@@ -1,7 +1,7 @@
 # Phlebas Delivery Plan
 
 Status: active full-build goal
-Updated: 31-08-2026
+Updated: 01-09-2026
 
 The public app now includes an in-browser matcher, integer seed books, legacy AMM previews, split-route comparison, LP share previews, feed-state ticket gates, SHA-256 session digests, keccak EIP-712 typed data, an optional Arbitrum Sepolia wallet connection, local testnet TEX issuance, a local matcher operator, `/status`, and branded error surfaces. The in-repository Sepolia contracts remain undeployed and belong to the legacy pZEC testnet slice, not the native-settlement target.
 
@@ -103,7 +103,7 @@ Acceptance:
 
 ### Native swap state machine and UI journey
 
-Status: implementation batch in progress. The eventual GitHub PR number is assigned at publication time and is not encoded into the architecture.
+Status: key-independent domain and no-value walkthrough implemented locally. Exact-head review, integration with current main, GitHub checks, and Vercel preview remain release gates. The eventual GitHub PR number is assigned at publication time and is not encoded into the architecture.
 
 Deliverables:
 
@@ -111,6 +111,7 @@ Deliverables:
 * Zcash and EVM leg states;
 * funding order and staggered refund deadlines;
 * claim, refund, replacement, and reorganization transitions;
+* policy-bound facts, observer attestations, finality qualification, and recovery audit records;
 * deterministic replay;
 * a no-value lock, claim, and refund journey in the trading UI;
 * explicit separation of the native target from remaining legacy pZEC simulation language.
