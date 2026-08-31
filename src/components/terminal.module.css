@@ -2049,7 +2049,7 @@ a.skipLink:focus-visible {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: stretch;
-    column-gap: 4px;
+    column-gap: 8px;
     row-gap: 8px;
     overflow-y: auto;
     padding: 6px;
