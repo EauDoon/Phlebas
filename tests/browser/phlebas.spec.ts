@@ -213,11 +213,11 @@ for (const width of viewports) {
       await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDC$/);
       await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
 
-      const laterPool = page.getByRole("button", { name: /pZEC\/USDT0/ });
+      const laterPool = page.getByRole("radio", { name: /pZEC\/USDT0/ });
       await tabTo(page, laterPool);
       await expectVisibleFocus(laterPool);
       await page.keyboard.press("Enter");
-      await expect(laterPool).toHaveAttribute("aria-pressed", "true");
+      await expect(laterPool).toHaveAttribute("aria-checked", "true");
       await expect(page.getByText(/Later listing gate\. This is a preview/)).toBeVisible();
       await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDT$/);
 

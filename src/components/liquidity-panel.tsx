@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { quoteConstantProductSwapAtoms } from "@/lib/amm";
 import { AMM_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
@@ -15,12 +15,12 @@ import {
   type PoolShares,
 } from "@/lib/lp";
 import { pools, type MarketId } from "@/lib/market-data";
+import { nextPoolId, POOL_IDS, type PoolId } from "@/lib/pool-ids";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import { parseAtomicUnits, formatAtomicUnits, PZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
-type PoolId = (typeof pools)[number]["id"];
 type EntryDeposit = { pzecAtoms: bigint; quoteAtoms: bigint };
 type LpReview = {
   kind: "mint" | "swap";
@@ -63,6 +63,7 @@ export function LiquidityPanel({
   onRetryFeed: () => void;
 }) {
   const amountHelpId = useId();
+  const poolRefs = useRef<Partial<Record<PoolId, HTMLButtonElement | null>>>({});
   const selectedPool = marketId === "ZEC/USDT" ? pools[1] : pools[0];
   const [amount, setAmount] = useState("10");
   const [poolState, setPoolState] = useState(initialPools);
@@ -146,6 +147,38 @@ export function LiquidityPanel({
       )
       : { hodlQuoteAtoms: 0n, positionQuoteAtoms: 0n, lossQuoteAtoms: 0n },
   }));
+
+  function selectPool(id: PoolId) {
+    onMarketChange(id === "pZEC/USDT0" ? "ZEC/USDT" : "ZEC/USDC");
+  }
+
+  function onPoolKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: PoolId) {
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      const next = nextPoolId(id, 1);
+      selectPool(next);
+      poolRefs.current[next]?.focus();
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const next = nextPoolId(id, -1);
+      selectPool(next);
+      poolRefs.current[next]?.focus();
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      selectPool(POOL_IDS[0]);
+      poolRefs.current[POOL_IDS[0]]?.focus();
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      selectPool(POOL_IDS[POOL_IDS.length - 1]);
+      poolRefs.current[POOL_IDS[POOL_IDS.length - 1]]?.focus();
+    }
+  }
 
   function requestMintReview() {
     if (!gate.canReview) {
@@ -270,14 +303,19 @@ export function LiquidityPanel({
           <span className={styles.statusDot}>Preview only</span>
         </div>
 
-        <div className={styles.poolTabs} role="group" aria-label="Liquidity pool">
+        <div className={styles.poolTabs} role="radiogroup" aria-label="Liquidity pool">
           {pools.map((pool) => (
             <button
               type="button"
               key={pool.id}
-              aria-pressed={selectedPool.id === pool.id}
+              role="radio"
+              aria-checked={selectedPool.id === pool.id}
               className={selectedPool.id === pool.id ? styles.poolActive : undefined}
-              onClick={() => onMarketChange(pool.id === "pZEC/USDT0" ? "ZEC/USDT" : "ZEC/USDC")}
+              ref={(node) => {
+                poolRefs.current[pool.id] = node;
+              }}
+              onClick={() => selectPool(pool.id)}
+              onKeyDown={(event) => onPoolKeyDown(event, pool.id)}
             >
               <span>{pool.id}</span>
               {pool.id === "pZEC/USDT0" && <small>Later listing gate</small>}
