@@ -1241,6 +1241,8 @@ test("architecture skip link reaches the incident demonstration", async ({ page 
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
   await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to honesty bar" })).toBeFocused();
+  await page.keyboard.press("Tab");
   const skipIncident = page.getByRole("link", { name: "Skip to incident demonstration" });
   await expect(skipIncident).toBeFocused();
   await page.keyboard.press("Enter");
@@ -1476,5 +1478,33 @@ test("country-block skip link reaches the notice", async ({ page }) => {
   await expect(skipBlock).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#country-block")).toBeFocused();
+});
+
+test("honesty bar incident copy and review custody stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  const honesty = page.getByRole("region", { name: "Architecture honesty bar" });
+  await expect(honesty).toBeVisible();
+  expect((await honesty.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const incident = page.getByRole("region", { name: "Selected incident demonstration" });
+  await expect(incident).toBeVisible();
+  expect((await incident.locator("p").boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  const custody = page.getByLabel("Review custody notice");
+  await expect(custody).toBeVisible();
+  expect((await custody.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("architecture skip link reaches the honesty bar", async ({ page }) => {
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipHonesty = page.getByRole("link", { name: "Skip to honesty bar" });
+  await expect(skipHonesty).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#honesty-bar")).toBeFocused();
 });
 
