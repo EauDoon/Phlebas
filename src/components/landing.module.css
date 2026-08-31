@@ -314,8 +314,7 @@
   background: var(--surface);
 }
 
-.heroActions > p,
-.systemLedger > a {
+.heroActions > p {
   width: 100%;
   min-width: 0;
   margin-top: 4px;
@@ -326,6 +325,7 @@
 
 .systemLedger > a {
   width: fit-content;
+  min-width: 44px;
   margin-top: 16px;
   color: var(--text);
 }
