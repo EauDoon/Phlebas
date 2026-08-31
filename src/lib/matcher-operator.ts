@@ -39,6 +39,7 @@ type SerializedReceipt = Omit<SequenceReceipt, "fills"> & { fills: SerializedFil
 export type OperatorSnapshot = {
   domain: Omit<Eip712Domain, "chainId"> & { chainId: string };
   sequence: number;
+  sequenceRoot: string;
   book: {
     bids: SerializedOrder[];
     asks: SerializedOrder[];
@@ -131,6 +132,7 @@ export function snapshotOperator(operator: MatcherOperator): OperatorSnapshot {
       chainId: operator.domain.chainId.toString(),
     },
     sequence: operator.sequence,
+    sequenceRoot: sequenceRoot(operator),
     book: {
       bids: operator.book.bids.map(serializeResting),
       asks: operator.book.asks.map(serializeResting),
@@ -175,6 +177,10 @@ export function restoreOperator(snapshot: OperatorSnapshot): MatcherOperator {
     if (receipt.signature.length >= 130) {
       verifyMakerSignature(receipt.digest, receipt.signature, receipt.maker);
     }
+  }
+  const restoredRoot = sequenceRoot(operator);
+  if (snapshot.sequenceRoot && snapshot.sequenceRoot !== restoredRoot) {
+    throw new Error("Persisted sequence root does not match restored receipts.");
   }
   return operator;
 }

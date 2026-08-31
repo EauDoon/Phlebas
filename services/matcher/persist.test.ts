@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -52,6 +52,38 @@ test("corrupt persist file is ignored so the matcher starts empty", async () => 
     await writeFile(path, "{not-json");
     assert.equal(await readOperator(path), null);
     await writeFile(path, JSON.stringify({ sequence: "nope" }));
+    assert.equal(await readOperator(path), null);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("tampered sequence root is ignored so the matcher starts empty", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "phlebas-matcher-root-"));
+  const path = join(dir, "state.json");
+  try {
+    const operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);
+    intakeSignedOrder(operator, {
+      maker: MAKER,
+      side: 0,
+      baseAsset: "0x0000000000000000000000000000000000000001",
+      quoteAsset: "0x0000000000000000000000000000000000000002",
+      baseAmount: 100_000_000n,
+      limitPriceTicks: 5291n,
+      nonce: 1n,
+      accountEpoch: 0n,
+      expiry: 0n,
+      salt: 1n,
+      recipient: MAKER,
+      maximumFeeBps: 30,
+      allowedVenues: 1,
+      tif: "GTC",
+      signature: "0x",
+    });
+    await writeOperator(path, operator);
+    const snapshot = JSON.parse(await readFile(path, "utf8")) as { sequenceRoot: string };
+    snapshot.sequenceRoot = "00".repeat(32);
+    await writeFile(path, `${JSON.stringify(snapshot)}\n`);
     assert.equal(await readOperator(path), null);
   } finally {
     await rm(dir, { recursive: true, force: true });

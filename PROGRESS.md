@@ -56,12 +56,13 @@ Last updated: 31-08-2026 after loopback allowlist, sequence root, production CSP
 - Persist restore keeps the same sequence root. Operator runbook notes Windows ignores POSIX `0o600` on the gateway master key.
 - Payout claim stub walks requested → screened → burn-submitted → payable / unresolved. Nothing is sent.
 - Gateway issued count persists under `services/gateway/.data/issued`, so the intent cap survives a process restart. Corrupt issued files and a master key without `issued` fail closed at the cap.
+- Matcher persist stores the sequence root. A tampered root is ignored and the matcher starts empty.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Wire payout claim states into the withdrawal tour without changing the tour copy
-- Matcher persist and gateway issued files use the same fail-closed pair rule (state.json without a matching sequence root is ignored)
+- Status `/api/status` should surface `intentCap` and `sequenceRoot` only when a loopback operator is configured; public Vercel stays without those URLs
 
 ## Blockers
 
