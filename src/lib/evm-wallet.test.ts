@@ -7,6 +7,7 @@ import {
   connectTestnetWallet,
   missingProviderCopy,
   walletConnectFailureCopy,
+  walletDisconnectLabel,
   walletStateWithSettlement,
   type Eip1193Provider,
 } from "./evm-wallet.ts";
@@ -63,4 +64,14 @@ test("missing provider copy names the settlement pair", () => {
   );
   assert.doesNotMatch(missingProviderCopy("pZEC-USDC"), /native ZEC/);
   assert.doesNotMatch(walletConnectFailureCopy("Wallet connection failed", "pZEC-USDT0"), /live funds/);
+});
+
+test("disconnect label names the settlement pair from a connected address", () => {
+  const address = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
+  assert.equal(
+    walletDisconnectLabel(address, markets["ZEC/USDC"].settlementPair),
+    "Disconnect 0xf39f…2266. Settled as pZEC-USDC.",
+  );
+  assert.match(walletDisconnectLabel(address, markets["ZEC/USDT"].settlementPair), /pZEC-USDT0/);
+  assert.doesNotMatch(walletDisconnectLabel(address, "pZEC-USDC"), /native ZEC/);
 });
