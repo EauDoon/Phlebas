@@ -59,3 +59,15 @@ This register supports the reference design as reviewed on 30-08-2026. Runtime i
 - [Nado documentation](https://docs.nado.xyz/)
 
 These interface references inform hierarchy and density only. Phlebas uses its own assets, styling, copy, and interaction decisions.
+
+## Zcash lab references
+
+- [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf)
+- [ZIP 300 transparent P2SH atomic-swap protocol](https://zips.z.cash/zip-0300)
+- [ZIP 320 payment requests (TEX addresses)](https://zips.z.cash/zip-0320)
+- [ZIP 321 payment request URIs](https://zips.z.cash/zip-0321)
+- [BIP 16 pay-to-script-hash](https://github.com/bitcoin/bips/blob/master/bip-0016.mediawiki)
+- [BIP 65 OP_CHECKLOCKTIMEVERIFY](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)
+- [Bitcoin base58check encoding](https://en.bitcoin.it/wiki/Base58Check_encoding)
+- [Zcash transparent address encoding ZIP 316](https://zips.z.cash/zip-0316)
+- [RIPEMD-160 reference implementation and test vectors](https://homes.esat.kuleuven.be/~bosselae/ripemd160/)
