@@ -40,19 +40,19 @@ type LpReview = {
 
 function initialPools(): Record<PoolId, PoolShares> {
   return {
-    "pZEC/USDC": seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms),
-    "pZEC/USDT0": seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms),
+    "ZEC/USDC": seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms),
+    "ZEC/USDT": seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms),
   };
 }
 
 function emptyShares(): Record<PoolId, bigint> {
-  return { "pZEC/USDC": 0n, "pZEC/USDT0": 0n };
+  return { "ZEC/USDC": 0n, "ZEC/USDT": 0n };
 }
 
 function emptyDeposits(): Record<PoolId, EntryDeposit> {
   return {
-    "pZEC/USDC": { pzecAtoms: 0n, quoteAtoms: 0n },
-    "pZEC/USDT0": { pzecAtoms: 0n, quoteAtoms: 0n },
+    "ZEC/USDC": { pzecAtoms: 0n, quoteAtoms: 0n },
+    "ZEC/USDT": { pzecAtoms: 0n, quoteAtoms: 0n },
   };
 }
 
@@ -287,17 +287,12 @@ export function LiquidityPanel({
               key={pool.id}
               aria-pressed={selectedPool.id === pool.id}
               className={selectedPool.id === pool.id ? styles.poolActive : undefined}
-              onClick={() => onMarketChange(pool.id === "pZEC/USDT0" ? "ZEC/USDT" : "ZEC/USDC")}
+              onClick={() => onMarketChange(pool.id === "ZEC/USDT" ? "ZEC/USDT" : "ZEC/USDC")}
             >
               <span>{pool.id}</span>
-              {pool.id === "pZEC/USDT0" && <small>Later listing gate</small>}
             </button>
           ))}
         </div>
-
-        {selectedPool.id === "pZEC/USDT0" && (
-          <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
-        )}
         {feedStatus !== "illustrative" && (
           <div className={styles.ticketBlocked} role="status">
             <strong>{gate.heading}</strong>
@@ -324,7 +319,7 @@ export function LiquidityPanel({
               inputMode="decimal"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
-              aria-label="pZEC liquidity amount"
+              aria-label="ZEC liquidity amount"
               aria-invalid={!amountPreview.valid}
               aria-describedby={amountHelpId}
             />

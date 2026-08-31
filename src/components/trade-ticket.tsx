@@ -247,7 +247,7 @@ export function TradeTicket({
     if (side === "sell") {
       const nextSize = (availablePzecAtoms * share) / 100n;
       if (nextSize <= 0n) {
-        setNotice("Session pZEC inventory is empty.");
+        setNotice("Session ZEC inventory is empty.");
         return;
       }
       setSize(formatAtomicUnits(nextSize, PZEC_DECIMALS));
@@ -472,10 +472,6 @@ export function TradeTicket({
         <span className={styles.statusDot}>Local matcher</span>
       </div>
 
-      {market.id === "ZEC/USDT" && (
-        <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
-      )}
-
       {!gate.canReview && (
         <div className={styles.ticketBlocked} role="status">
           <strong>{gate.heading}</strong>
@@ -586,7 +582,7 @@ export function TradeTicket({
             inputMode="decimal"
             value={size}
             onChange={(event) => setSize(event.target.value)}
-            aria-label="Order size in pZEC"
+            aria-label="Order size in ZEC"
             aria-invalid={!sizeIsValid || Boolean(notionalError)}
             aria-describedby={noticeId}
           />
