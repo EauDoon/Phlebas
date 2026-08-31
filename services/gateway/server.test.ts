@@ -29,6 +29,26 @@ test("gateway HTTP issues unique textest intents on loopback", async () => {
     const second = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
     const secondBody = await second.json() as { tex: string };
     assert.notEqual(secondBody.tex, firstBody.tex);
+
+    const missing = await fetch(`http://127.0.0.1:${port}/nope`);
+    assert.equal(missing.status, 404);
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
+test("gateway HTTP refuses further intents after the local cap", async () => {
+  const server = startGateway({ host: "127.0.0.1", port: 0, maxIntents: 1 });
+  await once(server, "listening");
+  const { port } = server.address() as AddressInfo;
+  try {
+    const first = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
+    assert.equal(first.status, 201);
+    const second = await fetch(`http://127.0.0.1:${port}/intents`, { method: "POST" });
+    const body = await second.json() as { reason: string };
+    assert.equal(second.status, 429);
+    assert.equal(body.reason, "intent-cap");
   } finally {
     server.close();
     await once(server, "close");

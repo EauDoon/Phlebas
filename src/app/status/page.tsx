@@ -27,6 +27,7 @@ export default function StatusPage() {
         <div><dt>Contracts</dt><dd>{status.contracts}</dd></div>
         <div><dt>Network</dt><dd>{status.network}</dd></div>
         <div><dt>Market data</dt><dd>{status.marketData}</dd></div>
+        <div><dt>Country access</dt><dd>{status.countryAccess}</dd></div>
       </dl>
       <p>
         Machine-readable copy: <a href="/api/status">/api/status</a>

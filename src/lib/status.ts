@@ -14,5 +14,6 @@ export function simulationStatus() {
     contracts: "source-undeployed",
     network: "arbitrum-sepolia-unconfigured",
     marketData: "illustrative",
+    countryAccess: "deny-default",
   } as const;
 }

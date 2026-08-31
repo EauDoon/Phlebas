@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { hexToBytes } from "../../src/lib/keccak.ts";
+import { listenHost } from "../../src/lib/operator-url.ts";
 import { SYNTHETIC_DEPOSIT_ZATOSHIS } from "../../src/lib/zip321.ts";
 
 import { createGateway, issueTestnetIntent } from "./issuer.ts";
@@ -39,9 +40,10 @@ export async function loadGateway() {
   return createGateway(hexToBytes(masterHex));
 }
 
-export function startGateway(options: { host?: string; port?: number } = {}) {
-  const host = options.host ?? process.env.PHLEBAS_BIND ?? "127.0.0.1";
+export function startGateway(options: { host?: string; port?: number; maxIntents?: number } = {}) {
+  const host = listenHost(options.host);
   const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8787);
+  const maxIntents = options.maxIntents ?? Number(process.env.PHLEBAS_GATEWAY_MAX_INTENTS ?? 64);
   const ready = loadGateway();
 
   const server = createServer((request, response) => {
@@ -53,6 +55,10 @@ export function startGateway(options: { host?: string; port?: number } = {}) {
         return;
       }
       if (request.method === "POST" && url.pathname === "/intents") {
+        if (state.sequence >= maxIntents) {
+          send(response, 429, { ok: false, reason: "intent-cap" });
+          return;
+        }
         const body = await readJson(request);
         const amount = body.amountZatoshis === undefined
           ? SYNTHETIC_DEPOSIT_ZATOSHIS

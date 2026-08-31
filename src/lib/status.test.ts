@@ -14,4 +14,5 @@ test("status payload never claims live funds or custody", () => {
   assert.equal(status.contracts, "source-undeployed");
   assert.equal(status.mode, "simulation");
   assert.equal(status.marketData, "illustrative");
+  assert.equal(status.countryAccess, "deny-default");
 });

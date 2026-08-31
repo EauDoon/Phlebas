@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { sepoliaDomain } from "../../src/lib/eip712.ts";
-import { createMatcherOperator, intakeSignedOrder } from "../../src/lib/matcher-operator.ts";
+import { createMatcherOperator, intakeSignedOrder, sequenceRoot } from "../../src/lib/matcher-operator.ts";
 import { readOperator, writeOperator } from "./persist.ts";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -39,6 +39,20 @@ test("persisted operator reloads the same sequence and book", async () => {
     assert.equal(loaded?.sequence, 1);
     assert.equal(loaded?.book.lastTicks, operator.book.lastTicks);
     assert.equal(loaded?.receipts[0]?.digest, operator.receipts[0]?.digest);
+    assert.equal(sequenceRoot(loaded), sequenceRoot(operator));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("corrupt persist file is ignored so the matcher starts empty", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "phlebas-matcher-corrupt-"));
+  const path = join(dir, "state.json");
+  try {
+    await writeFile(path, "{not-json");
+    assert.equal(await readOperator(path), null);
+    await writeFile(path, JSON.stringify({ sequence: "nope" }));
+    assert.equal(await readOperator(path), null);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

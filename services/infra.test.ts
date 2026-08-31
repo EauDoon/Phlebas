@@ -15,6 +15,7 @@ test("Compose publishes gateway and matcher on loopback only and never sets Verc
   assert.doesNotMatch(compose, /^\s*PHLEBAS_GATEWAY_URL:/m);
   assert.doesNotMatch(compose, /^\s*PHLEBAS_MATCHER_URL:/m);
   assert.match(compose, /Do not set PHLEBAS_GATEWAY_URL or PHLEBAS_MATCHER_URL on Vercel/);
+  assert.match(compose, /PHLEBAS_ALLOW_NON_LOOPBACK: "1"/);
   assert.match(dockerfile, /node:24/);
   assert.match(dockerfile, /services\/gateway\/server\.ts|COPY services/);
 });
@@ -48,4 +49,17 @@ test("operator runbook exists and CI does not set gateway or matcher URLs", asyn
   assert.match(runbook, /Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel/);
   assert.doesNotMatch(ci, /PHLEBAS_GATEWAY_URL/);
   assert.doesNotMatch(ci, /PHLEBAS_MATCHER_URL/);
+});
+
+test("secret scan fails operator URLs in committed Vercel env files", async () => {
+  const scan = await readFile(join(root, "scripts/scan-secrets.mjs"), "utf8");
+  const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as {
+    scripts: Record<string, string>;
+  };
+  assert.match(scan, /name: "vercel-operator-gateway"/);
+  assert.match(scan, /name: "vercel-operator-matcher"/);
+  assert.match(scan, /PHLEBAS_GATEWAY_URL\\s\*\[:=\]/);
+  assert.match(scan, /PHLEBAS_MATCHER_URL\\s\*\[:=\]/);
+  assert.match(scan, /\(\^|\\\/\)\(\\\.env|vercel\\\.json|\\\.vercel\\\/\)/);
+  assert.match(pkg.scripts.check, /scan:secrets/);
 });

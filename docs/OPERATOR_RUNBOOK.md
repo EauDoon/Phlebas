@@ -30,7 +30,7 @@ npm run matcher
 npm run observer
 ```
 
-Each process defaults to `127.0.0.1` unless `PHLEBAS_BIND` is set.
+Each process defaults to `127.0.0.1`. Direct `npm run` processes refuse `PHLEBAS_BIND=0.0.0.0` unless `PHLEBAS_ALLOW_NON_LOOPBACK=1` (Compose sets that inside the container only).
 
 ## Health
 
@@ -40,7 +40,7 @@ curl http://127.0.0.1:8788/health
 curl http://127.0.0.1:8789/health
 ```
 
-Expect `network: testnet` from gateway and observer. Matcher reports `matcher: local-operator`.
+Expect `network: testnet` from gateway and observer. Matcher reports `matcher: local-operator`, a keccak `sequenceRoot` over sequence plus receipt digests, and `startedAt` / `lastSequenceAt` for downtime polling.
 
 ## Gateway: issue a testnet TEX
 
@@ -48,7 +48,7 @@ Expect `network: testnet` from gateway and observer. Matcher reports `matcher: l
 curl -X POST http://127.0.0.1:8787/intents
 ```
 
-The body is a single-use `textest` address and a ZIP 321 URI. Never reuse the address. Never treat this as a mainnet deposit.
+The body is a single-use `textest` address and a ZIP 321 URI. Never reuse the address. Never treat this as a mainnet deposit. The process refuses further issues after 64 intents (`PHLEBAS_GATEWAY_MAX_INTENTS`).
 
 Local Next.js only:
 
@@ -58,7 +58,7 @@ set PHLEBAS_GATEWAY_URL=http://127.0.0.1:8787
 
 ## Matcher: sequence
 
-`POST /orders` accepts a typed order plus signature. Unsigned session tickets stay in the browser. Persist lives under `services/matcher/.data` and is gitignored.
+`POST /orders` accepts a typed order plus signature. Unsigned session tickets stay in the browser. Persist lives under `services/matcher/.data` and is gitignored. `GET /sequence?after=N` returns receipts after sequence N.
 
 Local Next.js only:
 
@@ -72,6 +72,8 @@ set PHLEBAS_MATCHER_URL=http://127.0.0.1:8788
 
 This stub does not open Zebra RPC and does not call `PZec.mint`.
 
+`POST /coverage` accepts a reserve snapshot and returns `calculateReserveCoverage`. It reproduces the operator's arithmetic from public inputs. It is not a live reserve monitor. `POST /attest` with `reserve` fails closed when `controlledCovered` is false.
+
 ## Stop
 
 ```bash
@@ -80,6 +82,10 @@ docker compose -f services/compose.yaml down
 
 Direct processes: interrupt the three Node jobs. Data directories under `services/*/.data` remain local.
 
+## Data
+
+Gateway master key: `services/gateway/.data/master.key`. Matcher persist: `services/matcher/.data/state.json`. Both are gitignored. `writeFile` requests mode `0o600` for the master key; Windows ignores POSIX mode bits, so do not copy that directory onto another host, into git, or onto Vercel.
+
 ## Incidents
 
 | Signal | Action |
@@ -87,6 +93,8 @@ Direct processes: interrupt the three Node jobs. Data directories under `service
 | Health fails on loopback | Restart that process. Do not point Vercel at it. |
 | Observer disagreement | Stop new attestations. Inspect the payload. Do not mint. |
 | Shielded or mixed final tx | Quarantine. Do not mint. |
+| Reorg drops an observation | Observer drops off-chain and under-confirmed outpoints. Do not mint. |
+| Persist file missing or unreadable | Matcher starts empty at sequence 0. Do not copy state onto Vercel. |
 | Port bound on `0.0.0.0` on the host | Stop. Host publish must be `127.0.0.1`. |
 | Temptation to set gateway/matcher URLs on Vercel | Do not. Vercel stays the public UI only. |
 

@@ -132,6 +132,7 @@ for (const width of viewports) {
             "pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.",
             { exact: true },
           )).toBeVisible();
+          await expect(page.getByText("Deny by default", { exact: true })).toBeVisible();
         }
       }
 
@@ -278,6 +279,8 @@ test("gateway preview is not a receivable deposit", async ({ page }) => {
   await expect(page.getByText("Screened", { exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("zs1notreal");
   await expect(page.getByText("Shielded and unified addresses are out of scope.")).toBeVisible();
+  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
+  await expect(page.getByText("Nothing is sent.")).toBeVisible();
 });
 
 test("local matcher fills a buy against the fixture ask", async ({ page }) => {
@@ -313,11 +316,24 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "Simulation status" })).toBeVisible();
   await expect(page.getByText("in-browser", { exact: true })).toBeVisible();
   await expect(page.getByText("live funds", { exact: false })).toBeVisible();
+  await expect(page.getByText("deny-default", { exact: true })).toBeVisible();
 
   const missing = await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "load" });
   expect(missing?.status(), "404 status").toBe(404);
   await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
   await expect(page.getByText("Simulation only", { exact: true })).toBeVisible();
+});
+
+test("public operator APIs stay unavailable without a loopback operator URL", async ({ page }) => {
+  const gateway = await page.request.post("/api/deposit-intent");
+  expect(gateway.status()).toBe(503);
+  expect((await gateway.json()).reason).toBe("gateway-unavailable");
+  const matcher = await page.request.get("/api/matcher");
+  expect(matcher.status()).toBe(503);
+  expect((await matcher.json()).reason).toBe("matcher-unavailable");
+  const matcherPost = await page.request.post("/api/matcher", { data: {} });
+  expect(matcherPost.status()).toBe(503);
+  expect((await matcherPost.json()).reason).toBe("matcher-unavailable");
 });
 
 test("ZIP 321 copy stays disabled without a gateway", async ({ page }) => {

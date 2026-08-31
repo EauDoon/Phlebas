@@ -1,13 +1,11 @@
-const MATCHER_URL = process.env.PHLEBAS_MATCHER_URL;
+import { isLoopbackOperatorUrl, operatorUnavailable } from "@/lib/operator-url";
 
 export async function GET() {
-  if (!MATCHER_URL) {
-    return Response.json(
-      { ok: false, reason: "matcher-unavailable", matcher: "in-browser" },
-      { status: 503, headers: { "Cache-Control": "no-store" } },
-    );
+  const matcherUrl = process.env.PHLEBAS_MATCHER_URL;
+  if (!isLoopbackOperatorUrl(matcherUrl)) {
+    return operatorUnavailable("matcher-unavailable", { matcher: "in-browser" });
   }
-  const response = await fetch(new URL("/health", MATCHER_URL));
+  const response = await fetch(new URL("/health", matcherUrl));
   return new Response(await response.text(), {
     status: response.status,
     headers: { "content-type": "application/json", "Cache-Control": "no-store" },
@@ -15,13 +13,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!MATCHER_URL) {
-    return Response.json(
-      { ok: false, reason: "matcher-unavailable", matcher: "in-browser" },
-      { status: 503, headers: { "Cache-Control": "no-store" } },
-    );
+  const matcherUrl = process.env.PHLEBAS_MATCHER_URL;
+  if (!isLoopbackOperatorUrl(matcherUrl)) {
+    return operatorUnavailable("matcher-unavailable", { matcher: "in-browser" });
   }
-  const response = await fetch(new URL("/orders", MATCHER_URL), {
+  const response = await fetch(new URL("/orders", matcherUrl), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: await request.text(),

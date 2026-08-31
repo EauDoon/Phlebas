@@ -11,6 +11,7 @@ services:
     command: ["node", "--experimental-strip-types", "services/gateway/server.ts"]
     environment:
       PHLEBAS_BIND: "0.0.0.0"
+      PHLEBAS_ALLOW_NON_LOOPBACK: "1"
       PHLEBAS_PORT: "8787"
     ports:
       - "127.0.0.1:8787:8787"
@@ -24,6 +25,7 @@ services:
     command: ["node", "--experimental-strip-types", "services/matcher/server.ts"]
     environment:
       PHLEBAS_BIND: "0.0.0.0"
+      PHLEBAS_ALLOW_NON_LOOPBACK: "1"
       PHLEBAS_PORT: "8788"
     ports:
       - "127.0.0.1:8788:8788"
@@ -37,6 +39,7 @@ services:
     command: ["node", "--experimental-strip-types", "services/observer/server.ts"]
     environment:
       PHLEBAS_BIND: "0.0.0.0"
+      PHLEBAS_ALLOW_NON_LOOPBACK: "1"
       PHLEBAS_PORT: "8789"
     ports:
       - "127.0.0.1:8789:8789"

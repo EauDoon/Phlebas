@@ -3,7 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { eip712DigestHex, sepoliaDomain, type TypedOrder } from "../../src/lib/eip712.ts";
-import { createMatcherOperator, intakeSignedOrder, type MatcherOperator } from "../../src/lib/matcher-operator.ts";
+import { listenHost } from "../../src/lib/operator-url.ts";
+import { createMatcherOperator, intakeSignedOrder, sequenceRoot, type MatcherOperator } from "../../src/lib/matcher-operator.ts";
 import { readOperator, writeOperator } from "./persist.ts";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -48,9 +49,11 @@ export function createMatcherService(verifyingContract = ZERO, lastTicks = 5291n
 }
 
 export function startMatcher(options: { host?: string; port?: number; operator?: MatcherOperator; persistPath?: string } = {}) {
-  const host = options.host ?? process.env.PHLEBAS_BIND ?? "127.0.0.1";
+  const host = listenHost(options.host);
   const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8788);
   const persistPath = options.persistPath ?? dataPath;
+  const startedAt = Date.now();
+  let lastSequenceAt = startedAt;
   let operator = options.operator;
 
   const ready = (async () => {
@@ -64,11 +67,28 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
       if (!operator) operator = createMatcherService();
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
       if (request.method === "GET" && url.pathname === "/health") {
-        send(response, 200, { ok: true, sequence: operator.sequence, matcher: "local-operator", persist: persistPath });
+        send(response, 200, {
+          ok: true,
+          sequence: operator.sequence,
+          sequenceRoot: sequenceRoot(operator),
+          matcher: "local-operator",
+          persist: persistPath,
+          startedAt,
+          lastSequenceAt,
+        });
         return;
       }
       if (request.method === "GET" && url.pathname === "/sequence") {
-        send(response, 200, { sequence: operator.sequence, receipts: operator.receipts });
+        const after = Number(url.searchParams.get("after") ?? "0");
+        const receipts = Number.isInteger(after) && after > 0
+          ? operator.receipts.filter((receipt) => receipt.sequence > after)
+          : operator.receipts;
+        send(response, 200, {
+          sequence: operator.sequence,
+          sequenceRoot: sequenceRoot(operator),
+          after: Number.isInteger(after) && after > 0 ? after : 0,
+          receipts,
+        });
         return;
       }
       if (request.method === "GET" && url.pathname === "/book") {
@@ -84,6 +104,7 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
           return;
         }
         await writeOperator(persistPath, operator);
+        lastSequenceAt = Date.now();
         send(response, 201, receipt);
         return;
       }

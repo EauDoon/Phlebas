@@ -97,3 +97,9 @@ export function agreeObservations(observations: ObservedOutpoint[]): ObservedOut
   }
   return first;
 }
+
+export function applyReorg(observation: ObservedOutpoint, stillOnChain: boolean): "drop" | "keep" {
+  if (!stillOnChain) return "drop";
+  if (observation.confirmations < TESTNET_MIN_CONFIRMATIONS) return "drop";
+  return "keep";
+}

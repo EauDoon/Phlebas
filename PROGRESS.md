@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after operator runbook, hardened loopback tests, and Apache-2.0 choice note.
+Last updated: 31-08-2026 after loopback allowlist, sequence root, production CSP assertion, Vercel-env secret scan, and current-reality docs.
 
 ## Branch
 
@@ -35,10 +35,31 @@ Last updated: 31-08-2026 after operator runbook, hardened loopback tests, and Ap
 - Zebra observer and mint-attestation stubs: textest only, 10 confirmations, one outpoint one mint. No Zebra RPC. HTTP `/attest` is covered by a live loopback test.
 - License: Apache License 2.0 (`LICENSE`, `docs/LICENSE_CHOICE.md`). Not MIT. Product language unchanged.
 - Operator runbook for local Compose: `docs/OPERATOR_RUNBOOK.md`. Gateway, matcher, and observer health and incident steps. Loopback HTTP tests cover issue, sequence health, attest, quarantine, and disagreement.
+- Public `/api/deposit-intent` and `/api/matcher` only proxy `http://127.0.0.1` (or localhost / `[::1]`) with no path. Anything else, including unset, is 503.
+- Payout stub: one burn, one transparent-shape destination, never TEX or shielded. Withdrawal inspector previews the stub and still sends nothing.
+- Observer reorg drops off-chain and under-confirmed observations.
+- Country access default deny, empty enable list, shown on the landing ledger and `/status`.
+- Matcher loopback POST rejects a signature that does not recover to the maker.
+- Direct operator processes refuse `0.0.0.0` unless `PHLEBAS_ALLOW_NON_LOOPBACK=1` (Compose only).
+- SECURITY.md matches the current simulation-plus-local-stubs boundary.
+- Public `/api/deposit-intent` and `/api/matcher` refuse operator URLs with a path, user, TLS, query, or hash.
+- Matcher health publishes a keccak sequence root over sequence plus receipt digests.
+- Production CSP `connect-src` is `'self'` only; `ws:`/`http:` are development-only. Asserted in `copy-boundary.test.ts`.
+- Secret scan fails `PHLEBAS_GATEWAY_URL` / `PHLEBAS_MATCHER_URL` in committed `.env`, `vercel.json`, or `.vercel/` files.
+- THREAT_MODEL, ARCHITECTURE, and landing-journey current-reality match the simulation-plus-local-stubs boundary.
+- Matcher persist ignores corrupt `state.json` and starts empty. Covered by a unit test.
+- Payout pre-burn screen: requested destinations are screened or rejected before a burn id is spent. Withdrawal inspector uses the screen; nothing is sent.
+- Observer `POST /coverage` reproduces `calculateReserveCoverage` from public inputs. Not a live reserve monitor.
+- Matcher health publishes `startedAt` and `lastSequenceAt` for third-party downtime polling.
+- Matcher `GET /sequence?after=N` is the receipt cursor. Observer `/attest` fails closed when a supplied reserve snapshot is uncovered.
+- Gateway loopback issue cap defaults to 64 intents (`PHLEBAS_GATEWAY_MAX_INTENTS`). Further issues are 429.
+- Persist restore keeps the same sequence root. Operator runbook notes Windows ignores POSIX `0o600` on the gateway master key.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (blocked on an approved deployer key; do not `--mark-deployed` without a tx)
+- Payout states after screened (burn submitted, payable, unresolved) without sending native ZEC
+- Intent cap survives gateway process restart (persist issued count, not only in-memory sequence)
 
 ## Blockers
 

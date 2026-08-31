@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { inspectTransparentDestination } from "@/lib/zcash-address";
+import { screenPayout } from "@/lib/payout";
 import { isTestnetTex } from "@/lib/tex";
 
 import styles from "./terminal.module.css";
@@ -52,6 +53,9 @@ export function BridgePanel() {
   const [gatewayNotice, setGatewayNotice] = useState("Local gateway off. No receivable address is displayed.");
   const tour = withdrawalTour[tourIndex];
   const destinationCheck = inspectTransparentDestination(destination);
+  const payoutPreview = destination.trim().length === 0
+    ? null
+    : screenPayout(destination, 1n);
 
   async function issueTestnetTex() {
     try {
@@ -165,6 +169,9 @@ export function BridgePanel() {
             </label>
             <p className={styles.inlineNotice} aria-live="polite">
               {destinationCheck.message}
+              {payoutPreview?.state === "screened"
+                ? " Payout stub would accept this destination shape. Nothing is sent."
+                : ""}
             </p>
             <div className={styles.tourNav}>
               <button

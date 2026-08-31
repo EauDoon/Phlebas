@@ -1,4 +1,5 @@
 import { eip712DigestHex, type Eip712Domain, type TypedOrder } from "./eip712.ts";
+import { keccak256Hex } from "./keccak.ts";
 import { emptyBook, submitOrder, type Book, type Fill, type RestingOrder, type TimeInForce } from "./matcher.ts";
 import { recoverAddress } from "./secp256k1.ts";
 
@@ -61,6 +62,10 @@ export function createMatcherOperator(domain: Eip712Domain, lastTicks: bigint): 
     receipts: [],
     domain,
   };
+}
+
+export function sequenceRoot(operator: Pick<MatcherOperator, "sequence" | "receipts">): string {
+  return keccak256Hex(`${operator.sequence}:${operator.receipts.map((receipt) => receipt.digest).join(":")}`);
 }
 
 export function verifyMakerSignature(digest: string, signature: string, maker: string): void {
