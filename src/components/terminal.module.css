@@ -1496,7 +1496,7 @@
   min-height: 44px;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  flex: 1 0 auto;
 }
 
 .blockedPanel {
