@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { AccessDemo } from "@/lib/access-demo";
+import { CHART_RANGES, nextChartRange } from "@/lib/chart-ranges";
 import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
@@ -105,6 +106,7 @@ export function TradingTerminal({
   const nextOrderId = useRef(1);
   const nextPriceNonce = useRef(1);
   const nextFillId = useRef(1);
+  const rangeRefs = useRef<Partial<Record<ChartRange, HTMLButtonElement | null>>>({});
   const market = markets[marketId];
   const book = books[marketId];
   const feed = feedSurface(feedStatus);
@@ -227,6 +229,34 @@ export function TradingTerminal({
     setAccountEpoch((epoch) => epoch + 1);
   }
 
+  function onRangeKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: ChartRange) {
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      const next = nextChartRange(id, 1);
+      setRange(next);
+      rangeRefs.current[next]?.focus();
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const next = nextChartRange(id, -1);
+      setRange(next);
+      rangeRefs.current[next]?.focus();
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      setRange("1H");
+      rangeRefs.current["1H"]?.focus();
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      setRange("1D");
+      rangeRefs.current["1D"]?.focus();
+    }
+  }
+
   function resetSession() {
     setBooks(seedBooks());
     setAccounts(seedAccounts());
@@ -337,9 +367,23 @@ export function TradingTerminal({
               <section className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
                 <div className={styles.panelHeader}>
                   <div><span className={styles.eyebrow}>{feed.eyebrow}</span><h2 id="chart-title">{marketId}</h2></div>
-                  <div className={styles.rangeTabs} role="group" aria-label="Chart range">
-                    {(["1H", "4H", "1D"] as ChartRange[]).map((item) => (
-                      <button type="button" key={item} aria-pressed={range === item} className={range === item ? styles.textActive : undefined} onClick={() => setRange(item)}>{item}</button>
+                  <div className={styles.rangeTabs} role="radiogroup" aria-label="Chart range">
+                    {CHART_RANGES.map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        role="radio"
+                        aria-checked={range === item}
+                        tabIndex={range === item ? 0 : -1}
+                        className={range === item ? styles.textActive : undefined}
+                        ref={(node) => {
+                          rangeRefs.current[item] = node;
+                        }}
+                        onClick={() => setRange(item)}
+                        onKeyDown={(event) => onRangeKeyDown(event, item)}
+                      >
+                        {item}
+                      </button>
                     ))}
                   </div>
                 </div>
