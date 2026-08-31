@@ -180,6 +180,11 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/app/error.tsx"), "utf8"), /Skip to retry copy/);
   assert.match(await readFile(join(root, "src/app/error.tsx"), "utf8"), /id="retry-copy"/);
   assert.match(await readFile(join(root, "src/app/error.tsx"), "utf8"), /Nothing was submitted/);
+  const globalError = await readFile(join(root, "src/app/global-error.tsx"), "utf8");
+  assert.match(globalError, /Nothing was submitted to a chain, matcher, or custody system/);
+  assert.match(globalError, /minHeight: 44/);
+  assert.match(globalError, /minWidth: 44/);
+  assert.doesNotMatch(globalError, /is a live exchange/);
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
 });
 

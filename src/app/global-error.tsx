@@ -15,7 +15,20 @@ export default function GlobalError({
           <h1>The simulation failed to start</h1>
           <p>Nothing was submitted to a chain, matcher, or custody system.</p>
           <p>{error.message || "An unexpected rendering error occurred."}</p>
-          <button type="button" onClick={reset} style={{ color: "#f4c95d", background: "transparent", border: 0, font: "inherit" }}>
+          <button
+            type="button"
+            onClick={reset}
+            style={{
+              display: "inline-flex",
+              minWidth: 44,
+              minHeight: 44,
+              alignItems: "center",
+              color: "#f4c95d",
+              background: "transparent",
+              border: 0,
+              font: "inherit",
+            }}
+          >
             Retry
           </button>
         </main>
