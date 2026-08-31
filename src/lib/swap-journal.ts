@@ -3,6 +3,7 @@ import { sha256Hex } from "./sha256.ts";
 import { swapStateRoot } from "./swap-root.ts";
 import {
   abandonSwapFunding,
+  assertSwapStateIntegrity,
   authorizeSwapTerms,
   confirmSwapFunding,
   confirmSwapSpend,
@@ -189,7 +190,7 @@ export function hashSwapEventPayload(payload: SwapEventPayload): Hex32 {
 export function swapEventSemanticSlot(payload: SwapEventPayload): string {
   assertSwapEventPayload(payload);
   if (payload.kind === "authorize-terms") return `${payload.kind}:${payload.partyId}`;
-  if (payload.kind === "prepare-funding") return `${payload.kind}:${payload.leg}`;
+  if (payload.kind === "prepare-funding") return `${payload.kind}:${payload.leg}:${payload.artifactHash}`;
   if (payload.kind === "abandon-funding") return `${payload.kind}:${payload.leg}:${payload.artifactHash}`;
   if (payload.kind === "expire-swap") return `${payload.kind}:${payload.occurredAtSeconds}`;
   if (payload.kind === "observe-funding") {
@@ -232,6 +233,7 @@ export function hashSwapEvent(receipt: Omit<SwapEventReceipt, "eventHash">): Hex
 }
 
 export function emptySwapJournal(state: SwapState): SwapJournal {
+  assertGenesisSwapState(state);
   return Object.freeze({
     swapId: state.swapId,
     termsHash: state.termsHash,
@@ -241,6 +243,23 @@ export function emptySwapJournal(state: SwapState): SwapJournal {
     head: SWAP_EVENT_GENESIS,
     nextSequence: 1n,
   });
+}
+
+function assertGenesisSwapState(state: SwapState): void {
+  assertSwapStateIntegrity(state);
+  if (Object.keys(state.authorizations).length > 0
+    || state.zec.phase !== "unfunded"
+    || state.evm.phase !== "unfunded"
+    || state.observedSecret !== undefined
+    || state.observedSecretFactId !== undefined
+    || state.confirmedSecret !== undefined
+    || state.confirmedSecretFactId !== undefined
+    || state.terminal !== undefined
+    || state.disputes.length > 0
+    || state.resolutions.length > 0
+    || Object.keys(state.retractedEvidenceIds).length > 0) {
+    throw new Error("A swap journal must begin from the pristine created state");
+  }
 }
 
 export function applySwapEvent(state: SwapState, payload: SwapEventPayload): SwapState {
@@ -301,6 +320,9 @@ export function appendSwapEvent(
   if (journal.swapId !== state.swapId || journal.termsHash !== state.termsHash) {
     throw new Error("Swap journal does not bind the supplied state");
   }
+  const priorStateRoot = swapStateRoot(state);
+  const expectedPriorRoot = journal.receipts.at(-1)?.nextStateRoot ?? journal.initialStateRoot;
+  if (priorStateRoot !== expectedPriorRoot) throw new Error("Supplied swap state does not match the journal head");
   const payloadHash = hashSwapEventPayload(payload);
   const duplicate = journal.receipts.find((receipt) => receipt.payloadHash === payloadHash);
   if (duplicate) return { journal, state, receipt: duplicate, appended: false };
@@ -308,9 +330,6 @@ export function appendSwapEvent(
   const conflict = journal.receipts.find((receipt) => receipt.semanticSlot === semanticSlot);
   if (conflict) throw new Error("Conflicting event occupies the same semantic slot");
 
-  const priorStateRoot = swapStateRoot(state);
-  const expectedPriorRoot = journal.receipts.at(-1)?.nextStateRoot ?? journal.initialStateRoot;
-  if (priorStateRoot !== expectedPriorRoot) throw new Error("Supplied swap state does not match the journal head");
   const nextState = applySwapEvent(state, payload);
   const nextStateRoot = swapStateRoot(nextState);
   const unsigned: Omit<SwapEventReceipt, "eventHash"> = Object.freeze({
@@ -345,6 +364,7 @@ export function verifySwapJournal(journal: SwapJournal): boolean {
     const termsHash = canonicalHex32(journal.termsHash, "Journal terms hash");
     let stateRoot = canonicalHex32(journal.initialStateRoot, "Journal initial state root");
     if (journal.initialState.swapId !== swapId || journal.initialState.termsHash !== termsHash) return false;
+    assertGenesisSwapState(journal.initialState);
     if (swapStateRoot(journal.initialState) !== stateRoot) return false;
     let state = journal.initialState;
     let previous = SWAP_EVENT_GENESIS;

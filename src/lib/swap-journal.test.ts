@@ -3,9 +3,7 @@ import test from "node:test";
 
 import { keccak256Text } from "./keccak.ts";
 import {
-  authorizedSwap,
   fixtureSecretHash,
-  fundedSwap,
   fundingEvidence,
   sampleEvidencePolicies,
   sampleMarketPolicy,
@@ -20,11 +18,80 @@ import {
   verifySwapJournal,
   type SwapEventPayload,
 } from "./swap-journal.ts";
-import { createSwapState, prepareSwapFunding } from "./swap-state.ts";
+import { createSwapState } from "./swap-state.ts";
 
 function fixture() {
   const state = createSwapState(sampleSwapTerms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy);
   return { state, journal: emptySwapJournal(state) };
+}
+
+function authorizedJournal(terms = sampleSwapTerms) {
+  const state = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy);
+  const initial = { state, journal: emptySwapJournal(state) };
+  const first = appendSwapEvent(initial.journal, initial.state, {
+    kind: "authorize-terms",
+    partyId: terms.zecSellerId,
+    termsHash: initial.state.termsHash,
+    occurredAtSeconds: terms.authorizationDeadline - 2n,
+  });
+  return appendSwapEvent(first.journal, first.state, {
+    kind: "authorize-terms",
+    partyId: terms.stablecoinSellerId,
+    termsHash: initial.state.termsHash,
+    occurredAtSeconds: terms.authorizationDeadline - 1n,
+  });
+}
+
+function preparedZecJournal(artifactHash: ReturnType<typeof keccak256Text>, terms = sampleSwapTerms) {
+  const authorized = authorizedJournal(terms);
+  return appendSwapEvent(authorized.journal, authorized.state, {
+    kind: "prepare-funding",
+    leg: "zec",
+    artifactHash,
+    occurredAtSeconds: terms.zecFundBy - 1n,
+  });
+}
+
+function fundedJournal(terms = sampleSwapTerms) {
+  const zecPrepared = preparedZecJournal(keccak256Text("journal-zec-artifact"), terms);
+  const zecFirstEvidence = fundingEvidence("zec", "1", terms, 0);
+  const zecFirst = appendSwapEvent(zecPrepared.journal, zecPrepared.state, {
+    kind: "observe-funding",
+    evidence: zecFirstEvidence,
+  });
+  const zecSecondEvidence = fundingEvidence("zec", "1", terms, 1);
+  const zecSecond = appendSwapEvent(zecFirst.journal, zecFirst.state, {
+    kind: "observe-funding",
+    evidence: zecSecondEvidence,
+  });
+  const zecConfirmed = appendSwapEvent(zecSecond.journal, zecSecond.state, {
+    kind: "confirm-funding",
+    leg: "zec",
+    factId: zecFirstEvidence.fact.factId,
+    qualifiedAtSeconds: zecSecondEvidence.attestation.observedAtSeconds,
+  });
+  const evmPrepared = appendSwapEvent(zecConfirmed.journal, zecConfirmed.state, {
+    kind: "prepare-funding",
+    leg: "evm",
+    artifactHash: keccak256Text("journal-evm-artifact"),
+    occurredAtSeconds: terms.evmFundBy - 1n,
+  });
+  const evmFirstEvidence = fundingEvidence("evm", "1", terms, 0);
+  const evmFirst = appendSwapEvent(evmPrepared.journal, evmPrepared.state, {
+    kind: "observe-funding",
+    evidence: evmFirstEvidence,
+  });
+  const evmSecondEvidence = fundingEvidence("evm", "1", terms, 1);
+  const evmSecond = appendSwapEvent(evmFirst.journal, evmFirst.state, {
+    kind: "observe-funding",
+    evidence: evmSecondEvidence,
+  });
+  return appendSwapEvent(evmSecond.journal, evmSecond.state, {
+    kind: "confirm-funding",
+    leg: "evm",
+    factId: evmFirstEvidence.fact.factId,
+    qualifiedAtSeconds: evmSecondEvidence.attestation.observedAtSeconds,
+  });
 }
 
 test("chains deterministic swap event receipts", () => {
@@ -48,6 +115,13 @@ test("chains deterministic swap event receipts", () => {
   assert.equal(verifySwapJournal(second.journal), true);
 });
 
+test("rejects an advanced state as a journal genesis", () => {
+  assert.throws(
+    () => emptySwapJournal(authorizedJournal().state),
+    /pristine created state/,
+  );
+});
+
 test("makes exact duplicate payloads idempotent", () => {
   const initial = fixture();
   const payload: SwapEventPayload = {
@@ -61,6 +135,21 @@ test("makes exact duplicate payloads idempotent", () => {
   assert.equal(duplicate.appended, false);
   assert.equal(duplicate.journal, appended.journal);
   assert.equal(duplicate.state, appended.state);
+});
+
+test("rejects an exact duplicate payload when the supplied state is stale", () => {
+  const initial = fixture();
+  const payload: SwapEventPayload = {
+    kind: "authorize-terms",
+    partyId: sampleSwapTerms.zecSellerId,
+    termsHash: initial.state.termsHash,
+    occurredAtSeconds: 1n,
+  };
+  const appended = appendSwapEvent(initial.journal, initial.state, payload);
+  assert.throws(
+    () => appendSwapEvent(appended.journal, initial.state, structuredClone(payload)),
+    /does not match the journal head/,
+  );
 });
 
 test("rejects conflicting content in the same semantic slot", () => {
@@ -159,14 +248,8 @@ test("rejects unknown payload kinds and histories that cannot replay", () => {
 });
 
 test("journals two independent observers that agree on one funding fact", () => {
-  const prepared = prepareSwapFunding(
-    authorizedSwap(),
-    "zec",
-    keccak256Text("two-observer-artifact"),
-    sampleSwapTerms.zecFundBy - 1n,
-  );
-  const empty = emptySwapJournal(prepared);
-  const first = appendSwapEvent(empty, prepared, {
+  const prepared = preparedZecJournal(keccak256Text("two-observer-artifact"));
+  const first = appendSwapEvent(prepared.journal, prepared.state, {
     kind: "observe-funding",
     evidence: fundingEvidence("zec", "1", sampleSwapTerms, 0),
   });
@@ -180,9 +263,8 @@ test("journals two independent observers that agree on one funding fact", () => 
 
 test("journals artifact abandonment and terminal expiry", () => {
   const artifactHash = keccak256Text("journal-abandon-artifact");
-  const prepared = prepareSwapFunding(authorizedSwap(), "zec", artifactHash, sampleSwapTerms.zecFundBy - 1n);
-  const empty = emptySwapJournal(prepared);
-  const abandoned = appendSwapEvent(empty, prepared, {
+  const prepared = preparedZecJournal(artifactHash);
+  const abandoned = appendSwapEvent(prepared.journal, prepared.state, {
     kind: "abandon-funding",
     leg: "zec",
     artifactHash,
@@ -197,11 +279,31 @@ test("journals artifact abandonment and terminal expiry", () => {
   assert.equal(verifySwapJournal(expired.journal), true);
 });
 
+test("journals abandon and reprepare with a fresh artifact across replay", () => {
+  const firstArtifact = keccak256Text("journal-first-artifact");
+  const secondArtifact = keccak256Text("journal-second-artifact");
+  const prepared = preparedZecJournal(firstArtifact);
+  const abandoned = appendSwapEvent(prepared.journal, prepared.state, {
+    kind: "abandon-funding",
+    leg: "zec",
+    artifactHash: firstArtifact,
+    occurredAtSeconds: sampleSwapTerms.zecFundBy - 1n,
+  });
+  const reprepared = appendSwapEvent(abandoned.journal, abandoned.state, {
+    kind: "prepare-funding",
+    leg: "zec",
+    artifactHash: secondArtifact,
+    occurredAtSeconds: sampleSwapTerms.zecFundBy - 1n,
+  });
+  assert.equal(reprepared.state.zec.fundingArtifactHash, secondArtifact);
+  assert.equal(verifySwapJournal(reprepared.journal), true);
+});
+
 test("replays a retracted spend attestation replacement with its audit record", () => {
   const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
-  const initial = fundedSwap(terms);
+  const initial = fundedJournal(terms);
   const firstEvidence = spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms, 0);
-  const observed = appendSwapEvent(emptySwapJournal(initial), initial, {
+  const observed = appendSwapEvent(initial.journal, initial.state, {
     kind: "observe-spend",
     evidence: firstEvidence,
   });
