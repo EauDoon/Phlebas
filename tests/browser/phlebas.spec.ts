@@ -712,7 +712,9 @@ test("320px market buy at zero slippage does not fill beyond the signed worst pr
   await expect(page.getByText("IOC", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText("Immediate-or-cancel finished with no fills")).toBeVisible();
-  await expect(page.getByText("No session fills yet. Settled as ZEC-USDC.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ask 52.91" })).toBeVisible();
+  await page.getByRole("tab", { name: "Fills" }).click();
+  await expect(page.getByRole("tabpanel", { name: "Fills" })).toContainText("No session fills yet. Settled as ZEC-USDC.");
 });
 
 test("invalid expiry stays on the ticket and does not open review", async ({ page }) => {
