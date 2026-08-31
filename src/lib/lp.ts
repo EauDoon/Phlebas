@@ -36,6 +36,13 @@ export function lpMintNoticeCopy(
   return `Minted ${shares.toString()} local LP shares. Wallet actions stay disabled. Settled as ${settlementPair}.`;
 }
 
+export function lpBurnNoticeCopy(
+  pzecLabel: string,
+  settlementPair: Market["settlementPair"],
+): string {
+  return `Burned session shares for ${pzecLabel} pZEC. Local preview only. Settled as ${settlementPair}.`;
+}
+
 export function seedPool(reservePzecAtoms: bigint, reserveQuoteAtoms: bigint): PoolShares {
   if (reservePzecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
     throw new Error("Pool reserves must be positive");
