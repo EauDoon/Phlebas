@@ -15,23 +15,18 @@ release.
 | contracts | skip | Foundry not installed locally; CI runs the suite |
 | secret-scan | pass | 355 files clean |
 | build | pass | Next.js production build succeeds |
-| audit-checklist-required-incomplete | 7 of 26 items incomplete |
+| audit-checklist-required-incomplete | 5 of 26 items incomplete |
 | audit-checklist-blocked | 0 items blocked |
 
 ## Verdict
 
-The current verdict is **not ready**. The seven incomplete items
+The current verdict is **not ready**. The five incomplete items
 in the audit checklist are:
 
 * contracts-1, contracts-2: the contract deployment to Arbitrum
   Sepolia is a deployment-time concern. The contract sources are
   in `contracts/src/swap/`; the deployment manifest is in
   `infra/testnet/`.
-* services-7, services-8: the per-IP rate limiter is not wired
-  into the HTTP layer. The rate limiter is in
-  `src/lib/rate-limit.ts`; the HTTP layer is in
-  `services/matcher/server.ts` and
-  `services/atomic-swap-observer/server.ts`.
 * operations-7: the PagerDuty / Slack integration is not wired.
   The alert router is in `src/lib/alert-router.ts`; the
   integration is an operator-time concern.
@@ -44,6 +39,9 @@ in the audit checklist are:
 * keys-2, keys-5: the production deploy key and the wallet
   adapter production signing surface are deployment-time
   concerns.
+
+Note: services-7 and services-8 (rate limiter wiring) were
+closed in `feat/rate-limit-wiring` (PR 8).
 
 ## Reproducibility
 

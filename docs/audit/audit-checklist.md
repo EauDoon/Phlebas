@@ -29,8 +29,8 @@ is the input to the release readiness gate.
 | services-4 | All services expose `/health` and return 503 on a missing-after-init snapshot | yes | services | done |
 | services-5 | All services expose `/metrics` and `/slo` | yes | services | done |
 | services-6 | Marker file is written on first successful bootstrap and the service refuses to start fresh if the marker is present and the snapshot is missing | yes | services | done |
-| services-7 | Rate limiter is applied to public endpoints | yes | services | todo |
-| services-8 | Per-IP rate limit is enforced at the HTTP layer | yes | services | todo |
+| services-7 | Rate limiter is applied to public endpoints | yes | services | done |
+| services-8 | Per-IP rate limit is enforced at the HTTP layer | yes | services | done |
 
 ## Operations
 

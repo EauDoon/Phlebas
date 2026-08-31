@@ -73,3 +73,12 @@ report.
 | Files | TBD |
 | Insertions | TBD |
 | Surface | Release readiness gate, audit checklist, evidence pack, final integration report, ADR 0009, threat model section 23 |
+
+## PR 8 — Rate limiter wiring (TBD commits)
+
+| Aspect | Detail |
+| --- | --- |
+| Branch | `feat/rate-limit-wiring` |
+| Files | TBD |
+| Insertions | TBD |
+| Surface | Per-IP rate limiter middleware, wiring into matcher and observer services, tests, audit checklist updates |
