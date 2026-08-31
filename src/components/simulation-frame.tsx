@@ -20,7 +20,7 @@ export function SimulationFrame({
         <a className={styles.skipLink} href="#main-content">Skip to main content</a>
         {skipTo ? <a className={styles.skipLink} href={skipTo.href}>{skipTo.label}</a> : null}
       </nav>
-      <div className={styles.simulationBanner} role="status">
+      <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
         <strong>Simulation only</strong>
         <span>No-value simulation. Optional Sepolia wallet and local testnet services do not move mainnet funds.</span>
       </div>

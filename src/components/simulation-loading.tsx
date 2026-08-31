@@ -7,7 +7,7 @@ export function SimulationLoading() {
         <a className={styles.skipLink} href="#main-content">Skip to main content</a>
         <a className={styles.skipLink} href="#withheld-price">Skip to withheld-price notice</a>
       </nav>
-      <div className={styles.simulationBanner} role="status">
+      <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
         <strong>Simulation only</strong>
         <span>Loading the preview. No market data is live.</span>
       </div>

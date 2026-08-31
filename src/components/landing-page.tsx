@@ -23,7 +23,7 @@ export function LandingPage() {
           <a className={styles.skipLink} href={link.href} key={link.href}>{link.label}</a>
         ))}
       </nav>
-      <div className={styles.simulationBanner} role="status">
+      <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
         <strong>Simulation only</strong>
         <span>No-value simulation. Optional Sepolia wallet and local testnet services stay off until started. No mainnet funds.</span>
       </div>

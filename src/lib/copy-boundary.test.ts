@@ -41,6 +41,10 @@ test("landing and terminal banners stay simulation-only", async () => {
   const landing = await readFile(join(root, "src/components/landing-page.tsx"), "utf8");
   const terminal = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");
   assert.match(landing, /Simulation only/);
+  assert.match(landing, /Simulation disclosure/);
+  assert.match(terminal, /Simulation disclosure/);
+  assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Simulation disclosure/);
+  assert.match(await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8"), /Simulation disclosure/);
   assert.match(landing, /No mainnet funds/);
   assert.match(landing, /LANDING_LEDGER/);
   assert.match(landing, /LANDING_HERO/);

@@ -402,7 +402,7 @@ export function TradingTerminal({
           <a className={styles.skipLink} href="#destination-inspector">Skip to destination inspector</a>
         ) : null}
       </nav>
-      <div className={styles.simulationBanner} role="status">
+      <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
         <strong>Protocol preview</strong>
         <span>Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless.</span>
       </div>
