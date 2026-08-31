@@ -1858,3 +1858,198 @@ test("architecture liquidity and bridge skip links stay 44px on desktop", async 
   await expect(skipPrivacy).toBeFocused();
   expect((await skipPrivacy.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
+
+test("trade skip links and incident skip stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const tradeSkips = [
+    "Skip to order ticket",
+    "Skip to price chart",
+    "Skip to order book",
+    "Skip to blotter",
+    "Skip to recent trades",
+  ];
+  await page.keyboard.press("Tab");
+  for (const label of tradeSkips) {
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: label });
+    await expect(skip).toBeFocused();
+    expect((await skip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  }
+
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipIncident = page.getByRole("link", { name: "Skip to incident demonstration" });
+  await expect(skipIncident).toBeFocused();
+  expect((await skipIncident.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("status legal and security skips stay 44px and skip targets keep scroll-margin", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/status", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipLedger = page.getByRole("link", { name: "Skip to status ledger" });
+  await expect(skipLedger).toBeFocused();
+  expect((await skipLedger.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Enter");
+  const ledger = page.locator("#status-ledger");
+  await expect(ledger).toBeFocused();
+  expect(await ledger.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
+
+  await page.goto("/legal", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipLegal = page.getByRole("link", { name: "Skip to legal article" });
+  await expect(skipLegal).toBeFocused();
+  expect((await skipLegal.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Enter");
+  const legal = page.locator("#legal-article");
+  await expect(legal).toBeFocused();
+  expect(await legal.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
+
+  await page.goto("/security", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipSecurity = page.getByRole("link", { name: "Skip to security article" });
+  await expect(skipSecurity).toBeFocused();
+  expect((await skipSecurity.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press("Enter");
+  const security = page.locator("#security-article");
+  await expect(security).toBeFocused();
+  expect(await security.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
+});
+
+test("trade and landing skip targets keep scroll-margin and landing skip links keep a focus ring", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipTicket = page.getByRole("link", { name: "Skip to order ticket" });
+  await expect(skipTicket).toBeFocused();
+  await page.keyboard.press("Enter");
+  const ticket = page.locator("#order-ticket");
+  await expect(ticket).toBeFocused();
+  expect(await ticket.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
+
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skipMain = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skipMain);
+  await page.keyboard.press("Tab");
+  const skipMarkets = page.getByRole("link", { name: "Skip to markets" });
+  await expectVisibleFocus(skipMarkets);
+  await page.keyboard.press("Enter");
+  const markets = page.locator("#markets");
+  await expect(markets).toBeFocused();
+  expect(await markets.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
+});
+
+test("terminal skip-link focus ring skip-nav inset and remaining landing skip-margins", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skipTrade = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skipTrade);
+  const tradeBox = await skipTrade.boundingBox();
+  expect(tradeBox?.x ?? 0).toBeGreaterThanOrEqual(12);
+  expect(tradeBox?.y ?? 0).toBeGreaterThanOrEqual(12);
+
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skipLanding = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skipLanding);
+  const landingBox = await skipLanding.boundingBox();
+  expect(landingBox?.x ?? 0).toBeGreaterThanOrEqual(12);
+  expect(landingBox?.y ?? 0).toBeGreaterThanOrEqual(12);
+
+  for (const skip of [
+    { label: "Skip to pZEC", id: "#pzec" },
+    { label: "Skip to journeys", id: "#journeys" },
+    { label: "Skip to launch gates", id: "#launch-gates" },
+  ] as const) {
+    await page.goto("/", { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    await tabTo(page, page.getByRole("link", { name: skip.label }));
+    await page.keyboard.press("Enter");
+    const target = page.locator(skip.id);
+    await expect(target).toBeFocused();
+    expect(await target.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
+  }
+});
+
+test("reduced-motion keeps skip-nav in place and skip-nav stacks above the banner", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expect(skip).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  expect(await nav.evaluate((element) => getComputedStyle(element).transform)).toBe("none");
+  const box = await skip.boundingBox();
+  expect(box?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect(box?.y ?? 900).toBeLessThan(80);
+
+  const stacking = await page.evaluate(() => {
+    const skipNav = document.querySelector('nav[aria-label="Skip links"]');
+    const banner = document.querySelector('[aria-label="Simulation disclosure"]');
+    const root = skipNav?.parentElement;
+    return {
+      navZ: Number.parseInt(skipNav ? getComputedStyle(skipNav).zIndex : "0", 10),
+      bannerZ: Number.parseInt(banner ? getComputedStyle(banner).zIndex : "0", 10) || 0,
+      clipMargin: root ? getComputedStyle(root).overflowClipMargin : "",
+    };
+  });
+  expect(stacking.navZ).toBeGreaterThan(stacking.bannerZ);
+  expect(stacking.clipMargin).toMatch(/8px/);
+
+  await page.keyboard.press("Tab");
+  await expectVisibleFocus(skip);
+  const focused = await skip.boundingBox();
+  expect(focused?.x ?? 0).toBeGreaterThanOrEqual(0);
+  expect(focused?.y ?? 0).toBeGreaterThanOrEqual(0);
+});
+
+test("terminal banner stays below skip-nav and 320px skip-nav does not cover the brand", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const tradeStacking = await page.evaluate(() => {
+    const skipNav = document.querySelector('nav[aria-label="Skip links"]');
+    const banner = document.querySelector('[aria-label="Simulation disclosure"]');
+    return {
+      navZ: Number.parseInt(skipNav ? getComputedStyle(skipNav).zIndex : "0", 10),
+      bannerZ: Number.parseInt(banner ? getComputedStyle(banner).zIndex : "0", 10) || 0,
+    };
+  });
+  expect(tradeStacking.navZ).toBeGreaterThan(tradeStacking.bannerZ);
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const brand = page.getByRole("link", { name: "Phlebas home" });
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expect(brand).toBeVisible();
+  const brandBox = await brand.boundingBox();
+  const skipBox = await skip.boundingBox();
+  const overlaps = Boolean(
+    skipBox && brandBox
+    && skipBox.x < brandBox.x + brandBox.width
+    && skipBox.x + skipBox.width > brandBox.x
+    && skipBox.y < brandBox.y + brandBox.height
+    && skipBox.y + skipBox.height > brandBox.y
+    && skipBox.width > 2
+    && skipBox.height > 2,
+  );
+  expect(overlaps).toBe(false);
+
+  await page.keyboard.press("Tab");
+  await expectVisibleFocus(skip);
+  const focused = await skip.boundingBox();
+  expect(focused?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect(focused?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((focused?.x ?? 0) + (focused?.width ?? 0)).toBeLessThanOrEqual(320);
+  expect((focused?.y ?? 0) + (focused?.height ?? 0)).toBeLessThanOrEqual(900);
+});

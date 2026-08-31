@@ -5,12 +5,13 @@
 
 .skipNav {
   position: fixed;
-  z-index: 50;
-  top: 8px;
-  left: 8px;
+  z-index: 100;
+  top: 12px;
+  left: 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding: 2px;
   transform: translateY(-220%);
 }
 
@@ -21,6 +22,7 @@
 .skipLink {
   display: inline-flex;
   min-width: 44px;
+  max-width: calc(100vw - 24px);
   min-height: 44px;
   flex-shrink: 0;
   align-items: center;
@@ -37,26 +39,26 @@
   outline-offset: 2px;
 }
 
-#main-content,
-#order-ticket,
-#price-chart,
-#order-book,
-#session-blotter,
-#status-ledger,
-#legal-article,
-#security-article,
-#missing-route,
-#incident-demonstration,
-#liquidity-pools,
-#destination-inspector,
-#retry-copy,
-#recent-trades,
-#withheld-price,
-#pool-stats,
-#country-block,
-#honesty-bar,
-#privacy-callouts,
-#architecture-layers {
+:global(#main-content),
+:global(#order-ticket),
+:global(#price-chart),
+:global(#order-book),
+:global(#session-blotter),
+:global(#status-ledger),
+:global(#legal-article),
+:global(#security-article),
+:global(#missing-route),
+:global(#incident-demonstration),
+:global(#liquidity-pools),
+:global(#destination-inspector),
+:global(#retry-copy),
+:global(#recent-trades),
+:global(#withheld-price),
+:global(#pool-stats),
+:global(#country-block),
+:global(#honesty-bar),
+:global(#privacy-callouts),
+:global(#architecture-layers) {
   scroll-margin-top: 12px;
 }
 
@@ -108,6 +110,42 @@
   min-height: 44px;
 }
 
+:global(#order-ticket) {
+  min-height: 44px;
+}
+
+:global(#price-chart) {
+  min-height: 44px;
+}
+
+:global(#order-book) {
+  min-height: 44px;
+}
+
+:global(#session-blotter) {
+  min-height: 44px;
+}
+
+:global(#recent-trades) {
+  min-height: 44px;
+}
+
+:global(#incident-demonstration) {
+  min-height: 44px;
+}
+
+:global(#status-ledger) {
+  min-height: 44px;
+}
+
+:global(#legal-article) {
+  min-height: 44px;
+}
+
+:global(#security-article) {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
@@ -121,6 +159,8 @@
 }
 
 .simulationBanner {
+  position: relative;
+  z-index: 0;
   display: flex;
   min-height: 44px;
   align-items: center;
@@ -1931,5 +1971,20 @@
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .skipNav {
+    transform: none;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .skipNav:focus-within {
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
   }
 }

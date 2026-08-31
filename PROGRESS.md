@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after merging current main into the product UI branch for PR #22.
+Last updated: 31-08-2026 after incorporating the latest product UI commits and current main for PR #22.
 
 ## Branch
 
-`feat/product-ui` now includes current `main` at `84a3224645e5ef8e3d95b49eb98345fa8fd3eb16` for PR #22. Origin `feat/simulation-hardening` remains separate; do not force-push it.
+`feat/product-ui` now includes current `main` at `84a3224645e5ef8e3d95b49eb98345fa8fd3eb16` for PR #22. PR #22: https://github.com/EauDoon/Phlebas/pull/22. Origin `feat/simulation-hardening` remains separate; do not force-push it.
 
 ## Done
 
@@ -230,12 +230,35 @@ Last updated: 31-08-2026 after merging current main into the product UI branch f
 - Liquidity pool-tabs skip and pool-stats skip stay 44px on desktop
 - Bridge destination-inspector skip and privacy-callouts skip stay 44px on desktop
 - Playwright covers 44px architecture, liquidity, and bridge skip links
+- Trade skip links (ticket, chart, book, blotter, tape) stay 44px on desktop
+- Incident demonstration skip stays 44px on desktop
+- Playwright covers 44px trade skips and incident skip
+- Skip-target scroll-margin applies to unhashed ids
+- Status, legal, and security skip links stay 44px on desktop
+- Playwright covers 44px status/legal/security skips and skip-target scroll-margin
+- Trade skip targets keep 12px scroll-margin
+- Landing skip sections keep 12px scroll-margin
+- Landing skip links keep a 2px focus ring
+- Playwright covers skip-target scroll-margin on trade and landing, and skip-link focus ring
+- Terminal skip links keep a 2px focus ring
+- Skip-nav leaves 12px inset so the skip-link focus ring is not clipped
+- Landing pZEC, journeys, and launch-gates skip targets keep 12px scroll-margin
+- Playwright covers terminal skip-link focus ring, skip-nav inset, and remaining landing skip-margins
+- Reduced-motion keeps skip-nav in place without a slide
+- Landing overflow clip leaves 8px so the skip-link focus ring is not clipped
+- Skip-nav remains above the simulation banner
+- Playwright covers reduced-motion skip-nav, skip-link ring not clipped, and skip-nav stacking
+- Terminal simulation banner stays below skip-nav
+- Skip-nav does not cover the header brand at 320px under reduced motion until focused
+- Skip-link focus stays inside the viewport at 320px
+- Playwright covers terminal banner stacking, 320px reduced-motion skip-nav vs brand, and 320px skip-link ring
 
 ## Next
 
-- Trade skip links (ticket, chart, book, blotter, tape) should stay 44px on desktop
-- Incident demonstration skip should stay 44px on desktop
-- Playwright: 44px trade skips and incident skip
+- Focused skip-nav should not cover the simulation banner copy at 320px
+- Header brand should stay a 44px target at 320px under reduced motion
+- Skip-nav clip-path restore should keep skip links 44px tall
+- Playwright: 320px focused skip-nav vs banner copy, 44px brand, and 44px skip links after clip restore
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
