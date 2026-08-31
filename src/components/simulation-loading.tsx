@@ -3,6 +3,10 @@ import styles from "./terminal.module.css";
 export function SimulationLoading() {
   return (
     <div className={styles.shell}>
+      <nav className={styles.skipNav} aria-label="Skip links">
+        <a className={styles.skipLink} href="#main-content">Skip to main content</a>
+        <a className={styles.skipLink} href="#withheld-price">Skip to withheld-price notice</a>
+      </nav>
       <div className={styles.simulationBanner} role="status">
         <strong>Simulation only</strong>
         <span>Loading the preview. No market data is live.</span>
