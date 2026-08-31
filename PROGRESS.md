@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the trade-skip and incident-skip slice.
+Last updated: 31-08-2026 after the unhashed skip-margin and status-legal-security skip slice.
 
 ## Branch
 
@@ -233,12 +233,16 @@ Last updated: 31-08-2026 after the trade-skip and incident-skip slice.
 - Trade skip links (ticket, chart, book, blotter, tape) stay 44px on desktop
 - Incident demonstration skip stays 44px on desktop
 - Playwright covers 44px trade skips and incident skip
+- Skip-target scroll-margin applies to unhashed ids
+- Status, legal, and security skip links stay 44px on desktop
+- Playwright covers 44px status/legal/security skips and skip-target scroll-margin
 
 ## Next
 
-- Skip-target scroll-margin should apply to unhashed ids
-- Status, legal, and security skip links should stay 44px on desktop
-- Playwright: 44px status/legal/security skips and skip-target scroll-margin
+- Trade skip targets should keep 12px scroll-margin
+- Landing skip sections should keep 12px scroll-margin
+- Landing skip links should keep a 2px focus ring
+- Playwright: skip-target scroll-margin on trade and landing, and skip-link focus ring
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
