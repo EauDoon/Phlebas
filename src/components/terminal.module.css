@@ -1155,6 +1155,7 @@
 }
 
 .statGrid > div {
+  min-height: 44px;
   padding: 14px;
   background: var(--surface-raised);
 }
