@@ -41,7 +41,13 @@ function fixtureManifest(): UnsignedTransparentManifest {
       { role: "contract", valueZatoshis: "100000", scriptPubKeyHex: "a914" + "33".repeat(20) + "87" },
     ],
     feeZatoshis: "10000",
-    authorization: { sighashType: "SIGHASH_ALL", sighashCode: 1, txModifiable: 0, branch: "fund" },
+    authorization: {
+      sighashType: "SIGHASH_ALL",
+      sighashCode: 1,
+      txModifiable: 0,
+      branch: "fund",
+      redeemScriptHex: "51",
+    },
     transactionIdState: "unresolved-until-canonical-transaction-extraction",
   };
 }
@@ -54,7 +60,7 @@ test("canonicalizes object keys and rejects non-canonical values", () => {
 
 test("commits, freezes, serializes, and rehydrates an exact manifest", () => {
   const artifact = commitZcashArtifact(fixtureManifest());
-  assert.equal(artifact.manifestDigest, "74dd288bb2f40c9e0554c4f5a101268e1d7123baabba6073250c3df34a935d32");
+  assert.equal(artifact.manifestDigest, "96495a9e6d5c53ec5744acdbfaa79ac763229130bcc30bfc772e9d71a1ede657");
   assert.equal(Object.isFrozen(artifact), true);
   assert.equal(Object.isFrozen(artifact.manifest.inputs), true);
 
@@ -68,7 +74,10 @@ test("fails closed on artifact substitution and non-canonical restart bytes", ()
   const artifact = commitZcashArtifact(fixtureManifest());
   const substituted = {
     ...artifact,
-    manifest: { ...artifact.manifest, feeZatoshis: "9999" },
+    manifest: {
+      ...artifact.manifest,
+      targetHeight: artifact.manifest.targetHeight + 1,
+    },
   };
   assert.throws(() => verifyZcashArtifact(substituted), /digest does not match/);
 
@@ -80,4 +89,29 @@ test("fails closed on artifact substitution and non-canonical restart bytes", ()
   unexpected.extra = true;
   const unexpectedSerialized = canonicalArtifactJson(unexpected as never);
   assert.throws(() => parseZcashArtifact(unexpectedSerialized), /unexpected fields/);
+});
+
+test("validates every runtime manifest field before committing", () => {
+  assert.throws(
+    () => commitZcashArtifact({ ...fixtureManifest(), inputs: [{ ...fixtureManifest().inputs[0], sequence: 0xffff_fffe }] }),
+    /sequence does not match/,
+  );
+  assert.throws(
+    () => commitZcashArtifact({ ...fixtureManifest(), outputs: [{ ...fixtureManifest().outputs[0], valueZatoshis: "99999" }] }),
+    /outputs plus fee/,
+  );
+  assert.throws(
+    () => commitZcashArtifact({
+      ...fixtureManifest(),
+      profile: { ...fixtureManifest().profile, versionGroupId: "d884b698" },
+    }),
+    /version group/,
+  );
+  assert.throws(
+    () => commitZcashArtifact({
+      ...fixtureManifest(),
+      authorization: { ...fixtureManifest().authorization, txModifiable: 1 as 0 },
+    }),
+    /freeze SIGHASH_ALL/,
+  );
 });
