@@ -863,6 +863,19 @@
   align-items: center;
 }
 
+.blotter .dataTable .textButton,
+.blotter .emptyState .textButton {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+}
+
+.blotter .dataTable tbody th,
+.blotter .dataTable tbody td {
+  height: 44px;
+}
+
 .emptyState {
   margin: 14px;
   color: var(--text-muted);
