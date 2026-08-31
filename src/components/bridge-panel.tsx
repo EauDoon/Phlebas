@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { DEPOSIT_TOUR, depositTourStep } from "@/lib/deposit-tour";
 import { copyUri } from "@/lib/copy-uri";
 import { inspectTransparentDestination } from "@/lib/zcash-address";
 import { payoutClaimForTourStep, screenPayout } from "@/lib/payout";
@@ -53,6 +54,7 @@ export function BridgePanel({
   initialJourney?: "deposit" | "withdrawal";
 }) {
   const [journey, setJourney] = useState<"deposit" | "withdrawal">(initialJourney);
+  const [depositIndex, setDepositIndex] = useState(0);
   const [tourIndex, setTourIndex] = useState(0);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const [destination, setDestination] = useState("");
@@ -60,6 +62,7 @@ export function BridgePanel({
   const [gatewayNotice, setGatewayNotice] = useState("Local gateway off. No receivable address is displayed.");
   const [issuing, setIssuing] = useState(false);
   const tour = withdrawalTour[tourIndex];
+  const deposit = depositTourStep(depositIndex);
   const destinationCheck = inspectTransparentDestination(destination);
   const payoutPreview = destination.trim().length === 0
     ? null
@@ -128,6 +131,7 @@ export function BridgePanel({
             <p className={styles.gateNotice}>
               {gatewayNotice}
             </p>
+            {deposit.id !== "address-request" && (
             <div className={styles.uriBlock}>
               <span className={styles.eyebrow}>ZIP 321 testnet request</span>
               <code>{request}</code>
@@ -149,6 +153,31 @@ export function BridgePanel({
                 Copy testnet URI
               </button>
               {copyNotice && <p>{copyNotice}</p>}
+            </div>
+            )}
+            <p className={styles.gateNotice}>
+              Preview deposit states, not Deposit ZEC. Address request never shows a receivable address.
+            </p>
+            <div className={styles.uriBlock} aria-live="polite">
+              <span className={styles.eyebrow}>{String(depositIndex + 1).padStart(2, "0")} / {String(DEPOSIT_TOUR.length).padStart(2, "0")}</span>
+              <h3>{deposit.title}</h3>
+              <p>{deposit.body}</p>
+            </div>
+            <div className={styles.tourNav}>
+              <button
+                type="button"
+                disabled={depositIndex === 0}
+                onClick={() => setDepositIndex((index) => index - 1)}
+              >
+                Previous state
+              </button>
+              <button
+                type="button"
+                disabled={depositIndex === DEPOSIT_TOUR.length - 1}
+                onClick={() => setDepositIndex((index) => index + 1)}
+              >
+                Next state
+              </button>
             </div>
             <ol className={styles.stepList}>
               {depositSteps.map((step) => (
