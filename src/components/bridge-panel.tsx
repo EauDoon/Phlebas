@@ -6,6 +6,8 @@ import { DEPOSIT_TOUR, depositTourStep } from "@/lib/deposit-tour";
 import { inspectTransparentDestination } from "@/lib/zcash-address";
 import { payoutClaimForTourStep, screenPayout } from "@/lib/payout";
 import { isTestnetTex } from "@/lib/tex";
+import { copyUri } from "@/lib/copy-uri";
+import { syntheticDepositRequest } from "@/lib/zip321";
 
 import styles from "./terminal.module.css";
 
@@ -21,6 +23,31 @@ const withdrawalTour = [
   { id: "mined", title: "Mined", body: "The payout is in a Zcash block. The close threshold has not been met." },
   { id: "confirmed", title: "Confirmed", body: "State demonstration complete. No pZEC was burned and no native ZEC was sent." },
 ] as const;
+
+function PlaceholderZipQr() {
+  return (
+    <figure className={styles.placeholderQr}>
+      <svg viewBox="0 0 29 29" role="img" aria-label="Not a payable QR. Placeholder ZIP 321 only.">
+        <rect width="29" height="29" fill="#f4f1e6" />
+        {([[1, 1], [21, 1], [1, 21]] as const).map(([x, y]) => (
+          <g key={`${x}-${y}`}>
+            <rect x={x} y={y} width="7" height="7" fill="#11130f" />
+            <rect x={x + 1} y={y + 1} width="5" height="5" fill="#f4f1e6" />
+            <rect x={x + 2} y={y + 2} width="3" height="3" fill="#11130f" />
+          </g>
+        ))}
+        <rect x="11" y="11" width="7" height="7" fill="#11130f" />
+        <rect x="13" y="13" width="3" height="3" fill="#f4f1e6" />
+        <rect x="10" y="4" width="2" height="2" fill="#11130f" />
+        <rect x="16" y="5" width="2" height="2" fill="#11130f" />
+        <rect x="4" y="12" width="2" height="2" fill="#11130f" />
+        <rect x="23" y="14" width="2" height="2" fill="#11130f" />
+        <rect x="12" y="22" width="2" height="2" fill="#11130f" />
+      </svg>
+      <figcaption>Not payable. No receivable address is encoded.</figcaption>
+    </figure>
+  );
+}
 
 export function BridgePanel() {
   const [journey, setJourney] = useState<"deposit" | "withdrawal">("deposit");
@@ -38,6 +65,15 @@ export function BridgePanel() {
     ? null
     : screenPayout(destination, 1n);
   const tourClaim = payoutClaimForTourStep(tour.id, destination);
+
+  async function copyRequest() {
+    const value = intent?.request ?? syntheticDepositRequest();
+    setCopyNotice(await copyUri(
+      value,
+      navigator.clipboard,
+      intent ? "testnet" : "placeholder",
+    ));
+  }
 
   async function issueTestnetTex() {
     setIssuing(true);
@@ -102,7 +138,8 @@ export function BridgePanel() {
             </p>
             <div className={styles.uriBlock}>
               <span className={styles.eyebrow}>ZIP 321 testnet request</span>
-              <code>{intent?.request ?? "zcash:{TEX_ADDRESS}?amount=1&label=Phlebas"}</code>
+              <code>{intent?.request ?? syntheticDepositRequest()}</code>
+              <PlaceholderZipQr />
               <small>
                 {intent
                   ? `Receivable testnet TEX ${intent.tex}. Independent observation still required. No pZEC is minted here.`
@@ -111,13 +148,13 @@ export function BridgePanel() {
               <button type="button" onClick={() => void issueTestnetTex()} disabled={issuing} aria-busy={issuing}>
                 {issuing ? "Issuing" : "Issue testnet TEX"}
               </button>
-              {intent && (
-                <button type="button" onClick={() => {
-                  void navigator.clipboard?.writeText(intent.request).catch(() => undefined);
-                  setCopyNotice("Copied a Zcash testnet payment request. Not mainnet and not a mint.");
-                }}
-                >
+              {intent ? (
+                <button type="button" onClick={() => void copyRequest()}>
                   Copy testnet URI
+                </button>
+              ) : (
+                <button type="button" onClick={() => void copyRequest()}>
+                  Copy placeholder URI
                 </button>
               )}
               {copyNotice && <p>{copyNotice}</p>}
