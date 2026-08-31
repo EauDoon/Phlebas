@@ -69,6 +69,22 @@ test("missing provider copy names the settlement pair", () => {
   assert.doesNotMatch(walletConnectFailureCopy("Wallet connection failed", "pZEC-USDT0"), /live funds/);
 });
 
+test("ticket sign missing-provider copy names the selected market settlement pair", () => {
+  const usdc = markets["ZEC/USDC"];
+  const usdt = markets["ZEC/USDT"];
+  assert.equal(usdc.settlementPair, "pZEC-USDC");
+  assert.equal(usdt.settlementPair, "pZEC-USDT0");
+  assert.equal(
+    missingProviderCopy(usdc.settlementPair),
+    "No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDC.",
+  );
+  assert.equal(
+    missingProviderCopy(usdt.settlementPair),
+    "No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDT0.",
+  );
+  assert.doesNotMatch(missingProviderCopy(usdc.settlementPair), /native ZEC/);
+});
+
 test("disconnect label names the settlement pair from a connected address", () => {
   const address = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
   assert.equal(
