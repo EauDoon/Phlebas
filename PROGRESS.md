@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after tZEC symbol, reserveZecAtoms, gateway heading, and incident mint copy.
+Last updated: 31-08-2026 after Solidity zec fields, ZEC_DECIMALS, zecAtomsFromHundredths, and TESTNET.zec.
 
 ## Branch
 
@@ -159,20 +159,20 @@ Last updated: 31-08-2026 after tZEC symbol, reserveZecAtoms, gateway heading, an
 - Session inventory fields are `zecAtoms` / `reservedZecAtoms` / `availableZec`.
 - Frozen SHA-256 for the sample `baseAsset=ZEC` order is `2d3360d350d50a83e69a46f50a4fedcfc77a610dc91fe0d80fee67616acb38ca`.
 - Blotter, ticket, LP amount, and depth caption name ZEC, not pZEC.
-- Undeployed receipt symbol is `tZEC`. Solidity type remains `PZec`.
+- Undeployed receipt symbol is `tZEC`. Solidity type is `Zec`. Factory, settlement, pair, and router expose `zec`.
 - LP, AMM, and router use `reserveZecAtoms`.
 - Gateway heading is `ZEC gateway`. Incident mint copy does not name pZEC.
+- Units helper is `ZEC_DECIMALS`. Market-data helper is `zecAtomsFromHundredths`. TESTNET key is `zec`.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Solidity type and factory field are still `PZec` / `pzec`
-- Matcher still sizes books in generic `sizeAtoms`; market-data helper is still `pzecAtomsFromHundredths`
-- Units helper is still `PZEC_DECIMALS`
-- TESTNET TypeScript key is still `pzec`
-- Architecture panel layer copy may still mention pZEC in older docs surfaces
+- Matcher still sizes books in generic `sizeAtoms`
+- Architecture panel and remaining docs may still mention pZEC on older surfaces
+- Session test title still says credits pZEC
+- Pair LP token is still `tpLP`
 
 ## Blockers
 
