@@ -8,6 +8,7 @@ import {
   burnShares,
   emptyShareCopy,
   lpPauseNoticeCopy,
+  lpMintNoticeCopy,
   lpResetNoticeCopy,
   hypotheticalImpermanentLoss,
   IL_PRICE_SCENARIOS,
@@ -186,7 +187,7 @@ export function LiquidityPanel({
           quoteAtoms: current[selectedPool.id].quoteAtoms + minted.quoteAtoms,
         },
       }));
-      setNotice(`Minted ${minted.shares.toString()} local LP shares. Wallet actions stay disabled.`);
+      setNotice(lpMintNoticeCopy(minted.shares, markets[marketId].settlementPair));
       setReview(null);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : amountPreview.message);

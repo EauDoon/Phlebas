@@ -9,6 +9,7 @@ import {
   getInjectedProvider,
   missingProviderCopy,
   walletConnectFailureCopy,
+  walletDisconnectLabel,
   walletStateWithSettlement,
   type WalletState,
 } from "@/lib/evm-wallet";
@@ -52,7 +53,12 @@ export function WalletBar({
     return (
       <div className={styles.headerActions}>
         <span className={styles.network}><i />Arbitrum Sepolia</span>
-        <button type="button" className={styles.connectButton} onClick={() => onChange(disconnectedWallet)}>
+        <button
+          type="button"
+          className={styles.connectButton}
+          aria-label={walletDisconnectLabel(wallet.address, settlementPair)}
+          onClick={() => onChange(disconnectedWallet)}
+        >
           {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
         </button>
       </div>
