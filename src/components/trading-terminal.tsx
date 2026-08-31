@@ -394,6 +394,7 @@ export function TradingTerminal({
         ) : null}
         {initialAccess === "open" && view === "architecture" ? (
           <>
+            <a className={styles.skipLink} href="#architecture-layers">Skip to architecture layers</a>
             <a className={styles.skipLink} href="#honesty-bar">Skip to honesty bar</a>
             <a className={styles.skipLink} href="#incident-demonstration">Skip to incident demonstration</a>
           </>
