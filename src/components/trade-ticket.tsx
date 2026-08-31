@@ -11,6 +11,7 @@ import { TESTNET } from "@/lib/testnet";
 import { parseExpiryUnix, settlementDigest, typedOrderFromTicket } from "@/lib/ticket-order";
 import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
+import { interpretTicketKey } from "@/lib/ticket-shortcuts";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
 import { compareVenues, type RouteComparison } from "@/lib/router";
 import {
@@ -157,31 +158,26 @@ export function TradeTicket({
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      const target = event.target;
-      if (
-        target instanceof HTMLElement
-        && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA" || target.isContentEditable)
-      ) {
-        return;
-      }
-      if (document.querySelector("dialog[open]")) {
-        return;
-      }
-      if (event.key === "Escape") {
+      const action = interpretTicketKey(event.key, {
+        target: event.target,
+        dialogOpen: Boolean(document.querySelector("dialog[open]")),
+        reviewOpen: review !== null,
+      });
+      if (action === "escape") {
         setReview(null);
         return;
       }
-      if (event.key === "b" || event.key === "B") setSide("buy");
-      if (event.key === "s" || event.key === "S") setSide("sell");
-      if (event.key === "l" || event.key === "L") setOrderType("limit");
-      if (event.key === "m" || event.key === "M") setOrderType("market");
-      if (event.key === "g" || event.key === "G") setTif("GTC");
-      if (event.key === "i" || event.key === "I") setTif("IOC");
-      if (event.key === "f" || event.key === "F") setTif("FOK");
+      if (action === "buy") setSide("buy");
+      if (action === "sell") setSide("sell");
+      if (action === "limit") setOrderType("limit");
+      if (action === "market") setOrderType("market");
+      if (action === "gtc") setTif("GTC");
+      if (action === "ioc") setTif("IOC");
+      if (action === "fok") setTif("FOK");
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [review]);
 
   const lastPrice = Number(formatAtomicUnits(lastTicks, PRICE_DECIMALS, 2));
   const priceParse = orderType === "market"
@@ -465,7 +461,7 @@ export function TradeTicket({
   }
 
   return (
-    <section className={`${styles.panel} ${styles.ticket}`} aria-labelledby="trade-ticket-title">
+    <section id="order-ticket" tabIndex={-1} className={`${styles.panel} ${styles.ticket}`} aria-labelledby="trade-ticket-title">
       <div className={styles.panelHeader}>
         <h2 id="trade-ticket-title">Order entry</h2>
         <span className={styles.statusDot}>Local matcher</span>
@@ -755,7 +751,7 @@ export function TradeTicket({
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
         {inputError ?? notionalError ?? notice}
       </p>
-      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type, G/I/F time in force, Escape back from review. Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
+      <p className={styles.inlineNotice}>Keyboard: B/S side, L/M type, G/I/F time in force, Escape back from review. G/I/F stay idle while review is open. Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
     </section>
   );
 }
