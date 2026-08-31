@@ -358,7 +358,7 @@ export function TradeTicket({
     const canonical: CanonicalOrder = {
       maker: "session",
       side,
-      baseAsset: "pZEC",
+      baseAsset: "ZEC",
       quoteAsset: market.quote,
       baseAmountAtoms: prepared.sizeAtoms.toString(),
       limitPriceTicks: prepared.priceTicks.toString(),
@@ -659,7 +659,7 @@ export function TradeTicket({
       {review ? (
         <div className={styles.reviewBlock}>
           <p className={styles.gateNotice}>
-            pZEC is a custody receipt, not native ZEC. This fill is public in the simulation. The matcher is not trustless.
+            This preview labels native ZEC. It is not live settlement. This fill is public in the simulation. The matcher is not trustless.
           </p>
           <dl className={styles.ticketSummary}>
             <div>

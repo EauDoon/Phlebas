@@ -375,7 +375,7 @@ export function LiquidityPanel({
         {review ? (
           <div className={styles.reviewBlock}>
             <p className={styles.gateNotice}>
-              pZEC is a custody receipt, not native ZEC. This LP preview is public in the simulation. The matcher is not trustless.
+              This preview labels native ZEC. It is not live settlement. This LP preview is public in the simulation. The matcher is not trustless.
             </p>
             <dl className={styles.ticketSummary}>
               <div>

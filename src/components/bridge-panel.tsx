@@ -31,7 +31,7 @@ const depositSteps = [
   {
     number: "04",
     title: "Mint pZEC after the risk-tier threshold",
-    body: "One outpoint would authorize at most one 8-decimal receipt. pZEC is a custody claim, not native ZEC.",
+    body: "One outpoint would authorize at most one 8-decimal receipt. This preview is not live settlement.",
   },
 ] as const;
 
