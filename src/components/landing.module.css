@@ -82,6 +82,7 @@
   width: fit-content;
   min-width: 44px;
   min-height: 44px;
+  flex-shrink: 0;
   align-items: center;
   gap: 10px;
   font-size: 14px;
