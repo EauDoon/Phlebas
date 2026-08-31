@@ -13,7 +13,7 @@ export function SimulationLoading() {
       </div>
       <main id="main-content" tabIndex={-1} className={styles.simpleMain}>
         <h1>Loading the simulation</h1>
-        <p id="withheld-price" tabIndex={-1}>
+        <p id="withheld-price" tabIndex={-1} aria-label="Withheld-price notice">
           No prices, balances, or depth are shown while this route loads.
           Nothing was submitted.
         </p>
