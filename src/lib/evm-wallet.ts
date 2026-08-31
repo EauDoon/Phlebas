@@ -31,6 +31,21 @@ export function missingProviderCopy(settlementPair: Market["settlementPair"]): s
   return walletConnectFailureCopy("No injected EVM wallet. Arbitrum Sepolia only.", settlementPair);
 }
 
+const SETTLEMENT_PAIRS = ["pZEC-USDC", "pZEC-USDT0"] as const satisfies ReadonlyArray<Market["settlementPair"]>;
+
+export function retargetSettlementCopy(
+  copy: string,
+  settlementPair: Market["settlementPair"],
+): string {
+  for (const pair of SETTLEMENT_PAIRS) {
+    const tail = ` Settled as ${pair}.`;
+    if (copy.endsWith(tail)) {
+      return `${copy.slice(0, -tail.length)} Settled as ${settlementPair}.`;
+    }
+  }
+  return walletConnectFailureCopy(copy, settlementPair);
+}
+
 export function walletStateWithSettlement(
   state: WalletState,
   settlementPair: Market["settlementPair"],
