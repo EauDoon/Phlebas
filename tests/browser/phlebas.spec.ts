@@ -486,6 +486,8 @@ test("USDT market names USDT0 settlement and empty feed shows no depth", async (
   await expect(page.getByText("settles pZEC-USDT0")).toBeVisible();
   await page.getByRole("combobox", { name: "Market data state" }).selectOption("empty");
   await expect(page.getByText("No resting depth. The local book is empty. Settled as pZEC-USDT0.")).toBeVisible();
+  await expect(page.getByText("No resting depth. Review is disabled until the local book has size. Settled as pZEC-USDT0.")).toBeVisible();
+  await expect(page.getByText("session last · pZEC-USDT0")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await page.getByRole("combobox", { name: "Market data state" }).selectOption("loading");
   await expect(page.getByText("Loading market data", { exact: true })).toBeVisible();
@@ -668,6 +670,7 @@ test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
   await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed.").first()).toBeVisible();
+  await expect(page.getByRole("region", { name: "Selected market summary" }).getByRole("status")).toContainText("Settled as pZEC-USDC");
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await page.goto("/liquidity?feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
