@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 
+import { SimulationLoading } from "@/components/simulation-loading";
 import { TradingTerminal } from "@/components/trading-terminal";
 import { parseAccessDemo } from "@/lib/access-demo";
+import { isLoadingForceQuery } from "@/lib/loading-demo";
 import type { MarketId } from "@/lib/market-data";
 import { isFeedStatus } from "@/lib/market-state";
 import { isEducationForceQuery } from "@/lib/preview-education";
@@ -27,6 +29,7 @@ export default async function TradePage({
     access?: string | string[];
     education?: string | string[];
     error?: string | string[];
+    loading?: string | string[];
   }>;
 }) {
   const params = await searchParams;
@@ -36,8 +39,12 @@ export default async function TradePage({
   const access = Array.isArray(params.access) ? params.access[0] : params.access;
   const education = Array.isArray(params.education) ? params.education[0] : params.education;
   const error = Array.isArray(params.error) ? params.error[0] : params.error;
+  const loading = Array.isArray(params.loading) ? params.loading[0] : params.loading;
   if (isRenderFailureQuery(error)) {
     throw new Error(RENDER_FAILURE_MESSAGE);
+  }
+  if (isLoadingForceQuery(loading)) {
+    return <SimulationLoading />;
   }
   return (
     <TradingTerminal
