@@ -1707,3 +1707,40 @@ test("landing market preview journey actions and header brand stay 44px on deskt
   expect((await brand.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("status legal and security in-page links stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/status", { waitUntil: "networkidle" });
+  const statusLink = page.getByRole("main").getByRole("link", { name: "Legal and compliance" });
+  await expect(statusLink).toBeVisible();
+  expect((await statusLink.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/legal", { waitUntil: "networkidle" });
+  const legalLink = page.getByRole("main").getByRole("link", { name: "Architecture" });
+  await expect(legalLink).toBeVisible();
+  expect((await legalLink.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/security", { waitUntil: "networkidle" });
+  const securityLink = page.getByRole("main").getByRole("link", { name: "Status" });
+  await expect(securityLink).toBeVisible();
+  expect((await securityLink.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("landing skip links Menu and Close stay 44px", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expect(skip).toBeFocused();
+  expect((await skip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const menu = page.getByRole("button", { name: "Menu" });
+  await expect(menu).toBeVisible();
+  expect((await menu.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await menu.click();
+  const close = page.getByRole("button", { name: "Close menu" });
+  await expect(close).toBeVisible();
+  expect((await close.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
