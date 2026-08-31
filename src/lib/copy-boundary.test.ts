@@ -123,6 +123,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   const ticket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
   assert.match(ticket, /Order rejected/);
   assert.match(ticket, /interpretTicketKey/);
+  assert.match(ticket, /aria-errormessage/);
+  assert.match(ticket, /expiryErrorId/);
   const blotter = await readFile(join(root, "src/components/order-blotter.tsx"), "utf8");
   assert.match(blotter, /role="tabpanel"/);
   assert.match(blotter, /describeSessionLogEvent/);

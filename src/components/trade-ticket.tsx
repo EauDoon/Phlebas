@@ -125,6 +125,10 @@ export function TradeTicket({
 }) {
   const noticeId = useId();
   const shortcutsReasonId = useId();
+  const priceErrorId = useId();
+  const sizeErrorId = useId();
+  const slippageErrorId = useId();
+  const expiryErrorId = useId();
   const [side, setSide] = useState<Side>("buy");
   const [orderType, setOrderType] = useState<OrderType>("limit");
   const [tif, setTif] = useState<TimeInForce>("GTC");
@@ -226,7 +230,21 @@ export function TradeTicket({
     }
   }, [lastPrice, orderType, parsedPrice, side, slippagePercent]);
   const worstPrice = worstPricePreview.value;
-  const inputError = priceParse.error ?? sizeParse.error ?? worstPricePreview.error ?? limitTicks.error ?? sizeAtoms.error;
+  const expiryParse = (() => {
+    try {
+      return { value: parseExpiryUnix(expiry), error: null as string | null };
+    } catch (error) {
+      return {
+        value: 0n,
+        error: error instanceof Error ? error.message : "Expiry must be a whole unix time, or 0 for none.",
+      };
+    }
+  })();
+  const priceError = priceParse.error ?? limitTicks.error;
+  const sizeError = sizeParse.error ?? sizeAtoms.error;
+  const slippageError = orderType === "market" ? worstPricePreview.error : null;
+  const expiryError = expiryParse.error;
+  const inputError = priceError ?? sizeError ?? slippageError ?? expiryError;
   const bookEmpty = book.bids.length === 0 && book.asks.length === 0;
   const gate = ticketGate(feedStatus, bookEmpty);
 
@@ -283,17 +301,14 @@ export function TradeTicket({
     if (priceTicks <= 0n) {
       return "Price and size must be positive.";
     }
-    let expiryUnix = 0n;
-    try {
-      expiryUnix = parseExpiryUnix(expiry);
-    } catch (error) {
-      return error instanceof Error ? error.message : "Expiry must be a whole unix time, or 0 for none.";
+    if (expiryError || expiryParse.error) {
+      return expiryError ?? expiryParse.error ?? "Expiry must be a whole unix time, or 0 for none.";
     }
     return {
       priceTicks,
       sizeAtoms: sizeAtoms.atoms,
       tif: orderType === "market" ? "IOC" : tif,
-      expiryUnix,
+      expiryUnix: expiryParse.value,
     };
   }
 
@@ -550,12 +565,16 @@ export function TradeTicket({
             disabled={orderType === "market"}
             onChange={(event) => setPrice(event.target.value)}
             aria-label={`Price in ${market.quote}`}
-            aria-invalid={orderType === "limit" && (!priceIsValid || Boolean(notionalError))}
-            aria-describedby={noticeId}
+            aria-invalid={orderType === "limit" && Boolean(priceError || notionalError || !priceIsValid)}
+            aria-errormessage={orderType === "limit" && priceError ? priceErrorId : undefined}
+            aria-describedby={orderType === "limit" && priceError ? `${priceErrorId} ${noticeId}` : noticeId}
           />
           <span>{market.quote}</span>
         </div>
       </label>
+      {orderType === "limit" && priceError ? (
+        <p id={priceErrorId} className={styles.inlineNotice} role="alert">{priceError}</p>
+      ) : null}
 
       {orderType === "market" && (
         <label className={styles.inputLabel}>
@@ -566,13 +585,17 @@ export function TradeTicket({
               value={slippagePercent}
               onChange={(event) => setSlippagePercent(event.target.value)}
               aria-label="Maximum slippage percent"
-              aria-invalid={Boolean(worstPricePreview.error)}
-              aria-describedby={noticeId}
+              aria-invalid={Boolean(slippageError)}
+              aria-errormessage={slippageError ? slippageErrorId : undefined}
+              aria-describedby={slippageError ? `${slippageErrorId} ${noticeId}` : noticeId}
             />
             <span>%</span>
           </div>
         </label>
       )}
+      {slippageError ? (
+        <p id={slippageErrorId} className={styles.inlineNotice} role="alert">{slippageError}</p>
+      ) : null}
 
       <label className={styles.inputLabel}>
         <span>Size</span>
@@ -582,12 +605,16 @@ export function TradeTicket({
             value={size}
             onChange={(event) => setSize(event.target.value)}
             aria-label="Order size in pZEC"
-            aria-invalid={!sizeIsValid || Boolean(notionalError)}
-            aria-describedby={noticeId}
+            aria-invalid={!sizeIsValid || Boolean(sizeError || notionalError)}
+            aria-errormessage={sizeError ? sizeErrorId : undefined}
+            aria-describedby={sizeError ? `${sizeErrorId} ${noticeId}` : noticeId}
           />
           <span>pZEC</span>
         </div>
       </label>
+      {sizeError ? (
+        <p id={sizeErrorId} className={styles.inlineNotice} role="alert">{sizeError}</p>
+      ) : null}
 
       <label className={styles.inputLabel}>
         <span>Expiry</span>
@@ -597,11 +624,16 @@ export function TradeTicket({
             value={expiry}
             onChange={(event) => setExpiry(event.target.value)}
             aria-label="Order expiry unix time"
-            aria-describedby={noticeId}
+            aria-invalid={Boolean(expiryError)}
+            aria-errormessage={expiryError ? expiryErrorId : undefined}
+            aria-describedby={expiryError ? `${expiryErrorId} ${noticeId}` : noticeId}
           />
           <span>unix</span>
         </div>
       </label>
+      {expiryError ? (
+        <p id={expiryErrorId} className={styles.inlineNotice} role="alert">{expiryError}</p>
+      ) : null}
       <p className={styles.inlineNotice}>0 means no expiry. This session never sends a live order.</p>
 
       <div
