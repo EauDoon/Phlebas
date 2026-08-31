@@ -31,7 +31,7 @@ export function LandingTerminalPreview() {
         <dl className={styles.terminalPreviewSummary} aria-label="Illustrative market summary">
           <div>
             <dt>Last</dt>
-            <dd>{formatAtomicUnits(market.lastTicks, PRICE_DECIMALS, 2)} {market.quote}</dd>
+            <dd>Fixture {formatAtomicUnits(market.lastTicks, PRICE_DECIMALS, 2)} {market.quote}</dd>
           </div>
           <div>
             <dt>Market data</dt>
@@ -45,23 +45,23 @@ export function LandingTerminalPreview() {
             <thead>
               <tr>
                 <th scope="col">Side</th>
-                <th scope="col">Price {market.quote}</th>
-                <th scope="col">Size pZEC</th>
+                <th scope="col">Fixture price {market.quote}</th>
+                <th scope="col">Fixture size pZEC</th>
               </tr>
             </thead>
             <tbody>
               {asks.map((level) => (
                 <tr key={`ask-${level.priceTicks}`}>
                   <th scope="row">Ask</th>
-                  <td>{formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}</td>
-                  <td>{formatAtomicUnits(level.sizeAtoms, PZEC_DECIMALS)}</td>
+                  <td>Fixture {formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}</td>
+                  <td>Fixture {formatAtomicUnits(level.sizeAtoms, PZEC_DECIMALS)}</td>
                 </tr>
               ))}
               {bids.map((level) => (
                 <tr key={`bid-${level.priceTicks}`}>
                   <th scope="row">Bid</th>
-                  <td>{formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}</td>
-                  <td>{formatAtomicUnits(level.sizeAtoms, PZEC_DECIMALS)}</td>
+                  <td>Fixture {formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}</td>
+                  <td>Fixture {formatAtomicUnits(level.sizeAtoms, PZEC_DECIMALS)}</td>
                 </tr>
               ))}
             </tbody>

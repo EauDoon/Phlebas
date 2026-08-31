@@ -130,6 +130,9 @@ test("landing and terminal banners stay simulation-only", async () => {
   const preview = await readFile(join(root, "src/components/landing-terminal-preview.tsx"), "utf8");
   assert.match(preview, />Simulation</);
   assert.match(preview, /cannot submit, sign, or fill/);
+  assert.match(preview, /Fixture \{formatAtomicUnits\(market\.lastTicks/);
+  assert.match(preview, /Fixture price/);
+  assert.match(preview, /Fixture size pZEC/);
   assert.doesNotMatch(preview, /tex1/);
   assert.doesNotMatch(preview, /wallet balance/i);
   assert.doesNotMatch(preview, /APY|profit/i);
