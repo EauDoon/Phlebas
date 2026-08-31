@@ -141,6 +141,12 @@ test("price chart label names the settlement pair from real market state", () =>
     priceChartLabelCopy("ZEC/USDT", "1D"),
     "Illustrative 1D price chart for ZEC/USDT, settled as pZEC-USDT0",
   );
+  assert.equal(
+    priceChartLabelCopy(marketId, "1H"),
+    "Illustrative 1H price chart for ZEC/USDC, settled as pZEC-USDC",
+  );
+  assert.ok(chartSeries[marketId]["1H"].length > 0);
+  assert.ok(chartSeries[marketId]["1D"].length > 0);
   assert.doesNotMatch(priceChartLabelCopy(marketId, range), /native ZEC/);
   assert.doesNotMatch(priceChartLabelCopy(marketId, range), /live/);
 });
