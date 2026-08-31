@@ -290,10 +290,11 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /padding: 24px 18px 16px;/);
   assert.match(
     terminalCss,
-    /\.educationDialog \.tourNav \{\r?\n  box-sizing: border-box;\r?\n  width: 100%;/,
+    /\.educationDialog \.tourNav \{\r?\n  box-sizing: border-box;\r?\n  width: 100%;\r?\n  flex-shrink: 0;/,
   );
+  assert.match(terminalCss, /padding-bottom: 12px;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?overflow: visible;/);
-  assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?padding: 8px;/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?padding: 12px;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?box-sizing: border-box;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?width: 100%;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button \{[\s\S]*?box-sizing: border-box;/);
