@@ -254,3 +254,18 @@ Testnet needs current protocol evidence, deterministic vectors, local execution,
 Mainnet needs successful Testnet operation, independent audits, exact contract and service identities, reproducible builds, verified bytecode, monitoring, incident drills, legal approval, and separate authorization for real assets.
 
 The current Vercel deployment remains a simulation until every applicable gate passes.
+
+## ZEC half of the atomic swap
+
+The ZEC half of the atomic swap is a transparent P2SH output that holds ZEC until either the buyer reveals the preimage on the Zcash claim path or the seller refunds after the lock time. The address encoder, the P2SH script builder, and the wallet adapter are documented in [ADR 0005](adr/0005-zcash-p2sh-atomic-swap.md).
+
+### Components
+
+- **Address encoder** (`src/lib/zcash-address.ts`) — Base58Check transparent address encoder and decoder. Testnet and mainnet version bytes are pinned. The address surface is the only surface in PR 3 that depends on a hash function.
+- **P2SH script builder** (`src/lib/zcash-atomic-swap.ts`) — claim branch, refund branch, and full atomic-swap script. The script round-trips through the parser.
+- **Wallet adapter** (`src/lib/zcash-wallet-adapter.ts`) — typed `buildFundTransaction`, `buildClaimTransaction`, `buildRefundTransaction`, and `hashAtomicSwapParams`. The adapter returns unsigned transactions; the signing surface is an injected callback that the production code wires to a real Zcash wallet.
+- **Compressed pubkey parser** (`src/lib/zcash-pubkey.ts`) — 33-byte compressed secp256k1 public key parser and encoder.
+
+### Hash function
+
+The hash function is `RIPEMD160(SHA256(x))`, which the Zcash script engine exposes as `OP_HASH160`. The preimage primitive in `src/lib/preimage.ts` produces 32 random bytes; the same preimage and the same hash are valid on both the EVM leg (via `SHA256`) and the ZEC leg (via `RIPEMD160(SHA256)`).
