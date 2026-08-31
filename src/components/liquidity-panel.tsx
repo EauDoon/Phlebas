@@ -15,7 +15,7 @@ import {
   seedPool,
   type PoolShares,
 } from "@/lib/lp";
-import { pools, type MarketId } from "@/lib/market-data";
+import { markets, pools, type MarketId } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import { parseAtomicUnits, formatAtomicUnits, PZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
 
@@ -70,7 +70,7 @@ export function LiquidityPanel({
   const [notice, setNotice] = useState("Integer pool math. Wallet actions stay disabled.");
   const [tradingPaused, setTradingPaused] = useState(false);
   const [review, setReview] = useState<LpReview | null>(null);
-  const gate = ticketGate(feedStatus, false);
+  const gate = ticketGate(feedStatus, false, markets[marketId].settlementPair);
   const feedBlocksLp = feedStatus === "loading" || feedStatus === "stale" || feedStatus === "unavailable";
   const poolReserves = poolState[selectedPool.id];
   const sessionEntry = entryDeposits[selectedPool.id];

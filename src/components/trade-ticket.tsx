@@ -234,7 +234,7 @@ export function TradeTicket({
   const worstPrice = worstPricePreview.value;
   const inputError = priceParse.error ?? sizeParse.error ?? worstPricePreview.error ?? limitTicks.error ?? sizeAtoms.error;
   const bookEmpty = book.bids.length === 0 && book.asks.length === 0;
-  const gate = ticketGate(feedStatus, bookEmpty);
+  const gate = ticketGate(feedStatus, bookEmpty, market.settlementPair);
 
   function applyPercent(percent: 25 | 50 | 75 | 100) {
     const share = BigInt(percent);
