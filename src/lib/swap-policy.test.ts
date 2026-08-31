@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { sampleSwapTerms } from "./swap-domain.test.ts";
+import { sampleSwapTerms } from "./swap-test-fixtures.ts";
 import { assertSwapTimingPolicy, swapDeadlineStatus, type SwapTimingPolicy } from "./swap-policy.ts";
 
 const fixturePolicy: SwapTimingPolicy = {

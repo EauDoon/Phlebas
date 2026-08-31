@@ -8,47 +8,8 @@ import {
   roleForParty,
   swapIdForTerms,
   validateSwapTerms,
-  type SwapTermsV1,
 } from "./swap-domain.ts";
-
-const hex20 = (byte: string) => `0x${byte.repeat(40)}` as `0x${string}`;
-
-export const sampleSwapTerms: SwapTermsV1 = {
-  version: 1,
-  fillId: keccak256Text("fill-1"),
-  fillIndex: 0n,
-  zecOrderHash: keccak256Text("zec-order"),
-  stablecoinOrderHash: keccak256Text("stablecoin-order"),
-  zecSellerId: keccak256Text("zec-seller"),
-  stablecoinSellerId: keccak256Text("stablecoin-seller"),
-  zecChain: "bip122:00040fe8ec8471911baa1db1266ea15d",
-  zecAsset: "bip122:00040fe8ec8471911baa1db1266ea15d/slip44:133",
-  quoteChain: "eip155:421614",
-  quoteAsset: "eip155:421614/erc20:0x1111111111111111111111111111111111111111",
-  zecAmountZatoshis: 100_000_000n,
-  quoteAmountAtoms: 5_291_000n,
-  executionPriceTicks: 5_291n,
-  protocolFeeQuoteAtoms: 7_936n,
-  maximumFeeBps: 30n,
-  zcashLockScriptHash: hex20("a"),
-  zcashClaimPubKeyHash: hex20("1"),
-  zcashRefundPubKeyHash: hex20("2"),
-  evmFunder: hex20("3"),
-  evmClaimRecipient: hex20("4"),
-  evmRefundRecipient: hex20("5"),
-  evmEscrowContract: hex20("6"),
-  secretHash: keccak256Text("fixture-sha256-value"),
-  authorizationDeadline: 1_700_000_100n,
-  zecFundBy: 1_700_000_200n,
-  evmFundBy: 1_700_000_300n,
-  evmClaimSafetyCutoff: 1_700_000_400n,
-  evmRefundTime: 1_700_000_500n,
-  zecRefundTime: 1_700_001_000n,
-  timeoutPolicyId: keccak256Text("timeout-policy-fixture-v1"),
-  observerPolicyId: keccak256Text("observer-policy-fixture-v1"),
-  zecFinalityPolicyId: keccak256Text("zec-finality-fixture-v1"),
-  evmFinalityPolicyId: keccak256Text("evm-finality-fixture-v1"),
-};
+import { hex20, sampleSwapTerms } from "./swap-test-fixtures.ts";
 
 test("validates and freezes exact native swap terms", () => {
   const terms = validateSwapTerms(sampleSwapTerms);

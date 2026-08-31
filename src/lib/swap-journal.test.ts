@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { keccak256Text } from "./keccak.ts";
-import { sampleSwapTerms } from "./swap-domain.test.ts";
+import { fundingEvidence, sampleSwapTerms, sampleTimingPolicy } from "./swap-test-fixtures.ts";
 import {
   appendSwapEvent,
   emptySwapJournal,
@@ -11,7 +11,6 @@ import {
   type SwapEventPayload,
 } from "./swap-journal.ts";
 import { createSwapState } from "./swap-state.ts";
-import { fundingEvidence, sampleTimingPolicy } from "./swap-state.test.ts";
 
 function fixture() {
   const state = createSwapState(sampleSwapTerms, sampleTimingPolicy);

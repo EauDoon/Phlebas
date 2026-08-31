@@ -3,7 +3,17 @@ import test from "node:test";
 
 import { keccak256Text } from "./keccak.ts";
 import { hashSwapTerms } from "./swap-domain.ts";
-import { sampleSwapTerms } from "./swap-domain.test.ts";
+import {
+  authorizedSwap,
+  fixturePreimage,
+  fixtureSecretHash,
+  fundedSwap,
+  fundedZecSwap,
+  fundingEvidence,
+  sampleSwapTerms,
+  sampleTimingPolicy,
+  spendEvidence,
+} from "./swap-test-fixtures.ts";
 import {
   authorizeSwapTerms,
   confirmSwapFunding,
@@ -15,75 +25,7 @@ import {
   flagSwapDispute,
   retractSwapEvidence,
   swapPhase,
-  type FundingEvidence,
-  type SpendEvidence,
-  type SwapState,
 } from "./swap-state.ts";
-
-export const sampleTimingPolicy = {
-  minimumFundingWindowSeconds: 100n,
-  minimumClaimWindowSeconds: 100n,
-  minimumSafetyWindowSeconds: 500n,
-};
-
-export function authorizedSwap(): SwapState {
-  const created = createSwapState(sampleSwapTerms, sampleTimingPolicy);
-  const first = authorizeSwapTerms(created, sampleSwapTerms.zecSellerId, created.termsHash, sampleSwapTerms.authorizationDeadline - 2n);
-  return authorizeSwapTerms(first, sampleSwapTerms.stablecoinSellerId, first.termsHash, sampleSwapTerms.authorizationDeadline - 1n);
-}
-
-export function fundingEvidence(leg: "zec" | "evm", suffix = "1"): FundingEvidence {
-  return {
-    evidenceId: keccak256Text(`${leg}-evidence-${suffix}`),
-    leg,
-    transactionId: keccak256Text(`${leg}-transaction-${suffix}`),
-    blockHash: keccak256Text(`${leg}-block-${suffix}`),
-    blockHeight: 100n,
-    outputIndex: 0n,
-    sourceId: keccak256Text("fixture-observer"),
-    observedAtSeconds: sampleSwapTerms.zecFundBy - 1n,
-    chain: leg === "zec" ? sampleSwapTerms.zecChain : sampleSwapTerms.quoteChain,
-    asset: leg === "zec" ? sampleSwapTerms.zecAsset : sampleSwapTerms.quoteAsset,
-    amountAtoms: leg === "zec" ? sampleSwapTerms.zecAmountZatoshis : sampleSwapTerms.quoteAmountAtoms,
-    lockIdentity: leg === "zec" ? sampleSwapTerms.zcashLockScriptHash : sampleSwapTerms.evmEscrowContract,
-    recipient: leg === "zec" ? sampleSwapTerms.zcashClaimPubKeyHash : sampleSwapTerms.evmClaimRecipient,
-  };
-}
-
-export function fundedZecSwap(): SwapState {
-  const prepared = prepareSwapFunding(authorizedSwap(), "zec", keccak256Text("zec-artifact"), sampleSwapTerms.zecFundBy - 1n);
-  const observed = observeSwapFunding(prepared, fundingEvidence("zec"));
-  return confirmSwapFunding(observed, "zec", fundingEvidence("zec").evidenceId);
-}
-
-export function fundedSwap(): SwapState {
-  const zecFunded = fundedZecSwap();
-  const prepared = prepareSwapFunding(zecFunded, "evm", keccak256Text("evm-artifact"), sampleSwapTerms.evmFundBy - 1n);
-  const observed = observeSwapFunding(prepared, fundingEvidence("evm"));
-  return confirmSwapFunding(observed, "evm", fundingEvidence("evm").evidenceId);
-}
-
-const fixturePreimage = `0x${"42".repeat(32)}` as const;
-
-function spendEvidence(leg: "zec" | "evm", action: "claim" | "refund", observedAtSeconds: bigint): SpendEvidence {
-  return {
-    evidenceId: keccak256Text(`${leg}-${action}-evidence`),
-    leg,
-    action,
-    transactionId: keccak256Text(`${leg}-${action}-transaction`),
-    blockHash: keccak256Text(`${leg}-${action}-block`),
-    blockHeight: 200n,
-    inputOrLogIndex: 0n,
-    sourceId: keccak256Text("fixture-observer"),
-    observedAtSeconds,
-    chain: leg === "zec" ? sampleSwapTerms.zecChain : sampleSwapTerms.quoteChain,
-    recipient: leg === "zec"
-      ? (action === "claim" ? sampleSwapTerms.zcashClaimPubKeyHash : sampleSwapTerms.zcashRefundPubKeyHash)
-      : (action === "claim" ? sampleSwapTerms.evmClaimRecipient : sampleSwapTerms.evmRefundRecipient),
-    successful: true,
-    ...(action === "claim" ? { preimage: fixturePreimage } : {}),
-  };
-}
 
 test("requires both exact terms authorizations before ZEC funding", () => {
   const created = createSwapState(sampleSwapTerms, sampleTimingPolicy);
@@ -129,7 +71,7 @@ test("funds the EVM leg only inside its safe window", () => {
 });
 
 test("reveals the secret only from a successful canonical EVM claim", () => {
-  const terms = { ...sampleSwapTerms, secretHash: "0x425ed4e4a36b30ea21b90e21c712c649e8214c29b7eaf68089d1039c6e55384c" as const };
+  const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
   const created = createSwapState(terms, sampleTimingPolicy);
   const first = authorizeSwapTerms(created, terms.zecSellerId, created.termsHash, 1n);
   const authorized = authorizeSwapTerms(first, terms.stablecoinSellerId, created.termsHash, 2n);
@@ -166,7 +108,7 @@ test("keeps claim and refund mutually exclusive and rejects early refunds", () =
 });
 
 test("rejects EVM claims at the refund deadline", () => {
-  const terms = { ...sampleSwapTerms, secretHash: "0x425ed4e4a36b30ea21b90e21c712c649e8214c29b7eaf68089d1039c6e55384c" as const };
+  const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
   const created = createSwapState(terms, sampleTimingPolicy);
   const first = authorizeSwapTerms(created, terms.zecSellerId, created.termsHash, 1n);
   const authorized = authorizeSwapTerms(first, terms.stablecoinSellerId, created.termsHash, 2n);
