@@ -194,7 +194,7 @@ export function describeSubmit(result: SubmitResult, marketId: MarketId): string
       .join("; ");
 
   if (result.status === "rejected") {
-    return result.reason ?? "Order rejected.";
+    return `Rejected. ${result.reason ?? "Order was not accepted."}`;
   }
   if (result.status === "filled") {
     return `Filled against the local ${marketId} book: ${fillSummary}.`;
