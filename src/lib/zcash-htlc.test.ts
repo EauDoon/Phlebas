@@ -12,7 +12,7 @@ import {
   evaluateHtlcCltv,
   htlcP2shAddress,
   htlcP2shScriptPubKey,
-  htlcStandardnessReport,
+  htlcTemplatePolicyReport,
   isHtlcP2shScriptPubKey,
   isHtlcRedeemScript,
   parseHtlcRedeemScript,
@@ -68,16 +68,17 @@ test("P2SH output and address use the existing byte-order-safe transparent codec
   assert.equal(isHtlcP2shScriptPubKey(wrongHash, script), false);
 });
 
-test("the exact template reports one static sigop and stays within the P2SH push limit", () => {
-  const report = htlcStandardnessReport(buildHtlcRedeemScript(PARAMETERS));
-  assert.equal(report.validTemplate, true);
-  assert.equal(report.isStandard, true);
-  assert.equal(report.sigops, 1);
+test("the exact template report stays scoped below full transaction relay policy", () => {
+  const report = htlcTemplatePolicyReport(buildHtlcRedeemScript(PARAMETERS));
+  assert.equal(report.scope, "redeem-script-template-only");
+  assert.equal(report.exactTemplate, true);
+  assert.equal(report.templatePolicyPasses, true);
+  assert.equal(report.relayability, "unresolved-requires-complete-transaction-and-node-policy");
   assert.equal(report.staticSigops, 1);
   assert.equal(report.scriptLength, 96);
   assert.equal(report.redeemScriptLength, 96);
   assert.equal(report.maxRedeemScriptLength, 520);
-  assert.equal(report.within520Bytes, true);
+  assert.equal(report.withinP2shPushLimit, true);
   assert.deepEqual(report.reasons, []);
 });
 

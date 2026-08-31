@@ -13,8 +13,13 @@ export type TransparentFeePolicy = Readonly<{
   id: string;
   maximumFeeZatoshis: bigint;
   minimumOutputZatoshis: bigint;
-  maximumTransactionBytes: number;
+  maximumSerializedTransactionBytes: number;
   conventionalFee(size: FinalizedTransparentSize): bigint;
+}>;
+
+export type SerializedTransactionSizeAssessment = Readonly<{
+  state: "unresolved" | "within-limit" | "exceeds-limit";
+  reason: string;
 }>;
 
 export type ChangeDisposition = "none" | "change" | "add-to-fee";
@@ -56,11 +61,14 @@ export function zip317TransparentConventionalFee(size: FinalizedTransparentSize)
 export function createZip317TransparentPolicy(options: {
   maximumFeeZatoshis: bigint;
   minimumOutputZatoshis: bigint;
-  maximumTransactionBytes: number;
+  maximumSerializedTransactionBytes: number;
 }): TransparentFeePolicy {
   const maximumFeeZatoshis = zatoshis(options.maximumFeeZatoshis, "Maximum fee");
   const minimumOutputZatoshis = zatoshis(options.minimumOutputZatoshis, "Minimum output");
-  const maximumTransactionBytes = positiveSafeInteger(options.maximumTransactionBytes, "Maximum transaction bytes");
+  const maximumSerializedTransactionBytes = positiveSafeInteger(
+    options.maximumSerializedTransactionBytes,
+    "Maximum serialized transaction bytes",
+  );
   if (minimumOutputZatoshis + maximumFeeZatoshis > MAX_ZATOSHIS) {
     throw new RangeError("Minimum output and maximum fee exceed the ZEC supply bound");
   }
@@ -68,7 +76,7 @@ export function createZip317TransparentPolicy(options: {
     id: "zip317-transparent-r0-r1",
     maximumFeeZatoshis,
     minimumOutputZatoshis,
-    maximumTransactionBytes,
+    maximumSerializedTransactionBytes,
     conventionalFee: zip317TransparentConventionalFee,
   };
 }
@@ -81,14 +89,29 @@ export function validateTransparentFee(
   const fee = zatoshis(feeZatoshis, "Transaction fee");
   const inputBytes = positiveSafeInteger(size.inputBytes, "Finalized transparent input bytes");
   const outputBytes = positiveSafeInteger(size.outputBytes, "Finalized transparent output bytes");
-  const transactionBytes = inputBytes + outputBytes;
-  if (!Number.isSafeInteger(transactionBytes)) throw new RangeError("Finalized transparent size exceeds a safe integer");
-  if (transactionBytes > positiveSafeInteger(policy.maximumTransactionBytes, "Maximum transaction bytes")) {
-    throw new RangeError("Finalized transparent transaction exceeds the configured size limit");
-  }
   const conventionalFee = zatoshis(policy.conventionalFee({ inputBytes, outputBytes }), "Conventional fee");
   if (fee < conventionalFee) throw new RangeError("Transaction fee is below the configured conventional fee");
   if (fee > policy.maximumFeeZatoshis) throw new RangeError("Transaction fee exceeds the approved maximum");
+}
+
+export function assessSerializedTransactionSize(
+  policy: TransparentFeePolicy,
+  serializedTransactionBytes?: number,
+): SerializedTransactionSizeAssessment {
+  const maximum = positiveSafeInteger(
+    policy.maximumSerializedTransactionBytes,
+    "Maximum serialized transaction bytes",
+  );
+  if (serializedTransactionBytes === undefined) {
+    return {
+      state: "unresolved",
+      reason: "A complete canonical transaction serialization was not supplied",
+    };
+  }
+  const actual = positiveSafeInteger(serializedTransactionBytes, "Serialized transaction bytes");
+  return actual <= maximum
+    ? { state: "within-limit", reason: "Complete serialized transaction is within the configured byte limit" }
+    : { state: "exceeds-limit", reason: "Complete serialized transaction exceeds the configured byte limit" };
 }
 
 export function planTransparentChange(options: {

@@ -57,6 +57,11 @@ export function createNu63EncodingProfile(options: {
   if (options.transactionVersion !== 5 && options.transactionVersion !== 6) {
     throw new RangeError("NU6.3 encoding profile supports only transaction versions 5 and 6");
   }
+  const coinType = uint32(options.coinType, "SLIP-44 coin type");
+  const expectedCoinType = options.network === "mainnet" ? 133 : 1;
+  if (coinType !== expectedCoinType) {
+    throw new RangeError(`SLIP-44 coin type must be ${expectedCoinType} for Zcash ${options.network}`);
+  }
   return {
     id: `zcash-${options.network}-nu6.3-v${options.transactionVersion}`,
     network: options.network,
@@ -64,7 +69,7 @@ export function createNu63EncodingProfile(options: {
     transactionVersion: options.transactionVersion,
     versionGroupId: options.transactionVersion === 5 ? V5_VERSION_GROUP_ID : V6_VERSION_GROUP_ID,
     consensusBranchId: NU6_3_BRANCH_ID,
-    coinType: uint32(options.coinType, "SLIP-44 coin type"),
+    coinType,
   };
 }
 

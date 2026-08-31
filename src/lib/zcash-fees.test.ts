@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  assessSerializedTransactionSize,
   createZip317TransparentPolicy,
   planTransparentChange,
   validateTransparentFee,
@@ -11,7 +12,7 @@ import {
 const POLICY = createZip317TransparentPolicy({
   maximumFeeZatoshis: 50_000n,
   minimumOutputZatoshis: 1_000n,
-  maximumTransactionBytes: 100_000,
+  maximumSerializedTransactionBytes: 100_000,
 });
 
 test("ZIP 317 transparent fee uses exact byte ceilings and two grace actions", () => {
@@ -33,10 +34,9 @@ test("fee policy distinguishes conventional wallet policy from explicit caps", (
     () => validateTransparentFee(POLICY, { inputBytes: 150, outputBytes: 34 }, 50_001n),
     /approved maximum/,
   );
-  assert.throws(
-    () => validateTransparentFee(POLICY, { inputBytes: 100_000, outputBytes: 1 }, 50_000n),
-    /configured size limit/,
-  );
+  assert.equal(assessSerializedTransactionSize(POLICY).state, "unresolved");
+  assert.equal(assessSerializedTransactionSize(POLICY, 99_999).state, "within-limit");
+  assert.equal(assessSerializedTransactionSize(POLICY, 100_001).state, "exceeds-limit");
 });
 
 test("change planning preserves the exact value equation", () => {
@@ -83,7 +83,7 @@ test("fee and change policy rejects malformed values and overdraw", () => {
   assert.throws(() => createZip317TransparentPolicy({
     maximumFeeZatoshis: 0n,
     minimumOutputZatoshis: 1n,
-    maximumTransactionBytes: 1,
+    maximumSerializedTransactionBytes: 1,
   }), /Maximum fee/);
   assert.throws(
     () => zip317TransparentConventionalFee({ inputBytes: Number.MAX_SAFE_INTEGER, outputBytes: 34 }),

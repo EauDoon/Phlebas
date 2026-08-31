@@ -41,6 +41,10 @@ test("pins NU6.3 encoding constants without claiming a live chain tip", () => {
     () => createNu63EncodingProfile({ network: "mainnet", transactionVersion: 5, coinType: -1 }),
     /unsigned 32-bit/,
   );
+  assert.throws(
+    () => createNu63EncodingProfile({ network: "mainnet", transactionVersion: 5, coinType: 1 }),
+    /must be 133/,
+  );
 });
 
 test("validates target and expiry heights against the selected profile", () => {

@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 
+import { bytesToHex, hexToBytes } from "./keccak.ts";
+import { htlcP2shScriptPubKey, htlcTemplatePolicyReport, validateHtlcRedeemScript } from "./zcash-htlc.ts";
 import type { ZcashNetwork } from "./zcash-transparent.ts";
+import { p2pkhScriptPubKey } from "./zcash-transparent.ts";
 
 export const ZCASH_ARTIFACT_SCHEMA = "phlebas-zcash-transparent-artifact-v1";
 export const ZCASH_ARTIFACT_BOUNDARY = "candidate-unsigned-effecting-data-manifest";
@@ -46,6 +49,8 @@ export type UnsignedTransparentManifest = Readonly<{
     branch: "fund" | "claim" | "refund";
     redeemScriptHex?: string;
     preimageHex?: string;
+    refundSafetyMargin?: Readonly<{ type: "height" | "timestamp"; value: number }>;
+    fundingLockCutoff?: number;
   }>;
   transactionIdState: "unresolved-until-canonical-transaction-extraction";
 }>;
@@ -168,6 +173,65 @@ function manifestHex(value: unknown, label: string, exactBytes?: number): string
   return value;
 }
 
+function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
+  return left.length === right.length && left.every((byte, index) => byte === right[index]);
+}
+
+function validateP2pkhScriptHex(value: string, expectedHash?: Uint8Array): void {
+  const bytes = hexToBytes(value);
+  if (bytes.length !== 25 || bytes[0] !== 0x76 || bytes[1] !== 0xa9 || bytes[2] !== 0x14
+    || bytes[23] !== 0x88 || bytes[24] !== 0xac) {
+    throw new TypeError("Artifact P2PKH script does not use the canonical template");
+  }
+  if (expectedHash && !sameBytes(bytes, p2pkhScriptPubKey(expectedHash))) {
+    throw new Error("Artifact recipient script does not match the HTLC branch public-key hash");
+  }
+}
+
+function validateArtifactSemantics(manifest: UnsignedTransparentManifest): void {
+  const redeemScript = hexToBytes(manifest.authorization.redeemScriptHex as string);
+  const htlc = validateHtlcRedeemScript(redeemScript);
+  const templatePolicy = htlcTemplatePolicyReport(redeemScript);
+  if (!templatePolicy.templatePolicyPasses) throw new TypeError("Artifact redeemScript fails the HTLC template policy");
+  const p2shHex = bytesToHex(htlcP2shScriptPubKey(redeemScript));
+
+  if (manifest.kind === "fund") {
+    if (manifest.outputs[0].scriptPubKeyHex !== p2shHex) {
+      throw new Error("Funding contract output does not match the HTLC redeemScript hash");
+    }
+    for (const input of manifest.inputs) validateP2pkhScriptHex(input.scriptPubKeyHex);
+    if (manifest.outputs[1]) validateP2pkhScriptHex(manifest.outputs[1].scriptPubKeyHex);
+    const margin = manifest.authorization.refundSafetyMargin;
+    if (!margin || margin.type !== htlc.lock.type || !Number.isSafeInteger(margin.value) || margin.value <= 0) {
+      throw new RangeError("Funding artifact refund safety margin is invalid");
+    }
+    const cutoff = manifestUint32(manifest.authorization.fundingLockCutoff, "Funding artifact lock cutoff");
+    if (htlc.lock.type === "height" && cutoff !== manifest.targetHeight) {
+      throw new Error("Funding height cutoff must equal the artifact target height");
+    }
+    if (htlc.lock.type === "timestamp" && cutoff < 500_000_000) {
+      throw new RangeError("Funding timestamp cutoff is outside the timestamp locktime domain");
+    }
+    if (htlc.lock.value <= cutoff || htlc.lock.value - cutoff < margin.value) {
+      throw new RangeError("Funding artifact does not preserve its committed refund safety margin");
+    }
+    return;
+  }
+
+  if (manifest.inputs.length !== 1 || manifest.inputs[0].scriptPubKeyHex !== p2shHex) {
+    throw new Error("Spend contract input does not match the HTLC redeemScript hash");
+  }
+  const expectedPkh = manifest.kind === "claim" ? htlc.claimPkh : htlc.refundPkh;
+  validateP2pkhScriptHex(manifest.outputs[0].scriptPubKeyHex, expectedPkh);
+  if (manifest.kind === "claim") {
+    const preimage = hexToBytes(manifest.authorization.preimageHex as string);
+    const digest = createHash("sha256").update(preimage).digest();
+    if (!sameBytes(digest, htlc.digest)) throw new Error("Artifact claim preimage does not match the HTLC digest");
+  } else if (manifest.lockTime !== htlc.lock.value) {
+    throw new Error("Refund artifact locktime does not match the HTLC redeemScript");
+  }
+}
+
 function validateManifestShape(value: unknown): asserts value is UnsignedTransparentManifest {
   const manifest = recordValue(value, "Artifact manifest");
   exactKeys(manifest, [
@@ -202,7 +266,10 @@ function validateManifestShape(value: unknown): asserts value is UnsignedTranspa
   const expectedVersionGroup = profile.transactionVersion === 5 ? "26a7270a" : "d884b698";
   if (profile.versionGroupId !== expectedVersionGroup) throw new TypeError("Artifact version group does not match its transaction version");
   if (profile.consensusBranchId !== "37a5165b") throw new TypeError("Artifact consensus branch is not NU6.3");
-  manifestUint32(profile.coinType, "Artifact coin type");
+  const expectedCoinType = manifest.network === "mainnet" ? 133 : 1;
+  if (manifestUint32(profile.coinType, "Artifact coin type") !== expectedCoinType) {
+    throw new RangeError(`Artifact coin type must be ${expectedCoinType} for its network`);
+  }
 
   const targetHeight = manifestUint32(manifest.targetHeight, "Artifact target height");
   const expiryHeight = manifestUint32(manifest.expiryHeight, "Artifact expiry height");
@@ -268,7 +335,7 @@ function validateManifestShape(value: unknown): asserts value is UnsignedTranspa
   allowedKeys(
     authorization,
     ["sighashType", "sighashCode", "txModifiable", "branch", "redeemScriptHex"],
-    ["preimageHex"],
+    ["preimageHex", "refundSafetyMargin", "fundingLockCutoff"],
     "Artifact authorization",
   );
   if (authorization.sighashType !== "SIGHASH_ALL" || authorization.sighashCode !== 1 || authorization.txModifiable !== 0) {
@@ -276,11 +343,27 @@ function validateManifestShape(value: unknown): asserts value is UnsignedTranspa
   }
   if (authorization.branch !== manifest.kind) throw new TypeError("Artifact authorization branch does not match its kind");
   manifestHex(authorization.redeemScriptHex, "Artifact redeemScript");
-  if (manifest.kind === "claim") manifestHex(authorization.preimageHex, "Artifact claim preimage", 32);
-  else if (authorization.preimageHex !== undefined) throw new TypeError("Only claim artifacts may contain a preimage");
+  if (manifest.kind === "claim") {
+    manifestHex(authorization.preimageHex, "Artifact claim preimage", 32);
+    if (authorization.refundSafetyMargin !== undefined || authorization.fundingLockCutoff !== undefined) {
+      throw new TypeError("Claim artifact contains funding-only policy fields");
+    }
+  } else if (manifest.kind === "refund") {
+    if (authorization.preimageHex !== undefined || authorization.refundSafetyMargin !== undefined
+      || authorization.fundingLockCutoff !== undefined) {
+      throw new TypeError("Refund artifact contains claim or funding-only policy fields");
+    }
+  } else if (authorization.refundSafetyMargin === undefined || authorization.fundingLockCutoff === undefined) {
+    throw new TypeError("Funding artifact must commit its refund safety policy");
+  }
+  if (manifest.kind === "fund") {
+    const margin = recordValue(authorization.refundSafetyMargin, "Funding artifact refund safety margin");
+    exactKeys(margin, ["type", "value"], "Funding artifact refund safety margin");
+  }
   if (manifest.transactionIdState !== "unresolved-until-canonical-transaction-extraction") {
     throw new TypeError("Artifact transaction ID state is unsupported");
   }
+  validateArtifactSemantics(manifest as unknown as UnsignedTransparentManifest);
 }
 
 function shapeGuard(value: unknown): asserts value is CommittedZcashArtifact {

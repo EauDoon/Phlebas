@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { bytesToHex, hexToBytes } from "./keccak.ts";
 import {
   ZCASH_ARTIFACT_BOUNDARY,
   ZCASH_ARTIFACT_SCHEMA,
@@ -11,8 +12,15 @@ import {
   verifyZcashArtifact,
   type UnsignedTransparentManifest,
 } from "./zcash-artifact.ts";
+import { buildHtlcRedeemScript, htlcP2shScriptPubKey } from "./zcash-htlc.ts";
 
 function fixtureManifest(): UnsignedTransparentManifest {
+  const redeemScript = buildHtlcRedeemScript({
+    digest: hexToBytes("00".repeat(32)),
+    claimPkh: hexToBytes("11".repeat(20)),
+    refundPkh: hexToBytes("22".repeat(20)),
+    lock: { type: "height", value: 4_300_000 },
+  });
   return {
     schema: ZCASH_ARTIFACT_SCHEMA,
     boundary: ZCASH_ARTIFACT_BOUNDARY,
@@ -38,7 +46,7 @@ function fixtureManifest(): UnsignedTransparentManifest {
       },
     ],
     outputs: [
-      { role: "contract", valueZatoshis: "100000", scriptPubKeyHex: "a914" + "33".repeat(20) + "87" },
+      { role: "contract", valueZatoshis: "100000", scriptPubKeyHex: bytesToHex(htlcP2shScriptPubKey(redeemScript)) },
     ],
     feeZatoshis: "10000",
     authorization: {
@@ -46,7 +54,9 @@ function fixtureManifest(): UnsignedTransparentManifest {
       sighashCode: 1,
       txModifiable: 0,
       branch: "fund",
-      redeemScriptHex: "51",
+      redeemScriptHex: bytesToHex(redeemScript),
+      refundSafetyMargin: { type: "height", value: 10 },
+      fundingLockCutoff: 4_200_000,
     },
     transactionIdState: "unresolved-until-canonical-transaction-extraction",
   };
@@ -60,7 +70,7 @@ test("canonicalizes object keys and rejects non-canonical values", () => {
 
 test("commits, freezes, serializes, and rehydrates an exact manifest", () => {
   const artifact = commitZcashArtifact(fixtureManifest());
-  assert.equal(artifact.manifestDigest, "96495a9e6d5c53ec5744acdbfaa79ac763229130bcc30bfc772e9d71a1ede657");
+  assert.equal(artifact.manifestDigest, "f48cd6bf0aa05d4ea340f15827cbd8033d662921d8c09b3265118dad7789d6cc");
   assert.equal(Object.isFrozen(artifact), true);
   assert.equal(Object.isFrozen(artifact.manifest.inputs), true);
 
@@ -76,7 +86,7 @@ test("fails closed on artifact substitution and non-canonical restart bytes", ()
     ...artifact,
     manifest: {
       ...artifact.manifest,
-      targetHeight: artifact.manifest.targetHeight + 1,
+      inputs: [{ ...artifact.manifest.inputs[0], txid: "12".repeat(32) }],
     },
   };
   assert.throws(() => verifyZcashArtifact(substituted), /digest does not match/);
@@ -114,8 +124,25 @@ test("validates every runtime manifest field before committing", () => {
   assert.throws(
     () => commitZcashArtifact({
       ...fixtureManifest(),
+      profile: { ...fixtureManifest().profile, coinType: 133 },
+    }),
+    /coin type must be 1/,
+  );
+  assert.throws(
+    () => commitZcashArtifact({
+      ...fixtureManifest(),
       authorization: { ...fixtureManifest().authorization, txModifiable: 1 as 0 },
     }),
     /freeze SIGHASH_ALL/,
+  );
+  assert.throws(
+    () => commitZcashArtifact({
+      ...fixtureManifest(),
+      authorization: {
+        ...fixtureManifest().authorization,
+        refundSafetyMargin: { type: "height", value: 10, extra: true } as never,
+      },
+    }),
+    /refund safety margin contains missing or unexpected fields/,
   );
 });

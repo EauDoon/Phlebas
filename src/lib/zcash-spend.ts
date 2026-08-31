@@ -15,7 +15,7 @@ import {
 import {
   evaluateHtlcCltv,
   htlcP2shScriptPubKey,
-  htlcStandardnessReport,
+  htlcTemplatePolicyReport,
   validateHtlcRedeemScript,
   type HtlcMaturityContext,
   type HtlcParameters,
@@ -23,6 +23,7 @@ import {
 import {
   FINAL_SEQUENCE,
   LOCKTIME_ENABLED_SEQUENCE,
+  evaluateExpiry,
   validateExpiryHeight,
   validateTargetHeight,
   type Nu63EncodingProfile,
@@ -41,6 +42,7 @@ type SpendArtifactRequest = Readonly<{
   profile: Nu63EncodingProfile;
   targetHeight: number;
   expiryHeight: number;
+  observedHeight: number;
   contractUtxo: HtlcContractUtxo;
   expectedHtlc: HtlcParameters;
   recipientAddress: string;
@@ -105,9 +107,15 @@ function prepareSpend(
 }> {
   const targetHeight = validateTargetHeight(request.profile, request.targetHeight);
   const expiryHeight = validateExpiryHeight(request.profile, targetHeight, request.expiryHeight);
+  const observedHeight = validateTargetHeight(request.profile, request.observedHeight);
+  const expiry = evaluateExpiry(expiryHeight, observedHeight);
+  if (expiry.state === "expired") throw new Error("Spend artifact is expired and must be rebuilt");
+  if (expiry.state === "unresolved") throw new Error("Spend artifact expiry is unresolved");
   const htlc = validateHtlcRedeemScript(request.contractUtxo.redeemScript, request.expectedHtlc);
-  const standardness = htlcStandardnessReport(request.contractUtxo.redeemScript);
-  if (!standardness.isStandard) throw new TypeError(`HTLC redeemScript failed standardness guards: ${standardness.reasons.join("; ")}`);
+  const templatePolicy = htlcTemplatePolicyReport(request.contractUtxo.redeemScript);
+  if (!templatePolicy.templatePolicyPasses) {
+    throw new TypeError(`HTLC redeemScript failed template policy: ${templatePolicy.reasons.join("; ")}`);
+  }
   const expectedContractScript = htlcP2shScriptPubKey(request.contractUtxo.redeemScript);
   if (!sameBytes(request.contractUtxo.scriptPubKey, expectedContractScript)) {
     throw new Error("Contract UTXO scriptPubKey does not match the exact HTLC redeemScript hash");
@@ -197,6 +205,10 @@ export function buildClaimArtifact(request: ClaimArtifactRequest): CommittedZcas
 
 export function buildRefundArtifact(request: RefundArtifactRequest): CommittedZcashArtifact {
   const prepared = prepareSpend(request, "refund");
+  if (prepared.htlc.lock.type === "height" && request.maturity.currentBlockHeight !== undefined
+    && request.maturity.currentBlockHeight !== request.observedHeight) {
+    throw new Error("Refund height evidence must match the observed height used for expiry evaluation");
+  }
   const maturity = evaluateHtlcCltv({
     lock: prepared.htlc.lock,
     txLockTime: prepared.htlc.lock.value,

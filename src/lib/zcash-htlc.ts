@@ -84,15 +84,16 @@ export type HtlcCltvEvaluation = Readonly<{
   reason?: string;
 }>;
 
-export type HtlcStandardnessReport = Readonly<{
-  validTemplate: boolean;
-  isStandard: boolean;
-  sigops: number;
+export type HtlcTemplatePolicyReport = Readonly<{
+  scope: "redeem-script-template-only";
+  exactTemplate: boolean;
+  templatePolicyPasses: boolean;
+  relayability: "unresolved-requires-complete-transaction-and-node-policy";
   staticSigops: number;
   scriptLength: number;
   redeemScriptLength: number;
   maxRedeemScriptLength: number;
-  within520Bytes: boolean;
+  withinP2shPushLimit: boolean;
   reasons: readonly string[];
 }>;
 
@@ -461,7 +462,7 @@ function staticSigopCount(script: Uint8Array): number {
   return count;
 }
 
-export function htlcStandardnessReport(value: HtlcParameters | Uint8Array): HtlcStandardnessReport {
+export function htlcTemplatePolicyReport(value: HtlcParameters | Uint8Array): HtlcTemplatePolicyReport {
   const script = value instanceof Uint8Array ? cloneBytes(value) : (() => {
     try {
       return buildHtlcRedeemScript(value);
@@ -477,24 +478,22 @@ export function htlcStandardnessReport(value: HtlcParameters | Uint8Array): Htlc
   } catch (error) {
     reasons.push(error instanceof Error ? error.message : "redeemScript is not the exact HTLC template");
   }
-  const within520Bytes = script.length <= HTLC_MAX_REDEEM_SCRIPT_LENGTH;
-  if (!within520Bytes) reasons.push("redeemScript exceeds 520 bytes");
+  const withinP2shPushLimit = script.length <= HTLC_MAX_REDEEM_SCRIPT_LENGTH;
+  if (!withinP2shPushLimit) reasons.push("redeemScript exceeds 520 bytes");
   const sigops = validTemplate ? 1 : staticSigopCount(script);
   return {
-    validTemplate,
-    isStandard: validTemplate && within520Bytes && sigops === 1,
-    sigops,
+    scope: "redeem-script-template-only",
+    exactTemplate: validTemplate,
+    templatePolicyPasses: validTemplate && withinP2shPushLimit && sigops === 1,
+    relayability: "unresolved-requires-complete-transaction-and-node-policy",
     staticSigops: sigops,
     scriptLength: script.length,
     redeemScriptLength: script.length,
     maxRedeemScriptLength: HTLC_MAX_REDEEM_SCRIPT_LENGTH,
-    within520Bytes,
+    withinP2shPushLimit,
     reasons: Object.freeze(reasons),
   };
 }
-
-export const staticHtlcStandardnessReport = htlcStandardnessReport;
-export const standardnessReport = htlcStandardnessReport;
 
 export function htlcP2shScriptPubKey(value: HtlcParameters | Uint8Array): Uint8Array {
   return p2shScriptPubKey(hash160(scriptFor(value)));

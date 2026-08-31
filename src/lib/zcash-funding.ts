@@ -11,7 +11,7 @@ import {
   type FinalizedTransparentSize,
   type TransparentFeePolicy,
 } from "./zcash-fees.ts";
-import { htlcP2shScriptPubKey, htlcStandardnessReport, validateHtlcRedeemScript } from "./zcash-htlc.ts";
+import { htlcP2shScriptPubKey, htlcTemplatePolicyReport, validateHtlcRedeemScript } from "./zcash-htlc.ts";
 import {
   FINAL_SEQUENCE,
   validateExpiryHeight,
@@ -45,6 +45,8 @@ export type FundingArtifactRequest = Readonly<{
   finalizedSizeWithoutChange: FinalizedTransparentSize;
   finalizedSizeWithChange: FinalizedTransparentSize;
   belowMinimumChange: "reject" | "add-to-fee";
+  refundSafetyMargin: Readonly<{ type: "height" | "timestamp"; value: number }>;
+  fundingTimeCutoff?: number;
 }>;
 
 function uint32(value: number, label: string): number {
@@ -81,6 +83,26 @@ function uint32Hex(value: number): string {
   return uint32(value, "Profile identifier").toString(16).padStart(8, "0");
 }
 
+function requireFutureRefund(
+  lock: Readonly<{ type: "height" | "timestamp"; value: number }>,
+  request: FundingArtifactRequest,
+  targetHeight: number,
+): void {
+  const margin = request.refundSafetyMargin;
+  if (!margin || margin.type !== lock.type || !Number.isSafeInteger(margin.value) || margin.value <= 0) {
+    throw new RangeError("Refund safety margin must be a positive integer in the HTLC locktime domain");
+  }
+  const fundingCutoff = lock.type === "height"
+    ? targetHeight
+    : uint32(request.fundingTimeCutoff as number, "Funding time cutoff");
+  if (lock.type === "timestamp" && fundingCutoff < 500_000_000) {
+    throw new RangeError("Funding time cutoff must use the timestamp locktime domain");
+  }
+  if (lock.value <= fundingCutoff || lock.value - fundingCutoff < margin.value) {
+    throw new RangeError("HTLC refund lock does not preserve the approved future safety margin");
+  }
+}
+
 export function buildFundingArtifact(request: FundingArtifactRequest): CommittedZcashArtifact {
   const targetHeight = validateTargetHeight(request.profile, request.targetHeight);
   const expiryHeight = validateExpiryHeight(request.profile, targetHeight, request.expiryHeight);
@@ -106,9 +128,12 @@ export function buildFundingArtifact(request: FundingArtifactRequest): Committed
     };
   });
 
-  validateHtlcRedeemScript(request.redeemScript);
-  const standardness = htlcStandardnessReport(request.redeemScript);
-  if (!standardness.isStandard) throw new TypeError(`HTLC redeemScript failed standardness guards: ${standardness.reasons.join("; ")}`);
+  const htlc = validateHtlcRedeemScript(request.redeemScript);
+  requireFutureRefund(htlc.lock, request, targetHeight);
+  const templatePolicy = htlcTemplatePolicyReport(request.redeemScript);
+  if (!templatePolicy.templatePolicyPasses) {
+    throw new TypeError(`HTLC redeemScript failed template policy: ${templatePolicy.reasons.join("; ")}`);
+  }
   const contractValue = zatoshis(request.contractValueZatoshis, "Contract output value");
   const contractScript = htlcP2shScriptPubKey(request.redeemScript);
 
@@ -168,6 +193,8 @@ export function buildFundingArtifact(request: FundingArtifactRequest): Committed
       txModifiable: 0,
       branch: "fund",
       redeemScriptHex: bytesToHex(request.redeemScript),
+      refundSafetyMargin: request.refundSafetyMargin,
+      fundingLockCutoff: htlc.lock.type === "height" ? targetHeight : request.fundingTimeCutoff,
     },
     transactionIdState: "unresolved-until-canonical-transaction-extraction",
   });

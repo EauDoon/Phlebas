@@ -32,6 +32,7 @@ function common() {
     profile: createNu63EncodingProfile({ network: "testnet" as const, transactionVersion: 5 as const, coinType: 1 }),
     targetHeight: 4_300_001,
     expiryHeight: 4_300_021,
+    observedHeight: 4_300_001,
     contractUtxo: {
       txid: "44".repeat(32),
       outputIndex: 0,
@@ -45,7 +46,7 @@ function common() {
     feePolicy: createZip317TransparentPolicy({
       maximumFeeZatoshis: 50_000n,
       minimumOutputZatoshis: 10_000n,
-      maximumTransactionBytes: 10_000,
+      maximumSerializedTransactionBytes: 10_000,
     }),
     finalizedSize: { inputBytes: 260, outputBytes: 34 },
   };
@@ -108,12 +109,25 @@ test("rejects a substituted contract hash or expected HTLC", () => {
 test("fails closed when refund maturity is absent, equal, or early", () => {
   assert.throws(() => buildRefundArtifact(refund({ maturity: {} })), /unresolved or early/);
   assert.throws(
-    () => buildRefundArtifact(refund({ maturity: { currentBlockHeight: HTLC.lock.value } })),
+    () => buildRefundArtifact(refund({ observedHeight: HTLC.lock.value, maturity: { currentBlockHeight: HTLC.lock.value } })),
     /strictly greater/,
   );
   assert.throws(
-    () => buildRefundArtifact(refund({ maturity: { currentBlockHeight: HTLC.lock.value - 1 } })),
+    () => buildRefundArtifact(refund({
+      observedHeight: HTLC.lock.value - 1,
+      maturity: { currentBlockHeight: HTLC.lock.value - 1 },
+    })),
     /strictly greater/,
+  );
+});
+
+test("requires observed expiry evidence and rebuilds after expiry", () => {
+  assert.throws(() => buildClaimArtifact(claim({ observedHeight: undefined as never })), /Target height/);
+  assert.throws(() => buildClaimArtifact(claim({ observedHeight: 4_300_022 })), /expired and must be rebuilt/);
+  assert.throws(() => buildRefundArtifact(refund({ observedHeight: 4_300_022, maturity: { currentBlockHeight: 4_300_022 } })), /expired/);
+  assert.throws(
+    () => buildRefundArtifact(refund({ observedHeight: 4_300_001, maturity: { currentBlockHeight: 4_300_002 } })),
+    /must match the observed height/,
   );
 });
 
