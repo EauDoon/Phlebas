@@ -1457,6 +1457,7 @@
 }
 
 .educationDialog p {
+  min-height: 44px;
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.55;

@@ -84,7 +84,7 @@ export function PreviewEducation({ force = false }: { force?: boolean }) {
       <h2 id="preview-education-title" ref={headingRef} tabIndex={-1}>
         {current.title}
       </h2>
-      <p>{current.body}</p>
+      <p role="region" aria-label="Education copy">{current.body}</p>
       <div className={styles.tourNav}>
         <button type="button" disabled={step === 0} onClick={() => setStep((index) => index - 1)}>
           Back

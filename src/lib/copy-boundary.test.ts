@@ -137,6 +137,8 @@ test("landing and terminal banners stay simulation-only", async () => {
     await readFile(join(root, "src/lib/preview-education.ts"), "utf8"),
     /not native ZEC, shielded ZEC, or a trustless bridge asset/,
   );
+  assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education copy/);
+  assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education, not consent/);
   assert.match(landing, /Open status details/);
   assert.match(landing, /Legal and compliance/);
   assert.match(landing, /Choose what to inspect/);
