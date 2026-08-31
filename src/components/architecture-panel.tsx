@@ -19,7 +19,7 @@ const layers = [
   },
 ];
 
-export function ArchitecturePanel() {
+export function ArchitecturePanel({ highlightIncidents = false }: { highlightIncidents?: boolean }) {
   return (
     <section className={`${styles.panel} ${styles.architecture}`} aria-labelledby="architecture-title">
       <div className={styles.panelHeader}>
@@ -45,7 +45,7 @@ export function ArchitecturePanel() {
           </article>
         ))}
       </div>
-      <IncidentDemo />
+      <IncidentDemo highlight={highlightIncidents} />
       <div className={styles.honestyBar}>
         <strong>Proposed product label</strong>
         <span>Designed as a hybrid DEX with an offchain matcher, onchain settlement, constrained AMM contracts, and a custody-backed ZEC gateway. The matcher is not trustless. Mainnet access policy remains unresolved.</span>
