@@ -17,6 +17,14 @@ test("status payload cannot be read as live funds or custody", () => {
   assert.equal(status.marketData, "illustrative");
 });
 
+test("status page links to legal and security without a live-funds claim", async () => {
+  const statusPage = await readFile(join(root, "src/app/status/page.tsx"), "utf8");
+  assert.match(statusPage, /href="\/legal"/);
+  assert.match(statusPage, /href="\/security"/);
+  assert.match(statusPage, /No live funds or custody/);
+  assert.doesNotMatch(statusPage, /is audited/);
+});
+
 test("landing and terminal banners stay simulation-only", async () => {
   const landing = await readFile(join(root, "src/components/landing-page.tsx"), "utf8");
   const terminal = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");

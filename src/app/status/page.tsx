@@ -34,6 +34,11 @@ export default function StatusPage() {
       <p>
         Machine-readable copy: <a href="/api/status">/api/status</a>
       </p>
+      <p>
+        Boundary pages: <a href="/legal">Legal and compliance</a>
+        {" · "}
+        <a href="/security">Security</a>
+      </p>
     </SimulationFrame>
   );
 }
