@@ -530,7 +530,7 @@ test("confirmed ticket writes expiry onto the blotter event log", async ({ page 
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await page.getByRole("tab", { name: "Event log" }).click();
-  await expect(page.getByRole("tabpanel")).toContainText("expiry 4102444800");
+  await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText("expiry 4102444800");
 });
 
 test("status, legal, and security pages cross-link", async ({ page }) => {
@@ -547,9 +547,9 @@ test("status, legal, and security pages cross-link", async ({ page }) => {
 test("blotter tabs expose a selected tabpanel", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByRole("tab", { name: "Open orders" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("tabpanel")).toContainText("No open session orders");
+  await expect(page.getByRole("tabpanel", { name: "Open orders" })).toContainText("No open session orders");
   await page.getByRole("tab", { name: "Inventory" }).click();
-  await expect(page.getByRole("tabpanel")).toContainText("Account epoch");
+  await expect(page.getByRole("tabpanel", { name: "Inventory" })).toContainText("Account epoch");
 });
 
 test("landing journey tabs select LP without a page reload", async ({ page }) => {
@@ -580,5 +580,68 @@ test("blotter arrow keys move to the next tabpanel", async ({ page }) => {
   await page.getByRole("tab", { name: "Open orders" }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("tab", { name: "Fills" })).toBeFocused();
-  await expect(page.getByRole("tabpanel")).toContainText("No session fills yet");
+  await expect(page.getByRole("tabpanel", { name: "Fills" })).toContainText("No session fills yet");
+});
+
+test("first-session education can be completed by keyboard", async ({ page }) => {
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeFocused();
+  await expect(dialog.getByText("Education, not consent.")).toBeVisible();
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  await expect(dialog.getByRole("heading", { name: "pZEC would depend on custody." })).toBeVisible();
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  await expect(dialog.getByRole("heading", { name: "Preview actions stay in this browser." })).toBeVisible();
+  await dialog.getByRole("button", { name: "Enter simulation" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+});
+
+test("first-session education dismisses on Escape", async ({ page }) => {
+  await page.goto("/liquidity?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
+});
+
+test("country-blocked demonstration hides trading and liquidity controls", async ({ page }) => {
+  await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Phlebas is not available in this location." })).toBeVisible();
+  await expect(page.getByText("State demonstration")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Read the architecture" })).toBeVisible();
+  await page.goto("/liquidity?access=blocked", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Phlebas is not available in this location." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review simulated mint" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Return home" })).toBeVisible();
+});
+
+test("chart range uses a tablist and unavailable tape names the feed", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await expect(page.getByRole("tablist", { name: "Chart range" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "4H" })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "1D" }).click();
+  await expect(page.getByRole("tabpanel", { name: "1D" })).toBeVisible();
+  await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
+  await expect(page.getByLabel("Asks")).toContainText("Market data unavailable");
+  await expect(page.getByRole("heading", { name: "Recent trades" })).toBeVisible();
+  await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed.").first()).toBeVisible();
+});
+
+test("landing Liquidity nav selects LP and arrows move focus only", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.locator("header").getByRole("link", { name: "Liquidity" }).click();
+  await expect(page).toHaveURL(/#journey-lp$/);
+  await expect(page.getByRole("tab", { name: "LP" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("link", { name: "Preview liquidity" })).toBeVisible();
+  await page.getByRole("tab", { name: "LP" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("tab", { name: "Deposit" })).toBeFocused();
+  await expect(page.getByRole("tab", { name: "LP" })).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("tab", { name: "Deposit" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("link", { name: "Preview deposit states" })).toBeVisible();
 });

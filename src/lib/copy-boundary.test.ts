@@ -65,6 +65,12 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /not a live exchange/);
   assert.match(await readFile(join(root, "src/app/security/page.tsx"), "utf8"), /no production support commitment/);
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
+  const education = await readFile(join(root, "src/lib/preview-education.ts"), "utf8");
+  assert.match(education, /Education, not consent|not a financial record/);
+  assert.doesNotMatch(education, /I agree/);
+  assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education, not consent/);
+  assert.match(await readFile(join(root, "src/lib/access-demo.ts"), "utf8"), /State demonstration/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/access-demo.ts"), "utf8"), /geolocat/i);
 });
 
 test("vercel.json does not assign operator URLs", async () => {
