@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the market-preview, journey-actions, no-JS-journey-actions, and landing-brand slice.
+Last updated: 31-08-2026 after the in-page-links, landing-skip, and Menu-Close slice.
 
 ## Branch
 
@@ -210,13 +210,17 @@ Last updated: 31-08-2026 after the market-preview, journey-actions, no-JS-journe
 - Landing no-JS journey card actions stay 44px on desktop
 - Landing header brand home stays 44px on desktop
 - Playwright covers 44px market preview links, journey actions, no-JS journey actions, and landing brand
+- Status, legal, and security in-page links stay 44px on desktop
+- Landing skip links stay 44px on desktop
+- Landing Menu and Close stay 44px
+- Playwright covers 44px status in-page links, landing skip links, and Menu/Close
 
 ## Next
 
-- Status, legal, and security in-page links should stay 44px on desktop
-- Landing skip links should stay 44px on desktop
-- Landing Menu and Close should stay 44px
-- Playwright: 44px status in-page links, landing skip links, and Menu/Close
+- Terminal and simulation-frame skip links should stay 44px on desktop
+- Education Continue should stay 44px on desktop
+- Error Retry should stay 44px on desktop
+- Playwright: 44px terminal skip links, education Continue, and error Retry
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
