@@ -453,6 +453,39 @@ test("invalidate-epoch control is keyboard focusable", async ({ page }) => {
   await expect(invalidate).toBeFocused();
 });
 
+test("liquidity previews integer IL versus hold without a return claim", async ({ page }) => {
+  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await expect(page.getByText("IL vs hold at 4x pZEC/quote")).toBeVisible();
+  await expect(page.getByText("IL vs hold at 1/4x pZEC/quote")).toBeVisible();
+  await expect(page.getByText("Not a return or profit projection.")).toBeVisible();
+});
+
+test("market orders are IOC with a visible worst price", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Market" }).click();
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByText("Worst acceptable price")).toBeVisible();
+  await expect(page.getByText("IOC", { exact: true })).toBeVisible();
+});
+
+test("invalid expiry stays on the ticket and does not open review", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1.5");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByText("Expiry must be a whole unix time, or 0 for none.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+});
+
+test("order expiry unix time appears on review", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await expect(page.getByRole("textbox", { name: "Order expiry unix time" })).toHaveValue("0");
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1700000000");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByText("1700000000").first()).toBeVisible();
+});
+
 test("architecture view keeps Vercel off the matcher", async ({ page }) => {
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
   await expect(page.getByText("Loopback gateway and matcher never hosted on Vercel")).toBeVisible();
