@@ -320,7 +320,7 @@ export function TradingTerminal({
                   <span className={styles.miniLabel}>{sessionTape.length > 0 ? "Session + fixture" : "Fixture tape"}</span>
                 </div>
                 <table className={styles.dataTable}>
-                  <caption className={styles.srOnly}>Recent {marketId} trades. Session fills appear first.</caption>
+                  <caption className={styles.srOnly}>Recent {marketId} trades settled as {market.settlementPair}. Session fills appear first.</caption>
                   <thead>
                     <tr><th scope="col">Price {market.quote}</th><th scope="col">Size pZEC</th><th scope="col">Time</th></tr>
                   </thead>

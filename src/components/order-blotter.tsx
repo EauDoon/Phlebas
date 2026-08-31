@@ -74,12 +74,13 @@ export function OrderBlotter({
           <p className={styles.emptyState}>No open session orders. Venue fixture levels remain on the book.</p>
         ) : (
           <table className={styles.dataTable}>
-            <caption className={styles.srOnly}>Resting session orders on the local {marketId} book</caption>
+            <caption className={styles.srOnly}>Resting session orders on the local {marketId} book, settled as {market.settlementPair}</caption>
             <thead>
               <tr>
                 <th scope="col">Side</th>
                 <th scope="col">Price {market.quote}</th>
                 <th scope="col">Remaining pZEC</th>
+                <th scope="col">Settlement</th>
                 <th scope="col">Action</th>
               </tr>
             </thead>
@@ -91,6 +92,7 @@ export function OrderBlotter({
                   </th>
                   <td>{formatAtomicUnits(order.priceTicks, PRICE_DECIMALS, 2)}</td>
                   <td>{formatAtomicUnits(order.remainingAtoms, PZEC_DECIMALS)}</td>
+                  <td>{market.settlementPair}</td>
                   <td>
                     <button type="button" className={styles.textButton} onClick={() => onCancel(order.id)}>
                       Cancel
@@ -113,13 +115,14 @@ export function OrderBlotter({
           <p className={styles.emptyState}>No session fills yet. Submitting a simulated order can trade against the fixture book.</p>
         ) : (
           <table className={styles.dataTable}>
-            <caption className={styles.srOnly}>Session fills for {marketId}</caption>
+            <caption className={styles.srOnly}>Session fills for {marketId}, settled as {market.settlementPair}</caption>
             <thead>
               <tr>
                 <th scope="col">Time</th>
                 <th scope="col">Side</th>
                 <th scope="col">Price {market.quote}</th>
                 <th scope="col">Size pZEC</th>
+                <th scope="col">Settlement</th>
               </tr>
             </thead>
             <tbody>
@@ -131,6 +134,7 @@ export function OrderBlotter({
                   </td>
                   <td>{formatAtomicUnits(fill.priceTicks, PRICE_DECIMALS, 2)}</td>
                   <td>{formatAtomicUnits(fill.sizeAtoms, PZEC_DECIMALS)}</td>
+                  <td>{market.settlementPair}</td>
                 </tr>
               ))}
             </tbody>
