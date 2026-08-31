@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after skip-nav 8px column-gap, two-up basis, word-break, status two-up, liquidity leftover, 768px Menu, and 320px header clearance.
+Last updated: 01-09-2026 after skip-nav gutter shrink to 44px, 404/loading two-up, bridge leftover, architecture 320 ring, status 768 two-up, and word-break max-width.
 
 ## Branch
 
@@ -299,16 +299,24 @@ Last updated: 01-09-2026 after skip-nav 8px column-gap, two-up basis, word-break
 - Focused skip-nav at 768px does not cover the landing Menu button
 - Focused skip-nav z-index 1 does not cover the landing header after wrap at 320px
 - Playwright covers column-gap rings, status two-up, liquidity leftover, 768px Menu, 320px header, and security wrap
+- Two-up skip links use `flex: 1 1` so 8px column-gap plus scrollbar-gutter still leaves 44px at 320px
+- Focused skip-nav `min-width: 0` so the guttered nav can shrink
+- Two-up `max-width: min(100%, calc(50% - 4px))` keeps word-break inside the 44px cell
+- 404 and loading skip-nav stay two-up at 320px
+- Bridge leftover skip link (three links) stays at least 44px at 320px
+- Architecture skip-nav at 320px stays two-up with the 2px ring inside the viewport
+- Status skip-nav at 768px stays two-up with the 2px ring inside the viewport
+- Playwright covers gutter 44px, 404/loading two-up, bridge leftover, architecture 320 ring, status 768, and word-break overflow
 
 ## Next
 
-- Skip-nav 8px column-gap plus scrollbar-gutter should keep two-up links at 44px at 320px
-- 404 simulation-frame skip-nav should stay two-up at 320px
-- Loading skip-nav should stay two-up at 320px
-- Bridge skip-nav leftover (three links) should stay at least 44px at 320px
-- Architecture skip-nav at 320px should keep two-up links and the 2px ring inside the viewport
-- Status skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
-- Skip-link word-break should not overflow the 44px min-width at 320px
+- Error-page skip-nav should stay two-up at 320px
+- Country-block skip-nav (two links) should stay two-up at 320px
+- Architecture leftover skip links should stay at least 44px at 390px
+- Loading skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
+- 404 skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
+- Bridge skip-nav at 768px should keep two-up links and the 2px ring inside the viewport
+- Skip-nav `min-width: 0` should not shrink skip links below 44px at 320px
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
