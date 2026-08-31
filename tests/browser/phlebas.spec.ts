@@ -538,6 +538,18 @@ test("first-session education can be completed by keyboard", async ({ page }) =>
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
 });
 
+test("ticket G I F shortcuts set time in force", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "Order entry" }).click();
+  await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("i");
+  await expect(page.getByRole("button", { name: "IOC" })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("f");
+  await expect(page.getByRole("button", { name: "FOK" })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("g");
+  await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
+});
+
 test("first-session education dismisses on Escape", async ({ page }) => {
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
   const dialog = page.getByRole("dialog");
