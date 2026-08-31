@@ -992,6 +992,7 @@ a.skipLink:focus-visible {
 
   .skipLink {
     flex: 1 1 calc(50% - 2px);
+    max-width: calc(50% - 2px);
     min-width: 44px;
     min-height: 44px;
     height: auto;
@@ -1198,6 +1199,8 @@ a.skipLink:focus-visible {
     box-sizing: border-box;
     flex-direction: row;
     flex-wrap: wrap;
+    column-gap: 4px;
+    row-gap: 4px;
     overflow-y: auto;
     padding: 6px;
     scrollbar-gutter: stable;
