@@ -513,6 +513,16 @@ test("order expiry unix time appears on review", async ({ page }) => {
   await expect(page.getByText("1700000000").first()).toBeVisible();
 });
 
+test("session event log includes expiry after confirm", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1700000000");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("tab", { name: "Event log" }).click();
+  await expect(page.getByText("buy GTC user-1 expiry 1700000000")).toBeVisible();
+});
+
 test("architecture view keeps Vercel off the matcher", async ({ page }) => {
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
   await expect(page.getByText("Loopback gateway and matcher never hosted on Vercel")).toBeVisible();
@@ -616,4 +626,23 @@ test("legal and security pages stay simulation-only", async ({ page }) => {
   await page.goto("/security", { waitUntil: "load" });
   await expect(page.getByRole("heading", { name: "Security" })).toBeVisible();
   await expect(page.getByText("Do not send ZEC, pZEC, USDC, USDT0, or any other asset")).toBeVisible();
+});
+
+test("landing without JavaScript still shows four journey descriptions", async ({ browser, serverUrl }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false, baseURL: serverUrl });
+  const page = await context.newPage();
+  try {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Choose what to inspect." })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Preview trading/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Preview liquidity/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Preview deposit states/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Preview withdrawal states/ })).toBeVisible();
+    await expect(page.getByText(
+      "pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.",
+      { exact: true },
+    )).toBeVisible();
+  } finally {
+    await context.close();
+  }
 });
