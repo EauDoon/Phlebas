@@ -4218,3 +4218,62 @@ test("native settlement keeps USDT disabled until one exact asset identity is ap
   await expect(disabled).toHaveAttribute("aria-describedby", "native-swap-disabled-reason");
   await expect(page.getByRole("button", { name: /connect.*wallet/i })).toHaveCount(0);
 });
+test("education last-step Back heading ring leftover 320 768", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  const back = dialog.getByRole("button", { name: "Back" });
+  await expect(back).toBeVisible();
+  await expect(back).toBeEnabled();
+  const backBox = await back.boundingBox();
+  expect(backBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(backBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((backBox?.y ?? 0) + (backBox?.height ?? 0)).toBeLessThanOrEqual(900);
+
+  const stacking = await dialog.evaluate((element) => {
+    const heading = element.querySelector("h2");
+    const tour = element.querySelector("[class*='tourNav']") ?? heading?.nextElementSibling?.nextElementSibling;
+    return {
+      headingZ: heading ? Number.parseInt(getComputedStyle(heading).zIndex, 10) || 0 : 0,
+      tourZ: tour ? Number.parseInt(getComputedStyle(tour).zIndex, 10) || 0 : 0,
+      headingOverflow: heading ? getComputedStyle(heading).overflow : "",
+      headingShrink: heading ? getComputedStyle(heading).flexShrink : "",
+      scrollPaddingTop: getComputedStyle(element).scrollPaddingTop,
+      paddingTop: getComputedStyle(element).paddingTop,
+    };
+  });
+  expect(stacking.headingZ).toBeGreaterThan(stacking.tourZ);
+  expect(stacking.headingOverflow).toBe("visible");
+  expect(stacking.headingShrink).toBe("0");
+  expect(stacking.scrollPaddingTop).toBe("8px");
+  expect(Number.parseFloat(stacking.paddingTop)).toBeGreaterThanOrEqual(24);
+
+  async function leftover(path: string, width: number, height: number, count: number) {
+    await page.setViewportSize({ width, height });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(skip);
+    const nav = page.getByRole("navigation", { name: "Skip links" });
+    const layout = await nav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")];
+      const last = links[links.length - 1]?.getBoundingClientRect();
+      return {
+        count: links.length,
+        lastWidth: last?.width ?? 0,
+        lastHeight: last?.height ?? 0,
+      };
+    });
+    expect(layout.count).toBe(count);
+    expect(layout.lastWidth).toBeGreaterThanOrEqual(44);
+    expect(layout.lastHeight).toBeGreaterThanOrEqual(44);
+  }
+
+  await leftover("/legal", 320, 900, 2);
+  await leftover("/trade?view=architecture", 320, 900, 4);
+  await leftover("/trade?error=1", 768, 1024, 2);
+  await leftover("/trade?access=blocked", 320, 900, 2);
+});
