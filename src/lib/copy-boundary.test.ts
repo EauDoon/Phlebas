@@ -57,6 +57,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   const blotter = await readFile(join(root, "src/components/order-blotter.tsx"), "utf8");
   assert.match(blotter, /role="tabpanel"/);
   assert.match(blotter, /expiry \$\{!event\.expiryUnix/);
+  assert.match(blotter, /blotterEmptyLogCopy/);
   assert.match(await readFile(join(root, "src/lib/landing-journeys.ts"), "utf8"), /Preview trading/);
   assert.match(await readFile(join(root, "src/lib/landing-journeys.ts"), "utf8"), /Preview withdrawal states/);
   assert.match(await readFile(join(root, "src/components/landing-journeys.tsx"), "utf8"), /Choose what to inspect/);
@@ -84,7 +85,9 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/lib/ticket-shortcuts.ts"), "utf8"), /reviewOpen/);
   assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /emptyShareCopy/);
   assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /Settled as \$\{settlementPair\}/);
+  assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /blotterEmptyLogCopy/);
   assert.match(await readFile(join(root, "src/lib/terminal-url.ts"), "utf8"), /demo/);
+  assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /demoQuery = highlightIncidents/);
 });
 
 test("vercel.json does not assign operator URLs", async () => {
