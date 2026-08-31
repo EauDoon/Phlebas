@@ -18,6 +18,7 @@ export type OrderReferenceState = Readonly<{
   pair: OrderPair;
   settlementAdapterId: Hex32;
   maximumLifetimeSeconds: bigint;
+  requireClob: boolean;
   lifecycle: OrderLifecycleState;
   receiptChain: ReceiptChain;
   acceptedOrders: Readonly<Record<string, SequencedOrder>>;
@@ -33,6 +34,7 @@ export function createOrderReference(options: {
   pair: OrderPair;
   settlementAdapterId: Hex32;
   maximumLifetimeSeconds?: bigint;
+  requireClob?: boolean;
 }): OrderReferenceState {
   const maximumLifetimeSeconds = options.maximumLifetimeSeconds ?? 86_400n;
   if (typeof maximumLifetimeSeconds !== "bigint") throw new TypeError("Maximum order lifetime must be a bigint");
@@ -42,6 +44,7 @@ export function createOrderReference(options: {
   return {
     ...options,
     maximumLifetimeSeconds,
+    requireClob: options.requireClob ?? true,
     lifecycle: emptyOrderLifecycle(),
     receiptChain: emptyReceiptChain(),
     acceptedOrders: {},
@@ -59,6 +62,7 @@ export function acceptOrderIntent(
     pair: state.pair,
     settlementAdapterId: state.settlementAdapterId,
     maximumLifetimeSeconds: state.maximumLifetimeSeconds,
+    requireClob: state.requireClob,
   });
   const acceptedOrder = Object.freeze({
     ...order,
@@ -164,6 +168,7 @@ export function orderReferenceSnapshot(state: OrderReferenceState): string {
     normalizeHex32(state.pair.quoteAssetId, "Quote asset ID"),
     normalizeHex32(state.settlementAdapterId, "Settlement adapter ID"),
     maximumLifetimeSeconds.toString(),
+    state.requireClob ? "require-clob" : "allow-solver-only",
   ].join(":");
   const epochs = Object.entries(state.lifecycle.accountEpochs)
     .map(([account, epoch]) => [
