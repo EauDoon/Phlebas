@@ -25,6 +25,10 @@ export function lpPauseNoticeCopy(
     : `Trading pause lifted. Mint and swap are available again. Settled as ${settlementPair}.`;
 }
 
+export function lpResetNoticeCopy(settlementPair: Market["settlementPair"]): string {
+  return `Local pool reserves restored. Settled as ${settlementPair}.`;
+}
+
 export function seedPool(reservePzecAtoms: bigint, reserveQuoteAtoms: bigint): PoolShares {
   if (reservePzecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
     throw new Error("Pool reserves must be positive");
