@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after fee-envelope constants, gateway health cap, status intent-cap unset, and matcher persistReadable.
+Last updated: 31-08-2026 after integer LP IL-versus-hold previews on `/liquidity`.
 
 ## Branch
 
@@ -66,6 +66,7 @@ Last updated: 31-08-2026 after fee-envelope constants, gateway health cap, statu
 - Empty feed shows empty depth. Loading feed disables review.
 - `/api/status` never copies a remote operator URL. `intentCap` is 64 only when the gateway URL is loopback HTTP. `sequenceRoot` stays null without a fetched loopback matcher.
 - Blotter tables scroll inside the panel so the settlement column cannot blow the 320px page.
+- LP panel previews integer IL versus holding the same deposited assets at 4x and 1/4x pZEC/quote, plus session IL after mint. Not a return projection.
 - Gateway health publishes `issued` and `cap` from the shared `GATEWAY_DEFAULT_MAX_INTENTS` (64).
 - Ticket and LP copy bind to version-1 fee constants (5 / 15 / 30 bps, max 30).
 - Public `/status` shows intent cap `unset` when no loopback gateway URL is configured.
