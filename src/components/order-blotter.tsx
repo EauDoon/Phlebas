@@ -2,6 +2,7 @@
 
 import { useRef, useState, type KeyboardEvent } from "react";
 
+import { blotterEmptyFillsCopy, blotterEmptyOrdersCopy } from "@/lib/blotter-copy";
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
 import type { RestingOrder } from "@/lib/matcher";
@@ -103,7 +104,7 @@ export function OrderBlotter({
       {tab === "orders" && (
         <div role="tabpanel" id="blotter-panel-orders" aria-labelledby="blotter-tab-orders">
         {openOrders.length === 0 ? (
-          <p className={styles.emptyState}>No open session orders. Venue fixture levels remain on the book.</p>
+          <p className={styles.emptyState}>{blotterEmptyOrdersCopy(market.settlementPair)}</p>
         ) : (
           <div className={styles.tableScroll}>
           <table className={styles.dataTable}>
@@ -152,7 +153,7 @@ export function OrderBlotter({
       {tab === "fills" && (
         <div role="tabpanel" id="blotter-panel-fills" aria-labelledby="blotter-tab-fills">
         {marketFills.length === 0 ? (
-          <p className={styles.emptyState}>No session fills yet. Submitting a simulated order can trade against the fixture book.</p>
+          <p className={styles.emptyState}>{blotterEmptyFillsCopy(market.settlementPair)}</p>
         ) : (
           <div className={styles.tableScroll}>
           <table className={styles.dataTable}>
