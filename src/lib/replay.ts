@@ -17,6 +17,7 @@ export type LoggedSubmit = {
   tif: TimeInForce;
   priceTicks: bigint;
   sizeAtoms: bigint;
+  expiryUnix?: bigint;
 };
 
 export type LoggedCancel = {
