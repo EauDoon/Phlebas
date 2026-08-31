@@ -1902,6 +1902,7 @@ a.skipLink:focus-visible {
   min-height: 44px;
   margin: 8px 0 12px;
   overflow: visible;
+  flex-shrink: 0;
   font-size: 20px;
   letter-spacing: -0.03em;
   scroll-margin-top: 8px;
