@@ -1798,3 +1798,28 @@ test("404 skip loading skip education Back and Enter simulation stay 44px on des
   expect((await enter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("tour buttons retry copy and country-block skip stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
+  const next = page.getByRole("button", { name: "Next state" });
+  await expect(next).toBeVisible();
+  expect((await next.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await page.getByRole("button", { name: "Withdrawal states" }).click();
+  await expect(page.getByText("Preview withdrawal states, not Withdraw ZEC.")).toBeVisible();
+  const previous = page.getByRole("button", { name: "Previous state" });
+  await expect(previous).toBeVisible();
+  expect((await previous.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade?error=1", { waitUntil: "networkidle" });
+  const retryCopy = page.getByLabel("Retry copy");
+  await expect(retryCopy).toBeVisible();
+  expect((await retryCopy.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const skipBlock = page.getByRole("link", { name: "Skip to country-block notice" });
+  await expect(skipBlock).toBeFocused();
+  expect((await skipBlock.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
