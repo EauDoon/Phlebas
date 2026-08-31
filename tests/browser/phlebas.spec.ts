@@ -1948,3 +1948,36 @@ test("trade and landing skip targets keep scroll-margin and landing skip links k
   expect(await markets.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
 });
 
+test("terminal skip-link focus ring skip-nav inset and remaining landing skip-margins", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skipTrade = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skipTrade);
+  const tradeBox = await skipTrade.boundingBox();
+  expect(tradeBox?.x ?? 0).toBeGreaterThanOrEqual(12);
+  expect(tradeBox?.y ?? 0).toBeGreaterThanOrEqual(12);
+
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skipLanding = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skipLanding);
+  const landingBox = await skipLanding.boundingBox();
+  expect(landingBox?.x ?? 0).toBeGreaterThanOrEqual(12);
+  expect(landingBox?.y ?? 0).toBeGreaterThanOrEqual(12);
+
+  for (const skip of [
+    { label: "Skip to pZEC", id: "#pzec" },
+    { label: "Skip to journeys", id: "#journeys" },
+    { label: "Skip to launch gates", id: "#launch-gates" },
+  ] as const) {
+    await page.goto("/", { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    await tabTo(page, page.getByRole("link", { name: skip.label }));
+    await page.keyboard.press("Enter");
+    const target = page.locator(skip.id);
+    await expect(target).toBeFocused();
+    expect(await target.evaluate((element) => getComputedStyle(element).scrollMarginTop)).toBe("12px");
+  }
+});
+
