@@ -826,12 +826,25 @@
 .bookButton {
   position: relative;
   z-index: 1;
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
   padding: 0;
   border: 0;
   color: inherit;
   background: transparent;
   font: inherit;
   text-align: inherit;
+}
+
+#order-book .dataTable tbody th,
+#order-book .dataTable tbody td {
+  height: 44px;
+}
+
+#order-book .dataTable .midPriceRow td {
+  height: auto;
 }
 
 .textButton {
