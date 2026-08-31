@@ -163,7 +163,10 @@ for (const width of viewports) {
       )).toBeVisible();
 
       await page.goto("/", { waitUntil: "networkidle" });
-      const lpLink = page.getByRole("link", { name: "Open LP preview" });
+      const lpTab = page.getByRole("tab", { name: "LP" });
+      await lpTab.click();
+      const lpLink = page.getByRole("link", { name: "Preview liquidity" });
+      await expect(lpLink).toBeVisible();
       await tabTo(page, lpLink);
       await expectVisibleFocus(lpLink);
       await page.keyboard.press("Enter");
@@ -339,9 +342,18 @@ test("public operator APIs stay unavailable without a loopback operator URL", as
 
 test("ZIP 321 copy stays disabled without a gateway", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await expect(page.getByRole("button", { name: "Copy testnet URI" })).toHaveCount(0);
+  await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
+  await expect(page.getByText("Visual copy of the ZIP 321 request, not a mainnet address.")).toBeVisible();
   await page.getByRole("button", { name: "Issue testnet TEX" }).click();
   await expect(page.getByText("No receivable address is displayed.")).toBeVisible();
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error("denied")) },
+    });
+  });
+  await page.getByRole("button", { name: "Copy testnet URI" }).click();
+  await expect(page.getByText("Could not copy. The request is still visible above. Nothing was sent.")).toBeVisible();
 });
 
 test("stale market data disables preview-to-sign and retries to illustrative", async ({ page }) => {
@@ -538,4 +550,35 @@ test("blotter tabs expose a selected tabpanel", async ({ page }) => {
   await expect(page.getByRole("tabpanel")).toContainText("No open session orders");
   await page.getByRole("tab", { name: "Inventory" }).click();
   await expect(page.getByRole("tabpanel")).toContainText("Account epoch");
+});
+
+test("landing journey tabs select LP without a page reload", async ({ page }) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page.getByRole("tab", { name: "Trader" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("link", { name: "Preview trading" })).toBeVisible();
+  await page.getByRole("tab", { name: "Withdrawal" }).click();
+  await expect(page.getByRole("link", { name: "Preview withdrawal states" })).toBeVisible();
+  await expect(page).toHaveURL(/#journey-withdrawal$/);
+  await page.getByRole("link", { name: "Preview withdrawal states" }).click();
+  await expect(page).toHaveURL(/view=bridge/);
+  await expect(page.getByRole("button", { name: "Withdrawal states" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
+  await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
+  await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed.").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await page.goto("/liquidity?feed=unavailable", { waitUntil: "networkidle" });
+  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
+});
+
+test("blotter arrow keys move to the next tabpanel", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("tab", { name: "Open orders" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("tab", { name: "Fills" })).toBeFocused();
+  await expect(page.getByRole("tabpanel")).toContainText("No session fills yet");
 });

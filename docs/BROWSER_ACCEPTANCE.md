@@ -18,7 +18,7 @@ Linux CI installs the required system packages with `npx playwright install --wi
 
 ## Covered behavior
 
-The suite checks `/`, `/trade`, and `/liquidity` at 320, 390, 768, and 1440 CSS pixels, plus `/status`, `/legal`, `/security`, a 404 route, local matcher fills with a review-and-confirm step, GTC cancel and epoch invalidation, IOC/FOK and market-IOC outcomes, session expiry on review, past-expiry rejected panel, blotter event-log expiry, blotter tabpanels, LP mint review-and-confirm, LP pause-and-burn, LP IL-versus-hold preview, payout-tour stub claims, empty and loading feeds, stale-feed review gating, venue comparison copy, testnet TEX issuance without a gateway, destination inspection, and a visible wallet-provider rejection. Each width covers:
+The suite checks `/`, `/trade`, and `/liquidity` at 320, 390, 768, and 1440 CSS pixels, plus `/status`, `/legal`, `/security`, a 404 route, landing journey tabs, local matcher fills with a review-and-confirm step, GTC cancel and epoch invalidation, IOC/FOK and market-IOC outcomes, session expiry on review, past-expiry rejected panel, blotter event-log expiry, blotter tabpanels and arrow keys, LP mint review-and-confirm, LP pause-and-burn, LP IL-versus-hold preview, payout-tour stub claims, empty and loading feeds, stale and unavailable feed gating for ticket, chart, 24h stats, and LP mint, venue comparison copy, ZIP 321 placeholder QR, honest clipboard failure, testnet TEX issuance without a gateway, destination inspection, and a visible wallet-provider rejection. Each width covers:
 
 - Successful production-route responses and the expected simulation disclosure.
 - Landing-to-liquidity navigation and terminal view navigation.

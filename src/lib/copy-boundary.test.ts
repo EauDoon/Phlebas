@@ -56,6 +56,12 @@ test("landing and terminal banners stay simulation-only", async () => {
   const blotter = await readFile(join(root, "src/components/order-blotter.tsx"), "utf8");
   assert.match(blotter, /role="tabpanel"/);
   assert.match(blotter, /expiry \$\{!event\.expiryUnix/);
+  assert.match(await readFile(join(root, "src/lib/landing-journeys.ts"), "utf8"), /Preview trading/);
+  assert.match(await readFile(join(root, "src/lib/landing-journeys.ts"), "utf8"), /Preview withdrawal states/);
+  assert.match(await readFile(join(root, "src/components/landing-journeys.tsx"), "utf8"), /Choose what to inspect/);
+  assert.match(await readFile(join(root, "src/components/placeholder-qr.tsx"), "utf8"), /Not payable/);
+  assert.match(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /Nothing was sent/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /navigator\.clipboard\?\.writeText/);
   assert.match(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /not a live exchange/);
   assert.match(await readFile(join(root, "src/app/security/page.tsx"), "utf8"), /no production support commitment/);
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
