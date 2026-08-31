@@ -166,6 +166,7 @@
 }
 
 .headerCta {
+  min-width: 44px;
   padding: 0 16px;
 }
 
