@@ -1443,3 +1443,38 @@ test("ticket notice wallet rejection and simulation banner stay 44px on desktop"
   expect((await landingBanner.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("ticket blocked gate country-block and education copy stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("radio", { name: "Stale" }).click();
+  const blocked = page.getByRole("status", { name: "Ticket blocked" });
+  await expect(blocked).toBeVisible();
+  expect((await blocked.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
+  const gate = page.getByText("Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.").first();
+  await expect(gate).toBeVisible();
+  expect((await gate.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
+  const country = page.getByText("This preview is limited to approved locations. Trading, liquidity, deposit, and withdrawal controls are unavailable.");
+  await expect(country).toBeVisible();
+  expect((await country.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade?education=1", { waitUntil: "networkidle" });
+  const education = page.getByRole("region", { name: "Education copy" });
+  await expect(education).toBeVisible();
+  expect((await education.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("country-block skip link reaches the notice", async ({ page }) => {
+  await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipBlock = page.getByRole("link", { name: "Skip to country-block notice" });
+  await expect(skipBlock).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#country-block")).toBeFocused();
+});
+
