@@ -43,7 +43,8 @@
 #status-ledger,
 #legal-article,
 #security-article,
-#missing-route {
+#missing-route,
+#incident-demonstration {
   scroll-margin-top: 12px;
 }
 

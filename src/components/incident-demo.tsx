@@ -12,7 +12,13 @@ export function IncidentDemo() {
   const incident = GATEWAY_INCIDENTS.find((item) => item.id === incidentId) ?? GATEWAY_INCIDENTS[0];
 
   return (
-    <div className={styles.incidentDemo} role="region" aria-labelledby={labelId}>
+    <div
+      id="incident-demonstration"
+      className={styles.incidentDemo}
+      role="region"
+      aria-labelledby={labelId}
+      tabIndex={-1}
+    >
       <div className={styles.panelHeader}>
         <div>
           <span className={styles.eyebrow}>State demonstration</span>
