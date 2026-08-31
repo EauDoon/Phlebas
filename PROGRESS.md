@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after architecture and accounting dropped listed pZEC.
+Last updated: 01-09-2026 after remaining public copy dropped listed pZEC.
 
 ## Branch
 
@@ -169,18 +169,20 @@ Last updated: 01-09-2026 after architecture and accounting dropped listed pZEC.
 - Copy-boundary tests fail if those docs revert to listed pZEC.
 - PRODUCT_SPEC roles, LP warnings, gateway, and §10 confirmations name tZEC / ZEC custody, not pZEC.
 - Ticket and LP high-risk review surface `custodyRedemptionCopy` and `publicLinkabilityCopy`.
+- Landing pairs copy no longer says it wraps ZEC as pZEC. Native labels are simulation names, not live settlement.
+- Landing CSS classes are `pairsSection` / `pairsCopy`.
+- ADR 0002 lists `tZEC` as the undeployed receipt. Custody-backed pZEC is no longer the candidate ERC-20 claim.
+- LANDING_AND_USER_JOURNEYS, THREAT_MODEL, LAUNCH_PLAN, LEGAL, OPERATIONS, DELIVERY_PLAN, WALLET_COMPATIBILITY, and README no longer list pZEC as the current form.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Landing honest negation still says it does not wrap ZEC as pZEC
 - ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
-- ADR 0002 still says custody-backed pZEC remains the candidate ERC-20 claim for a future gateway
-- LANDING_AND_USER_JOURNEYS, THREAT_MODEL, LAUNCH_PLAN, LEGAL, OPERATIONS, and DELIVERY_PLAN still name pZEC as the listed form
-- README still describes ASSET_AND_ACCOUNTING as pZEC accounting
-- Landing CSS classes remain `pzecSection` / `pzecCopy`
+- `lpBurnNoticeCopy` still takes a `pzecLabel` argument name
+- PRODUCT_SPEC UI density: remaining clickable flows, empty/error states, and DX leftover identifiers
+- Next no-key item after identifier cleanup: more PRODUCT_SPEC §10–§12 Playwright coverage at 320px
 
 ## Blockers
 
