@@ -158,6 +158,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /Choose what to inspect/);
   assert.match(landing, /A working preview, bounded on purpose/);
   assert.match(landing, /What exists today/);
+  assert.match(landing, /Focused markets/);
   assert.match(landing, /role="listitem"/);
   assert.match(landing, /Not cleared for real assets/);
   assert.doesNotMatch(landing, /github.com/);

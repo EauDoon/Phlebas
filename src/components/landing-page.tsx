@@ -64,13 +64,13 @@ export function LandingPage() {
             <h2 id="markets-title">Familiar labels.<br />Exact settlement.</h2>
             <p>Phlebas keeps the requested market names while disclosing the receipt and quote token used by the proposed Arbitrum settlement layer.</p>
           </div>
-          <div className={styles.marketCards}>
-            <article>
+          <div className={styles.marketCards} role="list" aria-label="Focused markets">
+            <article role="listitem">
               <span className={styles.marketIndex}>01</span>
               <div><span>Primary design</span><h3>ZEC / USDC</h3><p>Settles pZEC / USDC</p></div>
               <Link href={{ pathname: "/trade", query: { view: "trade", market: "ZEC/USDC" } }}>Preview market <span>→</span></Link>
             </article>
-            <article>
+            <article role="listitem">
               <span className={styles.marketIndex}>02</span>
               <div><span>Later listing gate</span><h3>ZEC / USDT</h3><p>Settles pZEC / USDT0</p></div>
               <Link href={{ pathname: "/trade", query: { view: "trade", market: "ZEC/USDT" } }}>Preview market <span>→</span></Link>
