@@ -109,7 +109,15 @@ function allAuthorized(state: SwapState): boolean {
 }
 
 function assertNotDisputed(state: SwapState): void {
+  assertSwapStateIntegrity(state);
   if (state.disputes.length > 0) throw new Error("Swap is disputed; funding and claim actions are disabled");
+}
+
+export function assertSwapStateIntegrity(state: SwapState): SwapState {
+  const validated = assertSwapTimingPolicy(state.terms, state.timingPolicy);
+  if (hashSwapTerms(validated) !== state.termsHash) throw new Error("Swap state terms do not match the signed terms hash");
+  if (swapIdForTerms(validated) !== state.swapId) throw new Error("Swap state terms do not match the swap ID");
+  return state;
 }
 
 function expectedFunding(terms: SwapTermsV1, leg: SwapLeg) {
@@ -152,6 +160,7 @@ export function authorizeSwapTerms(
   termsHash: Hex32,
   nowSeconds: bigint,
 ): SwapState {
+  assertSwapStateIntegrity(state);
   uint64(nowSeconds, "Authorization time");
   if (nowSeconds >= state.terms.authorizationDeadline) throw new Error("Swap authorization deadline has passed");
   if (canonicalHex32(termsHash, "Authorized terms hash") !== state.termsHash) throw new Error("Authorized terms hash does not match");
@@ -296,6 +305,7 @@ export function flagSwapDispute(
   detail: string,
   evidenceId?: Hex32,
 ): SwapState {
+  assertSwapStateIntegrity(state);
   if (detail.length === 0 || detail.length > 500 || detail.trim() !== detail) {
     throw new TypeError("Dispute detail must be a non-empty canonical message");
   }
@@ -318,6 +328,7 @@ export function retractSwapEvidence(
   evidenceId: Hex32,
   detail: string,
 ): SwapState {
+  assertSwapStateIntegrity(state);
   const normalized = canonicalHex32(evidenceId, "Retracted evidence ID");
   if (!hasEvidence(state, normalized)) throw new Error("Cannot retract unknown swap evidence");
   if (state.retractedEvidenceIds[normalized]) return state;
@@ -332,6 +343,7 @@ export function retractSwapEvidence(
 }
 
 export function swapPhase(state: SwapState): SwapPhase {
+  assertSwapStateIntegrity(state);
   if (state.disputes.length > 0) return "disputed";
   if (state.zec.phase === "claimed-confirmed" && state.evm.phase === "claimed-confirmed") return "settled";
   const refundStarted = state.zec.phase.startsWith("refund") || state.evm.phase.startsWith("refund");

@@ -1,5 +1,6 @@
 import type { Hex32 } from "./order-domain.ts";
 import { sha256Hex } from "./sha256.ts";
+import { encodeSwapTerms } from "./swap-domain.ts";
 import type { SwapState } from "./swap-state.ts";
 
 function canonicalValue(value: unknown): string {
@@ -21,6 +22,7 @@ export function encodeSwapState(state: SwapState): string {
   return canonicalValue({
     swapId: state.swapId,
     termsHash: state.termsHash,
+    terms: encodeSwapTerms(state.terms),
     timingPolicy: state.timingPolicy,
     authorizations: state.authorizations,
     zec: state.zec,

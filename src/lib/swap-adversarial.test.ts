@@ -15,7 +15,31 @@ import {
   sampleSwapTerms,
   spendEvidence,
 } from "./swap-test-fixtures.ts";
-import { observeSwapFunding, observeSwapSpend, prepareSwapFunding } from "./swap-state.ts";
+import { authorizeSwapTerms, createSwapState, observeSwapFunding, observeSwapSpend, prepareSwapFunding } from "./swap-state.ts";
+
+test("binds canonical terms into every state root and transition", () => {
+  const initial = createSwapState(sampleSwapTerms, {
+    minimumFundingWindowSeconds: 100n,
+    minimumClaimWindowSeconds: 100n,
+    minimumSafetyWindowSeconds: 500n,
+  });
+  const changedTerms = { ...initial.terms, zecRefundTime: initial.terms.zecRefundTime + 1n };
+  const tampered = { ...initial, terms: changedTerms };
+  assert.notEqual(swapStateRoot(tampered), swapStateRoot(initial));
+  assert.throws(
+    () => authorizeSwapTerms(tampered, initial.terms.zecSellerId, initial.termsHash, 1n),
+    /signed terms hash/,
+  );
+  assert.throws(
+    () => appendSwapEvent(emptySwapJournal(initial), tampered, {
+      kind: "authorize-terms",
+      partyId: initial.terms.zecSellerId,
+      termsHash: initial.termsHash,
+      occurredAtSeconds: 1n,
+    }),
+    /journal head/,
+  );
+});
 
 test("binds every mutable signed term to the terms digest", () => {
   const mutations: readonly SwapTermsV1[] = [
