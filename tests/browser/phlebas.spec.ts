@@ -792,6 +792,16 @@ test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
   await expect(page.getByText("Integrity checks failed. Preview-to-sign is disabled. Retry is safe; nothing was submitted. Settled as pZEC-USDC.")).toBeVisible();
 });
 
+test("unavailable ZEC/USDT withholds chart copy naming pZEC-USDT0 before retry", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("combobox", { name: "Market data state" }).selectOption("unavailable");
+  await expect(
+    page.getByText("Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDT0.").first(),
+  ).toBeVisible();
+  await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
+});
+
 test("chart 1H and 1D img labels return on ZEC/USDT after fixtures", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
