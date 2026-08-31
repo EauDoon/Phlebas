@@ -69,7 +69,7 @@ export function WalletBar({
         {busy ? "Connecting" : "Connect wallet"}
       </button>
       {wallet.error && (
-        <span className={styles.inlineNotice} role="status">
+        <span className={styles.inlineNotice} role="status" aria-label="Wallet connection rejection">
           {wallet.error}
         </span>
       )}
