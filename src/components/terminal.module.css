@@ -293,7 +293,8 @@
 }
 
 .selectorTabs button {
-  min-height: 32px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 4px 8px;
   border: 1px solid var(--border);
   border-radius: 4px;
