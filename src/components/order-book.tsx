@@ -1,5 +1,6 @@
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
+import { feedSurface, type FeedStatus } from "@/lib/market-state";
 import { levelsFromBook, type Book } from "@/lib/matcher";
 import { PRICE_DECIMALS, PZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
@@ -9,14 +10,17 @@ export function OrderBook({
   marketId,
   book,
   onPriceSelect,
+  feedStatus = "illustrative",
 }: {
   marketId: MarketId;
   book: Book;
   onPriceSelect: (priceTicks: bigint) => void;
+  feedStatus?: FeedStatus;
 }) {
   const market = markets[marketId];
-  const asks = levelsFromBook(book, "sell");
-  const bids = levelsFromBook(book, "buy");
+  const surface = feedSurface(feedStatus);
+  const asks = surface.showFixtures ? levelsFromBook(book, "sell") : [];
+  const bids = surface.showFixtures ? levelsFromBook(book, "buy") : [];
   const askRows = [...asks].reverse();
   const maxAtoms = [...asks, ...bids].reduce((max, level) => (
     level.totalAtoms > max ? level.totalAtoms : max
@@ -27,7 +31,9 @@ export function OrderBook({
     <section className={styles.panel} aria-labelledby="order-book-title">
       <div className={styles.panelHeader}>
         <h2 id="order-book-title">Order book</h2>
-        <span className={styles.miniLabel}>0.01 tick · local book</span>
+        <span className={styles.miniLabel}>
+          {surface.showFixtures ? "0.01 tick · local book" : surface.heading}
+        </span>
       </div>
       <table className={styles.dataTable}>
         <caption className={styles.srOnly}>
@@ -44,7 +50,11 @@ export function OrderBook({
           {askRows.length === 0 && bids.length === 0 && (
             <tr>
               <td colSpan={3}>
-                <p className={styles.emptyState}>No resting depth. The local book is empty.</p>
+                <p className={styles.emptyState}>
+                  {surface.showFixtures || feedStatus === "empty"
+                    ? "No resting depth. The local book is empty."
+                    : `${surface.heading}. ${surface.message}`}
+                </p>
               </td>
             </tr>
           )}

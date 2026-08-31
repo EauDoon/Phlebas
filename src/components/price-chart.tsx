@@ -1,5 +1,6 @@
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { chartSeries } from "@/lib/market-data";
+import { feedSurface, type FeedStatus } from "@/lib/market-state";
 import { PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -7,9 +8,19 @@ import styles from "./terminal.module.css";
 type PriceChartProps = {
   marketId: MarketId;
   range: ChartRange;
+  feedStatus: FeedStatus;
 };
 
-export function PriceChart({ marketId, range }: PriceChartProps) {
+export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
+  const surface = feedSurface(feedStatus);
+  if (!surface.showFixtures) {
+    return (
+      <p className={styles.emptyState} role="status">
+        <strong>{surface.heading}. </strong>
+        {surface.message}
+      </p>
+    );
+  }
   const values = chartSeries[marketId][range];
   const min = Math.min(...values) - 25;
   const max = Math.max(...values) + 25;
@@ -31,10 +42,18 @@ export function PriceChart({ marketId, range }: PriceChartProps) {
         className={styles.chart}
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label={`Illustrative ${range} price chart for ${marketId}`}
+        aria-label={
+          feedStatus === "stale"
+            ? `Delayed illustrative ${range} price chart for ${marketId}`
+            : `Illustrative ${range} price chart for ${marketId}`
+        }
         preserveAspectRatio="none"
       >
-        <title>{`Illustrative ${range} price chart for ${marketId}`}</title>
+        <title>
+          {feedStatus === "stale"
+            ? `Delayed illustrative ${range} price chart for ${marketId}`
+            : `Illustrative ${range} price chart for ${marketId}`}
+        </title>
         <defs>
           <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="#f4c95d" stopOpacity="0.2" />
