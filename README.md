@@ -8,7 +8,7 @@ Phlebas is a production-minded protocol design and no-value interface simulation
 
 Native ZEC is not an ERC-20 token and cannot sit directly inside an EVM constant product pool. The reference design therefore separates three systems:
 
-1. A transparent-Zcash gateway observes confirmed native ZEC deposits and would issue a fully reserved, 8-decimal `pZEC` receipt.
+1. A transparent-Zcash gateway observes confirmed native ZEC deposits. A future receipt, if ever issued, would be custodial. This preview labels native ZEC and does not mint.
 2. Arbitrum contracts would settle signed order-book trades and host constrained constant product pools for `ZEC/USDC` and `ZEC/USDT`.
 3. A public web interface presents markets and prepares user-signed actions without holding custody keys or operating the authoritative matcher.
 
@@ -107,7 +107,7 @@ The [browser acceptance guide](docs/BROWSER_ACCEPTANCE.md) defines the routes, v
 
 - Network: Arbitrum One, chain ID `42161`
 - Quote assets: native USDC and native USDT. USDT0 is abandoned.
-- ZEC representation: non-upgradeable `pZEC`, 8 decimals, mint and burn restricted to the gateway
+- ZEC representation: undeployed 8-decimal `tZEC` receipt. The preview labels native ZEC and does not mint.
 - Orders: EIP-712 signed intents, atomic onchain settlement, maker cancellation bitmap and account epoch
 - Matcher: offchain price-time priority with append-only sequencing evidence
 - AMM: fixed 30 basis point fee, no farms, gauges, leverage, flash callbacks, or arbitrary pair creation

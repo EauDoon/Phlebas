@@ -49,7 +49,7 @@ Keep material details private until a fix is available and affected users can ta
 
 The proposed architecture is documented in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). Its strongest intended boundaries are:
 
-- Transparent ZEC custody and pZEC issuance are a federated gateway, not a trustless bridge.
+- Transparent ZEC custody and any future receipt issuance are a federated gateway, not a trustless bridge.
 - The central limit order book is matched offchain and settled onchain from signed limits.
 - The constrained automated market maker supports only ZEC/USDC and ZEC/USDT.
 - Settlement, token, router, and pool logic are intended to be versioned and non-upgradeable.
