@@ -5,6 +5,7 @@ import {
   calculatePreviewNotional,
   calculateWorstPrice,
   formatZecPreviewAmount,
+  marketOrderConstraintCopy,
   formatQuotePreviewAmount,
   parseStrictDecimal,
   ZEC_ATOMIC_RULE,
@@ -83,6 +84,14 @@ test("rounds market caps conservatively to the quote-price tick", () => {
   assert.equal(calculateWorstPrice(52.84, "sell", 0.5), 52.57);
   assert.equal(calculateWorstPrice(52.84, "buy", 0.001), 52.85);
   assert.equal(calculateWorstPrice(52.84, "sell", 0.001), 52.83);
+});
+
+test("market-order constraint copy names IOC and a signed worst price", () => {
+  assert.match(marketOrderConstraintCopy(), /IOC with a signed worst price/);
+  assert.match(marketOrderConstraintCopy(), /no unbounded market instruction/);
+  assert.match(marketOrderConstraintCopy(), /not live settlement/);
+  assert.doesNotMatch(marketOrderConstraintCopy(), /pZEC/);
+  assert.doesNotMatch(marketOrderConstraintCopy(), /trustless/);
 });
 
 test("rejects an unsafe slippage percentage", () => {

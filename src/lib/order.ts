@@ -149,6 +149,10 @@ export function calculatePreviewNotional(price: number, size: number): number {
   return notional;
 }
 
+export function marketOrderConstraintCopy(): string {
+  return "Market orders are IOC with a signed worst price. There is no unbounded market instruction. This preview is not live settlement.";
+}
+
 export function calculateWorstPrice(
   referencePrice: number,
   side: OrderSide,

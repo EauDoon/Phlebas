@@ -20,7 +20,7 @@ import {
 } from "./session.ts";
 import { retargetSettlementCopy } from "./evm-wallet.ts";
 import { markets } from "./market-data.ts";
-import { quoteAtomsForFill } from "./units.ts";
+import { quoteAtomsForFill, worstPriceTicks } from "./units.ts";
 
 test("seeds the USDC book from fixture levels with integer ticks", () => {
   const book = seedBook("ZEC/USDC");
@@ -179,6 +179,35 @@ test("checks exact fill debit plus rounded remainder reservation", () => {
   assert.equal(applied.blockedReason, "Session quote inventory is insufficient.");
   assert.deepEqual(applied.account, account);
   assert.equal(availableQuote(applied.account), 2n);
+});
+
+test("IOC market buy at lastTicks does not fill beyond the signed worst price", () => {
+  const book = seedBook("ZEC/USDC");
+  const lastTicks = markets["ZEC/USDC"].lastTicks;
+  const priceTicks = worstPriceTicks(lastTicks, "buy", 0n);
+  assert.equal(priceTicks, lastTicks);
+  assert.ok(priceTicks < 5291n);
+  const result = submitOrder(book, {
+    id: "taker",
+    side: "buy",
+    tif: "IOC",
+    priceTicks,
+    sizeAtoms: 1_00000000n,
+  });
+  assert.equal(result.status, "cancelled");
+  assert.equal(result.fills.length, 0);
+  assert.equal(result.fills.every((fill) => fill.priceTicks <= priceTicks), true);
+  assert.match(describeSubmit(result, "ZEC/USDC"), /no fills/);
+  assert.match(describeSubmit(result, "ZEC/USDC"), /Unfilled size was cancelled/);
+  const crossing = submitOrder(book, {
+    id: "control",
+    side: "buy",
+    tif: "IOC",
+    priceTicks: 5291n,
+    sizeAtoms: 1_00000000n,
+  });
+  assert.equal(crossing.status, "filled");
+  assert.equal(crossing.fills[0]?.priceTicks, 5291n);
 });
 
 test("describeSubmit names settlement on a real FOK miss", () => {
