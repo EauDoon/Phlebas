@@ -8,11 +8,13 @@ import {
   markPayoutPayable,
   markPayoutUnresolved,
   payoutClaimForTourStep,
+  rejectPayoutBeforeBurn,
   requestPayout,
   screenPayout,
   screenPayoutClaim,
   submitPayoutBurn,
 } from "./payout.ts";
+import { withdrawalTourIds } from "./withdrawal-tour.ts";
 
 const DEST = "t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc";
 
@@ -82,6 +84,43 @@ test("tour step walker reaches payable only after a screened transparent destina
   assert.equal(payoutClaimForTourStep("confirmed", DEST).state, "payable");
   assert.equal(payoutClaimForTourStep("screened", "zs1notreal").state, "rejected");
   assert.equal(payoutClaimForTourStep("payable", "").state, "rejected");
+});
+
+test("tour walker maps rejected and unresolved through the payout helpers", () => {
+  const screened = screenPayoutClaim(requestPayout({
+    burnId: "tour-preview",
+    destination: DEST,
+    amountZatoshis: 1n,
+  }));
+  const rejected = rejectPayoutBeforeBurn(screened);
+  assert.equal(rejected.state, "rejected");
+  assert.match(rejected.reason ?? "", /Nothing was burned/);
+  assert.equal(payoutClaimForTourStep("rejected", DEST).state, rejected.state);
+  assert.equal(payoutClaimForTourStep("rejected", DEST).reason, rejected.reason);
+
+  const payable = payoutClaimForTourStep("payable", DEST);
+  const unresolved = markPayoutUnresolved(payable);
+  assert.equal(unresolved.state, "unresolved");
+  assert.match(unresolved.reason ?? "", /stale/);
+  assert.equal(payoutClaimForTourStep("unresolved", DEST).state, unresolved.state);
+  assert.equal(payoutClaimForTourStep("unresolved", DEST).reason, unresolved.reason);
+  assert.equal(rejectPayoutBeforeBurn(payable).state, "rejected");
+});
+
+test("every withdrawal tour id walks through payoutClaimForTourStep without sending", () => {
+  for (const id of withdrawalTourIds()) {
+    const claim = payoutClaimForTourStep(id, DEST);
+    if (id === "rejected") {
+      assert.equal(claim.state, "rejected");
+      assert.match(claim.reason ?? "", /before burn/);
+      continue;
+    }
+    if (id === "unresolved") {
+      assert.equal(claim.state, "unresolved");
+      continue;
+    }
+    assert.notEqual(claim.state, "rejected");
+  }
 });
 
 test("shielded request is rejected at screen and does not spend a burn", () => {
