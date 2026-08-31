@@ -5,106 +5,147 @@ export type Market = {
   id: MarketId;
   settlementPair: "pZEC-USDC" | "pZEC-USDT0";
   quote: "USDC" | "USDT0";
-  last: number;
-  change: number;
-  high: number;
-  low: number;
+  lastTicks: bigint;
+  changeBps: number;
+  highTicks: bigint;
+  lowTicks: bigint;
   volume: string;
 };
 
 export type BookLevel = {
-  price: number;
-  size: number;
-  total: number;
+  priceTicks: bigint;
+  sizeAtoms: bigint;
+  totalAtoms: bigint;
 };
 
 export type RecentTrade = {
-  price: number;
-  size: number;
+  priceTicks: bigint;
+  sizeAtoms: bigint;
   side: "buy" | "sell";
   time: string;
 };
+
+function pzecAtomsFromHundredths(hundredths: bigint): bigint {
+  return hundredths * 1_000000n;
+}
+
+function accumulate(
+  levels: ReadonlyArray<{ priceTicks: bigint; sizeAtoms: bigint }>,
+  accumulateFrom: "start" | "end",
+): BookLevel[] {
+  const next = levels.map((level) => ({ ...level, totalAtoms: 0n }));
+  const indexes = [...next.keys()];
+  if (accumulateFrom === "end") indexes.reverse();
+
+  let total = 0n;
+  for (const index of indexes) {
+    total += next[index].sizeAtoms;
+    next[index].totalAtoms = total;
+  }
+  return next;
+}
 
 export const markets: Record<MarketId, Market> = {
   "ZEC/USDC": {
     id: "ZEC/USDC",
     settlementPair: "pZEC-USDC",
     quote: "USDC",
-    last: 52.84,
-    change: 5.85,
-    high: 52.84,
-    low: 49.92,
+    lastTicks: 5284n,
+    changeBps: 585,
+    highTicks: 5284n,
+    lowTicks: 4992n,
     volume: "$1.84M",
   },
   "ZEC/USDT": {
     id: "ZEC/USDT",
     settlementPair: "pZEC-USDT0",
     quote: "USDT0",
-    last: 52.79,
-    change: 5.83,
-    high: 52.79,
-    low: 49.88,
+    lastTicks: 5279n,
+    changeBps: 583,
+    highTicks: 5279n,
+    lowTicks: 4988n,
     volume: "$1.12M",
   },
 };
 
-export const chartSeries: Record<MarketId, Record<ChartRange, number[]>> = {
+export const chartSeries: Record<MarketId, Record<ChartRange, readonly number[]>> = {
   "ZEC/USDC": {
-    "1H": [51.82, 51.68, 51.93, 52.06, 51.97, 52.18, 52.11, 52.46, 52.38, 52.61, 52.49, 52.84],
-    "4H": [50.72, 50.96, 50.81, 51.14, 51.47, 51.35, 51.88, 52.22, 52.05, 52.41, 52.66, 52.84],
-    "1D": [49.92, 50.21, 50.04, 50.68, 50.44, 51.16, 51.02, 51.74, 52.08, 51.91, 52.42, 52.84],
+    "1H": [5182, 5168, 5193, 5206, 5197, 5218, 5211, 5246, 5238, 5261, 5249, 5284],
+    "4H": [5072, 5096, 5081, 5114, 5147, 5135, 5188, 5222, 5205, 5241, 5266, 5284],
+    "1D": [4992, 5021, 5004, 5068, 5044, 5116, 5102, 5174, 5208, 5191, 5242, 5284],
   },
   "ZEC/USDT": {
-    "1H": [51.77, 51.64, 51.89, 52.01, 51.93, 52.14, 52.08, 52.41, 52.33, 52.56, 52.44, 52.79],
-    "4H": [50.68, 50.91, 50.76, 51.09, 51.42, 51.3, 51.83, 52.17, 52.0, 52.36, 52.61, 52.79],
-    "1D": [49.88, 50.17, 50.0, 50.63, 50.4, 51.11, 50.98, 51.69, 52.03, 51.86, 52.37, 52.79],
+    "1H": [5177, 5164, 5189, 5201, 5193, 5214, 5208, 5241, 5233, 5256, 5244, 5279],
+    "4H": [5068, 5091, 5076, 5109, 5142, 5130, 5183, 5217, 5200, 5236, 5261, 5279],
+    "1D": [4988, 5017, 5000, 5063, 5040, 5111, 5098, 5169, 5203, 5186, 5237, 5279],
   },
 };
 
-const usdcAsks = [53.18, 53.12, 53.08, 53.02, 52.97, 52.91];
-const usdcBids = [52.78, 52.73, 52.69, 52.63, 52.57, 52.51];
-
-function makeLevels(prices: number[], seed: number, accumulateFrom: "start" | "end"): BookLevel[] {
-  const levels = prices.map((price, index) => {
-    const size = Number((7.3 + ((index + seed) * 4.17) % 21).toFixed(2));
-    return { price, size, total: 0 };
-  });
-  const indexes = [...levels.keys()];
-  if (accumulateFrom === "end") indexes.reverse();
-
-  let total = 0;
-  for (const index of indexes) {
-    total += levels[index].size;
-    levels[index].total = Number(total.toFixed(2));
-  }
-  return levels;
-}
-
 export const books: Record<MarketId, { asks: BookLevel[]; bids: BookLevel[] }> = {
   "ZEC/USDC": {
-    asks: makeLevels(usdcAsks, 2, "end"),
-    bids: makeLevels(usdcBids, 5, "start"),
+    asks: accumulate(
+      [
+        { priceTicks: 5318n, sizeAtoms: pzecAtomsFromHundredths(1564n) },
+        { priceTicks: 5312n, sizeAtoms: pzecAtomsFromHundredths(1981n) },
+        { priceTicks: 5308n, sizeAtoms: pzecAtomsFromHundredths(2398n) },
+        { priceTicks: 5302n, sizeAtoms: pzecAtomsFromHundredths(2815n) },
+        { priceTicks: 5297n, sizeAtoms: pzecAtomsFromHundredths(1132n) },
+        { priceTicks: 5291n, sizeAtoms: pzecAtomsFromHundredths(1549n) },
+      ],
+      "end",
+    ),
+    bids: accumulate(
+      [
+        { priceTicks: 5278n, sizeAtoms: pzecAtomsFromHundredths(2815n) },
+        { priceTicks: 5273n, sizeAtoms: pzecAtomsFromHundredths(1132n) },
+        { priceTicks: 5269n, sizeAtoms: pzecAtomsFromHundredths(1549n) },
+        { priceTicks: 5263n, sizeAtoms: pzecAtomsFromHundredths(1966n) },
+        { priceTicks: 5257n, sizeAtoms: pzecAtomsFromHundredths(2383n) },
+        { priceTicks: 5251n, sizeAtoms: pzecAtomsFromHundredths(2800n) },
+      ],
+      "start",
+    ),
   },
   "ZEC/USDT": {
-    asks: makeLevels(usdcAsks.map((price) => price - 0.05), 4, "end"),
-    bids: makeLevels(usdcBids.map((price) => price - 0.05), 7, "start"),
+    asks: accumulate(
+      [
+        { priceTicks: 5313n, sizeAtoms: pzecAtomsFromHundredths(2398n) },
+        { priceTicks: 5307n, sizeAtoms: pzecAtomsFromHundredths(2815n) },
+        { priceTicks: 5303n, sizeAtoms: pzecAtomsFromHundredths(1132n) },
+        { priceTicks: 5297n, sizeAtoms: pzecAtomsFromHundredths(1549n) },
+        { priceTicks: 5292n, sizeAtoms: pzecAtomsFromHundredths(1966n) },
+        { priceTicks: 5286n, sizeAtoms: pzecAtomsFromHundredths(2383n) },
+      ],
+      "end",
+    ),
+    bids: accumulate(
+      [
+        { priceTicks: 5273n, sizeAtoms: pzecAtomsFromHundredths(1549n) },
+        { priceTicks: 5268n, sizeAtoms: pzecAtomsFromHundredths(1966n) },
+        { priceTicks: 5264n, sizeAtoms: pzecAtomsFromHundredths(2383n) },
+        { priceTicks: 5258n, sizeAtoms: pzecAtomsFromHundredths(2800n) },
+        { priceTicks: 5252n, sizeAtoms: pzecAtomsFromHundredths(1117n) },
+        { priceTicks: 5246n, sizeAtoms: pzecAtomsFromHundredths(1534n) },
+      ],
+      "start",
+    ),
   },
 };
 
 export const recentTrades: Record<MarketId, readonly RecentTrade[]> = {
   "ZEC/USDC": [
-    { price: 52.84, size: 3.4, side: "buy", time: "14:32:08" },
-    { price: 52.81, size: 8.12, side: "sell", time: "14:31:54" },
-    { price: 52.82, size: 1.76, side: "buy", time: "14:31:41" },
-    { price: 52.78, size: 12.05, side: "sell", time: "14:31:27" },
-    { price: 52.8, size: 5.44, side: "buy", time: "14:31:12" },
+    { priceTicks: 5284n, sizeAtoms: pzecAtomsFromHundredths(340n), side: "buy", time: "14:32:08" },
+    { priceTicks: 5281n, sizeAtoms: pzecAtomsFromHundredths(812n), side: "sell", time: "14:31:54" },
+    { priceTicks: 5282n, sizeAtoms: pzecAtomsFromHundredths(176n), side: "buy", time: "14:31:41" },
+    { priceTicks: 5278n, sizeAtoms: pzecAtomsFromHundredths(1205n), side: "sell", time: "14:31:27" },
+    { priceTicks: 5280n, sizeAtoms: pzecAtomsFromHundredths(544n), side: "buy", time: "14:31:12" },
   ],
   "ZEC/USDT": [
-    { price: 52.79, size: 3.4, side: "buy", time: "14:32:08" },
-    { price: 52.76, size: 8.12, side: "sell", time: "14:31:54" },
-    { price: 52.77, size: 1.76, side: "buy", time: "14:31:41" },
-    { price: 52.73, size: 12.05, side: "sell", time: "14:31:27" },
-    { price: 52.75, size: 5.44, side: "buy", time: "14:31:12" },
+    { priceTicks: 5279n, sizeAtoms: pzecAtomsFromHundredths(340n), side: "buy", time: "14:32:08" },
+    { priceTicks: 5276n, sizeAtoms: pzecAtomsFromHundredths(812n), side: "sell", time: "14:31:54" },
+    { priceTicks: 5277n, sizeAtoms: pzecAtomsFromHundredths(176n), side: "buy", time: "14:31:41" },
+    { priceTicks: 5273n, sizeAtoms: pzecAtomsFromHundredths(1205n), side: "sell", time: "14:31:27" },
+    { priceTicks: 5275n, sizeAtoms: pzecAtomsFromHundredths(544n), side: "buy", time: "14:31:12" },
   ],
 };
 
@@ -115,8 +156,6 @@ export const pools = [
     fee: "0.30%",
     tvl: "$842,410",
     volume: "$311,820",
-    reserveZec: 7971.32,
-    reserveQuote: 421205,
     reserveZecAtoms: 797_132_000000n,
     reserveQuoteAtoms: 421_205_000000n,
   },
@@ -126,9 +165,15 @@ export const pools = [
     fee: "0.30%",
     tvl: "$516,920",
     volume: "$188,460",
-    reserveZec: 4896.00,
-    reserveQuote: 258460,
     reserveZecAtoms: 489_600_000000n,
     reserveQuoteAtoms: 258_460_000000n,
   },
 ] as const;
+
+export function formatSignedChange(changeBps: number): string {
+  const sign = changeBps > 0 ? "+" : changeBps < 0 ? "-" : "";
+  const absolute = Math.abs(changeBps);
+  const whole = Math.trunc(absolute / 100);
+  const fraction = String(absolute % 100).padStart(2, "0");
+  return `${sign}${whole}.${fraction}%`;
+}

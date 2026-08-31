@@ -14,7 +14,6 @@ import {
   PRICE_DECIMALS,
   formatAtomicUnits,
   meetsMinimumQuoteSettlement,
-  parseAtomicUnits,
   quoteAtomsForFill,
   quoteAtomsForFills,
 } from "./units.ts";
@@ -55,8 +54,7 @@ export function availableQuote(account: PaperAccount): bigint {
 }
 
 export function seedBook(marketId: MarketId): Book {
-  const lastTicks = parseAtomicUnits(markets[marketId].last.toFixed(PRICE_DECIMALS), PRICE_DECIMALS);
-  let book = emptyBook(lastTicks);
+  let book = emptyBook(markets[marketId].lastTicks);
   const fixture = books[marketId];
 
   fixture.asks.forEach((level, index) => {
@@ -64,8 +62,8 @@ export function seedBook(marketId: MarketId): Book {
       id: `venue-ask-${marketId}-${index}`,
       side: "sell",
       tif: "GTC",
-      priceTicks: parseAtomicUnits(level.price.toFixed(PRICE_DECIMALS), PRICE_DECIMALS),
-      sizeAtoms: parseAtomicUnits(level.size.toFixed(2), PZEC_DECIMALS),
+      priceTicks: level.priceTicks,
+      sizeAtoms: level.sizeAtoms,
     }).book;
   });
   fixture.bids.forEach((level, index) => {
@@ -73,8 +71,8 @@ export function seedBook(marketId: MarketId): Book {
       id: `venue-bid-${marketId}-${index}`,
       side: "buy",
       tif: "GTC",
-      priceTicks: parseAtomicUnits(level.price.toFixed(PRICE_DECIMALS), PRICE_DECIMALS),
-      sizeAtoms: parseAtomicUnits(level.size.toFixed(2), PZEC_DECIMALS),
+      priceTicks: level.priceTicks,
+      sizeAtoms: level.sizeAtoms,
     }).book;
   });
 

@@ -34,3 +34,11 @@ test("digest is deterministic and 64 hex characters", async () => {
   assert.match(digest, /^[0-9a-f]{64}$/);
   assert.notEqual(digest, await digestCanonicalOrder({ ...sample, nonce: "2" }));
 });
+
+test("allowed venues are part of the canonical encoding", () => {
+  assert.match(encodeCanonicalOrder(sample), /\nallowedVenues=clob\n/);
+  assert.match(
+    encodeCanonicalOrder({ ...sample, allowedVenues: "clob,amm" }),
+    /\nallowedVenues=clob,amm\n/,
+  );
+});

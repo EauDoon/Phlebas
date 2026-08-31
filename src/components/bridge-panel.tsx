@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { inspectTransparentDestination } from "@/lib/zcash-address";
 import { syntheticDepositRequest } from "@/lib/zip321";
 
 import styles from "./terminal.module.css";
@@ -46,8 +47,10 @@ export function BridgePanel() {
   const [journey, setJourney] = useState<"deposit" | "withdrawal">("deposit");
   const [tourIndex, setTourIndex] = useState(0);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
+  const [destination, setDestination] = useState("");
   const request = syntheticDepositRequest();
   const tour = withdrawalTour[tourIndex];
+  const destinationCheck = inspectTransparentDestination(destination);
 
   return (
     <div className={styles.featureGrid}>
@@ -121,6 +124,21 @@ export function BridgePanel() {
               <strong>{tour.title}</strong>
               <p>{tour.body}</p>
             </div>
+            <label className={styles.inputLabel}>
+              <span>Transparent destination inspector</span>
+              <div className={styles.inputShell}>
+                <input
+                  value={destination}
+                  onChange={(event) => setDestination(event.target.value)}
+                  aria-label="Transparent destination to inspect"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+            </label>
+            <p className={styles.inlineNotice} aria-live="polite">
+              {destinationCheck.message}
+            </p>
             <div className={styles.tourNav}>
               <button
                 type="button"

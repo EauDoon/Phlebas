@@ -78,6 +78,19 @@ test("rejects non-positive size or price", () => {
   assert.equal(submitOrder(book, { id: "x", side: "buy", tif: "GTC", priceTicks: 1n, sizeAtoms: 0n }).status, "rejected");
 });
 
+test("fills plus remainder conserve taker size and never trade above the buy limit", () => {
+  const result = submitOrder(seed(), {
+    id: "taker",
+    side: "buy",
+    tif: "IOC",
+    priceTicks: 5300n,
+    sizeAtoms: 12_00000000n,
+  });
+  const filled = result.fills.reduce((sum, fill) => sum + fill.sizeAtoms, 0n);
+  assert.equal(filled + result.remainingAtoms, 12_00000000n);
+  assert.equal(result.fills.every((fill) => fill.priceTicks <= 5300n), true);
+});
+
 test("rejects an order below one quote atom at the matcher boundary", () => {
   const book = emptyBook(5284n);
   const result = submitOrder(book, {

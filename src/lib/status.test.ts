@@ -11,4 +11,5 @@ test("status payload never claims live funds or custody", () => {
   assert.equal(status.wallets, "disabled");
   assert.equal(status.matcher, "in-browser");
   assert.equal(status.mode, "simulation");
+  assert.equal(status.marketData, "illustrative");
 });

@@ -11,7 +11,7 @@ export type CanonicalOrder = {
   salt: string;
   recipient: "session";
   maximumFeeBps: "30";
-  allowedVenues: "clob";
+  allowedVenues: "clob" | "amm" | "clob,amm";
   chainId: "42161";
   verifyingContract: "not-deployed";
 };

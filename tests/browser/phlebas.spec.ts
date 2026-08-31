@@ -147,7 +147,7 @@ for (const width of viewports) {
       await expectVisibleFocus(enterSimulation);
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/trade\?view=trade$/);
-      await expect(page.getByRole("combobox", { name: "Market" })).toHaveValue("ZEC/USDC");
+      await expect(page.getByRole("combobox", { name: "Selected market" })).toHaveValue("ZEC/USDC");
       await expect(page.getByText("settles pZEC-USDC", { exact: true })).toBeVisible();
 
       await page.goto("/", { waitUntil: "networkidle" });
@@ -273,6 +273,8 @@ test("gateway preview is not a receivable deposit", async ({ page }) => {
   await expect(page.getByText("Preview withdrawal states, not Withdraw ZEC.")).toBeVisible();
   await page.getByRole("button", { name: "Next state" }).click();
   await expect(page.getByText("Screened", { exact: true })).toBeVisible();
+  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("zs1notreal");
+  await expect(page.getByText("Shielded and unified addresses are out of scope.")).toBeVisible();
 });
 
 test("local matcher fills a buy against the fixture ask", async ({ page }) => {
@@ -319,4 +321,26 @@ test("ZIP 321 copy warns that the template is not payable", async ({ page }) => 
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Copy URI template" }).click();
   await expect(page.getByText("Copied a non-payable template. {TEX_ADDRESS} is a placeholder, not a deposit address.")).toBeVisible();
+});
+
+test("stale market data disables preview-to-sign and retries to illustrative", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("combobox", { name: "Market data state" }).selectOption("stale");
+  await expect(page.getByText("Market data stale", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await page.getByRole("button", { name: "Retry illustrative feed" }).click();
+  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeEnabled();
+  await expect(page).toHaveURL(/\/trade/);
+});
+
+test("review names the cheaper venue before confirm", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Ask 52.91" }).click();
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByText("CLOB cheaper for a full fill", { exact: true })).toBeVisible();
+  await expect(page.getByText("Confirm submits only the local CLOB")).toBeVisible();
 });

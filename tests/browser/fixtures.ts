@@ -1,22 +1,40 @@
 import { rm } from "node:fs/promises";
-import { createServer } from "node:http";
+import { createServer, type Server } from "node:http";
 import { join } from "node:path";
 
 import next from "next";
 import { expect, type BrowserContext, test as base } from "@playwright/test";
 
 const host = "127.0.0.1";
-const port = 3108;
 
 type WorkerFixtures = {
   persistentContext: BrowserContext;
   serverUrl: string;
 };
 
+function listenOnFreePort(server: Server): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const onError = (error: NodeJS.ErrnoException) => {
+      server.off("error", onError);
+      reject(error);
+    };
+    server.once("error", onError);
+    server.listen(0, host, () => {
+      server.off("error", onError);
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        reject(new Error("Production fixture server did not bind a TCP port"));
+        return;
+      }
+      resolve(address.port);
+    });
+  });
+}
+
 export const test = base.extend<object, WorkerFixtures>({
   serverUrl: [async ({}, run) => {
-    const app = next({ dev: false, dir: process.cwd(), hostname: host, port });
-    let server: ReturnType<typeof createServer> | undefined;
+    const app = next({ dev: false, dir: process.cwd(), hostname: host, port: 0 });
+    let server: Server | undefined;
 
     try {
       await app.prepare();
@@ -26,16 +44,7 @@ export const test = base.extend<object, WorkerFixtures>({
           response.destroy(error instanceof Error ? error : new Error(String(error)));
         });
       });
-      const listeningServer = server;
-
-      await new Promise<void>((resolve, reject) => {
-        listeningServer.once("error", reject);
-        listeningServer.listen(port, host, () => {
-          listeningServer.off("error", reject);
-          resolve();
-        });
-      });
-
+      const port = await listenOnFreePort(server);
       await run(`http://${host}:${port}`);
     } finally {
       if (server?.listening) {
