@@ -88,3 +88,10 @@ These interface references inform hierarchy and density only. Phlebas uses its o
 - [Server-Sent Events (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)
 - [Coinbase Exchange public market data API reference](https://docs.cdp.coinbase.com/exchange/docs/rest-overview)
 - [Binance public market data WebSocket reference](https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams)
+
+## Operations hardening references
+
+- [Prometheus exposition format specification](https://prometheus.io/docs/instrumenting/exposition_formats/)
+- [Google SRE workbook, chapter on SLO engineering](https://sre.google/workbook/alerting-on-slos/)
+- [PagerDuty incident response reference](https://response.pagerduty.com/)
+- [Atlassian incident response handbook](https://www.atlassian.com/incident-management/handbook)
