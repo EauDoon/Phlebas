@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
@@ -119,6 +119,7 @@ export function TradeTicket({
     tif: TimeInForce;
     priceTicks: bigint;
     sizeAtoms: bigint;
+    expiryUnix: bigint;
   }) => string;
 }) {
   const noticeId = useId();
@@ -131,8 +132,9 @@ export function TradeTicket({
   const [slippagePercent, setSlippagePercent] = useState("0.50");
   const [expiry, setExpiry] = useState("0");
   const [notice, setNotice] = useState("Local matcher only. Session inventory is not a wallet.");
+  const [rejected, setRejected] = useState<string | null>(null);
   const [appliedPriceNonce, setAppliedPriceNonce] = useState(0);
-  const nonceRef = useRef(1);
+  const [sessionNonce, setSessionNonce] = useState(1);
   const [review, setReview] = useState<{
     side: Side;
     priceTicks: bigint;
@@ -289,7 +291,7 @@ export function TradeTicket({
     };
   }
 
-  async function reviewSimulatedOrder() {
+  async function reviewSimulatedOrder(nowUnix: bigint) {
     if (!gate.canReview) {
       setNotice(gate.message);
       setReview(null);
@@ -315,7 +317,16 @@ export function TradeTicket({
       tif: prepared.tif,
       priceTicks: prepared.priceTicks,
       sizeAtoms: prepared.sizeAtoms,
+      expiryUnix: prepared.expiryUnix,
+      nowUnix,
     });
+    if (clobPreview.status === "rejected" && clobPreview.reason === "Order expiry has passed") {
+      setRejected(`Rejected. ${clobPreview.reason}`);
+      setNotice(clobPreview.reason);
+      setReview(null);
+      return;
+    }
+    setRejected(null);
     const filledPzecAtoms = clobPreview.fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
     const clobDebitAtoms = side === "buy"
       ? quoteAtomsForFills(clobPreview.fills, "up")
@@ -332,7 +343,7 @@ export function TradeTicket({
       quoteAsset: market.quote,
       baseAmountAtoms: prepared.sizeAtoms.toString(),
       limitPriceTicks: prepared.priceTicks.toString(),
-      nonce: String(nonceRef.current),
+      nonce: String(sessionNonce),
       accountEpoch: String(accountEpoch),
       expiry: prepared.expiryUnix.toString(),
       salt: prepared.tif,
@@ -342,7 +353,7 @@ export function TradeTicket({
       chainId: "42161",
       verifyingContract: "not-deployed",
     };
-    nonceRef.current += 1;
+    setSessionNonce(sessionNonce + 1);
     let eip712 = undefined as string | undefined;
     let typed = undefined as TypedOrder | undefined;
     if (walletAddress) {
@@ -423,12 +434,18 @@ export function TradeTicket({
       }
       return;
     }
-    setNotice(onSubmit({
+    const result = onSubmit({
       side: review.side,
       tif: review.tif,
       priceTicks: review.priceTicks,
       sizeAtoms: review.sizeAtoms,
-    }));
+      expiryUnix: review.expiryUnix,
+    });
+    const isRejected = result.startsWith("Rejected.")
+      || result.includes("insufficient")
+      || result.startsWith("Self-trade");
+    setRejected(isRejected ? result : null);
+    setNotice(result);
     setReview(null);
   }
 
@@ -450,6 +467,12 @@ export function TradeTicket({
           <button type="button" className={styles.textButton} onClick={onRetryFeed}>
             Retry illustrative feed
           </button>
+        </div>
+      )}
+      {rejected && gate.canReview && (
+        <div className={styles.ticketBlocked} role="alert">
+          <strong>Order rejected</strong>
+          <p>{rejected} Retry is safe; nothing was submitted.</p>
         </div>
       )}
 
@@ -613,7 +636,7 @@ export function TradeTicket({
         </div>
         <div>
           <dt>Session nonce</dt>
-          <dd>{nonceRef.current}</dd>
+          <dd>{sessionNonce}</dd>
         </div>
         <div>
           <dt>Expiry</dt>
@@ -708,7 +731,7 @@ export function TradeTicket({
         <button
           type="button"
           className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
-          onClick={() => void reviewSimulatedOrder()}
+          onClick={() => void reviewSimulatedOrder(BigInt(Math.floor(Date.now() / 1000)))}
           disabled={!gate.canReview}
         >
           Review simulated {side}
