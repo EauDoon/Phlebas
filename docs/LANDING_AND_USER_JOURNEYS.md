@@ -533,7 +533,7 @@ Do not render an address input, paste target, QR scanner, wallet connector, or t
 
 ### Production-intent state machine
 
-Canonical names are [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) section 9.3. The tour uses title-case labels of those names. Signing the tZEC burn is the last action of `screened`, not a separate machine state. Expired evidence is a branch from `burn submitted`: closed without a finalized burn. Refunded / tZEC restored is a branch from `burn finalized` or `payable` on unrecoverable pre-signature failure. The restored asset is tZEC, not pZEC; that name is not the current listed form. The tour is a simulation. Nothing is sent.
+Canonical names are [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) section 9.3. The tour uses title-case labels of those names. Signing the tZEC burn is the last action of `screened`, not a separate machine state. Expired evidence is a branch from `burn submitted`: closed without a finalized burn. Refunded / tZEC restored is a branch from `burn finalized` or `payable` on unrecoverable pre-signature failure. Unresolved recovery is a branch from `signed`, `broadcast`, or `mined`: exact committed transaction observation returns `broadcast` or `mined`; verified input restoration returns `payable`. The restored asset is tZEC, not pZEC; that name is not the current listed form. The tour is a simulation. Nothing is sent.
 
 ```text
 requested -> screened -> burn submitted -> burn finalized -> payable
@@ -541,6 +541,8 @@ payable -> transaction_prepared -> signed -> broadcast -> mined -> confirmed
 burn submitted -> expired or reorganized evidence -> closed without finalized burn
 burn finalized | payable -> tZEC restored only on unrecoverable pre-signature failure -> refunded
 signed | broadcast | mined -> unresolved
+unresolved -> exact committed transaction observed -> broadcast | mined
+unresolved -> verified input restoration -> payable
 ```
 
 Future state requirements:
@@ -562,8 +564,10 @@ Future state requirements:
 | mined | Included in a Zcash block; close threshold not yet met | Wait |
 | confirmed | Gross tZEC, fees, net native ZEC, confirmations, and completion time | Close |
 | unresolved | Committed transaction is invalid, stale, conflicted, or reorganized | Wait for observation or restoration |
+| exact committed transaction observed | Independent observation of that exact committed transaction ID returns the claim to broadcast or mined. Nothing is sent. Simulation only. | Wait |
+| verified input restoration | Independent observers prove selected inputs are spendable again and the signed transaction cannot confirm. The claim returns to payable. Nothing is sent. Simulation only. Does not restore tZEC; pZEC is not the current listed form. | Wait |
 
-Every finalized tZEC burn must end in one transparent native ZEC payout or an approved refund outcome under the custody ledger. An unrecoverable pre-signature failure restores tZEC after a single-use refund authorization cancels the unpaid claim. Once signed, the claim cannot be refunded. Expired or reorganized burn evidence is closed without a finalized burn. Nothing is sent. The current tour is a simulation. The restored asset is tZEC, not pZEC; that name is not the current listed form. The Vercel UI may collect and transmit a future destination to the regulated backend after launch approval. It must not store the destination, hold tZEC, create the payout, sign the Zcash transaction, or control the withdrawal queue.
+Every finalized tZEC burn must end in one transparent native ZEC payout or an approved refund outcome under the custody ledger. An unrecoverable pre-signature failure restores tZEC after a single-use refund authorization cancels the unpaid claim. Once signed, the claim cannot be refunded. An unresolved claim returns to broadcast or mined only through independent observation of that exact committed transaction, or to payable through verified input restoration. Expired or reorganized burn evidence is closed without a finalized burn. Nothing is sent. The current tour is a simulation. The restored asset is tZEC, not pZEC; that name is not the current listed form. The Vercel UI may collect and transmit a future destination to the regulated backend after launch approval. It must not store the destination, hold tZEC, create the payout, sign the Zcash transaction, or control the withdrawal queue.
 
 ## Blocked, review, reorganization, and maintenance states
 
