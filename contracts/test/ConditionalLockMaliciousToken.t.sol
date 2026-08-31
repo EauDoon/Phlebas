@@ -78,6 +78,37 @@ contract ConditionalLockMaliciousTokenTest is ConditionalLockTestBase {
         assertEq(badToken.balanceOf(funder), AMOUNT);
     }
 
+    function testFundingRejectsTokenThatOverdebitsFunder() public {
+        AdversarialERC20 badToken = new AdversarialERC20();
+        ConditionalLock lock_ = _lockFor(address(badToken), AMOUNT);
+        badToken.mint(funder, AMOUNT + 1);
+        badToken.setSenderSurcharge(1);
+        vm.prank(funder);
+        badToken.approve(address(lock_), AMOUNT);
+
+        vm.prank(funder);
+        vm.expectRevert(abi.encodeWithSelector(IConditionalLock.InexactFunderDebit.selector, AMOUNT, AMOUNT + 1, 0));
+        lock_.fund();
+
+        assertEq(uint256(lock_.state()), uint256(IConditionalLock.State.Unfunded));
+        assertEq(badToken.balanceOf(funder), AMOUNT + 1);
+        assertEq(badToken.balanceOf(address(lock_)), 0);
+    }
+
+    function testFundingRejectsTokenThatDoesNotDebitFunder() public {
+        AdversarialERC20 badToken = new AdversarialERC20();
+        ConditionalLock lock_ = _prepared(badToken);
+        badToken.setWaiveSenderDebit(true);
+
+        vm.prank(funder);
+        vm.expectRevert(abi.encodeWithSelector(IConditionalLock.InexactFunderDebit.selector, AMOUNT, AMOUNT, AMOUNT));
+        lock_.fund();
+
+        assertEq(uint256(lock_.state()), uint256(IConditionalLock.State.Unfunded));
+        assertEq(badToken.balanceOf(funder), AMOUNT);
+        assertEq(badToken.balanceOf(address(lock_)), 0);
+    }
+
     function testFeeOnTransferClaimIsRejectedAndRolledBack() public {
         AdversarialERC20 badToken = new AdversarialERC20();
         ConditionalLock lock_ = _prepared(badToken);

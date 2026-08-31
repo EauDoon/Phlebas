@@ -52,7 +52,10 @@ contract ConditionalLock is IConditionalLock, ReentrancyGuard {
                 || funder_ == address(this) || claimRecipient_ == address(this)
         ) revert InvalidRole();
         if (refundRecipient_ != funder_) revert RefundRecipientNotFunder();
-        if (fundingCutoff_ <= block.timestamp || fundingCutoff_ >= claimCutoff_ || claimCutoff_ >= refundTime_) {
+        if (
+            fundingCutoff_ <= block.timestamp || fundingCutoff_ >= claimCutoff_
+                || uint256(refundTime_) <= uint256(claimCutoff_) + 1
+        ) {
             revert InvalidTimeline();
         }
 
@@ -92,10 +95,15 @@ contract ConditionalLock is IConditionalLock, ReentrancyGuard {
         state = State.Funded;
         IERC20 lockedToken = IERC20(token);
         uint256 balanceBefore = lockedToken.balanceOf(address(this));
+        uint256 funderBalanceBefore = lockedToken.balanceOf(funder);
         lockedToken.safeTransferFrom(funder, address(this), amount);
         uint256 balanceAfter = lockedToken.balanceOf(address(this));
+        uint256 funderBalanceAfter = lockedToken.balanceOf(funder);
         if (balanceAfter < balanceBefore || balanceAfter - balanceBefore != amount) {
             revert InexactTransferIn(amount, balanceBefore, balanceAfter);
+        }
+        if (funderBalanceAfter > funderBalanceBefore || funderBalanceBefore - funderBalanceAfter != amount) {
+            revert InexactFunderDebit(amount, funderBalanceBefore, funderBalanceAfter);
         }
 
         emit Funded(swapId, funder, token, amount);

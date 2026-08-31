@@ -60,14 +60,19 @@ test("event signatures match the Solidity ABI", () => {
 
 test("constructor arguments encode all eleven immutable terms in order", () => {
   const encoded = encodeConditionalLockConstructorArgs(terms);
-  assert.equal((encoded.length - 2) / 2, 11 * 32);
-  assert.equal(encoded.slice(2, 66), "11".repeat(32));
-  assert.equal(encoded.slice(66, 130), "22".repeat(32));
-  assert.equal(
-    encoded.slice(130, 194),
+  assert.equal(encoded, `0x${[
+    "11".repeat(32),
+    "22".repeat(32),
     "000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-  );
-  assert.equal(encoded.slice(450, 514), "33".repeat(32));
+    "0000000000000000000000001111111111111111111111111111111111111111",
+    "0000000000000000000000002222222222222222222222222222222222222222",
+    "0000000000000000000000001111111111111111111111111111111111111111",
+    "0000000000000000000000000000000000000000000000000000000005f5e100",
+    "33".repeat(32),
+    "00000000000000000000000000000000000000000000000000000000713fb300",
+    "00000000000000000000000000000000000000000000000000000000713fc110",
+    "00000000000000000000000000000000000000000000000000000000713fcf20",
+  ].join("")}`);
 });
 
 test("action encoders match the one-lock call shapes", () => {
@@ -99,11 +104,23 @@ test("constructor encoding rejects terms the contract would reject", () => {
   }));
   assert.throws(() => encodeConditionalLockConstructorArgs({
     ...terms,
+    token: terms.funder,
+  }));
+  assert.throws(() => encodeConditionalLockConstructorArgs({
+    ...terms,
+    token: terms.claimRecipient,
+  }));
+  assert.throws(() => encodeConditionalLockConstructorArgs({
+    ...terms,
     refundRecipient: "0x3333333333333333333333333333333333333333",
   }));
   assert.throws(() => encodeConditionalLockConstructorArgs({
     ...terms,
     claimCutoff: terms.fundingCutoff,
+  }));
+  assert.throws(() => encodeConditionalLockConstructorArgs({
+    ...terms,
+    refundTime: terms.claimCutoff + 1n,
   }));
 });
 

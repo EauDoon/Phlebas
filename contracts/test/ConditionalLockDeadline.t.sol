@@ -65,6 +65,21 @@ contract ConditionalLockDeadlineTest is ConditionalLockTestBase {
             refundTime,
             claimCutoff
         );
+
+        vm.expectRevert(IConditionalLock.InvalidTimeline.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            claimCutoff + 1
+        );
     }
 
     function testFundingIsAllowedAtCutoff() public {

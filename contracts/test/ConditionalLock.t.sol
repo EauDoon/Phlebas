@@ -6,6 +6,24 @@ import {ConditionalLock} from "../src/swap/ConditionalLock.sol";
 import {ConditionalLockTestBase} from "./ConditionalLockTestBase.sol";
 
 contract ConditionalLockTest is ConditionalLockTestBase {
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event LockCreated(
+        bytes32 indexed swapId,
+        bytes32 indexed termsHash,
+        address indexed token,
+        address funder,
+        address claimRecipient,
+        address refundRecipient,
+        uint256 amount,
+        bytes32 hashlock,
+        uint64 fundingCutoff,
+        uint64 claimCutoff,
+        uint64 refundTime
+    );
+    event Funded(bytes32 indexed swapId, address indexed funder, address indexed token, uint256 amount);
+    event Claimed(bytes32 indexed swapId, address indexed claimRecipient, uint256 amount);
+    event Refunded(bytes32 indexed swapId, address indexed refundRecipient, uint256 amount);
+
     function testConstructorBindsEveryTermAndStartsUnfunded() public view {
         assertEq(conditionalLock.swapId(), SWAP_ID);
         assertEq(conditionalLock.termsHash(), TERMS_HASH);
@@ -21,10 +39,72 @@ contract ConditionalLockTest is ConditionalLockTestBase {
         assertEq(uint256(conditionalLock.state()), uint256(IConditionalLock.State.Unfunded));
     }
 
-    function testSha256VectorMatchesBothChains() public view {
+    function testSha256FixtureMatchesLockVerification() public view {
         assertEq(sha256(abi.encode(PREIMAGE)), HASHLOCK);
         assertTrue(conditionalLock.verifyPreimage(PREIMAGE));
         assertFalse(conditionalLock.verifyPreimage(bytes32(uint256(0xBAD))));
+    }
+
+    function testConstructorEmitsEveryBoundTerm() public {
+        bytes32 eventSwapId = keccak256("event-swap");
+        vm.expectEmit(true, true, true, true);
+        emit LockCreated(
+            eventSwapId,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+        _deploy(
+            eventSwapId,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+    }
+
+    function testFundAndClaimEmitBoundLifecycleEvents() public {
+        vm.prank(funder);
+        quoteToken.approve(address(conditionalLock), AMOUNT);
+
+        vm.expectEmit(true, true, false, true, address(quoteToken));
+        emit Transfer(funder, address(conditionalLock), AMOUNT);
+        vm.expectEmit(true, true, true, true, address(conditionalLock));
+        emit Funded(SWAP_ID, funder, address(quoteToken), AMOUNT);
+        vm.prank(funder);
+        conditionalLock.fund();
+
+        vm.expectEmit(true, true, false, true, address(quoteToken));
+        emit Transfer(address(conditionalLock), claimRecipient, AMOUNT);
+        vm.expectEmit(true, true, false, true, address(conditionalLock));
+        emit Claimed(SWAP_ID, claimRecipient, AMOUNT);
+        vm.prank(claimRecipient);
+        conditionalLock.claim(PREIMAGE);
+    }
+
+    function testRefundEmitsBoundLifecycleEvent() public {
+        _fund(conditionalLock, AMOUNT);
+        vm.warp(refundTime);
+
+        vm.expectEmit(true, true, false, true, address(quoteToken));
+        emit Transfer(address(conditionalLock), funder, AMOUNT);
+        vm.expectEmit(true, true, false, true, address(conditionalLock));
+        emit Refunded(SWAP_ID, funder, AMOUNT);
+        vm.prank(funder);
+        conditionalLock.refund();
     }
 
     function testFundAndClaimTransferExactlyOnce() public {

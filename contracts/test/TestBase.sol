@@ -12,6 +12,8 @@ interface Vm {
     function expectRevert() external;
     function expectRevert(bytes4) external;
     function expectRevert(bytes calldata) external;
+    function expectEmit(bool checkTopic1, bool checkTopic2, bool checkTopic3, bool checkData) external;
+    function expectEmit(bool checkTopic1, bool checkTopic2, bool checkTopic3, bool checkData, address emitter) external;
     function envAddress(string calldata name) external view returns (address);
     function startBroadcast(address signer) external;
     function stopBroadcast() external;

@@ -92,9 +92,15 @@ contract ConditionalLockInvariantTest is TestBase, InvariantTarget {
     QuoteToken internal token;
     ConditionalLock internal lock;
     ConditionalLockHandler internal handler;
+    uint64 internal fundingCutoff;
+    uint64 internal claimCutoff;
+    uint64 internal refundTime;
 
     function setUp() public {
         token = new QuoteToken("Invariant Quote", "iQUOTE");
+        fundingCutoff = uint64(block.timestamp + 1 hours);
+        claimCutoff = uint64(block.timestamp + 2 hours);
+        refundTime = uint64(block.timestamp + 3 hours);
         lock = new ConditionalLock(
             SWAP_ID,
             TERMS_HASH,
@@ -104,9 +110,9 @@ contract ConditionalLockInvariantTest is TestBase, InvariantTarget {
             FUNDER,
             AMOUNT,
             sha256(abi.encode(PREIMAGE)),
-            uint64(block.timestamp + 1 hours),
-            uint64(block.timestamp + 2 hours),
-            uint64(block.timestamp + 3 hours)
+            fundingCutoff,
+            claimCutoff,
+            refundTime
         );
         vm.prank(FUNDER);
         token.faucet(AMOUNT);
@@ -152,6 +158,9 @@ contract ConditionalLockInvariantTest is TestBase, InvariantTarget {
         assertEq(lock.refundRecipient(), FUNDER);
         assertEq(lock.amount(), AMOUNT);
         assertEq(lock.hashlock(), sha256(abi.encode(PREIMAGE)));
+        assertEq(lock.fundingCutoff(), fundingCutoff);
+        assertEq(lock.claimCutoff(), claimCutoff);
+        assertEq(lock.refundTime(), refundTime);
     }
 
     function invariantHandlerCallsNeverHitAnUnexpectedFailure() public view {

@@ -28,7 +28,7 @@ Deploy one non-upgradeable `ConditionalLock` instance for one matched fill. Ever
 | `hashlock` | SHA-256 commitment to the preimage | Nonzero `bytes32` |
 | `fundingCutoff` | Last timestamp at which funding is allowed | Future timestamp before `claimCutoff` |
 | `claimCutoff` | Last timestamp at which claiming is allowed | After `fundingCutoff` and before `refundTime` |
-| `refundTime` | First timestamp at which refund is allowed | After `claimCutoff` |
+| `refundTime` | First timestamp at which refund is allowed | At least two seconds after `claimCutoff` |
 
 The constructor also rejects any role that equals the token or the lock itself. The contract cannot determine whether a role wallet is usable or whether an issuer may later block it. The signing surface must show and verify every immutable value before funding.
 

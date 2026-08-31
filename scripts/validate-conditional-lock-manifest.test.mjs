@@ -50,7 +50,7 @@ function completeDeployedManifest() {
     hashlock: `0x${"03".repeat(32)}`,
     fundingCutoff: "1",
     claimCutoff: "2",
-    refundTime: "3",
+    refundTime: "4",
   };
   const constructorArguments = `0x${[
     "01".repeat(32),
@@ -63,7 +63,7 @@ function completeDeployedManifest() {
     "03".repeat(32),
     "0".repeat(63) + "1",
     "0".repeat(63) + "2",
-    "0".repeat(63) + "3",
+    "0".repeat(63) + "4",
   ].join("")}`;
   const creationBytecode = "0x6000";
   const runtimeBytecode = "0x6001";
@@ -181,6 +181,12 @@ test("deployed constructor arguments must encode the declared terms", () => {
   const manifest = completeDeployedManifest();
   manifest.terms.values.amount = "2";
   assertRejected(manifest, "deployment.constructorArguments");
+});
+
+test("deployed terms must leave an excluded refund timestamp", () => {
+  const manifest = completeDeployedManifest();
+  manifest.terms.values.refundTime = "3";
+  assertRejected(manifest, "terms.values.refundTime");
 });
 
 test("deployed records require every verification flag to be true", () => {

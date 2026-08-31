@@ -119,14 +119,20 @@ function validateTerms(terms: ConditionalLockTerms): void {
   if (terms.funder.toLowerCase() === terms.claimRecipient.toLowerCase()) {
     throw new RangeError("funder and claimRecipient must differ");
   }
+  if (
+    terms.token.toLowerCase() === terms.funder.toLowerCase()
+    || terms.token.toLowerCase() === terms.claimRecipient.toLowerCase()
+  ) {
+    throw new RangeError("token must differ from both user roles");
+  }
   if (terms.funder.toLowerCase() !== terms.refundRecipient.toLowerCase()) {
     throw new RangeError("refundRecipient must equal funder");
   }
   if (
     terms.fundingCutoff >= terms.claimCutoff
-    || terms.claimCutoff >= terms.refundTime
+    || terms.claimCutoff + 1n >= terms.refundTime
   ) {
-    throw new RangeError("deadlines must increase strictly");
+    throw new RangeError("deadlines must increase and leave a refund gap");
   }
 }
 

@@ -440,8 +440,8 @@ function validateDeployedSemantics(manifest, errors) {
   if (hasFundingCutoff && hasClaimCutoff && BigInt(values.fundingCutoff) >= BigInt(values.claimCutoff)) {
     add(errors, "terms.values.claimCutoff", "must be later than fundingCutoff");
   }
-  if (hasClaimCutoff && hasRefundTime && BigInt(values.claimCutoff) >= BigInt(values.refundTime)) {
-    add(errors, "terms.values.refundTime", "must be later than claimCutoff");
+  if (hasClaimCutoff && hasRefundTime && BigInt(values.claimCutoff) + 1n >= BigInt(values.refundTime)) {
+    add(errors, "terms.values.refundTime", "must leave at least one excluded timestamp after claimCutoff");
   }
 
   if (TERM_FIELDS.every((field) => values[field] !== null) && typeof deployment.constructorArguments === "string") {

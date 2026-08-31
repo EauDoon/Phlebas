@@ -75,10 +75,10 @@ contract ConditionalLockFuzzTest is ConditionalLockTestBase {
         assertEq(quoteToken.balanceOf(claimRecipient), 0);
     }
 
-    function testFuzzStrictTimelineAcceptsPositiveGaps(uint32 rawFunding, uint32 rawClaim, uint32 rawRefund) public {
+    function testFuzzTimelineRequiresAnExcludedRefundGap(uint32 rawFunding, uint32 rawClaim, uint32 rawRefund) public {
         uint64 fundingDelay = uint64((uint256(rawFunding) % 30 days) + 1);
         uint64 claimGap = uint64((uint256(rawClaim) % 30 days) + 1);
-        uint64 refundGap = uint64((uint256(rawRefund) % 30 days) + 1);
+        uint64 refundGap = uint64((uint256(rawRefund) % 30 days) + 2);
         uint64 fundingCutoff_ = uint64(block.timestamp) + fundingDelay;
         uint64 claimCutoff_ = fundingCutoff_ + claimGap;
         uint64 refundTime_ = claimCutoff_ + refundGap;
@@ -98,6 +98,6 @@ contract ConditionalLockFuzzTest is ConditionalLockTestBase {
         );
 
         assertTrue(lock_.fundingCutoff() < lock_.claimCutoff());
-        assertTrue(lock_.claimCutoff() < lock_.refundTime());
+        assertTrue(uint256(lock_.claimCutoff()) + 1 < lock_.refundTime());
     }
 }

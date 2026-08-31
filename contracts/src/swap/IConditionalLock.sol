@@ -43,6 +43,7 @@ interface IConditionalLock {
     error RefundNotAvailable(uint64 refundTime, uint256 currentTime);
     error InvalidState(State expected, State actual);
     error WrongPreimage();
+    error InexactFunderDebit(uint256 expected, uint256 balanceBefore, uint256 balanceAfter);
     error InexactTransferIn(uint256 expected, uint256 balanceBefore, uint256 balanceAfter);
     error InexactTransferOut(
         uint256 expected,

@@ -6,6 +6,8 @@ contract AdversarialERC20 {
     mapping(address => mapping(address => uint256)) public allowance;
     uint256 public totalSupply;
     uint16 public feeBps;
+    uint256 public senderSurcharge;
+    bool public waiveSenderDebit;
     bool public returnFalse;
     bool public noOp;
     bool public revertTransfer;
@@ -28,6 +30,14 @@ contract AdversarialERC20 {
         returnFalse = returnFalse_;
         noOp = noOp_;
         revertTransfer = revertTransfer_;
+    }
+
+    function setSenderSurcharge(uint256 senderSurcharge_) external {
+        senderSurcharge = senderSurcharge_;
+    }
+
+    function setWaiveSenderDebit(bool waiveSenderDebit_) external {
+        waiveSenderDebit = waiveSenderDebit_;
     }
 
     function setCallback(address target, bytes calldata data) external {
@@ -63,12 +73,14 @@ contract AdversarialERC20 {
         if (revertTransfer) revert TransferReverted();
         if (returnFalse) return false;
         if (noOp) return true;
-        if (balanceOf[sender] < value) revert InsufficientBalance();
+        uint256 debit = waiveSenderDebit ? 0 : value + senderSurcharge;
+        if (balanceOf[sender] < debit) revert InsufficientBalance();
 
         uint256 fee = (value * feeBps) / 10_000;
-        balanceOf[sender] -= value;
+        balanceOf[sender] -= debit;
         balanceOf[recipient] += value - fee;
-        totalSupply -= fee;
+        if (waiveSenderDebit) totalSupply += value - fee;
+        else totalSupply -= fee + senderSurcharge;
         return true;
     }
 }

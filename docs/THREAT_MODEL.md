@@ -507,7 +507,7 @@ OpenZeppelin `SafeERC20` handles standard, false-returning, and no-return ERC-20
 The EVM leg must satisfy:
 
 1. Every immutable term matches the wallet-approved fill.
-2. `fundingCutoff < claimCutoff < refundTime`, and funding starts with a future cutoff.
+2. `fundingCutoff < claimCutoff`, `claimCutoff + 1 < refundTime`, and funding starts with a future cutoff.
 3. The lock moves only through `Unfunded -> Funded -> Claimed` or `Unfunded -> Funded -> Refunded`.
 4. A successful incoming or outgoing transfer changes the relevant balances by exactly `amount`.
 5. Claim and refund are terminal and mutually exclusive.
