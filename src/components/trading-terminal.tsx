@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import type { AccessDemo } from "@/lib/access-demo";
 import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
@@ -30,9 +31,11 @@ import { PZEC_DECIMALS, PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import { ArchitecturePanel } from "./architecture-panel";
 import { BridgePanel } from "./bridge-panel";
+import { CountryBlock } from "./country-block";
 import { LiquidityPanel } from "./liquidity-panel";
 import { OrderBlotter } from "./order-blotter";
 import { OrderBook } from "./order-book";
+import { PreviewEducation } from "./preview-education";
 import { PriceChart } from "./price-chart";
 import { TradeTicket } from "./trade-ticket";
 import { WalletBar } from "./wallet-bar";
@@ -77,10 +80,14 @@ export function TradingTerminal({
   initialView = "trade",
   initialMarket = "ZEC/USDC",
   initialFeed = "illustrative",
+  initialAccess = "open",
+  forceEducation = false,
 }: {
   initialView?: View;
   initialMarket?: MarketId;
   initialFeed?: FeedStatus;
+  initialAccess?: AccessDemo;
+  forceEducation?: boolean;
 }) {
   const router = useRouter();
   const [view, setView] = useState<View>(initialView);
@@ -226,9 +233,12 @@ export function TradingTerminal({
         <WalletBar wallet={wallet} onChange={setWallet} />
       </header>
 
+      <PreviewEducation force={forceEducation} />
+
       <main id="main-content" tabIndex={-1}>
         <h1 className={styles.srOnly}>Phlebas ZEC trading terminal</h1>
-        {view === "trade" && (
+        {initialAccess === "blocked" && <CountryBlock />}
+        {initialAccess === "open" && view === "trade" && (
           <>
             <section className={styles.marketBar} aria-label="Selected market summary">
               <div className={styles.marketSelectorWrap}>
@@ -367,15 +377,19 @@ export function TradingTerminal({
           </>
         )}
 
-        {view === "liquidity" && <LiquidityPanel marketId={marketId} onMarketChange={selectMarket} />}
-        {view === "bridge" && <BridgePanel />}
-        {view === "architecture" && <ArchitecturePanel />}
+        {initialAccess === "open" && view === "liquidity" && <LiquidityPanel marketId={marketId} onMarketChange={selectMarket} />}
+        {initialAccess === "open" && view === "bridge" && <BridgePanel />}
+        {initialAccess === "open" && view === "architecture" && <ArchitecturePanel />}
       </main>
 
       <footer className={styles.footer}>
-        <span>Phlebas protocol preview, 31-08-2026</span>
-        <Link href="/status">Status</Link>
-        <span>Research repository candidate, not a live exchange or an offer of financial services</span>
+        <span>Phlebas is a protocol preview, not a live exchange or an offer of financial services.</span>
+        <nav aria-label="Footer">
+          <Link href="/trade?view=architecture">Architecture</Link>
+          <Link href="/legal">Legal and compliance</Link>
+          <Link href="/security">Security</Link>
+          <Link href="/status">Status</Link>
+        </nav>
       </footer>
     </div>
   );
