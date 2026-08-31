@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the terminal-banner stacking, 320px skip-nav vs brand, and 320px skip-link viewport slice.
+Last updated: 31-08-2026 after the focused skip-nav in-flow, 44px brand, and clip-restore skip-link slice.
 
 ## Branch
 
@@ -252,13 +252,17 @@ Last updated: 31-08-2026 after the terminal-banner stacking, 320px skip-nav vs b
 - Skip-nav does not cover the header brand at 320px under reduced motion until focused
 - Skip-link focus stays inside the viewport at 320px
 - Playwright covers terminal banner stacking, 320px reduced-motion skip-nav vs brand, and 320px skip-link ring
+- Focused skip-nav stays in flow at 320px so it does not cover the simulation banner copy
+- Header brand stays a 44px target at 320px under reduced motion
+- Skip-nav clip-path restore keeps skip links 44px tall
+- Playwright covers 320px focused skip-nav vs banner copy, 44px brand, and 44px skip links after clip restore
 
 ## Next
 
-- Focused skip-nav should not cover the simulation banner copy at 320px
-- Header brand should stay a 44px target at 320px under reduced motion
-- Skip-nav clip-path restore should keep skip links 44px tall
-- Playwright: 320px focused skip-nav vs banner copy, 44px brand, and 44px skip links after clip restore
+- Focused skip-nav should wrap skip links at 320px so it does not consume the full viewport height
+- Terminal skip-nav in flow should not cover the topbar brand
+- Skip-nav should return to its hidden state after skip-link activation
+- Playwright: 320px skip-nav wrap, terminal brand not covered, skip-nav hides after activation
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
