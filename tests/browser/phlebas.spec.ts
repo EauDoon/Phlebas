@@ -712,3 +712,81 @@ test("blotter tabs expose a selected tabpanel", async ({ page }) => {
   await page.getByRole("tab", { name: "Inventory" }).click();
   await expect(page.getByRole("tabpanel")).toContainText("Account epoch");
 });
+
+test("landing skip links reach journeys, evidence, and the terminal preview", async ({ page }) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipJourneys = page.getByRole("link", { name: "Skip to journeys" });
+  await expect(skipJourneys).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#journeys")).toBeFocused();
+  await expect(page.locator("#journeys")).toBeInViewport();
+
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to evidence" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#exists-today")).toBeFocused();
+
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to terminal preview" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#terminal-preview")).toBeFocused();
+  await expect(page.locator("#terminal-preview")).toBeInViewport();
+});
+
+test("landing Menu Markets opens the terminal preview at 320px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Menu" }).click();
+  await expect(page.getByRole("dialog", { name: "Navigate Phlebas" })).toBeVisible();
+  await page.getByRole("dialog").getByRole("link", { name: "Markets" }).click();
+  await expect(page.getByRole("dialog", { name: "Navigate Phlebas" })).not.toBeVisible();
+  await expect(page).toHaveURL(/#terminal-preview$/);
+  await expect(page.locator("#terminal-preview")).toBeInViewport();
+  const overflow = await page.evaluate(() => ({
+    body: document.body.scrollWidth - document.body.clientWidth,
+    document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  }));
+  expect(overflow).toEqual({ body: 0, document: 0 });
+});
+
+test("architecture incident select stays inside 320px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
+  const select = page.getByLabel("Gateway incident demonstration");
+  await expect(select).toBeVisible();
+  const box = await select.boundingBox();
+  expect(box, "incident select bounding box").toBeTruthy();
+  expect(box?.width ?? 0).toBeLessThanOrEqual(320);
+  await select.selectOption("country-blocked");
+  const overflow = await page.evaluate(() => ({
+    body: document.body.scrollWidth - document.body.clientWidth,
+    document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  }));
+  expect(overflow).toEqual({ body: 0, document: 0 });
+});
+
+test("blotter arrows move focus and Enter selects", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const orders = page.getByRole("tab", { name: "Open orders" });
+  const fills = page.getByRole("tab", { name: "Fills" });
+  await orders.focus();
+  await expect(orders).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(fills).toBeFocused();
+  await expect(orders).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Enter");
+  await expect(fills).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel")).toContainText("No session fills yet");
+  await page.keyboard.press(" ");
+  await expect(fills).toHaveAttribute("aria-selected", "true");
+});
