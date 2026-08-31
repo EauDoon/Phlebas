@@ -37,6 +37,8 @@
 
 #main-content,
 #order-ticket,
+#price-chart,
+#order-book,
 #session-blotter {
   scroll-margin-top: 12px;
 }

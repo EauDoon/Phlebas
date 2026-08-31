@@ -77,6 +77,9 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(bridge, /Not payable/);
   assert.match(terminal, /feedSurface/);
   assert.match(terminal, /Skip to order ticket/);
+  assert.match(terminal, /Skip to price chart/);
+  assert.match(terminal, /Skip to order book/);
+  assert.match(await readFile(join(root, "src/components/order-book.tsx"), "utf8"), /id="order-book"/);
   assert.match(terminal, /Launch gates/);
   assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Launch gates/);
   assert.match(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /Nothing was sent/);

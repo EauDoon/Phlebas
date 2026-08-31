@@ -28,7 +28,7 @@ export function OrderBook({
   const spreadTicks = asks[0] && bids[0] ? asks[0].priceTicks - bids[0].priceTicks : null;
 
   return (
-    <section className={styles.panel} aria-labelledby="order-book-title">
+    <section id="order-book" tabIndex={-1} className={styles.panel} aria-labelledby="order-book-title">
       <div className={styles.panelHeader}>
         <h2 id="order-book-title">Order book</h2>
         <span className={styles.miniLabel}>

@@ -277,6 +277,8 @@ export function TradingTerminal({
         {view === "trade" ? (
           <>
             <a className={styles.skipLink} href="#order-ticket">Skip to order ticket</a>
+            <a className={styles.skipLink} href="#price-chart">Skip to price chart</a>
+            <a className={styles.skipLink} href="#order-book">Skip to order book</a>
             <a className={styles.skipLink} href="#session-blotter">Skip to blotter</a>
           </>
         ) : null}
@@ -364,7 +366,7 @@ export function TradingTerminal({
             </section>
 
             <div className={styles.tradeGrid}>
-              <section className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
+              <section id="price-chart" tabIndex={-1} className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
                 <div className={styles.panelHeader}>
                   <div><span className={styles.eyebrow}>{feed.eyebrow}</span><h2 id="chart-title">{marketId}</h2></div>
                   <div className={styles.rangeTabs} role="radiogroup" aria-label="Chart range">
