@@ -99,3 +99,52 @@ The ZEC half of the atomic swap lives in `src/lib/zcash-*` and `src/app/zcash/`.
 | `src/lib/zcash-wallet-adapter.ts` | `buildFundTransaction`, `buildClaimTransaction`, `buildRefundTransaction`, `hashAtomicSwapParams`. |
 | `src/app/zcash/page.tsx` | Server route at `/zcash`. Read-only. Derives the script, address, and unsigned transactions from URL params. |
 
+
+## Atomic-swap observer service (PR 4)
+
+The atomic-swap observer service consumes EVM and ZEC events,
+applies transitions to a persistent coordinator, and exposes the
+watchtower's alerts over HTTP. The service is the second half of
+the read-only surface that PR 1 (EVM lock) and PR 3 (ZEC leg) leave
+open.
+
+### Files
+
+- src/lib/evm-observer.ts, src/lib/zcash-observer.ts — pure
+  per-event pollers.
+- src/lib/evm-event-reducer.ts, src/lib/zcash-event-reducer.ts,
+  src/lib/transition-mapper.ts — turn event records into
+  coordinator transitions.
+- src/lib/atomic-coordinator.ts — applies transitions, tracks the
+  cursor, records rejected transitions.
+- src/lib/coordinator-snapshot.ts,
+  src/lib/coordinator-persistence.ts — JSON-on-disk snapshot with
+  atomic write and bootstrap-time marker.
+- src/lib/watchtower.ts — emits reorg-depth-exceeded,
+  missing-terminal-event, and deadline-breach alerts.
+- services/atomic-swap-observer/ — wires the above into one HTTP
+  process: 	ypes.ts, config.ts, health.ts, poller.ts,
+  server.ts.
+
+### Endpoints
+
+- GET /health — readiness probe, returns 503 if the snapshot is
+  missing after init.
+- GET /state — fill count, cursor, alert count, bootstrap state.
+- GET /fills — list of all fills with their state.
+- GET /fills/:fillId — per-fill detail.
+- GET /alerts — current watchtower alerts.
+- POST /observe — trigger a one-shot poll (operator-only).
+
+### Configuration
+
+- PHLEBAS_CONDITIONAL_LOCK_ADDRESS — EVM contract address.
+- PHLEBAS_OBSERVER_SNAPSHOT_PATH — JSON snapshot path.
+- PHLEBAS_ZCASH_WATCH_ADDRESSES — comma-separated P2SH addresses.
+- PHLEBAS_OBSERVER_FROM_BLOCK, PHLEBAS_OBSERVER_FROM_HEIGHT —
+  poll start.
+- PHLEBAS_OBSERVER_REORG_DEPTH,
+  PHLEBAS_OBSERVER_DEADLINE_BUFFER — watchtower thresholds.
+- PHLEBAS_OBSERVER_POLL_INTERVAL_SECONDS — poll cadence.
+- PHLEBAS_OUTPOINT_FILL_MAP — comma-separated 	xid:vout=fillId
+  pairs for ZEC event reduction.
