@@ -27,6 +27,7 @@
 .skipLink {
   display: inline-flex;
   min-width: 44px;
+  max-width: calc(100vw - 24px);
   min-height: 44px;
   flex-shrink: 0;
   align-items: center;
