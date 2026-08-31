@@ -1663,3 +1663,30 @@ test("landing header CTA journey tabs pZEC source and simulation-frame nav stay 
   expect((await nav.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
+test("landing hero CTAs Open status details launch gates and brand home stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const heroCta = page.locator("main").getByRole("link", { name: "Enter simulation" });
+  await expect(heroCta).toBeVisible();
+  expect((await heroCta.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const pzec = page.getByRole("link", { name: "Understand pZEC" });
+  await expect(pzec).toBeVisible();
+  expect((await pzec.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const statusDetails = page.getByRole("link", { name: "Open status details" });
+  await expect(statusDetails).toBeVisible();
+  expect((await statusDetails.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const gates = page.getByRole("link", { name: /Read the launch gates/ });
+  await expect(gates).toBeVisible();
+  expect((await gates.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/status", { waitUntil: "networkidle" });
+  const statusBrand = page.getByRole("link", { name: "Phlebas home" });
+  await expect(statusBrand).toBeVisible();
+  expect((await statusBrand.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const tradeBrand = page.getByRole("link", { name: "Phlebas home" });
+  await expect(tradeBrand).toBeVisible();
+  expect((await tradeBrand.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
