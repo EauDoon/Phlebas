@@ -223,6 +223,9 @@
 }
 
 .menuDialog nav a {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
   padding: 14px 12px;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
@@ -230,6 +233,7 @@
 
 .menuDialog nav a:last-child {
   margin-top: 8px;
+  justify-content: center;
   border: 0;
   border-radius: 5px;
   color: #16140c;
