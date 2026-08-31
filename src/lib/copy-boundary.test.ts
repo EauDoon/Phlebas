@@ -26,6 +26,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /not native ZEC, shielded ZEC, or a trustless bridge asset/);
   assert.match(terminal, /do not move mainnet funds/);
   assert.match(terminal, /not trustless/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicly linkable/);
+  assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /never hosted on Vercel/);
   assert.doesNotMatch(landing, /is audited/);
   assert.doesNotMatch(terminal, /is audited/);
   const bridge = await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8");
