@@ -39,7 +39,8 @@ export function LandingJourneys() {
   }
 
   function onTabListKey(event: KeyboardEvent<HTMLDivElement>) {
-    const index = LANDING_JOURNEYS.findIndex((journey) => journey.id === active);
+    const focusedId = LANDING_JOURNEYS.find((journey) => tabRefs.current[journey.id] === event.target)?.id ?? active;
+    const index = LANDING_JOURNEYS.findIndex((journey) => journey.id === focusedId);
     let next = index;
     if (event.key === "ArrowRight") next = (index + 1) % LANDING_JOURNEYS.length;
     else if (event.key === "ArrowLeft") next = (index - 1 + LANDING_JOURNEYS.length) % LANDING_JOURNEYS.length;
@@ -49,7 +50,7 @@ export function LandingJourneys() {
     event.preventDefault();
     const journey = LANDING_JOURNEYS[next];
     if (!journey) return;
-    selectJourney(journey.id, true);
+    tabRefs.current[journey.id]?.focus();
   }
 
   return (
