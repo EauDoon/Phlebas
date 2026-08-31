@@ -40,7 +40,7 @@ curl http://127.0.0.1:8788/health
 curl http://127.0.0.1:8789/health
 ```
 
-Expect `network: testnet` from gateway and observer. Matcher reports `matcher: local-operator`, a keccak `sequenceRoot` over sequence plus receipt digests, and `startedAt` / `lastSequenceAt` for downtime polling.
+Expect `network: testnet` from gateway and observer. Gateway health includes `issued` and `cap`. Matcher reports `matcher: local-operator`, a keccak `sequenceRoot` over sequence plus receipt digests, `persistReadable`, and `startedAt` / `lastSequenceAt` for downtime polling.
 
 ## Gateway: issue a testnet TEX
 

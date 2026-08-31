@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { burnShares, lpOperationAllowed, mintShares, seedPool } from "./lp.ts";
+import { quoteConstantProductSwapAtoms } from "./amm.ts";
+import {
+  burnShares,
+  hypotheticalImpermanentLoss,
+  lpOperationAllowed,
+  mintShares,
+  realizedImpermanentLoss,
+  seedPool,
+} from "./lp.ts";
 import { pools } from "./market-data.ts";
 
 test("mint then burn returns the added reserves on a fresh pool ratio", () => {
@@ -28,4 +36,46 @@ test("LP burn stays available when trading is paused", () => {
   assert.equal(lpOperationAllowed("swap", true), false);
   assert.equal(lpOperationAllowed("mint", false), true);
   assert.equal(lpOperationAllowed("swap", false), true);
+});
+
+test("hypothetical 4x IL equals the deposited quote on an even size", () => {
+  const entryPzec = 10_00000000n;
+  const entryQuote = 5_284000n;
+  const fourX = hypotheticalImpermanentLoss(entryPzec, entryQuote, 4n, 1n);
+  assert.equal(fourX.hodlQuoteAtoms, entryQuote * 5n);
+  assert.equal(fourX.positionQuoteAtoms, entryQuote * 4n);
+  assert.equal(fourX.lossQuoteAtoms, entryQuote);
+
+  const quarter = hypotheticalImpermanentLoss(entryPzec, entryQuote, 1n, 4n);
+  assert.equal(quarter.hodlQuoteAtoms, entryQuote + entryQuote / 4n);
+  assert.equal(quarter.positionQuoteAtoms, entryQuote);
+  assert.equal(quarter.lossQuoteAtoms, entryQuote / 4n);
+
+  const unchanged = hypotheticalImpermanentLoss(entryPzec, entryQuote, 1n, 1n);
+  assert.equal(unchanged.lossQuoteAtoms, 0n);
+});
+
+test("hypothetical IL rejects a non-square price multiple", () => {
+  assert.throws(() => hypotheticalImpermanentLoss(10_00000000n, 5_284000n, 2n, 1n), /perfect squares/);
+});
+
+test("realized IL is zero at the entry ratio and positive after a large swap", () => {
+  const pool = seedPool(100_00000000n, 100_000000n);
+  const minted = mintShares(pool, 10_00000000n);
+  const atEntry = realizedImpermanentLoss(10_00000000n, minted.quoteAtoms, minted.shares, minted.pool);
+  assert.equal(atEntry.lossQuoteAtoms, 0n);
+
+  const swap = quoteConstantProductSwapAtoms(
+    40_00000000n,
+    minted.pool.reservePzecAtoms,
+    minted.pool.reserveQuoteAtoms,
+  );
+  const afterSwap = {
+    ...minted.pool,
+    reservePzecAtoms: minted.pool.reservePzecAtoms + 40_00000000n,
+    reserveQuoteAtoms: minted.pool.reserveQuoteAtoms - swap.amountOut,
+  };
+  const after = realizedImpermanentLoss(10_00000000n, minted.quoteAtoms, minted.shares, afterSwap);
+  assert.ok(after.lossQuoteAtoms > 0n);
+  assert.ok(after.hodlQuoteAtoms > after.positionQuoteAtoms);
 });

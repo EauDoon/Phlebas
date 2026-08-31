@@ -52,6 +52,15 @@ test("operator sequences before matching and is deterministic", () => {
   assert.equal(first.signature, "0x");
 });
 
+test("operator rejects a typed order whose unix expiry has passed", () => {
+  const operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);
+  assert.throws(
+    () => intakeSignedOrder(operator, { ...order({ expiry: 1n }), tif: "GTC", signature: "0x" }),
+    /expired-order/,
+  );
+  assert.equal(operator.book.bids.length, 0);
+});
+
 test("snapshot restore preserves book, sequence, and recovers stored signatures", async () => {
   const { snapshotOperator, restoreOperator } = await import("./matcher-operator.ts");
   const operator = createMatcherOperator(sepoliaDomain(ZERO), 5291n);

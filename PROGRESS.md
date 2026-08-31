@@ -48,10 +48,14 @@ Last updated: 31-08-2026 after the mainnet-readiness hardening batch was integra
 - Matcher, gateway, and observer mutations are serialized and use file fsync plus atomic rename. Corrupt or unexpectedly missing replay state fails closed. Windows lacks a portable directory-fsync barrier, which is documented without weakening file fsync or rename.
 - Sepolia deployment requires distinct roles. The manifest is wired into runtime configuration and cannot be marked deployed without a complete, commit-bound successful Sepolia receipt and verified bytecode at every address.
 - CI pins the Foundry action and toolchain. Contract invariants include 10,000-case AMM-product and settlement-rounding fuzz runs in the release check.
+- Session blotter log lines include expiry when a ticket is confirmed. The nonce-bitmap helper matches `Settlement.sol`.
+- In-browser and operator matchers reject expired takers and sweep expired resting orders before matching.
+- Ticket rejections use a visible alert panel. LP mint and swap use review-and-confirm. Blotter tabs expose keyboard-operable tabpanels.
+- `/legal` and `/security` simulation pages are cross-linked from the landing, terminal, status, and frame navigation.
 
 ## Next
 
-- Merge PR #19, then merge this updated hardening PR only after its combined exact head is green.
+- Publish, verify, and merge the exact hardening head only after fresh Verify and Vercel success.
 - Record and independently verify a real Arbitrum Sepolia deployment using approved role addresses.
 - Build the authoritative append-only matcher/settlement service and custody attestation path on isolated infrastructure, not Vercel or the local JSON stores.
 - Complete closed-testnet reorg, replay, signer-loss, reserve-deficit, recovery, load, and disaster-recovery drills.

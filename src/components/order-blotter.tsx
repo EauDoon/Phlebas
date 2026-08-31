@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
@@ -12,7 +12,15 @@ import { PZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from
 
 import styles from "./terminal.module.css";
 
-type BlotterTab = "orders" | "fills" | "inventory" | "log";
+const BLOTTER_TABS = ["orders", "fills", "inventory", "log"] as const;
+type BlotterTab = (typeof BLOTTER_TABS)[number];
+
+const TAB_LABELS: Record<BlotterTab, string> = {
+  orders: "Open orders",
+  fills: "Fills",
+  inventory: "Inventory",
+  log: "Event log",
+};
 
 export function OrderBlotter({
   marketId,
@@ -38,11 +46,26 @@ export function OrderBlotter({
   accountEpoch: number;
 }) {
   const [tab, setTab] = useState<BlotterTab>("orders");
+  const tabRefs = useRef<Partial<Record<BlotterTab, HTMLButtonElement | null>>>({});
   const market = markets[marketId];
   const marketFills = fills.filter((fill) => fill.marketId === marketId);
   const mark = markToMarketQuote(account, lastTicks);
   const start = startingMarkQuote(lastTicks);
   const pnl = mark - start;
+
+  function onTabListKey(event: KeyboardEvent<HTMLDivElement>) {
+    const index = BLOTTER_TABS.indexOf(tab);
+    let next = index;
+    if (event.key === "ArrowRight") next = (index + 1) % BLOTTER_TABS.length;
+    else if (event.key === "ArrowLeft") next = (index - 1 + BLOTTER_TABS.length) % BLOTTER_TABS.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = BLOTTER_TABS.length - 1;
+    else return;
+    event.preventDefault();
+    const nextTab = BLOTTER_TABS[next];
+    setTab(nextTab);
+    queueMicrotask(() => tabRefs.current[nextTab]?.focus());
+  }
 
   return (
     <section className={`${styles.panel} ${styles.blotter}`} aria-labelledby="blotter-title">
@@ -56,23 +79,30 @@ export function OrderBlotter({
         </button>
       </div>
 
-      <div className={styles.orderTypes} role="tablist" aria-label="Blotter views">
-        <button type="button" role="tab" aria-selected={tab === "orders"} className={tab === "orders" ? styles.textActive : undefined} onClick={() => setTab("orders")}>
-          Open orders
-        </button>
-        <button type="button" role="tab" aria-selected={tab === "fills"} className={tab === "fills" ? styles.textActive : undefined} onClick={() => setTab("fills")}>
-          Fills
-        </button>
-        <button type="button" role="tab" aria-selected={tab === "inventory"} className={tab === "inventory" ? styles.textActive : undefined} onClick={() => setTab("inventory")}>
-          Inventory
-        </button>
-        <button type="button" role="tab" aria-selected={tab === "log"} className={tab === "log" ? styles.textActive : undefined} onClick={() => setTab("log")}>
-          Event log
-        </button>
+      <div className={styles.orderTypes} role="tablist" aria-label="Blotter views" onKeyDown={onTabListKey}>
+        {BLOTTER_TABS.map((id) => (
+          <button
+            type="button"
+            key={id}
+            id={`blotter-tab-${id}`}
+            role="tab"
+            aria-selected={tab === id}
+            aria-controls={`blotter-panel-${id}`}
+            tabIndex={tab === id ? 0 : -1}
+            className={tab === id ? styles.textActive : undefined}
+            ref={(node) => {
+              tabRefs.current[id] = node;
+            }}
+            onClick={() => setTab(id)}
+          >
+            {TAB_LABELS[id]}
+          </button>
+        ))}
       </div>
 
       {tab === "orders" && (
-        openOrders.length === 0 ? (
+        <div role="tabpanel" id="blotter-panel-orders" aria-labelledby="blotter-tab-orders">
+        {openOrders.length === 0 ? (
           <p className={styles.emptyState}>No open session orders. Venue fixture levels remain on the book.</p>
         ) : (
           <div className={styles.tableScroll}>
@@ -106,9 +136,7 @@ export function OrderBlotter({
             </tbody>
           </table>
           </div>
-        )
-      )}
-      {tab === "orders" && (
+        )}
         <p className={styles.emptyState}>
           {openOrders.length > 0 && (
             <button type="button" className={styles.textButton} onClick={onCancelAll}>Cancel all session orders</button>
@@ -118,10 +146,12 @@ export function OrderBlotter({
             Invalidate older session orders
           </button>
         </p>
+        </div>
       )}
 
       {tab === "fills" && (
-        marketFills.length === 0 ? (
+        <div role="tabpanel" id="blotter-panel-fills" aria-labelledby="blotter-tab-fills">
+        {marketFills.length === 0 ? (
           <p className={styles.emptyState}>No session fills yet. Submitting a simulated order can trade against the fixture book.</p>
         ) : (
           <div className={styles.tableScroll}>
@@ -151,10 +181,12 @@ export function OrderBlotter({
             </tbody>
           </table>
           </div>
-        )
+        )}
+        </div>
       )}
 
       {tab === "inventory" && (
+        <div role="tabpanel" id="blotter-panel-inventory" aria-labelledby="blotter-tab-inventory">
         <dl className={styles.statGrid}>
           <div>
             <dt>Available pZEC</dt>
@@ -187,10 +219,15 @@ export function OrderBlotter({
             <dd>{accountEpoch}</dd>
           </div>
         </dl>
+        <p className={styles.inlineNotice}>
+          Session nonce cancel is local. Onchain cancelNonce is not this simulation.
+        </p>
+        </div>
       )}
 
       {tab === "log" && (
-        events.length === 0 ? (
+        <div role="tabpanel" id="blotter-panel-log" aria-labelledby="blotter-tab-log">
+        {events.length === 0 ? (
           <p className={styles.emptyState}>No session events yet. Replaying this log reconstructs the book and balances.</p>
         ) : (
           <table className={styles.dataTable}>
@@ -209,7 +246,7 @@ export function OrderBlotter({
                   <td>{event.kind}</td>
                   <td>
                     {event.kind === "submit"
-                      ? `${event.side} ${event.tif} ${event.id}`
+                      ? `${event.side} ${event.tif} ${event.id} expiry ${!event.expiryUnix || event.expiryUnix === 0n ? "none" : event.expiryUnix.toString()}`
                       : event.kind === "cancel"
                         ? event.orderId
                         : "session reset"}
@@ -218,7 +255,8 @@ export function OrderBlotter({
               ))}
             </tbody>
           </table>
-        )
+        )}
+        </div>
       )}
     </section>
   );

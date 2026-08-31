@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { attestMint, emptyMintLedger, type MintLedger } from "../../src/lib/attestation.ts";
-import { agreeObservations, outpointKey, parseStubObservation, type ObservedOutpoint } from "../../src/lib/observer.ts";
+import { TESTNET_MIN_CONFIRMATIONS, agreeObservations, outpointKey, parseStubObservation, type ObservedOutpoint } from "../../src/lib/observer.ts";
 import { listenHost } from "../../src/lib/operator-url.ts";
 import { calculateReserveCoverage, type ReserveCoverageState, type WithdrawalClaim } from "../../src/lib/reserve.ts";
 import { atomicWriteFile } from "../durable-file.ts";
@@ -134,7 +134,7 @@ export function startObserver(options: { host?: string; port?: number; persistPa
       await ready;
       const url = new URL(request.url ?? "/", `http://${host}:${listenPort}`);
       if (request.method === "GET" && url.pathname === "/health") {
-        send(response, 200, { ok: true, network: "testnet", zebra: "stub", mint: "stub" });
+        send(response, 200, { ok: true, network: "testnet", zebra: "stub", mint: "stub", confirmations: TESTNET_MIN_CONFIRMATIONS });
         return;
       }
       if (request.method === "POST" && url.pathname === "/attest") {
@@ -176,7 +176,7 @@ export function startObserver(options: { host?: string; port?: number; persistPa
           const attestation = attestMint(agreed, candidate);
           if (attestation.status === "eligible") await writeMintLedger(persistPath, candidate);
           spent = candidate;
-          return attestation;
+          return { ...attestation, confirmationsRequired: TESTNET_MIN_CONFIRMATIONS };
         });
         mutation = issued.then(() => undefined, () => undefined);
         send(response, 200, await issued);

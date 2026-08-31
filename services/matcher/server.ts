@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -120,12 +120,20 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
       if (!operator) throw new Error("Matcher failed to initialize");
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
       if (request.method === "GET" && url.pathname === "/health") {
+        let persistReadable = false;
+        try {
+          await access(persistPath);
+          persistReadable = true;
+        } catch {
+          persistReadable = false;
+        }
         send(response, 200, {
           ok: true,
           sequence: operator.sequence,
           sequenceRoot: sequenceRoot(operator),
           matcher: "local-operator",
           persist: persistPath,
+          persistReadable,
           startedAt,
           lastSequenceAt,
           acceptingOrders: isConfiguredDomain(operator),

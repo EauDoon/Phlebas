@@ -158,7 +158,14 @@ export function LandingPage() {
       <footer className={styles.footer}>
         <div className={styles.brand}><span className={styles.brandMark}>P</span><span>PHLEBAS</span></div>
         <p>Protocol preview, not a live exchange or an offer of financial services.</p>
-        <span>30-08-2026</span>
+        <p>
+          <Link href="/status">Status</Link>
+          {" · "}
+          <Link href="/legal">Legal</Link>
+          {" · "}
+          <Link href="/security">Security</Link>
+        </p>
+        <span>31-08-2026</span>
       </footer>
     </div>
   );

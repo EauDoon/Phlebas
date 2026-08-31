@@ -3,6 +3,7 @@ import { mkdir, open, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { gatewayMaxIntents } from "../../src/lib/intent-cap.ts";
 import { hexToBytes } from "../../src/lib/keccak.ts";
 import { listenHost } from "../../src/lib/operator-url.ts";
 import { SYNTHETIC_DEPOSIT_ZATOSHIS } from "../../src/lib/zip321.ts";
@@ -92,7 +93,7 @@ export async function saveGateway(state: GatewayState, options: GatewayOptions =
 export function startGateway(options: { host?: string; port?: number; maxIntents?: number; dataDirectory?: string; dataDir?: string } = {}) {
   const host = listenHost(options.host);
   const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8787);
-  const maxIntents = options.maxIntents ?? Number(process.env.PHLEBAS_GATEWAY_MAX_INTENTS ?? 64);
+  const maxIntents = options.maxIntents ?? gatewayMaxIntents();
   const ready = loadGateway(options);
   let mutation = Promise.resolve();
 
@@ -101,7 +102,7 @@ export function startGateway(options: { host?: string; port?: number; maxIntents
       const state = await ready;
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
       if (request.method === "GET" && url.pathname === "/health") {
-        send(response, 200, { ok: true, network: "testnet", issued: state.sequence });
+        send(response, 200, { ok: true, network: "testnet", issued: state.sequence, cap: maxIntents });
         return;
       }
       if (request.method === "POST" && url.pathname === "/intents") {

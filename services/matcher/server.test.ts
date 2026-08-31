@@ -22,6 +22,7 @@ test("matcher HTTP health is loopback-only and starts at sequence zero", async (
       sequenceRoot: string;
       startedAt: number;
       lastSequenceAt: number;
+      persistReadable: boolean;
     };
     assert.equal(health.ok, true);
     assert.equal(body.matcher, "local-operator");
@@ -30,6 +31,7 @@ test("matcher HTTP health is loopback-only and starts at sequence zero", async (
     assert.match(body.sequenceRoot, /^[0-9a-f]{64}$/);
     assert.equal(typeof body.startedAt, "number");
     assert.equal(body.lastSequenceAt, body.startedAt);
+    assert.equal(body.persistReadable, true);
     const sequence = await fetch(`http://127.0.0.1:${address.port}/sequence`);
     const sequenceBody = await sequence.json() as {
       sequence: number;

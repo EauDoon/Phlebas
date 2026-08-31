@@ -28,6 +28,8 @@ export function SimulationFrame({
           <Link href="/trade?view=trade">Trade</Link>
           <Link href="/liquidity">Liquidity</Link>
           <Link href="/status">Status</Link>
+          <Link href="/legal">Legal</Link>
+          <Link href="/security">Security</Link>
         </nav>
       </header>
       <main id="main-content" tabIndex={-1} className={styles.simpleMain}>

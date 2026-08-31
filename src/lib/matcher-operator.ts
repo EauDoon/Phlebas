@@ -7,7 +7,7 @@ import {
   type TypedOrder,
 } from "./eip712.ts";
 import { keccak256Hex } from "./keccak.ts";
-import { emptyBook, submitOrder, type Book, type Fill, type RestingOrder, type TimeInForce } from "./matcher.ts";
+import { emptyBook, expireRestingOrders, submitOrder, type Book, type Fill, type RestingOrder, type TimeInForce } from "./matcher.ts";
 import { recoverAddress } from "./secp256k1.ts";
 
 export type IntakeOrder = TypedOrder & {
@@ -32,6 +32,7 @@ type SerializedOrder = {
   priceTicks: string;
   remainingAtoms: string;
   seq: number;
+  expiryUnix?: string;
 };
 
 type SerializedFill = {
@@ -111,12 +112,16 @@ export function intakeSignedOrder(operator: MatcherOperator, order: IntakeOrder,
   if (options.verify !== false) verifyMakerSignature(digest, order.signature, order.maker);
   const nextSequence = operator.sequence + 1;
   const id = `seq-${nextSequence}`;
-  const result = submitOrder(operator.book, {
+  const nowUnix = operator.now();
+  const unexpiredBook = expireRestingOrders(operator.book, nowUnix).book;
+  const result = submitOrder(unexpiredBook, {
     id,
     side: order.side === 0 ? "buy" : "sell",
     tif: order.tif,
     priceTicks: order.limitPriceTicks,
     sizeAtoms: order.baseAmount,
+    expiryUnix: order.expiry,
+    nowUnix,
   });
   if (order.tif !== "GTC" && result.fills.length > 1) throw new Error("multi-fill-tif-unsupported");
   const selfTrade = result.fills.some((fill) => {
@@ -150,6 +155,7 @@ function serializeResting(order: RestingOrder): SerializedOrder {
     priceTicks: order.priceTicks.toString(),
     remainingAtoms: order.remainingAtoms.toString(),
     seq: order.seq,
+    ...((order.expiryUnix ?? 0n) > 0n ? { expiryUnix: order.expiryUnix?.toString() } : {}),
   };
 }
 
@@ -160,6 +166,7 @@ function restoreResting(order: SerializedOrder): RestingOrder {
     priceTicks: BigInt(order.priceTicks),
     remainingAtoms: BigInt(order.remainingAtoms),
     seq: order.seq,
+    ...(order.expiryUnix ? { expiryUnix: BigInt(order.expiryUnix) } : {}),
   };
 }
 
