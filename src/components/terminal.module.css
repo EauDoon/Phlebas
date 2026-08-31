@@ -76,6 +76,10 @@
   min-height: 44px;
 }
 
+:global(#retry-copy) p {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
