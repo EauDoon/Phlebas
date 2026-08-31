@@ -413,3 +413,18 @@ test("PRODUCT_SPEC 9.3 pins unresolved recovery branches", async () => {
   assert.match(spec, /unresolved -> verified input restoration -> payable/);
   assert.doesNotMatch(spec, /pZEC/);
 });
+
+test("journeys pin deposit fail-closed Unavailable Rejected Stale without minting", async () => {
+  const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
+  const start = journeys.indexOf("## Deposit journey");
+  const end = journeys.indexOf("## Withdrawal journey");
+  assert.ok(start >= 0 && end > start);
+  const deposit = journeys.slice(start, end);
+  assert.match(deposit, /Unavailable/);
+  assert.match(deposit, /Rejected/);
+  assert.match(deposit, /Stale/);
+  assert.match(deposit, /Observers unavailable or disagree/);
+  assert.match(deposit, /no receivable address/i);
+  assert.match(deposit, /Nothing is minted|nothing was minted/);
+  assert.doesNotMatch(deposit, /\blive mint/i);
+});
