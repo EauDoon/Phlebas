@@ -144,7 +144,7 @@ for (const width of viewports) {
             "pZEC is not native ZEC, shielded ZEC, or a trustless bridge asset.",
             { exact: true },
           )).toBeVisible();
-          await expect(page.getByText("No-value preview", { exact: true })).toBeVisible();
+          await expect(page.getByLabel("Current system").getByText("No-value preview", { exact: true })).toBeVisible();
           await expect(page.getByRole("link", { name: "Open status details" })).toBeVisible();
           await expect(page.getByRole("contentinfo").getByRole("link", { name: "Legal and compliance" })).toBeVisible();
           await expect(page.getByRole("heading", { name: "Choose what to inspect." })).toBeVisible();
@@ -156,7 +156,7 @@ for (const width of viewports) {
           await expect(page.getByText("Simulation", { exact: true })).toBeVisible();
           await expect(page.getByRole("link", { name: "Open full simulation" })).toBeVisible();
           await expect(page.getByText("Not a live book.")).toBeVisible();
-          await expect(page.getByText("Not cleared", { exact: true })).toHaveCount(6);
+          await expect(page.locator("#launch-gates").getByText("Not cleared", { exact: true })).toHaveCount(6);
           await expect(page.getByRole("link", { name: "Read the launch gates" })).toBeVisible();
         }
       }
@@ -352,7 +352,7 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   await expect(page.getByText("unset", { exact: true })).toBeVisible();
   const boundary = page.locator("main#main-content");
   await expect(boundary.getByRole("link", { name: "Legal and compliance" })).toBeVisible();
-  await expect(boundary.getByRole("link", { name: "Security" })).toBeVisible();
+  await expect(boundary.getByRole("link", { name: "Security" })).toHaveCount(2);
   await expect(boundary.getByRole("link", { name: "Architecture" })).toBeVisible();
   await expect(boundary.getByRole("link", { name: "Launch gates" })).toBeVisible();
 
@@ -386,7 +386,7 @@ test("stale market data disables preview-to-sign and retries to illustrative", a
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
   await page.getByRole("combobox", { name: "Market data state" }).selectOption("stale");
-  await expect(page.getByText("Market data stale", { exact: true })).toBeVisible();
+  await expect(page.getByText("Market data stale", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
@@ -438,7 +438,7 @@ test("USDT market names USDT0 settlement and empty feed shows no depth", async (
   await expect(page.getByText("No resting depth. The local book is empty.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await page.getByRole("combobox", { name: "Market data state" }).selectOption("loading");
-  await expect(page.getByText("Loading market data", { exact: true })).toBeVisible();
+  await expect(page.getByText("Loading market data", { exact: true }).first()).toBeVisible();
 });
 
 test("LP preview shows integer IL versus hold", async ({ page }) => {
@@ -528,22 +528,25 @@ test("invalid expiry stays on the ticket and does not open review", async ({ pag
 });
 
 test("order expiry unix time appears on review", async ({ page }) => {
+  const expiry = String(Math.floor(Date.now() / 1000) + 3600);
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByRole("textbox", { name: "Order expiry unix time" })).toHaveValue("0");
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
-  await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1700000000");
+  await page.getByRole("textbox", { name: "Order expiry unix time" }).fill(expiry);
   await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByText("1700000000").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByText(expiry).first()).toBeVisible();
 });
 
 test("session event log includes expiry after confirm", async ({ page }) => {
+  const expiry = String(Math.floor(Date.now() / 1000) + 3600);
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
-  await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1700000000");
+  await page.getByRole("textbox", { name: "Order expiry unix time" }).fill(expiry);
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await page.getByRole("tab", { name: "Event log" }).click();
-  await expect(page.getByText("buy GTC user-1 expiry 1700000000")).toBeVisible();
+  await expect(page.getByText(`buy GTC user-1 expiry ${expiry}`)).toBeVisible();
 });
 
 test("architecture view keeps Vercel off the matcher", async ({ page }) => {
@@ -653,7 +656,7 @@ test("deposit tour never shows a receivable address", async ({ page }) => {
 
 test("unavailable feed retry returns to illustrative", async ({ page }) => {
   await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
-  await expect(page.getByText("Market data unavailable", { exact: true })).toBeVisible();
+  await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeEnabled();
