@@ -11,6 +11,7 @@ import {
   lpBurnNoticeCopy,
   lpMintNoticeCopy,
   lpResetNoticeCopy,
+  lpSwapNoticeCopy,
   hypotheticalImpermanentLoss,
   IL_PRICE_SCENARIOS,
   lpOperationAllowed,
@@ -254,7 +255,11 @@ export function LiquidityPanel({
           reserveQuoteAtoms: current[selectedPool.id].reserveQuoteAtoms - swap.amountOut,
         },
       }));
-      setNotice(`Simulated pZEC→${selectedPool.quote} swap. Output ${formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2)} ${selectedPool.quote}. Local preview only.`);
+      setNotice(lpSwapNoticeCopy(
+        formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2),
+        selectedPool.quote,
+        markets[marketId].settlementPair,
+      ));
       setReview(null);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Swap quote is outside the preview range.");
