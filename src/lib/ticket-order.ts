@@ -21,7 +21,7 @@ export function typedOrderFromTicket(input: {
   maker: string;
   recipient?: string;
   side: "buy" | "sell";
-  quote: "USDC" | "USDT0";
+  quote: "USDC" | "USDT";
   sizeAtoms: bigint;
   priceTicks: bigint;
   nonce: bigint;

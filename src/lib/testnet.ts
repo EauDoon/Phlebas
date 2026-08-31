@@ -6,10 +6,10 @@ export const TESTNET = {
   deployed: false,
   pzec: "0x0000000000000000000000000000000000000001",
   usdc: "0x0000000000000000000000000000000000000002",
-  usdt0: "0x0000000000000000000000000000000000000003",
+  usdt: "0x0000000000000000000000000000000000000003",
   settlement: "0x0000000000000000000000000000000000000000",
 } as const;
 
-export function quoteTokenAddress(quote: "USDC" | "USDT0"): string {
-  return quote === "USDT0" ? TESTNET.usdt0 : TESTNET.usdc;
+export function quoteTokenAddress(quote: "USDC" | "USDT"): string {
+  return quote === "USDT" ? TESTNET.usdt : TESTNET.usdc;
 }

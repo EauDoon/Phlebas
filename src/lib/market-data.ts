@@ -3,8 +3,8 @@ export type ChartRange = "1H" | "4H" | "1D";
 
 export type Market = {
   id: MarketId;
-  settlementPair: "pZEC-USDC" | "pZEC-USDT0";
-  quote: "USDC" | "USDT0";
+  settlementPair: "ZEC-USDC" | "ZEC-USDT";
+  quote: "USDC" | "USDT";
   lastTicks: bigint;
   changeBps: number;
   highTicks: bigint;
@@ -48,7 +48,7 @@ function accumulate(
 export const markets: Record<MarketId, Market> = {
   "ZEC/USDC": {
     id: "ZEC/USDC",
-    settlementPair: "pZEC-USDC",
+    settlementPair: "ZEC-USDC",
     quote: "USDC",
     lastTicks: 5284n,
     changeBps: 585,
@@ -58,8 +58,8 @@ export const markets: Record<MarketId, Market> = {
   },
   "ZEC/USDT": {
     id: "ZEC/USDT",
-    settlementPair: "pZEC-USDT0",
-    quote: "USDT0",
+    settlementPair: "ZEC-USDT",
+    quote: "USDT",
     lastTicks: 5279n,
     changeBps: 583,
     highTicks: 5279n,
@@ -151,7 +151,7 @@ export const recentTrades: Record<MarketId, readonly RecentTrade[]> = {
 
 export const pools = [
   {
-    id: "pZEC/USDC",
+    id: "ZEC/USDC",
     quote: "USDC",
     fee: "0.30%",
     tvl: "$842,410",
@@ -160,8 +160,8 @@ export const pools = [
     reserveQuoteAtoms: 421_205_000000n,
   },
   {
-    id: "pZEC/USDT0",
-    quote: "USDT0",
+    id: "ZEC/USDT",
+    quote: "USDT",
     fee: "0.30%",
     tvl: "$516,920",
     volume: "$188,460",

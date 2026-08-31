@@ -171,7 +171,7 @@ export function applySubmit(
       account,
       blockedReason: order.side === "buy"
         ? "Session quote inventory is insufficient."
-        : "Session pZEC inventory is insufficient.",
+        : "Session ZEC inventory is insufficient.",
     };
   }
 
@@ -195,7 +195,7 @@ export function inventoryRejectCopy(side: OrderSide, marketId: MarketId): string
   return ticketRejectCopy(
     side === "buy"
       ? "Session quote inventory is insufficient."
-      : "Session pZEC inventory is insufficient.",
+      : "Session ZEC inventory is insufficient.",
     marketId,
   );
 }

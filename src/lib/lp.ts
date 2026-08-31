@@ -12,7 +12,7 @@ export function lpOperationAllowed(operation: "mint" | "swap" | "burn", tradingP
   return !tradingPaused;
 }
 
-export function emptyShareCopy(poolId: "pZEC/USDC" | "pZEC/USDT0"): string {
+export function emptyShareCopy(poolId: "ZEC/USDC" | "ZEC/USDT"): string {
   return `No session LP shares in ${poolId}. Burn stays idle until a local mint.`;
 }
 
@@ -44,7 +44,7 @@ export function lpBurnNoticeCopy(
   pzecLabel: string,
   settlementPair: Market["settlementPair"],
 ): string {
-  return `Burned session shares for ${pzecLabel} pZEC. Local preview only. Settled as ${settlementPair}.`;
+  return `Burned session shares for ${pzecLabel} ZEC. Local preview only. Settled as ${settlementPair}.`;
 }
 
 export function lpSwapNoticeCopy(
@@ -52,7 +52,7 @@ export function lpSwapNoticeCopy(
   quote: Market["quote"],
   settlementPair: Market["settlementPair"],
 ): string {
-  return `Simulated pZEC→${quote} swap. Output ${outputLabel} ${quote}. Local preview only. Settled as ${settlementPair}.`;
+  return `Simulated ZEC→${quote} swap. Output ${outputLabel} ${quote}. Local preview only. Settled as ${settlementPair}.`;
 }
 
 export function seedPool(reservePzecAtoms: bigint, reserveQuoteAtoms: bigint): PoolShares {
