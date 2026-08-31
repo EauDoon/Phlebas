@@ -170,6 +170,9 @@ export function validateSwapTerms(terms: SwapTermsV1): SwapTermsV1 {
   if (normalized.protocolFeeQuoteAtoms * 10_000n > normalized.quoteAmountAtoms * normalized.maximumFeeBps) {
     throw new RangeError("Protocol fee exceeds the signed maximum");
   }
+  if (normalized.protocolFeeQuoteAtoms !== 0n) {
+    throw new Error("Protocol fees remain disabled until exact escrow fee routing is implemented");
+  }
   const quoteNumerator = normalized.zecAmountZatoshis * normalized.executionPriceTicks;
   if (quoteNumerator % SWAP_QUOTE_COST_DIVISOR !== 0n) {
     throw new RangeError("Native swap quote amount requires exact integer settlement");

@@ -34,11 +34,12 @@ test("rejects ambiguous identities, self-trades, and unsupported chain namespace
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, zecAsset: `${sampleSwapTerms.zecChain}/slip44:1` }), /slip44:133/);
 });
 
-test("keeps integer amounts positive and fees within the signed cap", () => {
+test("keeps integer amounts positive and disables fees until exact routing exists", () => {
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, zecAmountZatoshis: 0n }), /positive uint64/);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, quoteAmountAtoms: 1.5 as unknown as bigint }), /bigint/);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, maximumFeeBps: 31n }), /protocol cap/);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, protocolFeeQuoteAtoms: 160_000n }), /signed maximum/);
+  assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, protocolFeeQuoteAtoms: 1n }), /fees remain disabled/);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, quoteAmountAtoms: sampleSwapTerms.quoteAmountAtoms + 1n }), /does not reconcile/);
   assert.throws(() => validateSwapTerms({ ...sampleSwapTerms, fillId: keccak256Text("unbound-fill") }), /canonical match fields/);
 });
@@ -66,8 +67,8 @@ test("rejects zero destinations and hashes", () => {
 
 test("derives frozen SHA-256 terms and swap identifiers", () => {
   assert.match(encodeSwapTerms(sampleSwapTerms), /^PhlebasSwapTerms\nversion=1\nfillId=/);
-  assert.equal(hashSwapTerms(sampleSwapTerms), "0x051db5dcaaaed152dd7bc9ebb2c5667fe5020b62e5d1a044d0d890fe0fcb31bc");
-  assert.equal(swapIdForTerms(sampleSwapTerms), "0x94f3604d80d04f6ad738549c8c9da273b3defea2e53a6e0ebd9c26e390a01f46");
+  assert.equal(hashSwapTerms(sampleSwapTerms), "0x1c5507eb1c5166ae9484692b8161d8398db32455b511011e528a05ee771163d5");
+  assert.equal(swapIdForTerms(sampleSwapTerms), "0x27481884c260357d25325485d88b18d5ffee259c592af1c23ff36bfd634c0343");
 });
 
 test("binds every signed field and distinguishes equal-sized partial fills", () => {
