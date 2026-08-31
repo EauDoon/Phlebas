@@ -1285,3 +1285,29 @@ test("bridge skip link reaches the destination inspector", async ({ page }) => {
   await expect(page.getByRole("textbox", { name: "Transparent destination to inspect" })).toBeVisible();
 });
 
+test("error skip link reaches the retry copy", async ({ page }) => {
+  await page.goto("/trade?error=1", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "The simulation failed to render" })).toBeVisible();
+  await expect(page.getByText("Nothing was submitted to a chain, matcher, or custody system.")).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const skipRetry = page.getByRole("link", { name: "Skip to retry copy" });
+  await expect(skipRetry).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#retry-copy")).toBeFocused();
+});
+
+test("GTC and order book price rows stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const gtc = page.getByRole("button", { name: "GTC" });
+  const ask = page.getByRole("button", { name: "Ask 52.91" });
+  await expect(gtc).toBeVisible();
+  await expect(ask).toBeVisible();
+  const gtcBox = await gtc.boundingBox();
+  const askBox = await ask.boundingBox();
+  expect(gtcBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(askBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
