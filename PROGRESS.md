@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after ticket reject, depth, tape, chart withheld, and order-book caption name the settlement pair.
+Last updated: 31-08-2026 after empty-book ticket gate, 24h stats withheld copy, and depth session last name the settlement pair.
 
 ## Branch
 
@@ -102,15 +102,18 @@ Last updated: 31-08-2026 after ticket reject, depth, tape, chart withheld, and o
 - Filled blotter event-log submit and cancel rows name the event market's settlement pair. Reset stays session-wide. The log caption names the current market.
 - Ticket reject copy (`ticketRejectCopy` / `describeSubmit`) names the settlement pair on matcher reject, inventory, self-trade, and expiry. Retry stays safe.
 - Depth empty copy, withheld tape, withheld chart, and the order-book caption name `pZEC-USDC` or `pZEC-USDT0`.
+- Ticket empty-book gate uses `emptyBookGateCopy` and names the settlement pair the way depth empty copy does. Review stays disabled.
+- 24h stats withheld copy uses `feedWithheldCopy` and names the settlement pair.
+- Depth mid-price row names the settlement pair next to session last.
 
 ## Next
 
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
-- Ticket empty-book gate should name the settlement pair the way depth empty copy does
-- 24h stats withheld copy should name the settlement pair the way the chart does
-- Depth mid-price row should name the settlement pair next to session last
+- Ticket loading, stale, and unavailable gates should name the settlement pair the way the empty-book gate does
+- Tape caption should name the settlement pair when the feed is withheld
+- Session-last 24h stats label should name the settlement pair when fixtures are shown
 
 ## Blockers
 
