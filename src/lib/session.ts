@@ -186,6 +186,31 @@ export function formatFillTime(date = new Date()): string {
   return date.toISOString().slice(11, 19);
 }
 
+export function ticketRejectCopy(reason: string, marketId: MarketId): string {
+  const punctuated = reason.endsWith(".") ? reason : `${reason}.`;
+  return `Rejected. ${punctuated} Settled as ${markets[marketId].settlementPair}.`;
+}
+
+export function inventoryRejectCopy(side: OrderSide, marketId: MarketId): string {
+  return ticketRejectCopy(
+    side === "buy"
+      ? "Session quote inventory is insufficient."
+      : "Session pZEC inventory is insufficient.",
+    marketId,
+  );
+}
+
+export function selfTradeRejectCopy(marketId: MarketId): string {
+  return ticketRejectCopy(
+    "Self-trade prevented. Cancel the resting session order or choose another price.",
+    marketId,
+  );
+}
+
+export function isTicketRejectCopy(result: string): boolean {
+  return result.startsWith("Rejected.");
+}
+
 export function describeSubmit(result: SubmitResult, marketId: MarketId): string {
   const fillSummary = result.fills.length === 0
     ? "no fills"
@@ -194,7 +219,7 @@ export function describeSubmit(result: SubmitResult, marketId: MarketId): string
       .join("; ");
 
   if (result.status === "rejected") {
-    return `Rejected. ${result.reason ?? "Order was not accepted."}`;
+    return ticketRejectCopy(result.reason ?? "Order was not accepted.", marketId);
   }
   if (result.status === "filled") {
     return `Filled against the local ${marketId} book: ${fillSummary}.`;
