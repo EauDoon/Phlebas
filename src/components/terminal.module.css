@@ -1756,7 +1756,9 @@
     top: auto;
     left: auto;
     width: auto;
-    max-width: none;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
     flex-direction: row;
     flex-wrap: wrap;
     max-height: min(40vh, 17.5rem);
