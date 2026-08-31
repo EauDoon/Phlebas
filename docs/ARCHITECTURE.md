@@ -347,3 +347,27 @@ the operator's on-call rotation.
 - **Alert router** (src/lib/alert-router.ts) — maps watchtower
   alerts to channels (pagerduty, slack, email, log) based on
   severity and service.
+
+### Final integration and audit prep (PR 7)
+
+The final integration surface is the set of pure-function
+libraries and documents that gate the project's readiness for
+the production deployment.
+
+#### Components
+
+- **Release readiness gate** (src/lib/release-readiness.ts) —
+  pure function that evaluates a collection of per-gate
+  results into a single verdict.
+- **Audit checklist** (src/lib/audit-checklist.ts) — pure
+  data structure with required, blocked, and owner tracking.
+- **Release readiness script** (scripts/release-readiness.mjs)
+  — runs the automated gates and prints the verdict.
+- **Audit checklist doc** (docs/audit/audit-checklist.md) —
+  canonical record of the audit surface.
+- **Release readiness evidence pack**
+  (docs/audit/release-readiness-evidence.md) — the source
+  of truth for the release verdict.
+- **Final integration report**
+  (docs/audit/final-integration-report.md) — summary of the
+  seven PRs that delivered the project.
