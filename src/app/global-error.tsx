@@ -1,7 +1,6 @@
 "use client";
 
 export default function GlobalError({
-  error,
   reset,
 }: {
   error: Error & { digest?: string };
@@ -14,7 +13,7 @@ export default function GlobalError({
           <p style={{ color: "#f4c95d", letterSpacing: "0.08em", textTransform: "uppercase", fontSize: 11 }}>Simulation only</p>
           <h1>The simulation failed to start</h1>
           <p>Nothing was submitted to a chain, matcher, or custody system.</p>
-          <p>{error.message || "An unexpected rendering error occurred."}</p>
+          <p>An unexpected rendering error occurred. No private diagnostic details are shown here.</p>
           <button type="button" onClick={reset} style={{ color: "#f4c95d", background: "transparent", border: 0, font: "inherit" }}>
             Retry
           </button>

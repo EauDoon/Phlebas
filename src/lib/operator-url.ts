@@ -1,4 +1,5 @@
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
+const OPERATOR_TIMEOUT_MS = 3_000;
 
 export function isLoopbackOperatorUrl(value: string | undefined): value is string {
   if (!value) return false;
@@ -29,4 +30,21 @@ export function operatorUnavailable(reason: "gateway-unavailable" | "matcher-una
     { ok: false, reason, ...extra },
     { status: 503, headers: { "Cache-Control": "no-store" } },
   );
+}
+
+export async function fetchLoopbackOperator(
+  input: URL,
+  init: RequestInit = {},
+  fetcher: typeof fetch = fetch,
+): Promise<Readonly<{ body: string; status: number }> | undefined> {
+  try {
+    const response = await fetcher(input, {
+      ...init,
+      cache: "no-store",
+      signal: AbortSignal.timeout(OPERATOR_TIMEOUT_MS),
+    });
+    return Object.freeze({ body: await response.text(), status: response.status });
+  } catch {
+    return undefined;
+  }
 }

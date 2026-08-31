@@ -49,27 +49,27 @@ Keep material details private until a fix is available and affected users can ta
 
 The proposed architecture is documented in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). Its strongest intended boundaries are:
 
-- Transparent ZEC custody and pZEC issuance are a federated gateway, not a trustless bridge.
-- The central limit order book is matched offchain and settled onchain from signed limits.
-- The constrained automated market maker supports only pZEC/USDC and pZEC/USDT0.
-- Settlement, token, router, and pool logic are intended to be versioned and non-upgradeable.
-- Emergency roles may stop new risk but must not gain seizure, arbitrary mint, or unrestricted upgrade authority.
-- Reserve assets and liabilities must reconcile in zatoshis before minting can proceed.
-- Vercel may host a public interface, but it must never hold custody, attester, governance, or deployer keys.
+- Every fill uses one native transparent ZEC conditional lock and one exact-token EVM conditional lock bound to the same signed terms and SHA-256 hashlock.
+- The offchain matcher and coordinator may sequence state, but they cannot spend, redirect, custody, or internally credit either asset.
+- ZEC funds first. EVM funding follows policy-qualified ZEC finality, and its refund deadline precedes the ZEC refund deadline by the signed safety margin.
+- Claim and refund are mutually exclusive. Reorganizations, stale evidence, observer disagreement, and replay suspend progression.
+- Wallets retain signing and unilateral refund authority. Phlebas never holds a standing ZEC reserve or depends on an operator redemption promise.
+- pZEC gateway, reserve, custody, and automated market maker components are legacy simulations, not the native settlement target.
+- Vercel may host a public interface, but it must never host keys, authoritative journals, node credentials, signing, claim, refund, or custody services.
 
-The repository exercises parts of these requirements in local code and tests. They are not deployed or audited properties.
+The custody-backed pZEC design remains documented only as the superseded ADR 0001 simulation. The repository exercises parts of the native design in local code and tests. They are not deployed or audited properties.
 
 ## Release security gates
 
 A release must remain simulation-only until all applicable gates pass:
 
-1. The exact contracts, services, custody design, signer policy, and operating entity are defined.
+1. The exact contracts, Zcash transaction format, services, wallet signing policy, and operating entity are defined.
 2. Every critical accounting and authorization invariant has deterministic tests.
 3. Zcash reorganization, Arbitrum finality, signer loss, stablecoin controls, and reserve-deficit responses are exercised.
-4. Independent reviews cover the Zcash gateway and custody path, and separately cover settlement, routing, and automated market maker contracts.
+4. Independent reviews cover the Zcash conditional-lock and wallet path, and separately cover EVM escrow, settlement coordination, matching, and recovery.
 5. Every Critical and High finding is fixed and the fix is re-reviewed.
 6. The deployed bytecode, constructor arguments, roles, addresses, and source commit match the reviewed release.
-7. A public reserve and liability monitor is reproducible from independent nodes.
-8. A capped testnet and mainnet rollout policy, redemption policy, incident process, and legal operating basis are approved.
+7. Independent observers can reproduce both chain histories, finality decisions, replacement evidence, and timeout eligibility.
+8. A capped Testnet and Mainnet rollout policy, refund process, incident process, and legal operating basis are approved.
 
 No audit, deployment, reserve, signer quorum, or production readiness is claimed by this repository.

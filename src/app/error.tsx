@@ -3,7 +3,6 @@
 import { SimulationFrame } from "@/components/simulation-frame";
 
 export default function AppError({
-  error,
   reset,
 }: {
   error: Error & { digest?: string };
@@ -12,7 +11,7 @@ export default function AppError({
   return (
     <SimulationFrame title="The simulation failed to render">
       <p>Nothing was submitted to a chain, matcher, or custody system.</p>
-      <p>{error.message || "An unexpected rendering error occurred."}</p>
+      <p>An unexpected rendering error occurred. No private diagnostic details are shown here.</p>
       <p>
         <button type="button" onClick={reset}>Retry</button>
       </p>

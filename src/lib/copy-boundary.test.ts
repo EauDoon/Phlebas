@@ -102,3 +102,27 @@ test("design docs do not claim the repo has no matcher or wallet stubs", async (
   assert.match(architecture, /loopback operator stubs/);
   assert.doesNotMatch(architecture, /It has no database, wallet connection/);
 });
+
+test("security policy describes native wallet-controlled settlement, not superseded custody", async () => {
+  const security = await readFile(join(root, "SECURITY.md"), "utf8");
+  const boundary = security.split("## Planned security boundary")[1]?.split("## Release security gates")[0] ?? "";
+  assert.match(boundary, /native transparent ZEC conditional lock/);
+  assert.match(boundary, /exact-token EVM conditional lock/);
+  assert.match(boundary, /Wallets retain signing and unilateral refund authority/);
+  assert.match(boundary, /legacy simulations, not the native settlement target/);
+  assert.doesNotMatch(boundary, /Transparent ZEC custody and pZEC issuance/);
+  assert.doesNotMatch(boundary, /automated market maker supports only pZEC/);
+  assert.doesNotMatch(security, /Zcash gateway and custody path/);
+  assert.doesNotMatch(security, /public reserve and liability monitor/);
+});
+
+test("public error boundaries never render private exception details", async () => {
+  const files = await Promise.all([
+    readFile(join(root, "src/app/error.tsx"), "utf8"),
+    readFile(join(root, "src/app/global-error.tsx"), "utf8"),
+  ]);
+  for (const source of files) {
+    assert.match(source, /No private diagnostic details are shown here/);
+    assert.doesNotMatch(source, /error\.(?:message|stack|digest)/);
+  }
+});

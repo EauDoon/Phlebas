@@ -37,3 +37,27 @@ test("operator unavailable helper is a 503 with no-store", async () => {
   assert.equal(body.ok, false);
   assert.equal(body.reason, "gateway-unavailable");
 });
+
+test("loopback operator fetches preserve bounded responses and hide transport failures", async () => {
+  const { fetchLoopbackOperator } = await import("./operator-url.ts");
+  let received: RequestInit | undefined;
+  const success = await fetchLoopbackOperator(
+    new URL("http://127.0.0.1:8787/health"),
+    { method: "POST" },
+    async (_input, init) => {
+      received = init;
+      return new Response('{"ok":true}', { status: 202 });
+    },
+  );
+  assert.deepEqual(success, { body: '{"ok":true}', status: 202 });
+  assert.equal(received?.method, "POST");
+  assert.equal(received?.cache, "no-store");
+  assert.ok(received?.signal instanceof AbortSignal);
+
+  const failed = await fetchLoopbackOperator(
+    new URL("http://127.0.0.1:8787/health"),
+    {},
+    async () => { throw new Error("private operator failure"); },
+  );
+  assert.equal(failed, undefined);
+});
