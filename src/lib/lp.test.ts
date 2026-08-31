@@ -6,6 +6,7 @@ import {
   burnShares,
   emptyShareCopy,
   lpPauseNoticeCopy,
+  lpResetNoticeCopy,
   hypotheticalImpermanentLoss,
   lpOperationAllowed,
   mintShares,
@@ -60,6 +61,23 @@ test("LP pause notice names the selected pool settlement pair", () => {
     "Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDT0.",
   );
   assert.doesNotMatch(lpPauseNoticeCopy("pZEC-USDC", true), /native ZEC/);
+});
+
+test("LP reset notice names the selected pool settlement pair", () => {
+  const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
+  const minted = mintShares(pool, 10_00000000n);
+  assert.ok(minted.shares > 0n);
+  const restored = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
+  assert.equal(restored.reservePzecAtoms, pool.reservePzecAtoms);
+  assert.equal(
+    lpResetNoticeCopy(markets["ZEC/USDC"].settlementPair),
+    "Local pool reserves restored. Settled as pZEC-USDC.",
+  );
+  assert.equal(
+    lpResetNoticeCopy(markets["ZEC/USDT"].settlementPair),
+    "Local pool reserves restored. Settled as pZEC-USDT0.",
+  );
+  assert.doesNotMatch(lpResetNoticeCopy("pZEC-USDC"), /native ZEC/);
 });
 
 test("hypothetical 4x IL equals the deposited quote on an even size", () => {
