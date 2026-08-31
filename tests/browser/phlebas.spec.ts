@@ -579,6 +579,14 @@ test("first-session education dismisses on Escape", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
 });
 
+test("landing Markets control points at the terminal preview", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.locator("header").getByRole("link", { name: "Markets" }).click();
+  await expect(page).toHaveURL(/#terminal-preview$/);
+  await expect(page.locator("#terminal-preview")).toBeInViewport();
+});
+
 test("education dialog stays inside a 320px viewport", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
