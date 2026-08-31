@@ -2013,3 +2013,44 @@ test("reduced-motion keeps skip-nav in place and skip-nav stacks above the banne
   expect(focused?.y ?? 0).toBeGreaterThanOrEqual(0);
 });
 
+test("terminal banner stays below skip-nav and 320px skip-nav does not cover the brand", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const tradeStacking = await page.evaluate(() => {
+    const skipNav = document.querySelector('nav[aria-label="Skip links"]');
+    const banner = document.querySelector('[aria-label="Simulation disclosure"]');
+    return {
+      navZ: Number.parseInt(skipNav ? getComputedStyle(skipNav).zIndex : "0", 10),
+      bannerZ: Number.parseInt(banner ? getComputedStyle(banner).zIndex : "0", 10) || 0,
+    };
+  });
+  expect(tradeStacking.navZ).toBeGreaterThan(tradeStacking.bannerZ);
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  const brand = page.getByRole("link", { name: "Phlebas home" });
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expect(brand).toBeVisible();
+  const brandBox = await brand.boundingBox();
+  const skipBox = await skip.boundingBox();
+  const overlaps = Boolean(
+    skipBox && brandBox
+    && skipBox.x < brandBox.x + brandBox.width
+    && skipBox.x + skipBox.width > brandBox.x
+    && skipBox.y < brandBox.y + brandBox.height
+    && skipBox.y + skipBox.height > brandBox.y
+    && skipBox.width > 2
+    && skipBox.height > 2,
+  );
+  expect(overlaps).toBe(false);
+
+  await page.keyboard.press("Tab");
+  await expectVisibleFocus(skip);
+  const focused = await skip.boundingBox();
+  expect(focused?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect(focused?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((focused?.x ?? 0) + (focused?.width ?? 0)).toBeLessThanOrEqual(320);
+  expect((focused?.y ?? 0) + (focused?.height ?? 0)).toBeLessThanOrEqual(900);
+});
+
