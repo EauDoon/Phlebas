@@ -4,6 +4,8 @@ Phlebas is a non-custodial exchange under development for native transparent ZEC
 
 [Open the public no-value simulation](https://phlebas.vercel.app)
 
+[Open the private GitHub repository](https://github.com/EauDoon/Phlebas)
+
 > Current status, 01-09-2026: Phlebas is a no-value product and protocol implementation. The public app uses synthetic markets and local browser state. No production contract, Zcash node, wallet signing path, mainnet transaction, or real asset is connected. Nothing in this repository is an offer of financial services.
 
 ## Markets
