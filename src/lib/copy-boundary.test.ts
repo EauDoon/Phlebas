@@ -134,6 +134,10 @@ test("landing and terminal banners stay simulation-only", async () => {
   const ticket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
   assert.match(ticket, /Order rejected/);
   assert.match(ticket, /interpretTicketKey/);
+  assert.match(ticket, /nextTicketSide/);
+  assert.match(ticket, /nextTicketOrderType/);
+  assert.match(ticket, /nextTicketTif/);
+  assert.match(ticket, /interpretRovingKey/);
   assert.match(ticket, /Ticket keyboard/);
   assert.match(ticket, /shortcutRegion/);
   assert.match(ticket, /aria-errormessage/);

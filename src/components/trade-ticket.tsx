@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
@@ -11,7 +11,19 @@ import { TESTNET } from "@/lib/testnet";
 import { parseExpiryUnix, settlementDigest, typedOrderFromTicket } from "@/lib/ticket-order";
 import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
+import { interpretRovingKey } from "@/lib/roving-keys";
 import { interpretTicketKey } from "@/lib/ticket-shortcuts";
+import {
+  nextTicketOrderType,
+  nextTicketSide,
+  nextTicketTif,
+  TICKET_ORDER_TYPES,
+  TICKET_SIDES,
+  TICKET_TIFS,
+  type TicketOrderType,
+  type TicketSide,
+  type TicketTif,
+} from "@/lib/ticket-groups";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
 import { compareVenues, type RouteComparison } from "@/lib/router";
 import {
@@ -35,9 +47,6 @@ import {
 } from "@/lib/units";
 
 import styles from "./terminal.module.css";
-
-type Side = "buy" | "sell";
-type OrderType = "limit" | "market";
 
 function parsePreviewDecimal(
   value: string,
@@ -116,7 +125,7 @@ export function TradeTicket({
   walletAddress?: string | null;
   onRetryFeed: () => void;
   onSubmit: (order: {
-    side: Side;
+    side: TicketSide;
     tif: TimeInForce;
     priceTicks: bigint;
     sizeAtoms: bigint;
@@ -129,9 +138,15 @@ export function TradeTicket({
   const sizeErrorId = useId();
   const slippageErrorId = useId();
   const expiryErrorId = useId();
-  const [side, setSide] = useState<Side>("buy");
-  const [orderType, setOrderType] = useState<OrderType>("limit");
-  const [tif, setTif] = useState<TimeInForce>("GTC");
+  const [side, setSide] = useState<TicketSide>("buy");
+  const [sideFocus, setSideFocus] = useState<TicketSide>("buy");
+  const [orderType, setOrderType] = useState<TicketOrderType>("limit");
+  const [typeFocus, setTypeFocus] = useState<TicketOrderType>("limit");
+  const [tif, setTif] = useState<TicketTif>("GTC");
+  const [tifFocus, setTifFocus] = useState<TicketTif>("GTC");
+  const sideRefs = useRef<Partial<Record<TicketSide, HTMLButtonElement | null>>>({});
+  const typeRefs = useRef<Partial<Record<TicketOrderType, HTMLButtonElement | null>>>({});
+  const tifRefs = useRef<Partial<Record<TicketTif, HTMLButtonElement | null>>>({});
   const [price, setPrice] = useState(() => formatAtomicUnits(lastTicks, PRICE_DECIMALS, 2));
   const [size, setSize] = useState("10");
   const [slippagePercent, setSlippagePercent] = useState("0.50");
@@ -141,7 +156,7 @@ export function TradeTicket({
   const [appliedPriceNonce, setAppliedPriceNonce] = useState(0);
   const [sessionNonce, setSessionNonce] = useState(1);
   const [review, setReview] = useState<{
-    side: Side;
+    side: TicketSide;
     priceTicks: bigint;
     sizeAtoms: bigint;
     tif: TimeInForce;
@@ -157,6 +172,7 @@ export function TradeTicket({
   if (priceSelection && priceSelection.nonce !== appliedPriceNonce) {
     setAppliedPriceNonce(priceSelection.nonce);
     setOrderType("limit");
+    setTypeFocus("limit");
     setPrice(formatAtomicUnits(priceSelection.ticks, PRICE_DECIMALS, 2));
   }
 
@@ -171,13 +187,34 @@ export function TradeTicket({
         setReview(null);
         return;
       }
-      if (action === "buy") setSide("buy");
-      if (action === "sell") setSide("sell");
-      if (action === "limit") setOrderType("limit");
-      if (action === "market") setOrderType("market");
-      if (action === "gtc") setTif("GTC");
-      if (action === "ioc") setTif("IOC");
-      if (action === "fok") setTif("FOK");
+      if (action === "buy") {
+        setSide("buy");
+        setSideFocus("buy");
+      }
+      if (action === "sell") {
+        setSide("sell");
+        setSideFocus("sell");
+      }
+      if (action === "limit") {
+        setOrderType("limit");
+        setTypeFocus("limit");
+      }
+      if (action === "market") {
+        setOrderType("market");
+        setTypeFocus("market");
+      }
+      if (action === "gtc") {
+        setTif("GTC");
+        setTifFocus("GTC");
+      }
+      if (action === "ioc") {
+        setTif("IOC");
+        setTifFocus("IOC");
+      }
+      if (action === "fok") {
+        setTif("FOK");
+        setTifFocus("FOK");
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -276,6 +313,54 @@ export function TradeTicket({
       return;
     }
     setSize(formatAtomicUnits(nextSize, PZEC_DECIMALS));
+  }
+
+  function applyRoving<T extends string>(
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    id: T,
+    next: (current: T, delta: number) => T,
+    first: T,
+    last: T,
+    moveFocus: (current: T) => void,
+    select: (current: T) => void,
+  ) {
+    const action = interpretRovingKey(event.key);
+    if (!action) {
+      return;
+    }
+    event.preventDefault();
+    if (action === "next") {
+      moveFocus(next(id, 1));
+      return;
+    }
+    if (action === "prev") {
+      moveFocus(next(id, -1));
+      return;
+    }
+    if (action === "home") {
+      moveFocus(first);
+      return;
+    }
+    if (action === "end") {
+      moveFocus(last);
+      return;
+    }
+    select(id);
+  }
+
+  function moveSideFocus(next: TicketSide) {
+    setSideFocus(next);
+    sideRefs.current[next]?.focus();
+  }
+
+  function moveTypeFocus(next: TicketOrderType) {
+    setTypeFocus(next);
+    typeRefs.current[next]?.focus();
+  }
+
+  function moveTifFocus(next: TicketTif) {
+    setTifFocus(next);
+    tifRefs.current[next]?.focus();
   }
 
   function preparedOrder(): { priceTicks: bigint; sizeAtoms: bigint; tif: TimeInForce; expiryUnix: bigint } | string {
@@ -503,52 +588,99 @@ export function TradeTicket({
       )}
 
       <div className={styles.segmented} role="group" aria-label="Order side">
-        <button
-          type="button"
-          className={side === "buy" ? styles.buyActive : undefined}
-          aria-pressed={side === "buy"}
-          onClick={() => setSide("buy")}
-        >
-          Buy
-        </button>
-        <button
-          type="button"
-          className={side === "sell" ? styles.sellActive : undefined}
-          aria-pressed={side === "sell"}
-          onClick={() => setSide("sell")}
-        >
-          Sell
-        </button>
+        {TICKET_SIDES.map((id) => (
+          <button
+            type="button"
+            key={id}
+            className={side === id ? (id === "buy" ? styles.buyActive : styles.sellActive) : undefined}
+            aria-pressed={side === id}
+            tabIndex={sideFocus === id ? 0 : -1}
+            ref={(node) => {
+              sideRefs.current[id] = node;
+            }}
+            onClick={() => {
+              setSide(id);
+              setSideFocus(id);
+            }}
+            onKeyDown={(event) => applyRoving(
+              event,
+              id,
+              nextTicketSide,
+              TICKET_SIDES[0],
+              TICKET_SIDES[TICKET_SIDES.length - 1],
+              moveSideFocus,
+              (next) => {
+                setSide(next);
+                setSideFocus(next);
+              },
+            )}
+          >
+            {id === "buy" ? "Buy" : "Sell"}
+          </button>
+        ))}
       </div>
 
       <div className={styles.orderTypes} role="group" aria-label="Order type">
-        <button
-          type="button"
-          className={orderType === "limit" ? styles.textActive : undefined}
-          aria-pressed={orderType === "limit"}
-          onClick={() => setOrderType("limit")}
-        >
-          Limit
-        </button>
-        <button
-          type="button"
-          className={orderType === "market" ? styles.textActive : undefined}
-          aria-pressed={orderType === "market"}
-          onClick={() => setOrderType("market")}
-        >
-          Market
-        </button>
+        {TICKET_ORDER_TYPES.map((id) => (
+          <button
+            type="button"
+            key={id}
+            className={orderType === id ? styles.textActive : undefined}
+            aria-pressed={orderType === id}
+            tabIndex={typeFocus === id ? 0 : -1}
+            ref={(node) => {
+              typeRefs.current[id] = node;
+            }}
+            onClick={() => {
+              setOrderType(id);
+              setTypeFocus(id);
+            }}
+            onKeyDown={(event) => applyRoving(
+              event,
+              id,
+              nextTicketOrderType,
+              TICKET_ORDER_TYPES[0],
+              TICKET_ORDER_TYPES[TICKET_ORDER_TYPES.length - 1],
+              moveTypeFocus,
+              (next) => {
+                setOrderType(next);
+                setTypeFocus(next);
+              },
+            )}
+          >
+            {id === "limit" ? "Limit" : "Market"}
+          </button>
+        ))}
       </div>
 
       {orderType === "limit" && (
         <div className={styles.orderTypes} role="group" aria-label="Time in force">
-          {(["GTC", "IOC", "FOK"] as const).map((value) => (
+          {TICKET_TIFS.map((value) => (
             <button
               type="button"
               key={value}
               className={tif === value ? styles.textActive : undefined}
               aria-pressed={tif === value}
-              onClick={() => setTif(value)}
+              tabIndex={tifFocus === value ? 0 : -1}
+              ref={(node) => {
+                tifRefs.current[value] = node;
+              }}
+              onClick={() => {
+                setTif(value);
+                setTifFocus(value);
+              }}
+              onKeyDown={(event) => applyRoving(
+                event,
+                value,
+                nextTicketTif,
+                TICKET_TIFS[0],
+                TICKET_TIFS[TICKET_TIFS.length - 1],
+                moveTifFocus,
+                (next) => {
+                  setTif(next);
+                  setTifFocus(next);
+                },
+              )}
             >
               {value}
             </button>
