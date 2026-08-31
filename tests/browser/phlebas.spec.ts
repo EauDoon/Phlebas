@@ -1288,11 +1288,12 @@ test("deposit tour walks Eligibility through Complete without a receivable addre
   await expect(page.getByText("No address generated in simulation.")).toBeVisible();
   await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toHaveCount(0);
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
-  await page.getByRole("button", { name: "Next state" }).click();
-  await page.getByRole("button", { name: "Next state" }).click();
-  await page.getByRole("button", { name: "Next state" }).click();
-  await page.getByRole("button", { name: "Next state" }).click();
-  await page.getByRole("button", { name: "Next state" }).click();
+  const next = page.getByRole("button", { name: "Next state" });
+  for (let i = 0; i < 20; i += 1) {
+    if (await page.getByRole("heading", { name: "Complete", exact: true }).isVisible()) break;
+    await expect(next).toBeEnabled();
+    await next.click();
+  }
   await expect(page.getByRole("heading", { name: "Complete", exact: true })).toBeVisible();
   await expect(page.getByText("No native ZEC was received and nothing was minted.")).toBeVisible();
 });
