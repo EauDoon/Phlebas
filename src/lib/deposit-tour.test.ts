@@ -9,7 +9,8 @@ test("deposit tour walks eligibility through complete without minting", () => {
   assert.equal(DEPOSIT_TOUR[1].title, "Address request");
   assert.match(DEPOSIT_TOUR[1].body, /No address generated in simulation/);
   assert.equal(DEPOSIT_TOUR[6].title, "Complete");
-  assert.match(DEPOSIT_TOUR[6].body, /No native ZEC was received and no pZEC was minted/);
+  assert.match(DEPOSIT_TOUR[6].body, /No native ZEC was received and nothing was minted/);
+  assert.doesNotMatch(DEPOSIT_TOUR.map((step) => step.body).join(" "), /pZEC/);
   assert.equal(depositTourStep(-1).id, "eligibility");
   assert.equal(depositTourStep(99).id, "complete");
 });
