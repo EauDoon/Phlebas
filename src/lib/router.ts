@@ -1,6 +1,6 @@
 import { quoteConstantProductAmountIn, quoteConstantProductSwapAtoms } from "./amm.ts";
-import { levelsFromBook, submitOrder, type Book, type OrderSide } from "./matcher.ts";
-import { QUOTE_COST_DIVISOR, quoteAtomsForFill } from "./units.ts";
+import { submitOrder, type Book, type OrderSide } from "./matcher.ts";
+import { QUOTE_COST_DIVISOR, quoteAtomsForFill, quoteAtomsForFills } from "./units.ts";
 
 export type VenueQuote = {
   venue: "clob" | "amm";
@@ -40,10 +40,7 @@ export function quoteClob(
     priceTicks: limitTicks,
     sizeAtoms,
   });
-  const quoteAtoms = result.fills.reduce(
-    (sum, fill) => sum + quoteAtomsForFill(fill.sizeAtoms, fill.priceTicks),
-    0n,
-  );
+  const quoteAtoms = quoteAtomsForFills(result.fills, side === "buy" ? "up" : "down");
   return {
     venue: "clob",
     filledAtoms: sizeAtoms - result.remainingAtoms,
@@ -78,28 +75,43 @@ export function quoteSplitRoute(options: {
   reservePzecAtoms: bigint;
   reserveQuoteAtoms: bigint;
 }): SplitQuote {
-  const resting = levelsFromBook(options.book, options.side === "buy" ? "sell" : "buy");
+  const preview = submitOrder(options.book, {
+    id: "split-router-preview",
+    side: options.side,
+    tif: "IOC",
+    priceTicks: options.limitTicks,
+    sizeAtoms: options.sizeAtoms,
+  });
+  const clobFills: typeof preview.fills = [];
   let remaining = options.sizeAtoms;
   let clobFilledAtoms = 0n;
-  let clobQuoteAtoms = 0n;
 
-  for (const level of resting) {
+  for (const fill of preview.fills) {
     if (remaining === 0n) break;
-    if (options.side === "buy" && level.priceTicks > options.limitTicks) break;
-    if (options.side === "sell" && level.priceTicks < options.limitTicks) break;
-
-    const take = remaining < level.sizeAtoms ? remaining : level.sizeAtoms;
-    const clobCost = quoteAtomsForFill(take, level.priceTicks);
-    const ammLeg = quoteAmmLeg(options.side, take, options.reservePzecAtoms, options.reserveQuoteAtoms);
+    const clobCost = quoteAtomsForFill(
+      fill.sizeAtoms,
+      fill.priceTicks,
+      options.side === "buy" ? "up" : "down",
+    );
+    const ammLeg = quoteAmmLeg(
+      options.side,
+      fill.sizeAtoms,
+      options.reservePzecAtoms,
+      options.reserveQuoteAtoms,
+    );
     const clobBetter = !ammLeg
       || (options.side === "buy" ? clobCost <= ammLeg.quoteAtoms : clobCost >= ammLeg.quoteAtoms);
 
     if (!clobBetter) break;
 
-    clobFilledAtoms += take;
-    clobQuoteAtoms += clobCost;
-    remaining -= take;
+    clobFills.push(fill);
+    clobFilledAtoms += fill.sizeAtoms;
+    remaining -= fill.sizeAtoms;
   }
+  const clobQuoteAtoms = quoteAtomsForFills(
+    clobFills,
+    options.side === "buy" ? "up" : "down",
+  );
 
   let ammFilledAtoms = 0n;
   let ammQuoteAtoms = 0n;
@@ -203,20 +215,19 @@ function pickBetter(
   }
 
   const complete = candidates.filter((candidate) => candidate.complete && candidate.filled > 0n);
-  const pool = complete.length > 0 ? complete : candidates.filter((candidate) => candidate.filled > 0n);
-  if (pool.length === 0) {
+  if (complete.length === 0) {
     return "none";
   }
 
-  let best = pool[0];
-  for (const candidate of pool.slice(1)) {
+  let best = complete[0];
+  for (const candidate of complete.slice(1)) {
     if (side === "buy" ? candidate.quote < best.quote : candidate.quote > best.quote) {
       best = candidate;
     }
   }
 
-  const tied = pool.filter((candidate) => candidate.quote === best.quote && candidate.complete === best.complete);
-  if (tied.length > 1 && complete.length > 0) {
+  const tied = complete.filter((candidate) => candidate.quote === best.quote);
+  if (tied.length > 1) {
     return "tie";
   }
   return best.name;

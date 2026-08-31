@@ -5,7 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
-import type { Book, TimeInForce } from "@/lib/matcher";
+import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
 import { compareVenues, type RouteComparison } from "@/lib/router";
 import {
   calculatePreviewNotional,
@@ -21,6 +21,8 @@ import {
   QUOTE_DECIMALS,
   formatAtomicUnits,
   parseAtomicUnits,
+  quoteAtomsForFill,
+  quoteAtomsForFills,
   sizeAtomsForQuote,
   worstPriceTicks,
 } from "@/lib/units";
@@ -79,12 +81,6 @@ function describeRoute(comparison: RouteComparison, quote: string): string {
   return `${comparison.better.toUpperCase()} cheaper for a full fill`;
 }
 
-function allowedVenuesFor(comparison: RouteComparison): CanonicalOrder["allowedVenues"] {
-  if (comparison.better === "split") return "clob,amm";
-  if (comparison.better === "amm") return "amm";
-  return "clob";
-}
-
 export function TradeTicket({
   market,
   book,
@@ -129,11 +125,14 @@ export function TradeTicket({
   const [appliedPriceNonce, setAppliedPriceNonce] = useState(0);
   const nonceRef = useRef(1);
   const [review, setReview] = useState<{
+    side: Side;
     priceTicks: bigint;
     sizeAtoms: bigint;
     tif: TimeInForce;
     digest: string;
     comparison: RouteComparison;
+    clobDebitAtoms: bigint;
+    clobReservationAtoms: bigint;
   } | null>(null);
 
   if (priceSelection && priceSelection.nonce !== appliedPriceNonce) {
@@ -291,6 +290,22 @@ export function TradeTicket({
       reservePzecAtoms,
       reserveQuoteAtoms,
     });
+    const clobPreview = submitOrder(book, {
+      id: "ticket-review",
+      side,
+      tif: prepared.tif,
+      priceTicks: prepared.priceTicks,
+      sizeAtoms: prepared.sizeAtoms,
+    });
+    const filledPzecAtoms = clobPreview.fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
+    const clobDebitAtoms = side === "buy"
+      ? quoteAtomsForFills(clobPreview.fills, "up")
+      : filledPzecAtoms;
+    const clobReservationAtoms = clobPreview.status === "open"
+      ? side === "buy"
+        ? quoteAtomsForFill(clobPreview.remainingAtoms, prepared.priceTicks, "up")
+        : clobPreview.remainingAtoms
+      : 0n;
     const canonical: CanonicalOrder = {
       maker: "session",
       side,
@@ -304,24 +319,31 @@ export function TradeTicket({
       salt: prepared.tif,
       recipient: "session",
       maximumFeeBps: "30",
-      allowedVenues: allowedVenuesFor(comparison),
+      allowedVenues: "clob",
       chainId: "42161",
       verifyingContract: "not-deployed",
     };
     nonceRef.current += 1;
     setReview({
       ...prepared,
+      side,
       digest: await digestCanonicalOrder(canonical),
       comparison,
+      clobDebitAtoms,
+      clobReservationAtoms,
     });
   }
 
   function confirmSimulatedOrder() {
-    if (!review) {
+    if (!review || !gate.canReview) {
+      if (!gate.canReview) {
+        setNotice(gate.message);
+        setReview(null);
+      }
       return;
     }
     setNotice(onSubmit({
-      side,
+      side: review.side,
       tif: review.tif,
       priceTicks: review.priceTicks,
       sizeAtoms: review.sizeAtoms,
@@ -498,17 +520,21 @@ export function TradeTicket({
           </p>
           <dl className={styles.ticketSummary}>
             <div>
-              <dt>Leaving session</dt>
+              <dt>Immediate CLOB debit</dt>
               <dd>
-                {side === "buy"
-                  ? `${formatAtomicUnits(
-                    review.comparison.better === "split"
-                      ? review.comparison.split.clobQuoteAtoms
-                      : review.comparison.clob.quoteAtoms,
-                    QUOTE_DECIMALS,
-                    2,
-                  )} ${market.quote}`
-                  : `${formatAtomicUnits(review.sizeAtoms, PZEC_DECIMALS)} pZEC`}
+                {review.side === "buy"
+                  ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`
+                  : `${formatAtomicUnits(review.clobDebitAtoms, PZEC_DECIMALS)} pZEC`}
+              </dd>
+            </div>
+            <div>
+              <dt>Resting reservation</dt>
+              <dd>
+                {review.clobReservationAtoms === 0n
+                  ? "none"
+                  : review.side === "buy"
+                    ? `${formatAtomicUnits(review.clobReservationAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`
+                    : `${formatAtomicUnits(review.clobReservationAtoms, PZEC_DECIMALS)} pZEC`}
               </dd>
             </div>
             <div>
@@ -529,10 +555,10 @@ export function TradeTicket({
           </p>
           <button
             type="button"
-            className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
+            className={`${styles.primaryAction} ${review.side === "sell" ? styles.sellAction : ""}`}
             onClick={confirmSimulatedOrder}
           >
-            Confirm simulated {side}
+            Confirm simulated {review.side}
           </button>
           <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
             Back

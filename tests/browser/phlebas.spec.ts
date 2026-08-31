@@ -290,6 +290,20 @@ test("local matcher fills a buy against the fixture ask", async ({ page }) => {
   await expect(page.getByRole("table", { name: /Session fills for ZEC\/USDC/ })).toBeVisible();
 });
 
+test("price improvement cannot create a free pZEC atom", async ({ page }) => {
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("100");
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("0.00000001");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await expect(page.getByText(/Dust-blocked crossed remainder was cancelled/)).toBeVisible();
+
+  await page.getByRole("tab", { name: "Inventory" }).click();
+  const blotter = page.getByRole("region", { name: "Open orders, fills, inventory" });
+  await expect(blotter.getByText("100", { exact: true })).toBeVisible();
+  await expect(blotter.getByText("10000.00", { exact: true })).toBeVisible();
+});
+
 test("status and missing routes stay labeled as simulation", async ({ page }) => {
   const status = await page.goto("/status", { waitUntil: "load" });
   expect(status?.ok(), "/status response").toBe(true);
@@ -310,8 +324,12 @@ test("ZIP 321 copy warns that the template is not payable", async ({ page }) => 
 });
 
 test("stale market data disables preview-to-sign and retries to illustrative", async ({ page }) => {
-  await page.goto("/trade?feed=stale", { waitUntil: "networkidle" });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("combobox", { name: "Market data state" }).selectOption("stale");
   await expect(page.getByText("Market data stale", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeEnabled();

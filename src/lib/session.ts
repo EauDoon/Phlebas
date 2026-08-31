@@ -13,7 +13,9 @@ import {
   PZEC_DECIMALS,
   PRICE_DECIMALS,
   formatAtomicUnits,
+  meetsMinimumQuoteSettlement,
   quoteAtomsForFill,
+  quoteAtomsForFills,
 } from "./units.ts";
 
 export const SESSION_PZEC_ATOMS = 100_00000000n;
@@ -78,10 +80,13 @@ export function seedBook(marketId: MarketId): Book {
 }
 
 export function collateralRequired(side: OrderSide, sizeAtoms: bigint, priceTicks: bigint): bigint {
-  return side === "buy" ? quoteAtomsForFill(sizeAtoms, priceTicks) : sizeAtoms;
+  return side === "buy" ? quoteAtomsForFill(sizeAtoms, priceTicks, "up") : sizeAtoms;
 }
 
 export function canCover(account: PaperAccount, side: OrderSide, sizeAtoms: bigint, priceTicks: bigint): boolean {
+  if (!meetsMinimumQuoteSettlement(sizeAtoms, priceTicks)) {
+    return false;
+  }
   const required = collateralRequired(side, sizeAtoms, priceTicks);
   return side === "buy" ? availableQuote(account) >= required : availablePzec(account) >= required;
 }
@@ -95,16 +100,15 @@ export function applyUserFills(
   side: OrderSide,
   fills: readonly Fill[],
 ): PaperAccount {
+  const filledAtoms = fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
+  const quoteAtoms = quoteAtomsForFills(fills, side === "buy" ? "up" : "down");
   const next = { ...account };
-  for (const fill of fills) {
-    const cost = quoteAtomsForFill(fill.sizeAtoms, fill.priceTicks);
-    if (side === "buy") {
-      next.pzecAtoms += fill.sizeAtoms;
-      next.quoteAtoms -= cost;
-    } else {
-      next.pzecAtoms -= fill.sizeAtoms;
-      next.quoteAtoms += cost;
-    }
+  if (side === "buy") {
+    next.pzecAtoms += filledAtoms;
+    next.quoteAtoms -= quoteAtoms;
+  } else {
+    next.pzecAtoms -= filledAtoms;
+    next.quoteAtoms += quoteAtoms;
   }
   return next;
 }
@@ -119,7 +123,10 @@ export function reserveRemainder(
     return account;
   }
   if (side === "buy") {
-    return { ...account, reservedQuoteAtoms: account.reservedQuoteAtoms + quoteAtomsForFill(remainingAtoms, priceTicks) };
+    return {
+      ...account,
+      reservedQuoteAtoms: account.reservedQuoteAtoms + quoteAtomsForFill(remainingAtoms, priceTicks, "up"),
+    };
   }
   return { ...account, reservedPzecAtoms: account.reservedPzecAtoms + remainingAtoms };
 }
@@ -128,7 +135,7 @@ export function releaseRestingOrder(account: PaperAccount, order: RestingOrder):
   if (order.side === "buy") {
     return {
       ...account,
-      reservedQuoteAtoms: account.reservedQuoteAtoms - quoteAtomsForFill(order.remainingAtoms, order.priceTicks),
+      reservedQuoteAtoms: account.reservedQuoteAtoms - quoteAtomsForFill(order.remainingAtoms, order.priceTicks, "up"),
     };
   }
   return { ...account, reservedPzecAtoms: account.reservedPzecAtoms - order.remainingAtoms };
@@ -139,16 +146,33 @@ export function applySubmit(
   order: { side: OrderSide; sizeAtoms: bigint; priceTicks: bigint; tif: TimeInForce },
   result: SubmitResult,
 ): { account: PaperAccount; blockedReason?: string } {
-  if (!canCover(account, order.side, order.sizeAtoms, order.priceTicks)) {
+  if (!meetsMinimumQuoteSettlement(order.sizeAtoms, order.priceTicks)) {
+    return { account, blockedReason: "Order notional must settle to at least one quote atom." };
+  }
+  if (result.status === "rejected") {
+    return { account };
+  }
+
+  const fillQuoteAtoms = quoteAtomsForFills(result.fills, order.side === "buy" ? "up" : "down");
+  if (result.fills.length > 0 && fillQuoteAtoms === 0n) {
+    return { account, blockedReason: "Executed notional must settle to at least one quote atom." };
+  }
+  const filledPzecAtoms = result.fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
+  const restingPzecAtoms = result.status === "open" ? result.remainingAtoms : 0n;
+  const restingQuoteAtoms = order.side === "buy" && restingPzecAtoms > 0n
+    ? quoteAtomsForFill(restingPzecAtoms, order.priceTicks, "up")
+    : 0n;
+  const required = order.side === "buy"
+    ? fillQuoteAtoms + restingQuoteAtoms
+    : filledPzecAtoms + restingPzecAtoms;
+  const available = order.side === "buy" ? availableQuote(account) : availablePzec(account);
+  if (available < required) {
     return {
       account,
       blockedReason: order.side === "buy"
         ? "Session quote inventory is insufficient."
         : "Session pZEC inventory is insufficient.",
     };
-  }
-  if (result.status === "rejected") {
-    return { account };
   }
 
   let next = applyUserFills(account, order.side, result.fills);
@@ -176,7 +200,8 @@ export function describeSubmit(result: SubmitResult, marketId: MarketId): string
     return `Filled against the local ${marketId} book: ${fillSummary}.`;
   }
   if (result.status === "cancelled") {
-    return `Immediate-or-cancel finished with ${fillSummary}. Unfilled size was cancelled.`;
+    const prefix = result.reason ?? "Immediate-or-cancel finished";
+    return `${prefix} with ${fillSummary}. Unfilled size was cancelled.`;
   }
   return `Resting on the local ${marketId} book with ${formatAtomicUnits(result.remainingAtoms, PZEC_DECIMALS)} pZEC remaining. Fills: ${fillSummary}.`;
 }
@@ -186,9 +211,9 @@ export function userOrders(book: Book): RestingOrder[] {
 }
 
 export function markToMarketQuote(account: PaperAccount, lastTicks: bigint): bigint {
-  return account.quoteAtoms + quoteAtomsForFill(account.pzecAtoms, lastTicks);
+  return account.quoteAtoms + quoteAtomsForFill(account.pzecAtoms, lastTicks, "down");
 }
 
 export function startingMarkQuote(lastTicks: bigint): bigint {
-  return SESSION_QUOTE_ATOMS + quoteAtomsForFill(SESSION_PZEC_ATOMS, lastTicks);
+  return SESSION_QUOTE_ATOMS + quoteAtomsForFill(SESSION_PZEC_ATOMS, lastTicks, "down");
 }

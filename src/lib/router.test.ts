@@ -96,3 +96,113 @@ test("split stays inside the signed worst price", () => {
   assert.equal(split.clobFilledAtoms, 0n);
   assert.equal(split.complete, false);
 });
+
+test("CLOB preview aggregates fragments before side-aware rounding", () => {
+  let asks = emptyBook(5284n);
+  asks = submitOrder(asks, {
+    id: "ask-a",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: 2n,
+  }).book;
+  asks = submitOrder(asks, {
+    id: "ask-b",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 5297n,
+    sizeAtoms: 2n,
+  }).book;
+  assert.equal(quoteClob(asks, "buy", 4n, 5297n).quoteAtoms, 3n);
+
+  let bids = emptyBook(5284n);
+  bids = submitOrder(bids, {
+    id: "bid-a",
+    side: "buy",
+    tif: "GTC",
+    priceTicks: 5297n,
+    sizeAtoms: 2n,
+  }).book;
+  bids = submitOrder(bids, {
+    id: "bid-b",
+    side: "buy",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: 2n,
+  }).book;
+  assert.equal(quoteClob(bids, "sell", 4n, 5291n).quoteAtoms, 2n);
+});
+
+test("split preview aggregates CLOB fragments with buy-side rounding", () => {
+  let book = emptyBook(5284n);
+  book = submitOrder(book, {
+    id: "ask-a",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: 2n,
+  }).book;
+  book = submitOrder(book, {
+    id: "ask-b",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 5297n,
+    sizeAtoms: 2n,
+  }).book;
+
+  const split = quoteSplitRoute({
+    book,
+    side: "buy",
+    sizeAtoms: 4n,
+    limitTicks: 10_000n,
+    reservePzecAtoms: 100n,
+    reserveQuoteAtoms: 10_000n,
+  });
+  assert.equal(split.clobFilledAtoms, 4n);
+  assert.equal(split.clobQuoteAtoms, 3n);
+});
+
+test("split preview follows matcher dust blocking", () => {
+  let book = emptyBook(5284n);
+  book = submitOrder(book, {
+    id: "dust-ask",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: 3n,
+  }).book;
+
+  const split = quoteSplitRoute({
+    book,
+    side: "buy",
+    sizeAtoms: 2n,
+    limitTicks: 10_000n,
+    reservePzecAtoms: 100n,
+    reserveQuoteAtoms: 10_000n,
+  });
+  assert.equal(split.clobFilledAtoms, 0n);
+});
+
+test("venue comparison returns none when every route is incomplete", () => {
+  let book = emptyBook(5284n);
+  book = submitOrder(book, {
+    id: "partial-ask",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 100n,
+    sizeAtoms: 100n,
+  }).book;
+
+  const comparison = compareVenues({
+    book,
+    side: "buy",
+    sizeAtoms: 300n,
+    limitTicks: 10_000n,
+    reservePzecAtoms: 100_000n,
+    reserveQuoteAtoms: 1_000_000_000n,
+  });
+  assert.equal(comparison.clob.complete, false);
+  assert.equal(comparison.amm.complete, false);
+  assert.equal(comparison.split.complete, false);
+  assert.equal(comparison.better, "none");
+});

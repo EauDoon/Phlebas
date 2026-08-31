@@ -297,7 +297,7 @@ export function TradingTerminal({
                 }}
               />
               <TradeTicket
-                key={marketId}
+                key={`${marketId}:${feedStatus}`}
                 market={market}
                 book={book}
                 lastTicks={book.lastTicks}
