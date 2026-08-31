@@ -209,3 +209,11 @@ export function chartRangeTabLabel(
 ): string {
   return `${range} · ${settlementPair}`;
 }
+
+export function chartPanelHeadingCopy(marketId: MarketId): string {
+  return `${marketId} · ${markets[marketId].settlementPair}`;
+}
+
+export function chartPanelEyebrowCopy(settlementPair: Market["settlementPair"]): string {
+  return `Illustrative market data · ${settlementPair}`;
+}
