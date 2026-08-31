@@ -42,7 +42,8 @@
 #session-blotter,
 #status-ledger,
 #legal-article,
-#security-article {
+#security-article,
+#missing-route {
   scroll-margin-top: 12px;
 }
 
