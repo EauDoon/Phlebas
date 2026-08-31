@@ -85,6 +85,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletConnectIdleTitle/);
   assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletConnectBusyTitle/);
   assert.match(await readFile(join(root, "src/lib/evm-wallet.ts"), "utf8"), /walletConnectTitle/);
+  assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /lpResetNoticeCopy/);
   assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /lpMintNoticeCopy/);
   assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /lpSwapNoticeCopy/);
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /missingProviderCopy/);
