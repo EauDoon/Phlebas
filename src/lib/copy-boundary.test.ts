@@ -127,6 +127,13 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminal, /Launch gates/);
   assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Launch gates/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /Skip to status ledger/);
+  const terminalCss = await readFile(join(root, "src/components/terminal.module.css"), "utf8");
+  assert.match(terminalCss, /:global\(#main-content\)/);
+  assert.match(terminalCss, /:global\(#status-ledger\)/);
+  assert.match(terminalCss, /:global\(#legal-article\)/);
+  assert.match(terminalCss, /:global\(#security-article\)/);
+  assert.match(terminalCss, /scroll-margin-top: 12px/);
+  assert.match(await readFile(join(root, "src/components/landing.module.css"), "utf8"), /:global\(#main-content\)/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /id="status-ledger"/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /role="list" aria-label="Simulation status ledger"/);
   assert.match(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /Nothing was sent/);
