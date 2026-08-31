@@ -1,4 +1,4 @@
-# Phlebas progress
+﻿# Phlebas progress
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
@@ -274,3 +274,18 @@ Last updated: 31-08-2026 after incorporating the latest product UI commits and c
 - The local JSON persistence added for testnet is intentionally single-process and is not the production authoritative ledger.
 - Language bar still holds: never imply live, audited, trustless, private, shielded, or native-ZEC
 - Vercel still must not hold spend keys, issue mainnet TEX, or run the authoritative matcher
+
+## Done this batch (PR 22 + conditional lock)
+
+PR 1 added the EVM half of the native-ZEC atomic swap. The contract is key-independent and remains undeployed.
+
+- `docs/adr/0003-evm-conditional-lock.md` — design, hash function choice, claim/refund semantics, safety rails
+- `contracts/src/swap/IConditionalLock.sol` — interface, error surface, event signatures
+- `contracts/src/swap/ConditionalLock.sol` — non-upgradeable deposit, claim, refund, reentrancy guard, SHA-256 preimage check, pauser/governor roles
+- `contracts/test/ConditionalLock.t.sol` — happy path, edge cases, double-claim, double-refund, wrong preimage, unauthorized claimant, paused-deposits-keep-refund
+- `contracts/script/DeployConditionalLock.s.sol` — standalone Anvil/testnet deploy with role distinctness check
+- `src/lib/conditional-lock-abi.ts` and `.test.ts` — pinned selectors (`deposit 7402f10a`, `claim 31d14457`, `refund 278ecde1`, `pause 8456cb59`, `unpause 3f4ba83a`) and event topics, plus calldata encoders
+- `docs/THREAT_MODEL.md` — section 18 for the lock surface
+- `contracts/README.md` — contract table and standalone deploy section
+- 273 node tests pass, secret-pattern scan clean over 190 files, production build clean
+- Foundry tests will run on GitHub Verify
