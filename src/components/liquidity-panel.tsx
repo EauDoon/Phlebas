@@ -3,7 +3,7 @@
 import { useId, useMemo, useState } from "react";
 
 import { quoteConstantProductSwapAtoms } from "@/lib/amm";
-import { burnShares, mintShares, seedPool, type PoolShares } from "@/lib/lp";
+import { burnShares, lpOperationAllowed, mintShares, seedPool, type PoolShares } from "@/lib/lp";
 import { pools, type MarketId } from "@/lib/market-data";
 import { parseAtomicUnits, formatAtomicUnits, PZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
 
@@ -32,6 +32,7 @@ export function LiquidityPanel({
     "pZEC/USDT0": 0n,
   });
   const [notice, setNotice] = useState("Integer pool math. Wallet actions stay disabled.");
+  const [tradingPaused, setTradingPaused] = useState(false);
   const poolReserves = poolState[selectedPool.id];
 
   const amountPreview = useMemo(() => {
@@ -87,6 +88,10 @@ export function LiquidityPanel({
   }, [amount, poolReserves]);
 
   function simulateAdd() {
+    if (!lpOperationAllowed("mint", tradingPaused)) {
+      setNotice("Trading is paused. LP withdrawal remains available.");
+      return;
+    }
     if (!amountPreview.valid || amountPreview.zecAtoms <= 0n || amountPreview.quoteAtoms <= 0n) {
       setNotice(amountPreview.message);
       return;
@@ -118,6 +123,10 @@ export function LiquidityPanel({
   }
 
   function simulateSwap() {
+    if (!lpOperationAllowed("swap", tradingPaused)) {
+      setNotice("Trading is paused. LP withdrawal remains available.");
+      return;
+    }
     if (!amountPreview.valid || amountPreview.zecAtoms <= 0n) {
       setNotice(amountPreview.message);
       return;
@@ -212,9 +221,21 @@ export function LiquidityPanel({
         </p>
 
         <div className={styles.tourNav}>
-          <button type="button" onClick={simulateAdd}>Simulate mint</button>
-          <button type="button" onClick={simulateBurn}>Burn session shares</button>
-          <button type="button" onClick={simulateSwap}>Simulate swap</button>
+          <button type="button" onClick={simulateAdd} disabled={!lpOperationAllowed("mint", tradingPaused)}>Simulate mint</button>
+          <button type="button" onClick={simulateBurn} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
+          <button type="button" onClick={simulateSwap} disabled={!lpOperationAllowed("swap", tradingPaused)}>Simulate swap</button>
+          <button
+            type="button"
+            aria-pressed={tradingPaused}
+            onClick={() => {
+              setTradingPaused((current) => !current);
+              setNotice(tradingPaused
+                ? "Trading pause lifted. Mint and swap are available again."
+                : "Trading paused. LP withdrawal remains available.");
+            }}
+          >
+            {tradingPaused ? "Resume trading preview" : "Pause trading preview"}
+          </button>
           <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares({ "pZEC/USDC": 0n, "pZEC/USDT0": 0n }); setNotice("Local pool reserves restored."); }}>
             Reset pool
           </button>
