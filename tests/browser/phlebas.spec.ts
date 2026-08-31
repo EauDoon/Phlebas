@@ -2443,3 +2443,118 @@ test("skip-nav two-up at 768 and 390 keeps 44px links, wrap, gutter, and Menu cl
   expect(tradeRing.bottom).toBeLessThanOrEqual(844.5);
 });
 
+test("skip-nav row-gap leftover 768 brand legal two-up and banner stacking", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(skip);
+
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  const landingLayout = await nav.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const links = [...element.querySelectorAll("a")];
+    const first = links[0]?.getBoundingClientRect();
+    const third = links[2]?.getBoundingClientRect();
+    const last = links[links.length - 1]?.getBoundingClientRect();
+    const banner = document.querySelector('[aria-label="Simulation disclosure"]');
+    return {
+      rowGap: style.rowGap,
+      navZ: Number.parseInt(style.zIndex, 10) || 0,
+      bannerZ: Number.parseInt(banner ? getComputedStyle(banner).zIndex : "0", 10) || 0,
+      padding: links[0] ? getComputedStyle(links[0]).paddingTop : "",
+      minWidth: links[0] ? Number.parseFloat(getComputedStyle(links[0]).minWidth) : 0,
+      firstBottom: first?.bottom ?? 0,
+      thirdTop: third?.top ?? 0,
+      lastWidth: last?.width ?? 0,
+      lastHeight: last?.height ?? 0,
+    };
+  });
+  expect(landingLayout.rowGap).toBe("8px");
+  expect(landingLayout.navZ).toBeGreaterThan(landingLayout.bannerZ);
+  expect(landingLayout.padding).toBe("8px");
+  expect(landingLayout.minWidth).toBeGreaterThanOrEqual(44);
+  expect(landingLayout.lastWidth).toBeGreaterThanOrEqual(44);
+  expect(landingLayout.lastHeight).toBeGreaterThanOrEqual(44);
+  expect(landingLayout.firstBottom + 4).toBeLessThanOrEqual(landingLayout.thirdTop - 4 + 0.5);
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  await expectVisibleFocus(skip);
+  const navBox = await nav.boundingBox();
+  const brandBox = await page.getByRole("link", { name: "Phlebas home" }).boundingBox();
+  expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((brandBox?.y ?? 0) + 1);
+
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.keyboard.press("Tab");
+  const tradeSkip = page.getByRole("link", { name: "Skip to main content" });
+  await expectVisibleFocus(tradeSkip);
+  const tradeNav = page.getByRole("navigation", { name: "Skip links" });
+  const trade768 = await tradeNav.evaluate((element) => {
+    const links = [...element.querySelectorAll("a")].slice(0, 2).map((link) => link.getBoundingClientRect());
+    const style = getComputedStyle(element);
+    const first = links[0];
+    return {
+      wrap: style.flexWrap,
+      direction: style.flexDirection,
+      firstTop: links[0]?.top ?? 0,
+      secondTop: links[1]?.top ?? 0,
+      firstRight: links[0]?.right ?? 0,
+      secondLeft: links[1]?.left ?? 0,
+      firstHeight: links[0]?.height ?? 0,
+      secondHeight: links[1]?.height ?? 0,
+      ringLeft: (first?.left ?? 0) - 4,
+      ringRight: (first?.right ?? 0) + 4,
+      ringTop: (first?.top ?? 0) - 4,
+      ringBottom: (first?.bottom ?? 0) + 4,
+    };
+  });
+  expect(trade768.direction).toBe("row");
+  expect(trade768.wrap).toBe("wrap");
+  expect(Math.abs(trade768.firstTop - trade768.secondTop)).toBeLessThan(2);
+  expect(trade768.secondLeft).toBeGreaterThan(trade768.firstRight);
+  expect(trade768.firstHeight).toBeGreaterThanOrEqual(44);
+  expect(trade768.secondHeight).toBeGreaterThanOrEqual(44);
+  expect(trade768.ringLeft).toBeGreaterThanOrEqual(-0.5);
+  expect(trade768.ringTop).toBeGreaterThanOrEqual(-0.5);
+  expect(trade768.ringRight).toBeLessThanOrEqual(768.5);
+  expect(trade768.ringBottom).toBeLessThanOrEqual(1024.5);
+
+  for (const path of ["/legal", "/security"] as const) {
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.keyboard.press("Tab");
+    const frameSkip = page.getByRole("link", { name: "Skip to main content" });
+    await expectVisibleFocus(frameSkip);
+    const frameNav = page.getByRole("navigation", { name: "Skip links" });
+    const frameLayout = await frameNav.evaluate((element) => {
+      const links = [...element.querySelectorAll("a")].map((link) => link.getBoundingClientRect());
+      const style = getComputedStyle(element);
+      return {
+        wrap: style.flexWrap,
+        direction: style.flexDirection,
+        count: links.length,
+        firstTop: links[0]?.top ?? 0,
+        secondTop: links[1]?.top ?? 0,
+        firstRight: links[0]?.right ?? 0,
+        secondLeft: links[1]?.left ?? 0,
+        firstWidth: links[0]?.width ?? 0,
+        secondWidth: links[1]?.width ?? 0,
+        firstHeight: links[0]?.height ?? 0,
+        secondHeight: links[1]?.height ?? 0,
+      };
+    });
+    expect(frameLayout.count).toBe(2);
+    expect(frameLayout.direction).toBe("row");
+    expect(frameLayout.wrap).toBe("wrap");
+    expect(Math.abs(frameLayout.firstTop - frameLayout.secondTop)).toBeLessThan(2);
+    expect(frameLayout.secondLeft).toBeGreaterThan(frameLayout.firstRight);
+    expect(frameLayout.firstWidth).toBeGreaterThanOrEqual(44);
+    expect(frameLayout.secondWidth).toBeGreaterThanOrEqual(44);
+    expect(frameLayout.firstHeight).toBeGreaterThanOrEqual(44);
+    expect(frameLayout.secondHeight).toBeGreaterThanOrEqual(44);
+  }
+});
+
