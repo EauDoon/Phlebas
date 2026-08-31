@@ -597,7 +597,7 @@
 
 .inputShell {
   display: flex;
-  min-height: 42px;
+  min-height: 44px;
   align-items: center;
   gap: 8px;
   padding: 0 11px;
@@ -629,6 +629,16 @@
   color: var(--text-secondary);
   font-size: 11px;
   font-weight: 650;
+}
+
+.inputShell select {
+  min-width: 0;
+  min-height: 44px;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  color: var(--text);
+  background: transparent;
 }
 
 .percentRow {
@@ -1225,7 +1235,7 @@
 }
 
 .educationDialog {
-  width: min(92vw, 460px);
+  width: min(calc(100vw - 16px), 460px);
   margin: auto;
   padding: 20px 18px 16px;
   border: 1px solid var(--border-strong);
@@ -1260,6 +1270,12 @@
   margin: 18px 0 0;
 }
 
+.educationDialog .tourNav button {
+  min-width: 44px;
+  min-height: 44px;
+  flex: 1;
+}
+
 .blockedPanel {
   margin: 16px;
   max-width: 720px;
@@ -1278,6 +1294,13 @@
 .incidentDemo h3 {
   font-size: 13px;
   font-weight: 650;
+}
+
+.incidentDemo .inputShell,
+.incidentDemo select {
+  width: 100%;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .footer {
@@ -1384,6 +1407,7 @@
   .percentRow button,
   .primaryAction,
   .inputShell input,
+  .inputShell select,
   .assetInput input,
   .poolTabs button {
     min-width: 44px;
