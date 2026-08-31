@@ -2,7 +2,7 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after the market-feed, 44px review, legal-skip, and incident-region slice.
+Last updated: 31-08-2026 after the desktop-44px controls, 404-skip, and architecture-skip slice.
 
 ## Branch
 
@@ -132,16 +132,22 @@ Last updated: 31-08-2026 after the market-feed, 44px review, legal-skip, and inc
 - Architecture incident demonstrations keep the selected copy in a named region
 - Market bar keeps market and feed selectors inside the panel when USDT listing-gate copy appears
 - Playwright covers market/feed arrows, desktop 44px review Back, LP tour targets, legal and security skip, and the incident region
+- Market and feed selector tabs stay 44px on desktop, not only under 820px
+- Ticket side segmented buttons stay 44px on desktop
+- Wallet connect stays 44px on desktop
+- Chart range buttons stay 44px on desktop
+- 404 page skips to the missing-route copy
+- Architecture skips to the incident demonstration
+- Playwright covers desktop 44px market/feed tabs, connect, chart range, ticket side, 404 skip, and architecture skip
 
 ## Next
 
-- Market and feed selector tabs should stay 44px on desktop, not only under 820px
-- Ticket side segmented buttons should stay 44px on desktop
-- Wallet connect should stay 44px on desktop
-- Chart range buttons should stay 44px on desktop
-- 404 page should skip to the missing-route copy the way legal skips to the article
-- Architecture should skip to the incident demonstration
-- Playwright: desktop 44px market/feed tabs, connect, chart range, 404 skip, architecture skip
+- Ticket order-type buttons should stay 44px on desktop
+- Terminal view tabs should stay 44px on desktop
+- Blotter tabs should stay 44px on desktop
+- Liquidity should skip to the pool tabs
+- Bridge should skip to the destination inspector
+- Playwright: desktop 44px order-type and view tabs, blotter tabs, liquidity skip, bridge skip
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
