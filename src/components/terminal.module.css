@@ -2473,6 +2473,7 @@ a.skipLink:focus-visible {
   .skipLink:last-child {
     min-width: 44px;
     min-height: 44px;
+    flex-shrink: 0;
   }
 
   .skipLink:last-child:nth-child(odd) {
