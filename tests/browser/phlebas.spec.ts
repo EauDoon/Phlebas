@@ -1420,3 +1420,26 @@ test("liquidity skip link reaches pool stats", async ({ page }) => {
   await expect(page.locator("#pool-stats")).toBeFocused();
 });
 
+test("ticket notice wallet rejection and simulation banner stay 44px on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const banner = page.getByRole("status", { name: "Simulation disclosure" });
+  await expect(banner).toBeVisible();
+  expect((await banner.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("abc");
+  const notice = page.getByRole("alert").filter({ hasText: "Value must use plain decimal notation" });
+  await expect(notice).toBeVisible();
+  expect((await notice.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
+  const rejection = page.getByRole("status", { name: "Wallet connection rejection" });
+  await expect(rejection).toBeVisible();
+  expect((await rejection.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/", { waitUntil: "networkidle" });
+  const landingBanner = page.getByRole("status", { name: "Simulation disclosure" });
+  await expect(landingBanner).toBeVisible();
+  expect((await landingBanner.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
