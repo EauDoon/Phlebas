@@ -105,3 +105,10 @@ test("rejects duplicate intake sequences even across different prices", () => {
     /sequence is duplicated/,
   );
 });
+
+test("rejects maker identity collisions with the taker intake", () => {
+  const taker = sequenced("buy", 4n, intent("buy", 0, 5_300n, 10n, 1));
+  const maker = sequenced("seller", 1n, intent("seller", 1, 5_200n, 10n));
+  assert.throws(() => planPriceTimeMatches(taker, [{ ...maker, sequence: taker.sequence }]), /sequence is duplicated/);
+  assert.throws(() => planPriceTimeMatches(taker, [{ ...maker, orderHash: taker.orderHash }]), /order hash is duplicated/);
+});

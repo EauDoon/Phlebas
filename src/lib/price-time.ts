@@ -55,8 +55,8 @@ export function planPriceTimeMatches(
     throw new RangeError("Taker remaining amount is invalid");
   }
 
-  const seenOrderHashes = new Set<string>();
-  const seenSequences = new Set<bigint>();
+  const seenOrderHashes = new Set<string>([takerOrderHash]);
+  const seenSequences = new Set<bigint>([taker.sequence]);
   const candidates = restingOrders.map((candidate) => ({
     ...candidate,
     orderHash: normalizeHex32(candidate.orderHash, "Maker order hash"),
