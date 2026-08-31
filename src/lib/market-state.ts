@@ -1,4 +1,4 @@
-import type { Market } from "./market-data.ts";
+import type { ChartRange, Market } from "./market-data.ts";
 import { markets, type MarketId } from "./market-data.ts";
 
 export const FEED_STATUSES = ["illustrative", "loading", "empty", "stale", "unavailable"] as const;
@@ -201,4 +201,11 @@ export function tapeMiniLabel(
   if (hasSessionTape) return "Session + fixture";
   if (showFixtures) return "Fixture tape";
   return `Withheld · ${settlementPair}`;
+}
+
+export function chartRangeTabLabel(
+  range: ChartRange,
+  settlementPair: Market["settlementPair"],
+): string {
+  return `${range} · ${settlementPair}`;
 }
