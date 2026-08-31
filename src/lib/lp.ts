@@ -1,4 +1,5 @@
 import { balancedQuoteAtoms } from "./amm.ts";
+import type { Market } from "./market-data.ts";
 
 export type PoolShares = {
   reservePzecAtoms: bigint;
@@ -13,6 +14,15 @@ export function lpOperationAllowed(operation: "mint" | "swap" | "burn", tradingP
 
 export function emptyShareCopy(poolId: "pZEC/USDC" | "pZEC/USDT0"): string {
   return `No session LP shares in ${poolId}. Burn stays idle until a local mint.`;
+}
+
+export function lpPauseNoticeCopy(
+  settlementPair: Market["settlementPair"],
+  paused: boolean,
+): string {
+  return paused
+    ? `Trading paused. LP withdrawal remains available. Settled as ${settlementPair}.`
+    : `Trading pause lifted. Mint and swap are available again. Settled as ${settlementPair}.`;
 }
 
 export function seedPool(reservePzecAtoms: bigint, reserveQuoteAtoms: bigint): PoolShares {
