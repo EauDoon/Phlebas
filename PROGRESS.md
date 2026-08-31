@@ -1,4 +1,4 @@
-# Phlebas progress
+﻿# Phlebas progress
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
@@ -376,3 +376,64 @@ Last updated: 01-09-2026 after education Enter simulation in 320px, copy padding
 - The local JSON persistence added for testnet is intentionally single-process and is not the production authoritative ledger.
 - Language bar still holds: never imply live, audited, trustless, private, shielded, or native-ZEC
 - Vercel still must not hold spend keys, issue mainnet TEX, or run the authoritative matcher
+
+## Done this batch (PR 22 + conditional lock)
+
+PR 1 added the EVM half of the native-ZEC atomic swap. The contract is key-independent and remains undeployed.
+
+- `docs/adr/0003-evm-conditional-lock.md` — design, hash function choice, claim/refund semantics, safety rails
+- `contracts/src/swap/IConditionalLock.sol` — interface, error surface, event signatures
+- `contracts/src/swap/ConditionalLock.sol` — non-upgradeable deposit, claim, refund, reentrancy guard, SHA-256 preimage check, pauser/governor roles
+- `contracts/test/ConditionalLock.t.sol` — happy path, edge cases, double-claim, double-refund, wrong preimage, unauthorized claimant, paused-deposits-keep-refund
+- `contracts/script/DeployConditionalLock.s.sol` — standalone Anvil/testnet deploy with role distinctness check
+- `src/lib/conditional-lock-abi.ts` and `.test.ts` — pinned selectors (`deposit 7402f10a`, `claim 31d14457`, `refund 278ecde1`, `pause 8456cb59`, `unpause 3f4ba83a`) and event topics, plus calldata encoders
+- `docs/THREAT_MODEL.md` — section 18 for the lock surface
+- `contracts/README.md` — contract table and standalone deploy section
+- 273 node tests pass, secret-pattern scan clean over 190 files, production build clean
+- Foundry tests will run on GitHub Verify
+
+## Done this batch (PR 23 + atomic swap state machine)
+
+PR 2 added the deterministic state machine and the read-only `/swap` view. Both are key-independent. No signing surface ships in this PR.
+
+- `docs/adr/0004-atomic-swap-state-machine.md` — leg-state model, transition rules, preimage primitive, read-only `/swap` route, signing boundary
+- `src/lib/swap-state.ts` and `.test.ts` — pure state machine: `proposed`, `awaiting-zec-fund`, `awaiting-zec-claim`, `awaiting-evm-claim`, `settled`, `evm-refundable`, `zec-refundable`, `evm-refunded`, `zec-refunded`, `fully-refunded`, `disputed`. 24 unit tests cover happy path, claim after refund, refund after claim, double fund, deadline enforcement, and per-role `nextAction` dispatch
+- `src/lib/preimage.ts` and `.test.ts` — browser preimage primitive: 32 random bytes from `crypto.getRandomValues`, SHA-256 hash via `crypto.subtle` (Node `node:crypto` fallback), `verifyPreimage` round-trip, malformed-input rejection. Pinned test vector covers a real SHA-256 of a known preimage
+- `src/components/swap-state-panel.tsx` — client island: generate, display, paste-and-verify. No signing, no broadcast
+- `src/app/swap/page.tsx` — server route at `/swap`, derives state from `fill`, `evm`, `zec`, `evmRefund`, `zecRefund`, `state`, `now`, `role` URL params. Noindex, simulation-frame layout, replay query
+- 361 node tests pass, secret-pattern scan clean over 250 files, production build clean
+
+## Done this batch (PR 24 + Zcash P2SH tx lab)
+
+PR 3 added the ZEC half of the atomic swap. The address encoder, the
+P2SH script builder, and the wallet adapter are all key-independent.
+The signing surface stays gated. The browser path for `ripemd160` is a
+follow-up because Web Crypto does not expose `ripemd160`.
+
+- `docs/adr/0005-zcash-p2sh-atomic-swap.md` — design, hash function
+  choice, P2SH script layout, wallet adapter seam, signing boundary
+- `src/lib/ripemd160.ts` and `.test.ts` — thin Node-native wrapper,
+  pinned against the canonical vectors that Node 24 reproduces
+- `src/lib/sha256d.ts` and `.test.ts` — double SHA-256 wrapper for
+  Base58Check
+- `src/lib/base58check.ts` and `.test.ts` — Base58Check encoder and
+  decoder with checksum validation
+- `src/lib/zcash-script.ts` and `.test.ts` — op-code table, push
+  encoders, concat helper
+- `src/lib/zcash-pubkey.ts` and `.test.ts` — compressed secp256k1
+  pubkey parser and encoder
+- `src/lib/zcash-atomic-swap.ts` and `.test.ts` — claim branch, refund
+  branch, full atomic-swap script, round-trip parser
+- `src/lib/zcash-address.ts` and `.test.ts` — merged
+  `inspectTransparentDestination` with the Base58Check address
+  encoder and decoder; testnet and mainnet version bytes
+- `src/lib/zcash-wallet-adapter.ts` and `.test.ts` — typed
+  `buildFundTransaction`, `buildClaimTransaction`,
+  `buildRefundTransaction`; `hashAtomicSwapParams` for the script
+  hash
+- `src/app/zcash/page.tsx` — server route at `/zcash`, noindex,
+  simulation-frame layout, derives the script, address, and unsigned
+  transactions from URL params, exposes the replay query
+- `docs/THREAT_MODEL.md` — section 19 for the ZEC leg
+- 425 node tests pass, secret-pattern scan clean, production build
+  clean

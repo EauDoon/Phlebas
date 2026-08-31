@@ -254,3 +254,120 @@ Testnet needs current protocol evidence, deterministic vectors, local execution,
 Mainnet needs successful Testnet operation, independent audits, exact contract and service identities, reproducible builds, verified bytecode, monitoring, incident drills, legal approval, and separate authorization for real assets.
 
 The current Vercel deployment remains a simulation until every applicable gate passes.
+
+## ZEC half of the atomic swap
+
+The ZEC half of the atomic swap is a transparent P2SH output that holds ZEC until either the buyer reveals the preimage on the Zcash claim path or the seller refunds after the lock time. The address encoder, the P2SH script builder, and the wallet adapter are documented in [ADR 0005](adr/0005-zcash-p2sh-atomic-swap.md).
+
+### Components
+
+- **Address encoder** (`src/lib/zcash-address.ts`) — Base58Check transparent address encoder and decoder. Testnet and mainnet version bytes are pinned. The address surface is the only surface in PR 3 that depends on a hash function.
+- **P2SH script builder** (`src/lib/zcash-atomic-swap.ts`) — claim branch, refund branch, and full atomic-swap script. The script round-trips through the parser.
+- **Wallet adapter** (`src/lib/zcash-wallet-adapter.ts`) — typed `buildFundTransaction`, `buildClaimTransaction`, `buildRefundTransaction`, and `hashAtomicSwapParams`. The adapter returns unsigned transactions; the signing surface is an injected callback that the production code wires to a real Zcash wallet.
+- **Compressed pubkey parser** (`src/lib/zcash-pubkey.ts`) — 33-byte compressed secp256k1 public key parser and encoder.
+
+### Hash function
+
+The hash function is `RIPEMD160(SHA256(x))`, which the Zcash script engine exposes as `OP_HASH160`. The preimage primitive in `src/lib/preimage.ts` produces 32 random bytes; the same preimage and the same hash are valid on both the EVM leg (via `SHA256`) and the ZEC leg (via `RIPEMD160(SHA256)`).
+
+### Observer and watchtower (PR 4)
+
+The observer and the watchtower close the read-only half of the
+two-chain atomic swap. The observer polls the ConditionalLock
+contract and a set of P2SH lock addresses, reduces the events to
+coordinator transitions, and persists the snapshot to disk. The
+watchtower reads the coordinator state and emits alerts on stop
+conditions. The observer never holds a key and never signs a
+transaction; the signing surface lives in the wallet adapter.
+
+#### Components
+
+- **EVM observer** (src/lib/evm-observer.ts) — classifies the
+  ConditionalLock event topics and emits per-fill event records.
+- **ZEC observer** (src/lib/zcash-observer.ts) — polls each P2SH
+  address for outpoints and classifies them as funded, claimed, or
+  refunded.
+- **Event reducers** (src/lib/evm-event-reducer.ts,
+  src/lib/zcash-event-reducer.ts) — turn the event records into
+  sorted sequences of mapped transitions.
+- **Transition mapper** (src/lib/transition-mapper.ts) — names a
+  transition per event kind and side.
+- **Coordinator** (src/lib/atomic-coordinator.ts) — applies
+  transitions, persists fills by id, and records rejected
+  transitions in the alert log.
+- **Snapshot and persistence**
+  (src/lib/coordinator-snapshot.ts,
+  src/lib/coordinator-persistence.ts) — JSON-on-disk snapshot with
+  atomic write and bootstrap-time marker.
+- **Watchtower** (src/lib/watchtower.ts) — emits
+  reorg-depth-exceeded, missing-terminal-event, and deadline-breach
+  alerts.
+- **Service** (services/atomic-swap-observer/) — wires the
+  observers, the coordinator, and the watchtower into one HTTP
+  process with /health, /state, /fills, /fills/:fillId,
+  /alerts, and /observe.
+
+### Public market data (PR 5)
+
+The public market data surface is four read-only HTTP endpoints
+on the matcher service. The surface is the public read-only view
+of the matcher operator's in-memory state. The surface is the
+companion to the paper-trading fixtures in src/lib/market-data.ts:
+the fixtures drive the no-value simulation; the new endpoints
+drive the live data once a real Sepolia deployment is recorded.
+
+#### Components
+
+- **Pure functions** (src/lib/market-data.ts) — 	ickerFromOperator,
+  	radesFromReceipts, depthFromBook, marketsFromOperator,
+  	opFills. The functions take the operator state and a clock
+  and return a typed snapshot. The functions never mutate the
+  operator.
+- **HTTP endpoints** (services/matcher/server.ts) — /ticker,
+  /trades?limit=N, /depth?levels=N, /markets. The
+  endpoints bound the limit and levels parameters to
+  prevent memory exhaustion.
+
+### Operations hardening (PR 6)
+
+The operations hardening surface is a set of pure-function
+libraries that the services consume and an HTTP layer that the
+operator calls. The surface is the single source of truth for
+the operator's on-call rotation.
+
+#### Components
+
+- **Metrics counter** (src/lib/metrics.ts) — in-memory counter
+  with Prometheus text rendering. Pure function over a state
+  record.
+- **SLO tracker** (src/lib/slo-tracker.ts) — rolling-window
+  compliance verdict for a service against a target SLO.
+- **Health aggregator** (src/lib/health-aggregator.ts) —
+  composes the health of every service into a single response.
+- **Alert router** (src/lib/alert-router.ts) — maps watchtower
+  alerts to channels (pagerduty, slack, email, log) based on
+  severity and service.
+
+### Final integration and audit prep (PR 7)
+
+The final integration surface is the set of pure-function
+libraries and documents that gate the project's readiness for
+the production deployment.
+
+#### Components
+
+- **Release readiness gate** (src/lib/release-readiness.ts) —
+  pure function that evaluates a collection of per-gate
+  results into a single verdict.
+- **Audit checklist** (src/lib/audit-checklist.ts) — pure
+  data structure with required, blocked, and owner tracking.
+- **Release readiness script** (scripts/release-readiness.mjs)
+  — runs the automated gates and prints the verdict.
+- **Audit checklist doc** (docs/audit/audit-checklist.md) —
+  canonical record of the audit surface.
+- **Release readiness evidence pack**
+  (docs/audit/release-readiness-evidence.md) — the source
+  of truth for the release verdict.
+- **Final integration report**
+  (docs/audit/final-integration-report.md) — summary of the
+  seven PRs that delivered the project.

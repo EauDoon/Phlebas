@@ -59,3 +59,46 @@ This register supports the reference design as reviewed on 30-08-2026. Runtime i
 - [Nado documentation](https://docs.nado.xyz/)
 
 These interface references inform hierarchy and density only. Phlebas uses its own assets, styling, copy, and interaction decisions.
+
+## Zcash lab references
+
+- [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf)
+- [ZIP 300 transparent P2SH atomic-swap protocol](https://zips.z.cash/zip-0300)
+- [ZIP 320 payment requests (TEX addresses)](https://zips.z.cash/zip-0320)
+- [ZIP 321 payment request URIs](https://zips.z.cash/zip-0321)
+- [BIP 16 pay-to-script-hash](https://github.com/bitcoin/bips/blob/master/bip-0016.mediawiki)
+- [BIP 65 OP_CHECKLOCKTIMEVERIFY](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)
+- [Bitcoin base58check encoding](https://en.bitcoin.it/wiki/Base58Check_encoding)
+- [Zcash transparent address encoding ZIP 316](https://zips.z.cash/zip-0316)
+- [RIPEMD-160 reference implementation and test vectors](https://homes.esat.kuleuven.be/~bosselae/ripemd160/)
+
+## Observer and watchtower references
+
+- [Ethereum JSON-RPC specification (eth_getLogs)](https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_getlogs)
+- [EIP-20 token standard (event semantics)](https://eips.ethereum.org/EIPS/eip-20)
+- [Zebrad Zcash full-node reference](https://github.com/ZcashFoundation/zebra)
+- [Zcash light-clientd reference](https://github.com/zcash/lightwalletd)
+- [Google SRE book, chapter on alert design](https://sre.google/sre-book/monitoring-distributed-systems/)
+- [Elastic Common Schema (ECS) field reference for observability](https://www.elastic.co/guide/en/ecs/current/ecs-reference.html)
+
+## Public market data references
+
+- [O'Reilly "Designing Data-Intensive Applications" chapter on stream processing](https://dataintensive.net/)
+- [WebSocket API (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
+- [Server-Sent Events (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)
+- [Coinbase Exchange public market data API reference](https://docs.cdp.coinbase.com/exchange/docs/rest-overview)
+- [Binance public market data WebSocket reference](https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams)
+
+## Operations hardening references
+
+- [Prometheus exposition format specification](https://prometheus.io/docs/instrumenting/exposition_formats/)
+- [Google SRE workbook, chapter on SLO engineering](https://sre.google/workbook/alerting-on-slos/)
+- [PagerDuty incident response reference](https://response.pagerduty.com/)
+- [Atlassian incident response handbook](https://www.atlassian.com/incident-management/handbook)
+
+## Final integration and audit prep references
+
+- [OWASP Application Security Verification Standard (ASVS)](https://owasp.org/www-project-application-security-verification-standard/)
+- [NIST SP 800-53 security and privacy controls](https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final)
+- [CIS Critical Security Controls](https://www.cisecurity.org/controls)
+- [Google SRE release engineering chapter](https://sre.google/sre-book/release-engineering/)
