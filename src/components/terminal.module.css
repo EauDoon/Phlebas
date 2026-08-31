@@ -64,6 +64,10 @@
   min-height: 44px;
 }
 
+#missing-route p {
+  min-height: 44px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
