@@ -23,6 +23,7 @@ test("status page links to legal and security without a live-funds claim", async
   assert.match(statusPage, /href="\/security"/);
   assert.match(statusPage, /href="\/trade\?view=architecture"/);
   assert.match(statusPage, /href="\/#launch-gates"/);
+  assert.match(statusPage, /from "next\/link"/);
   assert.match(statusPage, /No live funds or custody/);
   assert.doesNotMatch(statusPage, /is audited/);
 });

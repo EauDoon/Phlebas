@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { SimulationFrame } from "@/components/simulation-frame";
 import { simulationStatus } from "@/lib/status";
@@ -35,13 +36,13 @@ export default function StatusPage() {
         Machine-readable copy: <a href="/api/status">/api/status</a>
       </p>
       <p>
-        Boundary pages: <a href="/legal">Legal and compliance</a>
+        Boundary pages: <Link href="/legal">Legal and compliance</Link>
         {" · "}
-        <a href="/security">Security</a>
+        <Link href="/security">Security</Link>
         {" · "}
-        <a href="/trade?view=architecture">Architecture</a>
+        <Link href="/trade?view=architecture">Architecture</Link>
         {" · "}
-        <a href="/#launch-gates">Launch gates</a>
+        <Link href="/#launch-gates">Launch gates</Link>
       </p>
     </SimulationFrame>
   );
