@@ -14,7 +14,9 @@ export function SimulationFrame({
 }) {
   return (
     <div className={styles.shell}>
-      <a className={styles.skipLink} href="#main-content">Skip to main content</a>
+      <nav className={styles.skipNav} aria-label="Skip links">
+        <a className={styles.skipLink} href="#main-content">Skip to main content</a>
+      </nav>
       <div className={styles.simulationBanner} role="status">
         <strong>Simulation only</strong>
         <span>No-value simulation. Optional Sepolia wallet and local testnet services do not move mainnet funds.</span>
@@ -41,6 +43,7 @@ export function SimulationFrame({
         <nav aria-label="Footer">
           <Link href="/trade?view=architecture">Architecture</Link>
           <Link href="/legal">Legal and compliance</Link>
+          <Link href="/#launch-gates">Launch gates</Link>
           <Link href="/security">Security</Link>
           <Link href="/status">Status</Link>
         </nav>

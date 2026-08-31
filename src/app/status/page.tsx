@@ -48,6 +48,9 @@ export default function StatusPage() {
         {" · "}
         <Link href="/#launch-gates">Launch gates</Link>
       </p>
+      <p>
+        Architecture includes labeled incident demonstrations for blocked access, review, reorg, planned maintenance, and unplanned maintenance. They are copy-only. This status page is not an incident feed.
+      </p>
     </SimulationFrame>
   );
 }
