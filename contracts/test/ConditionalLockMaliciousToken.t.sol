@@ -196,7 +196,7 @@ contract ConditionalLockMaliciousTokenTest is ConditionalLockTestBase {
     function testUnsolicitedDonationCannotChangeExactPayoutOrBeSwept() public {
         uint256 donation = 7e6;
         vm.prank(funder);
-        quoteToken.transfer(address(conditionalLock), donation);
+        assertTrue(quoteToken.transfer(address(conditionalLock), donation));
 
         _fund(conditionalLock, AMOUNT);
         vm.prank(claimRecipient);
