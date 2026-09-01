@@ -246,6 +246,49 @@ function controlReceipt(
   };
 }
 
+test("disabled control confirmation performs no fetch or provider calls", async () => {
+  const fetchCalls: string[] = [];
+  const providerCalls: string[] = [];
+  const fetcher: MatcherControlFetch = async (path) => {
+    fetchCalls.push(String(path));
+    throw new Error("must not fetch");
+  };
+  await assert.rejects(
+    () => confirmMatcherOrderControl({
+      fetch: fetcher,
+      provider: provider(providerCalls, () => null),
+      review: freeze({ deployment: NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT }) as ReviewedMatcherOrderControl,
+    }),
+    (error: unknown) => error instanceof MatcherOrderControlWorkflowError
+      && error.phase === "before-sign"
+      && /disabled by the deployment manifest/.test(error.message),
+  );
+  assert.deepEqual(fetchCalls, []);
+  assert.deepEqual(providerCalls, []);
+});
+
+test("control review rejects mismatched matcher health before any wallet request", async () => {
+  const active = deployment();
+  const artifact = await confirmedOrder(await reviewedOrder(active));
+  const providerCalls: string[] = [];
+  const fetcher: MatcherControlFetch = async (path) => {
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC") return json({ ...health(active), custody: true });
+    throw new Error(String(path));
+  };
+  await assert.rejects(
+    () => reviewMatcherOrderCancellation({
+      artifact,
+      provider: provider(providerCalls, () => null),
+      fetch: fetcher,
+      occurredAt: NOW + 1n,
+    }),
+    (error: unknown) => error instanceof MatcherOrderControlWorkflowError
+      && error.phase === "before-sign"
+      && /no-value non-custodial/.test(error.message),
+  );
+  assert.deepEqual(providerCalls, []);
+});
+
 test("forged or copied epoch artifacts perform no fetch or provider calls", async () => {
   const enabledOrder = await reviewedOrder();
   const disabledReview = freeze({ ...enabledOrder, deployment: NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT });

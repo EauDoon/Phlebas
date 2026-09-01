@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -194,4 +195,21 @@ test("session invalidation copy is allowlisted and contains no provider diagnost
     "Wallet disconnected. Reconnect to continue.",
   );
   assert.equal(WALLET_SESSION_EVENTS_REQUIRED_COPY, "Wallet cannot monitor account and network changes.");
+  for (const copy of [
+    WALLET_SESSION_EVENTS_REQUIRED_COPY,
+    walletSessionInvalidationCopy({ event: "accountsChanged", reason: "account-changed" }),
+    walletSessionInvalidationCopy({ event: "chainChanged", reason: "chain-changed" }),
+    walletSessionInvalidationCopy({ event: "disconnect", reason: "provider-disconnected" }),
+  ]) {
+    assert.doesNotMatch(copy, /sepolia|arbitrum|submit|seed|spend(?:ing)? key/i);
+  }
+});
+
+test("session helper observes account, chain, and disconnect without a submit path", async () => {
+  const source = await readFile(new URL("./evm-wallet-session.ts", import.meta.url), "utf8");
+  assert.match(source, /accountsChanged/);
+  assert.match(source, /chainChanged/);
+  assert.match(source, /disconnect/);
+  assert.match(source, /Ethereum Mainnet/);
+  assert.doesNotMatch(source, /sepolia|arbitrum|eth_sendTransaction|eth_signTypedData_v4/i);
 });

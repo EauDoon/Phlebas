@@ -56,6 +56,8 @@ test("recovery verification uses the EIP-712 digest and maker authority", () => 
 
 test("recovery authorization is canonical, immutable, and strictly bounded", () => {
   const canonical = canonicalMatcherAccountRecoveryAuthorization(authorization);
+  assert.equal("signature" in canonical, false);
+  assert.equal("signature" in typedMatcherAccountRecoveryData(domain, authorization).message, false);
   assert.equal(Object.isFrozen(canonical), true);
   assert.equal(
     canonicalMatcherAccountRecoveryAuthorization({ ...authorization, makerAccountId: `0x${"AA".repeat(32)}` }).makerAccountId,

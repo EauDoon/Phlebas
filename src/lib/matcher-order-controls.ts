@@ -121,6 +121,8 @@ function isDeepFrozen(value: unknown, visited = new WeakSet<object>()): boolean 
 
 function assertEnabledDeployment(deployment: MatcherMarketDeployment): void {
   if (deployment.enabled !== true
+    || deployment.state !== "enabled"
+    || deployment.configured !== true
     || deployment.deployed !== true
     || deployment.submissionEnabled !== true
     || deployment.expectedMatcher === null
@@ -389,15 +391,19 @@ export async function reviewMatcherOrderCancellation(
   try {
     const review = orderArtifactReview(input.artifact, true);
     const deployment = review.deployment;
+    const expectedMatcher = deployment.expectedMatcher;
+    if (expectedMatcher === null) {
+      throw new MatcherOrderControlWorkflowError("before-sign", "Native matcher order control is disabled by the deployment manifest");
+    }
     const health = await jsonResponse(input.fetch, healthPath(deployment), { method: "GET", cache: "no-store" });
+    assertMatcherHealthIdentity(health, expectedMatcher);
     const wallet = await connectMatcherWallet(input.provider, deployment);
     const makerAccountId = evmAuthorizedSignerId(deployment.orderDomain!.chainId, wallet.address);
     if (makerAccountId !== review.makerAccountId || wallet.address !== review.wallet.address) {
       throw new Error("Connected wallet does not match the confirmed matcher order artifact");
     }
     const accountValue = await jsonResponse(input.fetch, accountPath(deployment, makerAccountId), { method: "GET", cache: "no-store" });
-    const account = assertMatcherAccountIdentity(accountValue, deployment.expectedMatcher!, makerAccountId);
-    assertMatcherHealthIdentity(health, deployment.expectedMatcher!);
+    const account = assertMatcherAccountIdentity(accountValue, expectedMatcher, makerAccountId);
     if (account.accountEpoch !== review.draft.order.accountEpoch) {
       throw new Error("Confirmed matcher order is no longer in the active account epoch");
     }
@@ -431,15 +437,19 @@ export async function reviewMatcherAccountEpochAdvance(
   try {
     const prior = orderArtifactReview(input.artifact, false);
     const deployment = prior.deployment;
+    const expectedMatcher = deployment.expectedMatcher;
+    if (expectedMatcher === null) {
+      throw new MatcherOrderControlWorkflowError("before-sign", "Native matcher order control is disabled by the deployment manifest");
+    }
     const health = await jsonResponse(input.fetch, healthPath(deployment), { method: "GET", cache: "no-store" });
+    assertMatcherHealthIdentity(health, expectedMatcher);
     const wallet = await connectMatcherWallet(input.provider, deployment);
     const makerAccountId = evmAuthorizedSignerId(deployment.orderDomain!.chainId, wallet.address);
     if (makerAccountId !== prior.makerAccountId || wallet.address !== prior.wallet.address) {
       throw new Error("Connected wallet does not match the confirmed matcher order artifact");
     }
     const accountValue = await jsonResponse(input.fetch, accountPath(deployment, makerAccountId), { method: "GET", cache: "no-store" });
-    const account = assertMatcherAccountIdentity(accountValue, deployment.expectedMatcher!, makerAccountId);
-    assertMatcherHealthIdentity(health, deployment.expectedMatcher!);
+    const account = assertMatcherAccountIdentity(accountValue, expectedMatcher, makerAccountId);
     const control = createMatcherAccountEpochAdvanceControl({
       makerAccountId,
       currentEpoch: account.accountEpoch,

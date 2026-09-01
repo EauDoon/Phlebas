@@ -8,6 +8,7 @@ import {
   parseNativeZecUsdcMatcherManifest,
 } from "./native-zec-usdc-matcher-manifest.ts";
 import {
+  NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT,
   NATIVE_ZEC_USDT_MATCHER_MANIFEST,
   computeNativeZecUsdtMatcherConfigurationHash,
   parseNativeZecUsdtMatcherManifest,
@@ -98,8 +99,32 @@ function validInput(overrides: Partial<MatcherBuyOrderDraftInput> = {}): Matcher
 }
 
 test("fails closed when the native matcher manifest is disabled", () => {
-  const input = validInput({ deployment: NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT });
-  assert.throws(() => buildMatcherBuyOrderDraft(input), /not enabled/);
+  assert.throws(
+    () => buildMatcherBuyOrderDraft(validInput({ deployment: NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT })),
+    /not enabled/,
+  );
+  assert.throws(
+    () => buildMatcherBuyOrderDraft(validInput({ deployment: NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT })),
+    /not enabled/,
+  );
+});
+
+test("fails closed when matcher health reports custody or live value", () => {
+  const input = validInput();
+  assert.throws(
+    () => buildMatcherBuyOrderDraft({
+      ...input,
+      matcherHealth: { ...(input.matcherHealth as object), custody: true },
+    }),
+    /no-value non-custodial/,
+  );
+  assert.throws(
+    () => buildMatcherBuyOrderDraft({
+      ...input,
+      matcherHealth: { ...(input.matcherHealth as object), mode: "live" },
+    }),
+    /no-value non-custodial/,
+  );
 });
 
 test("requires the exact selected manifest market and only constructs the buy-side CLOB GTC order", () => {

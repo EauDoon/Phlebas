@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { cancelOrder, emptyBook, expireRestingOrders, levelsFromBook, orderExpired, submitOrder } from "./matcher.ts";
+import { cancelOrder, emptyBook, expireRestingOrders, levelsFromBook, orderExpired, submitOrder, type TimeInForce } from "./matcher.ts";
 
 function seed() {
   let book = emptyBook(5284n);
@@ -234,4 +234,83 @@ test("submitOrder rests an unexpired GTC and expireRestingOrders drops it later"
   assert.equal(swept.expired.length, 1);
   assert.equal(swept.expired[0]?.id, "maker");
   assert.equal(swept.book.asks.length, 0);
+});
+
+test("price-time fills a better later ask before an earlier worse ask", () => {
+  let book = emptyBook(5284n);
+  book = submitOrder(book, { id: "worse-old", side: "sell", tif: "GTC", priceTicks: 5297n, sizeAtoms: 1_00000000n }).book;
+  book = submitOrder(book, { id: "better-new", side: "sell", tif: "GTC", priceTicks: 5291n, sizeAtoms: 1_00000000n }).book;
+  const result = submitOrder(book, { id: "taker", side: "buy", tif: "IOC", priceTicks: 5297n, sizeAtoms: 1_00000000n });
+  assert.equal(result.status, "filled");
+  assert.equal(result.fills.length, 1);
+  assert.equal(result.fills[0]?.makerId, "better-new");
+  assert.equal(result.fills[0]?.priceTicks, 5291n);
+});
+
+test("a sell never fills below its limit and uses bid time priority", () => {
+  let book = emptyBook(5284n);
+  book = submitOrder(book, { id: "low-old", side: "buy", tif: "GTC", priceTicks: 5270n, sizeAtoms: 1_00000000n }).book;
+  book = submitOrder(book, { id: "high-old", side: "buy", tif: "GTC", priceTicks: 5278n, sizeAtoms: 1_00000000n }).book;
+  book = submitOrder(book, { id: "high-new", side: "buy", tif: "GTC", priceTicks: 5278n, sizeAtoms: 1_00000000n }).book;
+  const missed = submitOrder(book, { id: "taker", side: "sell", tif: "IOC", priceTicks: 5280n, sizeAtoms: 1_00000000n });
+  assert.equal(missed.fills.length, 0);
+  assert.equal(missed.status, "cancelled");
+  const filled = submitOrder(book, { id: "taker", side: "sell", tif: "IOC", priceTicks: 5278n, sizeAtoms: 1_00000000n });
+  assert.equal(filled.status, "filled");
+  assert.equal(filled.fills[0]?.makerId, "high-old");
+  assert.equal(filled.fills[0]?.priceTicks, 5278n);
+});
+
+test("IOC remainder cancel leaves no resting taker and does not mutate the input book", () => {
+  const book = seed();
+  const askAtoms = book.asks.map((order) => order.remainingAtoms);
+  const result = submitOrder(book, { id: "taker", side: "buy", tif: "IOC", priceTicks: 5291n, sizeAtoms: 12_00000000n });
+  assert.equal(result.status, "cancelled");
+  assert.equal(result.remainingAtoms, 2_00000000n);
+  assert.equal(result.book.bids.some((order) => order.id === "taker"), false);
+  assert.deepEqual(book.asks.map((order) => order.remainingAtoms), askAtoms);
+  assert.equal(result.book.asks.some((order) => order.id === "ask-1"), false);
+  assert.equal(result.book.asks[0]?.remainingAtoms, 5_00000000n);
+  assert.equal("swapPlan" in result, false);
+  assert.equal("quoteAtoms" in result, false);
+  assert.deepEqual(Object.keys(result.fills[0] ?? {}).sort(), ["makerId", "priceTicks", "sizeAtoms", "takerSide"]);
+});
+
+test("FOK miss rejects atomically without fills, book mutation, or last-tick movement", () => {
+  const book = seed();
+  const lastTicks = book.lastTicks;
+  const result = submitOrder(book, { id: "taker", side: "buy", tif: "FOK", priceTicks: 5291n, sizeAtoms: 12_00000000n });
+  assert.equal(result.status, "rejected");
+  assert.equal(result.reason, "Fill-or-kill could not fill in full");
+  assert.equal(result.fills.length, 0);
+  assert.equal(result.remainingAtoms, 12_00000000n);
+  assert.equal(result.book, book);
+  assert.equal(result.book.lastTicks, lastTicks);
+  assert.equal(book.asks[0]?.remainingAtoms, 10_00000000n);
+});
+
+test("GTC remainder can be cancelled without removing other resting orders", () => {
+  const book = seed();
+  const open = submitOrder(book, { id: "taker", side: "buy", tif: "GTC", priceTicks: 5291n, sizeAtoms: 12_00000000n });
+  assert.equal(open.status, "open");
+  assert.equal(open.book.bids.some((order) => order.id === "taker"), true);
+  const cancelled = cancelOrder(open.book, "taker");
+  assert.equal(cancelled.bids.some((order) => order.id === "taker"), false);
+  assert.equal(cancelled.asks.some((order) => order.id === "ask-2"), true);
+  assert.equal(open.book.bids.some((order) => order.id === "taker"), true);
+});
+
+test("rejects an unknown time in force without matching", () => {
+  const book = seed();
+  const result = submitOrder(book, {
+    id: "taker",
+    side: "buy",
+    tif: "DAY" as TimeInForce,
+    priceTicks: 5291n,
+    sizeAtoms: 1_00000000n,
+  });
+  assert.equal(result.status, "rejected");
+  assert.equal(result.reason, "Time in force is invalid");
+  assert.equal(result.fills.length, 0);
+  assert.equal(result.book, book);
 });

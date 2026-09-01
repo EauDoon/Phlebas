@@ -19,6 +19,7 @@ import { NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT } from "./native-zec-usdt-matcher-ma
 test("tracked disabled manifest leaves the native action inert", () => {
   const state = nativeMatcherOrderActionState("ZEC/USDC", NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT);
 
+  assert.equal(Object.isFrozen(state), true);
   assert.deepEqual(state, {
     kind: "manifest-disabled",
     heading: NATIVE_MATCHER_UNAVAILABLE_HEADING,
@@ -26,6 +27,31 @@ test("tracked disabled manifest leaves the native action inert", () => {
     sellNotice: NATIVE_MATCHER_SELL_UNSUPPORTED_COPY,
   });
   assert.match(state.message, /No wallet connection, signature, token approval, or transaction will be requested\./);
+});
+
+test("an injected workflow cannot enable tracked public-preview manifests", () => {
+  for (const [marketId, deployment] of [
+    ["ZEC/USDC", NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT],
+    ["ZEC/USDT", NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT],
+  ] as const) {
+    const state = nativeMatcherOrderActionState(marketId, deployment, true);
+    assert.equal(state.kind, "manifest-disabled");
+    assert.equal(Object.isFrozen(state), true);
+    assert.doesNotMatch(state.message, /live funds|mainnet funds|deposit|withdraw/i);
+  }
+
+  const inconsistent = {
+    ...NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+    enabled: true,
+    deployed: true,
+    submissionEnabled: false,
+    configured: true,
+    state: "enabled" as const,
+    configurationHash: `0x${"11".repeat(32)}`,
+    orderDomain: {},
+    expectedMatcher: {},
+  };
+  assert.equal(nativeMatcherOrderActionState("ZEC/USDC", inconsistent, true).kind, "manifest-disabled");
 });
 
 test("tracked USDT manifest leaves the ZEC/USDT action inert", () => {
@@ -145,6 +171,10 @@ test("disabled native copy keeps the sell-side authorization boundary explicit",
     "Buy intents only. ZEC sell-side submission remains unavailable because no Zcash wallet authorization format is integrated.",
   );
   assert.doesNotMatch(NATIVE_MATCHER_DISABLED_COPY, /eth_sendTransaction|approve\(/i);
+  assert.doesNotMatch(NATIVE_MATCHER_DISABLED_COPY, /live funds|mainnet funds|deposit|withdraw/i);
+  assert.doesNotMatch(NATIVE_MATCHER_USDT_DISABLED_COPY, /live funds|mainnet funds|deposit|withdraw/i);
+  assert.doesNotMatch(NATIVE_MATCHER_WORKFLOW_READY_COPY, /live funds|mainnet funds|deposit|withdraw/i);
+  assert.match(NATIVE_MATCHER_WORKFLOW_READY_COPY, /never requests token approval or transaction submission/);
 });
 
 test("standalone disabled surface imports no provider, fetch, or signing path", async () => {

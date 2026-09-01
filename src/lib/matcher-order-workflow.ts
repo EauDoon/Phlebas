@@ -104,6 +104,8 @@ function deepFreeze<T>(value: T): T {
 
 function assertEnabledDeployment(deployment: MatcherMarketDeployment): void {
   if (deployment.enabled !== true
+    || deployment.state !== "enabled"
+    || deployment.configured !== true
     || deployment.deployed !== true
     || deployment.submissionEnabled !== true
     || deployment.expectedMatcher === null
@@ -296,7 +298,12 @@ async function postSignedMatcherOrder(signed: SignedMatcherOrderPost, fetcher: M
 export async function reviewMatcherBuyOrder(input: ReviewMatcherBuyOrderInput): Promise<ReviewedMatcherBuyOrder> {
   assertEnabledDeployment(input.deployment);
   try {
+    const expectedMatcher = input.deployment.expectedMatcher;
+    if (expectedMatcher === null) {
+      throw new MatcherOrderWorkflowError("before-sign", "Native matcher order review is disabled by the deployment manifest");
+    }
     const health = await jsonResponse(input.fetch, healthPath(input.deployment), { method: "GET", cache: "no-store" });
+    assertMatcherHealthIdentity(health, expectedMatcher);
     const wallet = await connectMatcherWallet(input.provider, input.deployment);
     const makerAccountId = evmAuthorizedSignerId(input.deployment.orderDomain!.chainId, wallet.address);
     const account = await jsonResponse(input.fetch, accountPath(input.deployment, makerAccountId), { method: "GET", cache: "no-store" });

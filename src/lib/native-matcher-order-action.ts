@@ -227,12 +227,12 @@ export function nativeMatcherOrderActionState(
   const exactIdentity = (identity.id === "ZEC/USDC" && identity.settlementPair === "ZEC-USDC")
     || (identity.id === "ZEC/USDT" && identity.settlementPair === "ZEC-USDT");
   if (!exactIdentity || marketId !== identity.id) {
-    return {
+    return deepFreeze({
       kind: "manifest-mismatch",
       heading: NATIVE_MATCHER_UNAVAILABLE_HEADING,
       message: NATIVE_MATCHER_MARKET_MISMATCH_COPY,
       sellNotice: NATIVE_MATCHER_SELL_UNSUPPORTED_COPY,
-    };
+    });
   }
 
   if (!deployment.enabled
@@ -243,29 +243,29 @@ export function nativeMatcherOrderActionState(
     || deployment.configurationHash === null
     || deployment.orderDomain === null
     || deployment.expectedMatcher === null) {
-    return {
+    return deepFreeze({
       kind: "manifest-disabled",
       heading: NATIVE_MATCHER_UNAVAILABLE_HEADING,
       message: deployment.deployed || deployment.submissionEnabled
         ? `Native matcher submission is unavailable. The ${marketId} deployment manifest does not permit submission. No wallet connection, signature, token approval, or transaction will be requested.`
         : disabledCopy(marketId),
       sellNotice: NATIVE_MATCHER_SELL_UNSUPPORTED_COPY,
-    };
+    });
   }
 
   if (workflowAvailable) {
-    return {
+    return deepFreeze({
       kind: "workflow-ready",
       heading: NATIVE_MATCHER_REVIEW_HEADING,
       message: NATIVE_MATCHER_WORKFLOW_READY_COPY,
       sellNotice: NATIVE_MATCHER_SELL_UNSUPPORTED_COPY,
-    };
+    });
   }
 
-  return {
+  return deepFreeze({
     kind: "workflow-unavailable",
     heading: NATIVE_MATCHER_UNAVAILABLE_HEADING,
     message: NATIVE_MATCHER_WORKFLOW_UNAVAILABLE_COPY,
     sellNotice: NATIVE_MATCHER_SELL_UNSUPPORTED_COPY,
-  };
+  });
 }

@@ -2,6 +2,10 @@ import type { Eip1193Provider } from "./evm-wallet.ts";
 import { signTypedMatcherAccountRecovery } from "./evm-wallet.ts";
 import { typedMatcherAccountRecoveryData } from "./matcher-account-recovery.ts";
 import { evmAuthorizedSignerId } from "./matcher-auth.ts";
+import {
+  assertMatcherAccountRecoveryPage,
+  type VerifiedMatcherAccountRecoveryOrder,
+} from "./matcher-client.ts";
 import type { MatcherMarketDeployment } from "./matcher-market-routing.ts";
 import { connectMatcherWallet, type MatcherWalletConnection } from "./matcher-wallet.ts";
 import { normalizeHex32, type Hex32 } from "./order-domain.ts";
@@ -15,20 +19,7 @@ export type MatcherAccountRecoveryFetch = (
   init?: RequestInit,
 ) => Promise<Response>;
 
-export type RecoveredMatcherOpenOrder = Readonly<{
-  version: 1;
-  orderHash: Hex32;
-  acceptedSequence: bigint;
-  makerAccountId: Hex32;
-  authorizedSignerId: Hex32;
-  accountEpoch: bigint;
-  nonce: bigint;
-  currentStatus: "open" | "partially-filled";
-  baseAmountAtoms: bigint;
-  remainingBaseAtoms: bigint;
-  limitPriceTicks: bigint;
-  expiry: bigint;
-}>;
+export type RecoveredMatcherOpenOrder = VerifiedMatcherAccountRecoveryOrder;
 
 export type RecoveredMatcherAccountOrders = Readonly<{
   version: 1;
@@ -185,51 +176,6 @@ function sameCheckpoint(
     && left.configurationHash === right.configurationHash;
 }
 
-function recoveredOrder(
-  value: unknown,
-  makerAccountId: Hex32,
-  accountEpoch: bigint,
-  afterSequence: bigint,
-  checkpointSequence: bigint,
-): RecoveredMatcherOpenOrder {
-  const input = exactRecord(value, [
-    "version", "orderHash", "acceptedSequence", "makerAccountId", "authorizedSignerId",
-    "accountEpoch", "nonce", "currentStatus", "baseAmountAtoms", "remainingBaseAtoms",
-    "limitPriceTicks", "expiry",
-  ], "Recovered matcher order");
-  const acceptedSequence = decimal(input.acceptedSequence, "Recovered matcher order sequence");
-  const baseAmountAtoms = decimal(input.baseAmountAtoms, "Recovered matcher base amount");
-  const remainingBaseAtoms = decimal(input.remainingBaseAtoms, "Recovered matcher remaining amount");
-  const limitPriceTicks = decimal(input.limitPriceTicks, "Recovered matcher price");
-  const recoveredEpoch = decimal(input.accountEpoch, "Recovered matcher account epoch");
-  if (input.version !== 1
-    || input.makerAccountId !== makerAccountId
-    || input.authorizedSignerId !== makerAccountId
-    || recoveredEpoch !== accountEpoch
-    || (input.currentStatus !== "open" && input.currentStatus !== "partially-filled")
-    || acceptedSequence <= afterSequence || acceptedSequence > checkpointSequence
-    || baseAmountAtoms <= 0n || remainingBaseAtoms <= 0n || remainingBaseAtoms > baseAmountAtoms
-    || limitPriceTicks <= 0n
-    || (input.currentStatus === "open" && remainingBaseAtoms !== baseAmountAtoms)
-    || (input.currentStatus === "partially-filled" && remainingBaseAtoms >= baseAmountAtoms)) {
-    throw new Error("Recovered matcher order does not match the authorized account page");
-  }
-  return deepFreeze({
-    version: 1 as const,
-    orderHash: hex32(input.orderHash, "Recovered matcher order hash"),
-    acceptedSequence,
-    makerAccountId,
-    authorizedSignerId: makerAccountId,
-    accountEpoch,
-    nonce: decimal(input.nonce, "Recovered matcher order nonce"),
-    currentStatus: input.currentStatus,
-    baseAmountAtoms,
-    remainingBaseAtoms,
-    limitPriceTicks,
-    expiry: decimal(input.expiry, "Recovered matcher order expiry"),
-  });
-}
-
 export async function recoverMatcherAccountOrders(
   input: RecoverMatcherAccountOrdersInput,
 ): Promise<RecoveredMatcherAccountOrders> {
@@ -241,6 +187,7 @@ export async function recoverMatcherAccountOrders(
   const wallet = await connectMatcherWallet(input.provider, input.deployment);
   const domain = input.deployment.orderDomain!;
   const configurationHash = input.deployment.configurationHash!;
+  const expectedMatcher = input.deployment.expectedMatcher!;
   const makerAccountId = evmAuthorizedSignerId(domain.chainId, wallet.address);
   const orders: RecoveredMatcherOpenOrder[] = [];
   const orderHashes = new Set<Hex32>();
@@ -308,42 +255,26 @@ export async function recoverMatcherAccountOrders(
       expiresAtSeconds: expiresAtSeconds.toString(),
       signature: signature.toLowerCase(),
     });
-    const page = exactRecord(pageValue, [
-      "ok", "makerAccountId", "configurationHash", "accountEpoch", "afterSequence",
-      "nextAfter", "hasMore", "checkpoint", "orders",
-    ], "Matcher recovery order page");
-    const pageCheckpoint = checkpoint(page.checkpoint, configurationHash);
-    const accountEpoch = decimal(page.accountEpoch, "Matcher recovery account epoch");
-    const nextAfter = decimal(page.nextAfter, "Matcher recovery next cursor");
-    if (page.ok !== true
-      || page.makerAccountId !== makerAccountId
-      || page.configurationHash !== configurationHash
-      || decimal(page.afterSequence, "Matcher recovery page cursor") !== afterSequence
-      || typeof page.hasMore !== "boolean"
-      || !Array.isArray(page.orders)
-      || page.orders.length > limit
-      || !sameCheckpoint(challengeCheckpoint, pageCheckpoint)
-      || (approvedEpoch !== null && approvedEpoch !== accountEpoch)) {
+    const page = assertMatcherAccountRecoveryPage(pageValue, {
+      expectedMatcher,
+      makerAccountId,
+      afterSequence,
+      limit,
+      checkpoint: challengeCheckpoint,
+    });
+    if (approvedEpoch !== null && approvedEpoch !== page.accountEpoch) {
       throw new Error("Matcher recovery order page does not match its signed challenge");
     }
-    approvedEpoch ??= accountEpoch;
-    let priorSequence = afterSequence;
-    for (const value of page.orders) {
-      const order = recoveredOrder(value, makerAccountId, accountEpoch, afterSequence, pageCheckpoint.sequence);
-      if (order.acceptedSequence <= priorSequence || orderHashes.has(order.orderHash) || nonces.has(order.nonce)) {
+    approvedEpoch ??= page.accountEpoch;
+    for (const order of page.orders) {
+      if (orderHashes.has(order.orderHash) || nonces.has(order.nonce)) {
         throw new Error("Matcher recovery returned duplicate or non-monotonic orders");
       }
-      priorSequence = order.acceptedSequence;
       orderHashes.add(order.orderHash);
       nonces.add(order.nonce);
       orders.push(order);
     }
-    if (nextAfter !== (page.orders.length > 0 ? priorSequence : afterSequence)
-      || nextAfter > pageCheckpoint.sequence
-      || (page.hasMore && page.orders.length !== limit)) {
-      throw new Error("Matcher recovery page cursor is inconsistent");
-    }
-    afterSequence = nextAfter;
+    afterSequence = page.nextAfter;
     if (!page.hasMore) {
       return deepFreeze({
         version: 1,
@@ -351,10 +282,10 @@ export async function recoverMatcherAccountOrders(
         wallet,
         makerAccountId,
         configurationHash,
-        accountEpoch,
+        accountEpoch: page.accountEpoch,
         checkpoint: approvedCheckpoint,
         afterSequence: initialAfter,
-        nextAfter,
+        nextAfter: page.nextAfter,
         orders,
       });
     }

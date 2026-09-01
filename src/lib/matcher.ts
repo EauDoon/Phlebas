@@ -132,6 +132,10 @@ export function expireRestingOrders(book: Book, nowUnix: bigint): { book: Book; 
   return { book: next, expired };
 }
 
+function isTimeInForce(value: string): value is TimeInForce {
+  return value === "GTC" || value === "IOC" || value === "FOK";
+}
+
 export function submitOrder(
   book: Book,
   order: {
@@ -144,6 +148,9 @@ export function submitOrder(
     nowUnix?: bigint;
   },
 ): SubmitResult {
+  if (!isTimeInForce(order.tif)) {
+    return { book, fills: [], remainingAtoms: order.sizeAtoms, status: "rejected", reason: "Time in force is invalid" };
+  }
   if (orderExpired(order.expiryUnix, order.nowUnix)) {
     return { book, fills: [], remainingAtoms: order.sizeAtoms, status: "rejected", reason: "Order expiry has passed" };
   }
@@ -172,6 +179,9 @@ export function submitOrder(
   }
   if (order.tif === "IOC") {
     return { book: next, fills: matched.fills, remainingAtoms: matched.remainingAtoms, status: "cancelled" };
+  }
+  if (order.tif === "FOK") {
+    return { book, fills: [], remainingAtoms: order.sizeAtoms, status: "rejected", reason: "Fill-or-kill could not fill in full" };
   }
   if (matched.blockedByDust) {
     return {

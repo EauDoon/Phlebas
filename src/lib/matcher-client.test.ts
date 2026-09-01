@@ -12,6 +12,7 @@ import {
   MATCHER_ORDER_OPERATION,
   MatcherOrderClientError,
   assertMatcherAccountIdentity,
+  assertMatcherAccountRecoveryPage,
   assertMatcherControlReceipt,
   assertMatcherHealthIdentity,
   assertMatcherOrderReceipt,
@@ -904,5 +905,134 @@ test("rejects control receipts with drifted request, control, status, or checkpo
   assert.throws(
     () => assertMatcherControlReceipt({ ...base, privateDetail: "must reject" }, expectation),
     /missing or unsupported fields/,
+  );
+});
+
+test("accepts a signature-free account recovery page bound to the approved matcher", () => {
+  const checkpoint = {
+    version: 1 as const,
+    sequence: 7n,
+    recordHash: `0x${"bc".repeat(32)}` as `0x${string}`,
+    stateRoot: `0x${"ab".repeat(32)}` as `0x${string}`,
+    configurationHash: expectedMatcher.configurationHash,
+  };
+  const page = {
+    ok: true,
+    makerAccountId: order.makerAccountId,
+    configurationHash: expectedMatcher.configurationHash,
+    accountEpoch: "0",
+    afterSequence: "0",
+    nextAfter: "7",
+    hasMore: false,
+    checkpoint: matcherAccount.checkpoint,
+    orders: [{
+      version: 1,
+      orderHash: `0x${"44".repeat(32)}`,
+      acceptedSequence: "7",
+      makerAccountId: order.makerAccountId,
+      authorizedSignerId: order.makerAccountId,
+      accountEpoch: "0",
+      nonce: "1",
+      currentStatus: "open",
+      baseAmountAtoms: "100000000",
+      remainingBaseAtoms: "100000000",
+      limitPriceTicks: "650000",
+      expiry: "1800000600",
+    }],
+  };
+  const verified = assertMatcherAccountRecoveryPage(page, {
+    expectedMatcher,
+    makerAccountId: order.makerAccountId,
+    afterSequence: 0n,
+    limit: 10,
+    checkpoint,
+  });
+  assert.equal(verified.orders.length, 1);
+  assert.equal(verified.orders[0]?.acceptedSequence, 7n);
+  assert.equal(verified.nextAfter, 7n);
+  assert.equal(verified.hasMore, false);
+  assert.equal("signature" in verified, false);
+  assert.equal("signature" in verified.orders[0]!, false);
+  assert.equal(JSON.stringify(verified, (_key, value) => typeof value === "bigint" ? value.toString() : value).includes("signature"), false);
+  assert.equal(Object.isFrozen(verified), true);
+  assert.equal(Object.isFrozen(verified.orders), true);
+  assert.equal(Object.isFrozen(verified.checkpoint), true);
+});
+
+test("rejects recovery pages that retain a signature or drift from the authorized account", () => {
+  const checkpoint = {
+    version: 1 as const,
+    sequence: 7n,
+    recordHash: `0x${"bc".repeat(32)}` as `0x${string}`,
+    stateRoot: `0x${"ab".repeat(32)}` as `0x${string}`,
+    configurationHash: expectedMatcher.configurationHash,
+  };
+  const orderView = {
+    version: 1,
+    orderHash: `0x${"44".repeat(32)}`,
+    acceptedSequence: "7",
+    makerAccountId: order.makerAccountId,
+    authorizedSignerId: order.makerAccountId,
+    accountEpoch: "0",
+    nonce: "1",
+    currentStatus: "open",
+    baseAmountAtoms: "100000000",
+    remainingBaseAtoms: "100000000",
+    limitPriceTicks: "650000",
+    expiry: "1800000600",
+  };
+  const base = {
+    ok: true,
+    makerAccountId: order.makerAccountId,
+    configurationHash: expectedMatcher.configurationHash,
+    accountEpoch: "0",
+    afterSequence: "0",
+    nextAfter: "7",
+    hasMore: false,
+    checkpoint: matcherAccount.checkpoint,
+    orders: [orderView],
+  };
+  const expectation = {
+    expectedMatcher,
+    makerAccountId: order.makerAccountId,
+    afterSequence: 0n,
+    limit: 10,
+    checkpoint,
+  };
+
+  assert.throws(
+    () => assertMatcherAccountRecoveryPage({ ...base, signature: SIGNATURE }, expectation),
+    /missing or unsupported fields/,
+  );
+  assert.throws(
+    () => assertMatcherAccountRecoveryPage({
+      ...base,
+      orders: [{ ...orderView, signature: SIGNATURE }],
+    }, expectation),
+    /missing or unsupported fields/,
+  );
+  assert.throws(
+    () => assertMatcherAccountRecoveryPage({ ...base, makerAccountId: `0x${"99".repeat(32)}` }, expectation),
+    /authorized account/,
+  );
+  assert.throws(
+    () => assertMatcherAccountRecoveryPage({
+      ...base,
+      configurationHash: `0x${"99".repeat(32)}`,
+      checkpoint: { ...matcherAccount.checkpoint, configurationHash: `0x${"99".repeat(32)}` },
+    }, expectation),
+    /approved matcher/,
+  );
+  assert.throws(
+    () => assertMatcherAccountRecoveryPage({ ...base, afterSequence: "1" }, expectation),
+    /authorized account/,
+  );
+  assert.throws(
+    () => assertMatcherAccountRecoveryPage({
+      ...base,
+      hasMore: true,
+      orders: [orderView],
+    }, { ...expectation, limit: 2 }),
+    /cursor is inconsistent/,
   );
 });

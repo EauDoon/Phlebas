@@ -65,6 +65,7 @@ function deepFreeze<T>(value: T): T {
 function enabledExpectedMatcher(deployment: MatcherMarketDeployment) {
   if (deployment.enabled !== true
     || deployment.state !== "enabled"
+    || deployment.configured !== true
     || deployment.deployed !== true
     || deployment.submissionEnabled !== true
     || deployment.expectedMatcher === null

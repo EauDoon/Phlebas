@@ -92,6 +92,40 @@ export type VerifiedMatcherAccount = Readonly<{
   }>;
 }>;
 
+export type VerifiedMatcherAccountRecoveryOrder = Readonly<{
+  version: 1;
+  orderHash: Hex32;
+  acceptedSequence: bigint;
+  makerAccountId: Hex32;
+  authorizedSignerId: Hex32;
+  accountEpoch: bigint;
+  nonce: bigint;
+  currentStatus: "open" | "partially-filled";
+  baseAmountAtoms: bigint;
+  remainingBaseAtoms: bigint;
+  limitPriceTicks: bigint;
+  expiry: bigint;
+}>;
+
+export type VerifiedMatcherAccountRecoveryPage = Readonly<{
+  makerAccountId: Hex32;
+  configurationHash: Hex32;
+  accountEpoch: bigint;
+  afterSequence: bigint;
+  nextAfter: bigint;
+  hasMore: boolean;
+  checkpoint: VerifiedMatcherCheckpoint;
+  orders: readonly VerifiedMatcherAccountRecoveryOrder[];
+}>;
+
+export type MatcherAccountRecoveryPageExpectation = Readonly<{
+  expectedMatcher: ExpectedMatcherIdentity;
+  makerAccountId: Hex32;
+  afterSequence: bigint;
+  limit: number;
+  checkpoint: VerifiedMatcherCheckpoint;
+}>;
+
 export type MatcherOrderSubmissionInput = Readonly<{
   matcherHealth: unknown;
   expectedMatcher: ExpectedMatcherIdentity;
@@ -517,6 +551,152 @@ export function assertMatcherAccountIdentity(
       stateRoot: canonicalHex32(checkpointValue.stateRoot, "Matcher checkpoint state root"),
       configurationHash: checkpointConfigurationHash,
     },
+  });
+}
+
+function canonicalRecoveryOrder(
+  value: unknown,
+  makerAccountId: Hex32,
+  accountEpoch: bigint,
+  afterSequence: bigint,
+  checkpointSequence: bigint,
+): VerifiedMatcherAccountRecoveryOrder {
+  const order = objectValue(value, "Matcher recovery order");
+  assertExactKeys(
+    order,
+    [
+      "version",
+      "orderHash",
+      "acceptedSequence",
+      "makerAccountId",
+      "authorizedSignerId",
+      "accountEpoch",
+      "nonce",
+      "currentStatus",
+      "baseAmountAtoms",
+      "remainingBaseAtoms",
+      "limitPriceTicks",
+      "expiry",
+    ],
+    "Matcher recovery order",
+  );
+  const acceptedSequence = canonicalDecimalUint64(order.acceptedSequence, "Matcher recovery order sequence");
+  const recoveredEpoch = canonicalDecimalUint64(order.accountEpoch, "Matcher recovery order account epoch");
+  const baseAmountAtoms = canonicalDecimalUint64(order.baseAmountAtoms, "Matcher recovery order base amount");
+  const remainingBaseAtoms = canonicalDecimalUint64(order.remainingBaseAtoms, "Matcher recovery order remaining amount");
+  const limitPriceTicks = canonicalDecimalUint64(order.limitPriceTicks, "Matcher recovery order price");
+  if (order.version !== 1
+    || canonicalHex32(order.makerAccountId, "Matcher recovery order maker") !== makerAccountId
+    || canonicalHex32(order.authorizedSignerId, "Matcher recovery order signer") !== makerAccountId
+    || recoveredEpoch !== accountEpoch
+    || (order.currentStatus !== "open" && order.currentStatus !== "partially-filled")
+    || acceptedSequence <= afterSequence || acceptedSequence > checkpointSequence
+    || baseAmountAtoms <= 0n || remainingBaseAtoms <= 0n || remainingBaseAtoms > baseAmountAtoms
+    || limitPriceTicks <= 0n
+    || (order.currentStatus === "open" && remainingBaseAtoms !== baseAmountAtoms)
+    || (order.currentStatus === "partially-filled" && remainingBaseAtoms >= baseAmountAtoms)) {
+    throw new Error("Matcher recovery order does not match the authorized account page");
+  }
+  return deepFreeze({
+    version: 1,
+    orderHash: canonicalHex32(order.orderHash, "Matcher recovery order hash"),
+    acceptedSequence,
+    makerAccountId,
+    authorizedSignerId: makerAccountId,
+    accountEpoch,
+    nonce: canonicalDecimalUint64(order.nonce, "Matcher recovery order nonce"),
+    currentStatus: order.currentStatus,
+    baseAmountAtoms,
+    remainingBaseAtoms,
+    limitPriceTicks,
+    expiry: canonicalDecimalUint64(order.expiry, "Matcher recovery order expiry"),
+  });
+}
+
+export function assertMatcherAccountRecoveryPage(
+  value: unknown,
+  expectation: MatcherAccountRecoveryPageExpectation,
+): VerifiedMatcherAccountRecoveryPage {
+  const identity = canonicalExpectedIdentity(expectation.expectedMatcher);
+  const makerAccountId = normalizeHex32(expectation.makerAccountId, "Expected recovery maker account ID");
+  if (!Number.isSafeInteger(expectation.limit) || expectation.limit <= 0) {
+    throw new RangeError("Matcher recovery page limit must be a positive integer");
+  }
+  if (identity.configurationHash !== expectation.checkpoint.configurationHash) {
+    throw new Error("Matcher recovery checkpoint does not match the approved matcher");
+  }
+  const page = objectValue(value, "Matcher recovery page");
+  assertExactKeys(
+    page,
+    [
+      "ok",
+      "makerAccountId",
+      "configurationHash",
+      "accountEpoch",
+      "afterSequence",
+      "nextAfter",
+      "hasMore",
+      "checkpoint",
+      "orders",
+    ],
+    "Matcher recovery page",
+  );
+  if (page.ok !== true) throw new Error("Matcher recovery page is not available");
+  if (canonicalHex32(page.makerAccountId, "Matcher recovery page maker") !== makerAccountId) {
+    throw new Error("Matcher recovery page does not match the authorized account");
+  }
+  const configurationHash = canonicalHex32(page.configurationHash, "Matcher recovery page configuration hash");
+  if (configurationHash !== identity.configurationHash) {
+    throw new Error("Matcher recovery page does not match the approved matcher");
+  }
+  const afterSequence = canonicalDecimalUint64(page.afterSequence, "Matcher recovery page cursor");
+  if (afterSequence !== expectation.afterSequence) {
+    throw new Error("Matcher recovery page does not match the authorized account");
+  }
+  const accountEpoch = canonicalDecimalUint64(page.accountEpoch, "Matcher recovery account epoch");
+  const nextAfter = canonicalDecimalUint64(page.nextAfter, "Matcher recovery next cursor");
+  if (typeof page.hasMore !== "boolean" || !Array.isArray(page.orders) || page.orders.length > expectation.limit) {
+    throw new Error("Matcher recovery page does not match the authorized account");
+  }
+  const checkpoint = canonicalReceiptCheckpoint(
+    page.checkpoint,
+    "Matcher recovery page checkpoint",
+    identity.configurationHash,
+  );
+  if (checkpoint.sequence !== expectation.checkpoint.sequence
+    || checkpoint.recordHash !== expectation.checkpoint.recordHash
+    || checkpoint.stateRoot !== expectation.checkpoint.stateRoot
+    || checkpoint.configurationHash !== expectation.checkpoint.configurationHash) {
+    throw new Error("Matcher recovery page does not match the authorized account");
+  }
+  const orders: VerifiedMatcherAccountRecoveryOrder[] = [];
+  const hashes = new Set<Hex32>();
+  const nonces = new Set<bigint>();
+  let priorSequence = afterSequence;
+  for (const item of page.orders) {
+    const order = canonicalRecoveryOrder(item, makerAccountId, accountEpoch, afterSequence, checkpoint.sequence);
+    if (order.acceptedSequence <= priorSequence || hashes.has(order.orderHash) || nonces.has(order.nonce)) {
+      throw new Error("Matcher recovery returned duplicate or non-monotonic orders");
+    }
+    priorSequence = order.acceptedSequence;
+    hashes.add(order.orderHash);
+    nonces.add(order.nonce);
+    orders.push(order);
+  }
+  if (nextAfter !== (orders.length > 0 ? priorSequence : afterSequence)
+    || nextAfter > checkpoint.sequence
+    || (page.hasMore && orders.length !== expectation.limit)) {
+    throw new Error("Matcher recovery page cursor is inconsistent");
+  }
+  return deepFreeze({
+    makerAccountId,
+    configurationHash,
+    accountEpoch,
+    afterSequence,
+    nextAfter,
+    hasMore: page.hasMore,
+    checkpoint,
+    orders,
   });
 }
 

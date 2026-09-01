@@ -2,6 +2,13 @@ const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
 const OPERATOR_TIMEOUT_MS = 3_000;
 const OPERATOR_RESPONSE_BYTES = 128 * 1024;
 
+function isLoopbackOperatorRequest(url: URL): boolean {
+  if (url.protocol !== "http:") return false;
+  if (url.username || url.password) return false;
+  if (url.search !== "" || url.hash !== "") return false;
+  return LOOPBACK.has(url.hostname);
+}
+
 export function isLoopbackOperatorUrl(value: string | undefined): value is string {
   if (!value) return false;
   let url: URL;
@@ -10,11 +17,8 @@ export function isLoopbackOperatorUrl(value: string | undefined): value is strin
   } catch {
     return false;
   }
-  if (url.protocol !== "http:") return false;
-  if (url.username || url.password) return false;
-  if (url.search !== "" || url.hash !== "") return false;
-  if (url.pathname !== "/" && url.pathname !== "") return false;
-  return LOOPBACK.has(url.hostname);
+  if (!isLoopbackOperatorRequest(url)) return false;
+  return url.pathname === "/" || url.pathname === "";
 }
 
 export function listenHost(requested?: string, env: Record<string, string | undefined> = process.env): string {
@@ -39,10 +43,12 @@ export async function fetchLoopbackOperator(
   fetcher: typeof fetch = fetch,
   maximumBodyBytes = OPERATOR_RESPONSE_BYTES,
 ): Promise<Readonly<{ body: string; status: number }> | undefined> {
+  if (!isLoopbackOperatorRequest(input)) return undefined;
   try {
     const response = await fetcher(input, {
       ...init,
       cache: "no-store",
+      redirect: "error",
       signal: AbortSignal.timeout(OPERATOR_TIMEOUT_MS),
     });
     const declaredLength = response.headers.get("content-length");

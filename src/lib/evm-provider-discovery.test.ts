@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import type { Eip1193Provider } from "./evm-wallet.ts";
@@ -59,4 +60,11 @@ test("discovery is server-safe and rejects unsafe wait or wallet identifiers", a
   assert.deepEqual(await discoverEip6963Providers(null), []);
   await assert.rejects(() => discoverEip6963Providers(new EventTarget(), -1), /integer from 0 to 1000/);
   assert.throws(() => selectEip6963Provider([], "not rdns"), /RDNS is invalid/);
+});
+
+test("EIP-6963 discovery has no Sepolia submit path", async () => {
+  const source = await readFile(new URL("./evm-provider-discovery.ts", import.meta.url), "utf8");
+  assert.match(source, /eip6963:requestProvider/);
+  assert.match(source, /eip6963:announceProvider/);
+  assert.doesNotMatch(source, /sepolia|arbitrum|eth_sendTransaction|eth_signTypedData_v4/i);
 });

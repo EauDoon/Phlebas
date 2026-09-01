@@ -184,6 +184,24 @@ function receipt(
 }
 
 test("disabled review performs no fetch or provider call", async () => {
+  for (const disabled of [NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT, NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT]) {
+    const fetchCalls: string[] = [];
+    const providerCalls: string[] = [];
+    const fetcher: MatcherOrderFetch = async (path) => {
+      fetchCalls.push(String(path));
+      throw new Error("must not fetch");
+    };
+    const injected = provider(providerCalls, () => null);
+    await assert.rejects(
+      () => reviewMatcherBuyOrder(reviewInput(disabled, injected, fetcher)),
+      (error: unknown) => error instanceof MatcherOrderWorkflowError && error.phase === "before-sign",
+    );
+    assert.deepEqual(fetchCalls, []);
+    assert.deepEqual(providerCalls, []);
+  }
+});
+
+test("disabled confirmation and retry perform no fetch, sign, or post", async () => {
   const fetchCalls: string[] = [];
   const providerCalls: string[] = [];
   const fetcher: MatcherOrderFetch = async (path) => {
@@ -191,11 +209,48 @@ test("disabled review performs no fetch or provider call", async () => {
     throw new Error("must not fetch");
   };
   const injected = provider(providerCalls, () => null);
+  const disabledReview = {
+    deployment: NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+  } as ReviewedMatcherBuyOrder;
   await assert.rejects(
-    () => reviewMatcherBuyOrder(reviewInput(NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT, injected, fetcher)),
+    () => confirmMatcherBuyOrder({ fetch: fetcher, provider: injected, review: disabledReview }),
     (error: unknown) => error instanceof MatcherOrderWorkflowError && error.phase === "before-sign",
   );
+  await assert.rejects(
+    () => retryMatcherBuyOrder({
+      kind: "rejected",
+      status: 422,
+      review: disabledReview,
+      signature: `0x${"11".repeat(65)}`,
+      request: {
+        path: "/api/matcher?market=ZEC%2FUSDC",
+        method: "POST",
+        headers: {},
+        body: "{}",
+        requestId: `order-${"22".repeat(32)}`,
+      },
+    } as Parameters<typeof retryMatcherBuyOrder>[0], fetcher),
+    (error: unknown) => error instanceof MatcherOrderWorkflowError && error.phase === "before-post",
+  );
   assert.deepEqual(fetchCalls, []);
+  assert.deepEqual(providerCalls, []);
+});
+
+test("review rejects mismatched matcher health before any wallet request", async () => {
+  const active = deployment();
+  const providerCalls: string[] = [];
+  const fetcher: MatcherOrderFetch = async (path) => {
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC") {
+      return json({ ...health(active), custody: true });
+    }
+    throw new Error(String(path));
+  };
+  await assert.rejects(
+    () => reviewMatcherBuyOrder(reviewInput(active, provider(providerCalls, () => null), fetcher)),
+    (error: unknown) => error instanceof MatcherOrderWorkflowError
+      && error.phase === "before-sign"
+      && /no-value non-custodial/.test(error.message),
+  );
   assert.deepEqual(providerCalls, []);
 });
 

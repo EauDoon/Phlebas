@@ -54,6 +54,7 @@ test("loopback operator fetches preserve bounded responses and hide transport fa
   assert.deepEqual(success, { body: '{"ok":true}', status: 202 });
   assert.equal(received?.method, "POST");
   assert.equal(received?.cache, "no-store");
+  assert.equal(received?.redirect, "error");
   assert.ok(received?.signal instanceof AbortSignal);
 
   const failed = await fetchLoopbackOperator(
@@ -78,4 +79,34 @@ test("loopback operator fetches preserve bounded responses and hide transport fa
     16,
   );
   assert.equal(streamedOversized, undefined);
+});
+
+test("loopback operator fetches refuse non-loopback, TLS, credentials, and query URLs before transport", async () => {
+  const { fetchLoopbackOperator } = await import("./operator-url.ts");
+  let calls = 0;
+  const fetcher: typeof fetch = async () => {
+    calls += 1;
+    return new Response("leaked");
+  };
+  for (const value of [
+    "https://127.0.0.1:8787/health",
+    "http://example.com:8787/health",
+    "http://0.0.0.0:8787/health",
+    "http://user:pass@127.0.0.1:8787/health",
+    "http://127.0.0.1:8787/health?next=1",
+    "http://127.0.0.1:8787/health#frag",
+  ]) {
+    assert.equal(await fetchLoopbackOperator(new URL(value), {}, fetcher), undefined, value);
+  }
+  assert.equal(calls, 0);
+  assert.equal((await fetchLoopbackOperator(
+    new URL("http://localhost:8788/v1/orders"),
+    {},
+    async () => new Response("ok", { status: 201 }),
+  ))?.status, 201);
+  assert.equal((await fetchLoopbackOperator(
+    new URL("http://[::1]:8789/health"),
+    {},
+    async () => new Response("ok"),
+  ))?.status, 200);
 });
