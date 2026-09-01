@@ -549,8 +549,8 @@ export function LiquidityPanel({
                 <dt>Leaves the session</dt>
                 <dd>
                   {review.kind === "mint"
-                    ? `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} from local simulation balances`
-                    : `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC from the local simulation balance`}
+                    ? `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} from local preview balances`
+                    : `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC from the local preview balance`}
                 </dd>
               </div>
               <div>
@@ -558,7 +558,7 @@ export function LiquidityPanel({
                 <dd>
                   {review.kind === "mint"
                     ? `${review.shares.toString()} local LP shares for ${selectedPool.id}`
-                    : `${review.swapOut} ${selectedPool.quote} in the local simulation balance`}
+                    : `${review.swapOut} ${selectedPool.quote} in the local preview balance`}
                 </dd>
               </div>
               <div>
