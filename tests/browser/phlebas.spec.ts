@@ -1704,7 +1704,7 @@ test("education dialog on liquidity ignores G I F and stays open", async ({ page
 
 test("status names architecture incident demonstrations", async ({ page }) => {
   await page.goto("/status", { waitUntil: "networkidle" });
-  await expect(page.getByText("labeled incident demonstrations", { exact: false })).toBeVisible();
+  await expect(page.getByText("labeled historical-state demonstrations", { exact: false })).toBeVisible();
   await expect(page.getByText("not an incident feed", { exact: false })).toBeVisible();
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Launch gates" })).toBeVisible();
 });
@@ -2352,7 +2352,7 @@ test("architecture skip link reaches the honesty bar", async ({ page }) => {
 test("privacy callouts evidence rows and layer cards stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  const callout = page.locator("#privacy-callouts").getByText("Public linkability", { exact: true }).locator("xpath=ancestor::div[1]");
+  const callout = page.locator("#privacy-callouts").getByText("Historical linkability", { exact: true }).locator("xpath=ancestor::div[1]");
   await expect(callout).toBeVisible();
   expect((await callout.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
