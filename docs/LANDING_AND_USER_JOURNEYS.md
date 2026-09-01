@@ -489,39 +489,15 @@ The entry action is `Preview deposit states`, not `Deposit ZEC`.
 3. The page repeats that tZEC would be custody-backed, transparent activity may be publicly linkable, and shielded deposits are not supported.
 4. The visitor selects `Walk through states`.
 5. A deterministic state tour displays Eligibility, Address request, Observed, Unavailable, Screening, Rejected, Confirming, Stale, Mint queued, and Complete.
-6. The Address request state shows a neutral placeholder panel with `No address generated in simulation`. It must not display an address-like fixture, QR code, copy control, URI, or scannable data.
+6. The Address request state shows a neutral placeholder panel with `No address generated in simulation`. It may display an intentionally invalid, non-scannable placeholder glyph, but it must not display an address-like fixture, copy control, URI, or payable data.
 7. Unavailable, Rejected, and Stale are fail-closed demonstration steps. Unavailable: `Observers unavailable or disagree. Fail closed. Nothing is minted.` Rejected: `Deposit failed screening or is ineligible. Nothing was minted. Nothing is sent.` Stale: `Observation or proof is stale. Fail closed. Nothing is minted.` Nothing is minted. No receivable address.
 8. The Complete state says: `State demonstration complete. No native ZEC was received and nothing was minted.`
 
 The simulation does not accept a Zcash address, EVM address, transaction hash, amount tied to a wallet, identity document, country, name, email, or screening input.
 
-### Production-intent state machine
+### Retired custody-state reference
 
-```text
-Eligibility
-  > Address request
-  > Address ready
-  > Deposit observed
-  > Screening
-  > Confirming
-  > Mint queued
-  > tZEC delivered
-```
-
-Future state requirements:
-
-| State | Required UI | Allowed action |
-| --- | --- | --- |
-| Eligibility | Country and service result from the separate compliance service | Continue or exit |
-| Address request | tZEC destination, custody disclosure, and transparent-only warning | Request deposit intent |
-| Address ready | One-time TEX address, QR code, expiry, minimum, limits, and exact network | Copy or show QR |
-| Deposit observed | Native amount, transaction reference, block, and provisional label | View explorer if approved |
-| Screening | `Checks in progress` with no promise or countdown | Wait or contact support after threshold |
-| Confirming | Current count, required threshold, and reorganization warning | Wait |
-| Mint queued | Confirmed amount, tZEC destination, and processing status | Wait |
-| tZEC delivered | tZEC amount, mint transaction, reserve record link, and custody reminder | Trade, provide liquidity, or leave |
-
-The production address service, screening, deposit observer, reserve ledger, and mint controller are separate regulated services. They do not run in Vercel. The Vercel UI may display a short-lived response after the user is approved, but it must not derive addresses, import spend keys, decide eligibility, screen funds, authorize minting, or persist the custody record.
+The deposit labels above exist only to explain and test the removed custodial model. They are not a production backlog. Do not implement an address service, reserve ledger, wrapped-ZEC mint controller, custody receiver, or customer deposit intent from this document. The active target is the native-ZEC atomic-settlement journey defined in `PRODUCT_SPEC.md`, `DELIVERY_PLAN.md`, and ADR 0005. Until its deployment, signer, broadcaster, observation, audit, and operating gates pass, the interface remains non-payable and fail-closed.
 
 ## Withdrawal journey
 
@@ -536,45 +512,11 @@ The entry action is `Preview withdrawal states`, not `Withdraw ZEC`.
 5. A deterministic state tour displays title-case labels for the PRODUCT_SPEC 9.3 happy path: Requested, Screened, Burn submitted, Burn finalized, Payable, Transaction prepared, Signed, Broadcast, Mined, Confirmed.
 6. The Confirmed state says: `State demonstration complete. Nothing was burned and no native ZEC was sent.`
 
-Do not render an address input, paste target, QR scanner, wallet connector, or transaction submit control in the current simulation.
+The current simulation may accept a locally entered transparent-address example in the destination inspector solely to demonstrate format validation. It must not persist or transmit the value, connect a wallet, scan a QR code, construct a payout, or expose a transaction submit control.
 
-### Production-intent state machine
+### Retired custody-state reference
 
-Canonical names are [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) section 9.3. The tour uses title-case labels of those names. Signing the tZEC burn is the last action of `screened`, not a separate machine state. Expired evidence is a branch from `burn submitted`: closed without a finalized burn. Refunded / tZEC restored is a branch from `burn finalized` or `payable` on unrecoverable pre-signature failure. Unresolved recovery is a branch from `signed`, `broadcast`, or `mined`: exact committed transaction observation returns `broadcast` or `mined`; verified input restoration returns `payable`. The restored asset is tZEC, not pZEC; that name is not the current listed form. The tour is a simulation. Nothing is sent.
-
-```text
-requested -> screened -> burn submitted -> burn finalized -> payable
-payable -> transaction_prepared -> signed -> broadcast -> mined -> confirmed
-burn submitted -> expired or reorganized evidence -> closed without finalized burn
-burn finalized | payable -> tZEC restored only on unrecoverable pre-signature failure -> refunded
-signed | broadcast | mined -> unresolved
-unresolved -> exact committed transaction observed -> broadcast | mined
-unresolved -> verified input restoration -> payable
-```
-
-Future state requirements:
-
-| State | Required UI | Allowed action |
-| --- | --- | --- |
-| requested | tZEC amount, transparent native ZEC destination, network fee, service fee, net output, limits, and custody terms | Review request |
-| screened | Eligibility result, exact tZEC burn, destination, fees, and irreversible consequences | Wait, edit before burn, sign locally, or exit |
-| burn submitted | Unfinalized burn on Arbitrum | Wait |
-| expired | Expired evidence. Burn evidence expired or was reorganized. Closed without a finalized burn. Nothing is sent. This is not live settlement. | Close |
-| closed | Closed without a finalized burn. Nothing is sent. Simulation only. | Close |
-| burn finalized | Finality status and payout claim reference | Wait |
-| payable | Native payout claim exists; no signed Zcash transaction yet | Wait |
-| tZEC restored | Unrecoverable pre-signature failure restores tZEC after the unpaid claim is cancelled. Nothing is sent. Simulation only. Restores tZEC; pZEC is not the current listed form. | Close |
-| refunded | Single-use refund authorization cancelled the unpaid claim before tZEC restoration. Nothing is sent. Simulation only. | Close |
-| transaction_prepared | Single-claim transaction status with no exact completion promise | Wait |
-| signed | Custody signer status without signer details | Wait |
-| broadcast | Native transaction reference and transparent network warning | View explorer if approved |
-| mined | Included in a Zcash block; close threshold not yet met | Wait |
-| confirmed | Gross tZEC, fees, net native ZEC, confirmations, and completion time | Close |
-| unresolved | Committed transaction is invalid, stale, conflicted, or reorganized | Wait for observation or restoration |
-| exact committed transaction observed | Independent observation of that exact committed transaction ID returns the claim to broadcast or mined. Nothing is sent. Simulation only. | Wait |
-| verified input restoration | Independent observers prove selected inputs are spendable again and the signed transaction cannot confirm. The claim returns to payable. Nothing is sent. Simulation only. Does not restore tZEC; pZEC is not the current listed form. | Wait |
-
-Every finalized tZEC burn must end in one transparent native ZEC payout or an approved refund outcome under the custody ledger. An unrecoverable pre-signature failure restores tZEC after a single-use refund authorization cancels the unpaid claim. Once signed, the claim cannot be refunded. An unresolved claim returns to broadcast or mined only through independent observation of that exact committed transaction, or to payable through verified input restoration. Expired or reorganized burn evidence is closed without a finalized burn. Nothing is sent. The current tour is a simulation. The restored asset is tZEC, not pZEC; that name is not the current listed form. The Vercel UI may collect and transmit a future destination to the regulated backend after launch approval. It must not store the destination, hold tZEC, create the payout, sign the Zcash transaction, or control the withdrawal queue.
+The withdrawal labels above preserve historical failure and recovery examples for the removed wrapped-ZEC gateway. They are not production requirements and must not be used to build a burn queue, custody signer, payout claim, reserve refund, or destination-transmission backend. Native ZEC withdrawal from the active design is the user-controlled refund or claim path of the atomic settlement, subject to the exact evidence and timelock rules in ADR 0005. No current UI action signs, broadcasts, or submits value.
 
 ## Blocked, review, reorganization, and maintenance states
 
@@ -792,8 +734,8 @@ PR 2 completes the simulation journeys and state demonstrations.
 3. Given order preview values are invalid, then the review sheet cannot open, errors are linked to their fields, and no value enters analytics, logs, storage, or the URL.
 4. Given an order preview completes, then the interface states that nothing was signed or submitted and creates no order identifier or fake fill.
 5. Given an LP preview opens, then custody, stablecoin, smart-contract, impermanent-loss, and toxic-flow risks appear before completion, with no return or profit projection.
-6. Given a deposit state tour, then no address-like string, QR code, copy control, wallet address, transaction hash, or real amount is accepted or displayed.
-7. Given a withdrawal state tour, then no destination field, paste control, QR scanner, wallet connector, burn, or transaction submission is available.
+6. Given a deposit state tour, then no address-like string, payable QR code, copy control, wallet address, transaction hash, or real amount is accepted or displayed; an invalid non-scannable placeholder glyph may be shown.
+7. Given a withdrawal state tour, then the local destination inspector performs format-only validation without persistence or transmission, and no QR scanner, wallet connector, burn, payout, or transaction submission is available.
 8. Given blocked, review, pre-mint reorganization, post-mint reorganization, planned maintenance, unplanned maintenance, stale data, or unavailable data is selected, then the exact scoped copy and allowed actions in this specification render.
 9. Given a post-mint reorganization demonstration, then new mints and native ZEC withdrawals show paused, while trading and LP surfaces wait for their separate status rather than inventing availability.
 10. Given first-session education is completed, then only the disclosure version is stored locally and no account, cookie identifier, fingerprint, or analytics identity is created.
