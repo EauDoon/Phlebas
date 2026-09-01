@@ -4,7 +4,7 @@
 
 ## Current checkpoint
 
-- Active UI branch: `feat/simulation-hardening` (PR #28). Teal Simple/Advanced terminal. Simple is the default Uniswap-style Market IOC ticket; Advanced keeps the CLOB. Public Vercel stays a no-value simulation.
+- Active UI branch: `feat/prelaunch-product-site`. Public chrome is a pre-launch venue (warm yellow accent, persistent preview chip, Open terminal). Landing, terminal, settlement fill ticket, and solver quotes. Vercel hosts UI only; no mainnet funds.
 - Merged: PR #26 education/skip-link 44px coverage.
 - Prior integration: custodial gateway runtime removed from `main`.
 - Product boundary: no-value production preview. The public application does not accept deposits, issue a receiver, mint or burn a redeemable asset, sign transactions, broadcast transactions, or move funds.
