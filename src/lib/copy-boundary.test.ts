@@ -651,24 +651,26 @@ test("source identifiers no longer use listed pZEC leftovers", async () => {
   assert.doesNotMatch(foundry, /backPzec/);
 });
 
-test("journeys pin expired closed withdrawal states without live payout", async () => {
+test("journeys retire custodial state machines instead of promising live payout", async () => {
   const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
-  assert.match(journeys, /Expired evidence|closed without a finalized burn/);
-  assert.match(journeys, /unresolved/);
+  assert.match(journeys, /Retired custody-state reference/);
+  assert.match(journeys, /not a production backlog/);
+  assert.doesNotMatch(journeys, /Production-intent state machine/);
   assert.doesNotMatch(journeys, /\blive payout/i);
 });
 
-test("journeys pin refunded tZEC restore without live payout", async () => {
+test("journeys forbid rebuilding wrapped-ZEC custody services", async () => {
   const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
-  assert.match(journeys, /refunded|tZEC restored/);
-  assert.doesNotMatch(journeys, /\blive payout/i);
+  assert.match(journeys, /Do not implement an address service, reserve ledger, wrapped-ZEC mint controller/);
+  assert.match(journeys, /must not be used to build a burn queue, custody signer, payout claim/);
+  assert.doesNotMatch(journeys, /The production address service/);
 });
 
-test("journeys pin unresolved recovery without live payout", async () => {
+test("journeys route native withdrawals to user-controlled atomic settlement", async () => {
   const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
-  assert.match(journeys, /unresolved -> exact committed transaction observed -> broadcast \| mined/);
-  assert.match(journeys, /unresolved -> verified input restoration -> payable/);
-  assert.doesNotMatch(journeys, /\blive payout/i);
+  assert.match(journeys, /user-controlled refund or claim path of the atomic settlement/);
+  assert.match(journeys, /evidence and timelock rules in ADR 0005/);
+  assert.match(journeys, /No current UI action signs, broadcasts, or submits value/);
 });
 
 test("PRODUCT_SPEC keeps native settlement and legacy recovery boundaries distinct", async () => {
