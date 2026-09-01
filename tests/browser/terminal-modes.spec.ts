@@ -1,7 +1,5 @@
 import { type Page } from "@playwright/test";
 
-import { missingProviderCopy } from "../../src/lib/evm-wallet.ts";
-import { markets } from "../../src/lib/market-data.ts";
 import { submitOrder } from "../../src/lib/matcher.ts";
 import { describeSubmit, seedBook } from "../../src/lib/session.ts";
 import { TERMINAL_MODE_STORAGE_KEY } from "../../src/lib/terminal-mode.ts";
@@ -129,7 +127,7 @@ test("primary CTAs on landing trade and liquidity change visible state", async (
   await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
 
-  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
   await expectHonestPreview(page);
   await expect(page.getByRole("button", { name: "Complete mint" })).toHaveCount(0);
   await page.getByRole("button", { name: "Review mint" }).click();
@@ -156,9 +154,11 @@ test("ZEC TEX reject shielded destination and sends nothing", async ({ page }) =
 test("EVM connect without provider names the rejection and has no seed field", async ({ page }) => {
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
   await expectHonestPreview(page);
-  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
-  await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(
-    missingProviderCopy(markets["ZEC/USDC"].settlementPair),
+  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  await expect(connect).toBeDisabled();
+  await expect(connect).toHaveAttribute(
+    "title",
+    "Wallets are off. Optional Sepolia connect is not started. Settled as ZEC-USDC.",
   );
   await expect(page.getByText(/seed phrase|spending key|spend key|viewing key/i)).toHaveCount(0);
   await expect(page.locator("input[type=password]")).toHaveCount(0);

@@ -13,9 +13,11 @@ import {
   walletConnectBarTitle,
   walletConnectFailureCopy,
   walletDisconnectLabel,
+  walletOffTitle,
   walletStateWithSettlement,
   type WalletState,
 } from "@/lib/evm-wallet";
+import { walletConnectEnabled } from "@/lib/sepolia-submit";
 
 import styles from "./terminal.module.css";
 
@@ -31,9 +33,13 @@ export function WalletBar({
   // No injected EVM wallet. Arbitrum Sepolia only. is intentionally produced by missingProviderCopy.
   const [busy, setBusy] = useState(false);
   const provider = getInjectedProvider();
+  const connectEnabled = walletConnectEnabled();
   const errorCopy = wallet.error ? retargetSettlementCopy(wallet.error, settlementPair) : null;
 
   async function connect() {
+    if (!connectEnabled) {
+      return;
+    }
     if (!provider) {
       onChange({ ...disconnectedWallet, error: missingProviderCopy(settlementPair) });
       return;
@@ -77,9 +83,9 @@ export function WalletBar({
         type="button"
         className={styles.connectButton}
         onClick={() => void connect()}
-        disabled={busy}
+        disabled={!connectEnabled || busy}
         aria-label="Connect Arbitrum Sepolia wallet"
-        title={walletConnectBarTitle(settlementPair, { busy, error: errorCopy })}
+        title={connectEnabled ? walletConnectBarTitle(settlementPair, { busy, error: errorCopy }) : walletOffTitle(settlementPair)}
       >
         {busy ? "Connecting" : "Connect wallet"}
       </button>

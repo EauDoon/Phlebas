@@ -1,6 +1,5 @@
 import { blotterEmptyOrdersCopy } from "../../src/lib/blotter-copy.ts";
 import { DEPOSIT_TOUR } from "../../src/lib/deposit-tour.ts";
-import { missingProviderCopy } from "../../src/lib/evm-wallet.ts";
 import { markets } from "../../src/lib/market-data.ts";
 import { submitOrder } from "../../src/lib/matcher.ts";
 import { NATIVE_MATCHER_DISABLED_COPY } from "../../src/lib/native-matcher-order-action.ts";
@@ -90,9 +89,11 @@ test("wallet connect without a provider names the rejection while the native mat
   const nativeMatcher = page.locator("#native-matcher-order-action");
   await expect(nativeMatcher).toContainText(NATIVE_MATCHER_DISABLED_COPY);
   await expect(nativeMatcher).toHaveAttribute("data-native-matcher-state", "manifest-disabled");
-  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
-  await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(
-    missingProviderCopy(markets["ZEC/USDC"].settlementPair),
+  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  await expect(connect).toBeDisabled();
+  await expect(connect).toHaveAttribute(
+    "title",
+    "Wallets are off. Optional Sepolia connect is not started. Settled as ZEC-USDC.",
   );
   await expect(page.getByText(/seed phrase|spending key|spend key|viewing key/i)).toHaveCount(0);
   await expect(page.locator("input[type=password]")).toHaveCount(0);

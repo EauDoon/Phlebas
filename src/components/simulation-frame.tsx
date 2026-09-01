@@ -3,19 +3,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
+import { PRODUCT_NAV } from "@/lib/landing-copy";
 import { activateSkipLink } from "@/lib/skip-link";
 
 import { PreviewChip } from "./preview-chip";
 import { SiteFooter } from "./site-footer";
 import styles from "./terminal.module.css";
-
-const navigation = [
-  { href: "/#markets", label: "Markets" },
-  { href: "/trade?view=trade", label: "Terminal" },
-  { href: "/liquidity", label: "Liquidity" },
-  { href: "/trade?view=architecture", label: "Docs" },
-  { href: "/status", label: "Status" },
-] as const;
 
 export function SimulationFrame({
   title,
@@ -39,7 +32,7 @@ export function SimulationFrame({
           <span>PHLEBAS</span>
         </Link>
         <nav className={styles.nav} aria-label="Primary navigation">
-          {navigation.map((item) => (
+          {PRODUCT_NAV.map((item) => (
             <Link href={item.href} key={item.href}>{item.label}</Link>
           ))}
         </nav>

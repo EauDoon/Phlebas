@@ -197,6 +197,15 @@ test("shipped modules carry the pre-launch product vocabulary", async () => {
   assert.match(product, /solver quote/i);
   assert.match(product, /risk/i);
   assert.doesNotMatch(product, /Enter simulation/);
+  assert.match(terminal, /PRODUCT_NAV/);
+  assert.match(terminal, /SiteFooter/);
+  assert.doesNotMatch(terminal, /24h volume/);
+  assert.match(liquidity, /historical-amm/);
+  assert.match(await readFile(join(root, "src/lib/fees.ts"), "utf8"), /Not deducted in this preview/);
+  assert.doesNotMatch(await readFile(join(root, "src/lib/fees.ts"), "utf8"), /simulation/);
+  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletOffTitle/);
+  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletConnectEnabled/);
+  assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Phlebas is not a live exchange and not an offer of financial services/);
 });
 
 test("status payload cannot be read as live funds or custody", async () => {
@@ -395,11 +404,10 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.doesNotMatch(bridge, /copyUri/);
   assert.match(bridge, /Not payable/);
   assert.match(terminal, /feedSurface/);
-  assert.match(terminal, /nextTerminalView/);
+  assert.match(terminal, /PRODUCT_NAV/);
   assert.match(terminal, /nextMarketId/);
   assert.match(terminal, /nextFeedStatus/);
   assert.match(terminal, /interpretRovingKey/);
-  assert.match(terminal, /role="tablist"/);
   assert.match(terminal, /role="radiogroup"/);
   assert.match(terminal, /Skip to order ticket/);
   assert.match(terminal, /Skip to price chart/);
@@ -408,8 +416,8 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(terminal, /Skip to incident demonstration/);
   assert.match(terminal, /Skip to honesty bar/);
   assert.match(terminal, /Skip to architecture layers/);
-  assert.match(terminal, /Skip to pool tabs/);
-  assert.match(terminal, /Skip to pool stats/);
+  assert.match(terminal, /Skip to quote pairs/);
+  assert.match(terminal, /Skip to quote risks/);
   assert.match(terminal, /Skip to destination inspector/);
   assert.match(terminal, /Skip to privacy callouts/);
   assert.match(terminal, /Skip to country-block notice/);
@@ -419,7 +427,6 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(await readFile(join(root, "src/lib/chart-display.ts"), "utf8"), /display exception/);
   assert.match(await readFile(join(root, "src/components/order-book.tsx"), "utf8"), /id="order-book"/);
   assert.match(terminal, /id="recent-trades"/);
-  assert.match(terminal, /Launch gates/);
   assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Launch gates/);
   assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /SiteFooter/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /Skip to status ledger/);

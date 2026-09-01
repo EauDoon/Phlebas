@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { typedOrderFromTicket } from "./ticket-order.ts";
-import { planTestnetSubmit, sepoliaSubmitEnabled, sendSettlement } from "./sepolia-submit.ts";
+import { planTestnetSubmit, sepoliaSubmitEnabled, sendSettlement, walletConnectEnabled } from "./sepolia-submit.ts";
 import { ARBITRUM_SEPOLIA_HEX, type Eip1193Provider } from "./evm-wallet.ts";
 
 const MAKER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
@@ -24,6 +24,8 @@ function sample(side: "buy" | "sell") {
 
 test("submit defaults to sign-only", () => {
   assert.equal(sepoliaSubmitEnabled({}), false);
+  assert.equal(walletConnectEnabled({}), false);
+  assert.equal(walletConnectEnabled({ NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT: "1" }), false);
   const plan = planTestnetSubmit({
     flag: false,
     settlement: SETTLEMENT,

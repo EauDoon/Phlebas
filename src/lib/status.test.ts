@@ -16,7 +16,7 @@ test("status payload never claims live funds or custody", async () => {
   assert.equal(status.liveFunds, false);
   assert.equal(status.custody, "none");
   assert.equal(status.deposits, "historical-tour-only");
-  assert.equal(status.wallets, "eip-1193-sepolia");
+  assert.equal(status.wallets, "off");
   assert.equal(status.sepoliaSubmit, "flag-off");
   assert.equal(status.matcher, "in-browser");
   assert.equal(status.matcherService, "off");

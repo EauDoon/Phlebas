@@ -82,7 +82,7 @@ export function ArchitecturePanel({ highlightIncidents = false }: { highlightInc
             {" · "}
             <Link href="/trade?view=bridge&journey=withdrawal">Withdrawal states</Link>
             {" · "}
-            <Link href="/liquidity#historical-amm">Historical AMM model</Link>
+            <Link href="/trade?view=architecture#historical-amm">Historical AMM model</Link>
           </span>
         </div>
       </section>
