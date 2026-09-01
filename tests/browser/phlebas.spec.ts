@@ -508,6 +508,14 @@ test("ZIP 321 copy stays disabled without a gateway", async ({ page }) => {
   await page.getByRole("button", { name: "Issue testnet TEX" }).click();
   await expect(page.getByText("No receivable address is displayed.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Copy testnet URI" })).toHaveCount(0);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error("denied")) },
+    });
+  });
+  await page.getByRole("button", { name: "Copy placeholder URI" }).click();
+  await expect(page.getByText("Clipboard copy failed. The URI was not copied. Nothing was sent.")).toBeVisible();
 });
 
 test("stale market data disables preview-to-sign and retries to illustrative", async ({ page }) => {
@@ -1064,6 +1072,7 @@ test("market switching cannot enable undeployed testnet signing", async ({ page 
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
+  await expect(page.getByText("Session digest", { exact: true })).toBeVisible();
 });
 
 test("wallet disconnect accessible name keeps settlement after switching market", async ({ page }) => {
@@ -1391,8 +1400,10 @@ test("blotter arrow keys move to the next tabpanel", async ({ page }) => {
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("tab", { name: "Fills" })).toBeFocused();
   await expect(page.getByRole("tabpanel", { name: "Open orders" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Open orders" })).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("tabpanel", { name: "Fills" })).toContainText("No session fills yet. Settled as ZEC-USDC.");
+  await expect(page.locator("#blotter-panel-fills")).toContainText("No session fills yet. Settled as ZEC-USDC.");
 });
 
 test("first-session education can be completed by keyboard with education copy", async ({ page }) => {
@@ -1903,6 +1914,7 @@ test("withdrawal tour demonstrates unresolved without inventing a payout", async
   }
   await expect(page.getByText("Unresolved", { exact: true })).toBeVisible();
   await expect(page.getByText(WITHDRAWAL_TOUR[unresolvedIndex].body)).toBeVisible();
+  await expect(page.getByText("The tour does not invent a payout. Nothing is sent.")).toBeVisible();
   await expect(page.getByText("Stub claim: unresolved. Nothing is sent.")).toBeVisible();
 });
 
@@ -2318,6 +2330,9 @@ test("ticket blocked gate country-block and education copy stay 44px on desktop"
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   const settlement = page.getByText("settles ZEC-USDT").first();
   await expect(settlement).toBeVisible();
+  const usdtMarket = page.getByRole("radio", { name: "ZEC / USDT" });
+  await expect(usdtMarket).toBeVisible();
+  expect((await usdtMarket.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
   await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
   const country = page.getByText("This preview is limited to approved locations. Trading, liquidity, deposit, and withdrawal controls are unavailable.");

@@ -434,6 +434,18 @@ export function LiquidityPanel({
           </div>
         )}
 
+        {!gate.canReview && feedStatus === "illustrative" && (
+          <p className={styles.gateNotice}>
+            <strong>{gate.heading}</strong>
+            {" "}
+            {gate.message}
+            {" "}
+            <button type="button" className={styles.textButton} onClick={() => { setReview(null); setFeedFocusId("illustrative"); onRetryFeed(); }}>
+              Retry illustrative feed
+            </button>
+          </p>
+        )}
+
         <div className={styles.depositStack}>
           <label className={styles.assetInput}>
             <span>ZEC amount</span>
@@ -493,9 +505,7 @@ export function LiquidityPanel({
           ))}
         </dl>
         {heldShares[selectedPool.id] === 0n && (
-          <p className={styles.inlineNotice}>
-            {emptyShareCopy(selectedPool.id)}
-          </p>
+          <p className={styles.inlineNotice}>{emptyShareCopy(selectedPool.id)}</p>
         )}
         <p className={styles.inlineNotice}>
           Not a return or profit projection. Local integer preview of constant-product divergence versus holding the same deposited assets.
