@@ -36,6 +36,7 @@ import {
 } from "../../src/lib/rate-limit-http.ts";
 import { UINT64_MAX, assetIdentifier, chainIdentifier, normalizeHex32 } from "../../src/lib/order-domain.ts";
 import type { TypedOrderIntent } from "../../src/lib/eip712-order.ts";
+import { activeAccountEpoch } from "../../src/lib/order-lifecycle.ts";
 import { listenHost } from "../../src/lib/operator-url.ts";
 import type { JournalValue } from "./journal.ts";
 import {
@@ -667,6 +668,27 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
       }
       if (request.method === "GET" && url.pathname === "/v1/market/book") {
         send(response, 200, { checkpoint: store.checkpoint, book: matcherBookFeed(store.state, clockSeconds(), pageLimit(url.searchParams.get("limit"))) });
+        return;
+      }
+      if (request.method === "GET" && url.pathname.startsWith("/v1/accounts/")) {
+        const encoded = url.pathname.slice("/v1/accounts/".length);
+        if (!encoded || encoded.includes("/")) throw new HttpError(404, "not-found");
+        let makerAccountId: string;
+        try {
+          makerAccountId = decodeURIComponent(encoded);
+        } catch {
+          throw new HttpError(400, "maker-account-id-invalid-encoding");
+        }
+        const normalized = normalizeHex32(makerAccountId, "Maker account ID");
+        if (makerAccountId !== normalized) throw new HttpError(400, "maker-account-id-must-be-canonical");
+        send(response, 200, {
+          ok: true,
+          makerAccountId: normalized,
+          configurationHash: matcherConfigurationHash(store.state.configuration),
+          accountEpoch: activeAccountEpoch(store.state.orderReference.lifecycle, normalized),
+          sequence: store.state.sequence,
+          checkpoint: store.checkpoint,
+        });
         return;
       }
       if (request.method === "GET" && url.pathname === "/v1/solver-quotes") {

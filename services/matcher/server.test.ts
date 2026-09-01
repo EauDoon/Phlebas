@@ -208,6 +208,16 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
     assert.equal((sequence.receipts as unknown[]).length, 1);
     const receipt = await fetch(`${origin}/v1/requests/order-one`);
     assert.equal(receipt.status, 200);
+    const makerAccountId = event().submission.order.makerAccountId;
+    const account = await json(await fetch(`${origin}/v1/accounts/${makerAccountId}`));
+    assert.deepEqual(account, {
+      ok: true,
+      makerAccountId,
+      configurationHash: health.configurationHash,
+      accountEpoch: "0",
+      sequence: "1",
+      checkpoint: health.checkpoint,
+    });
     const book = await json(await fetch(`${origin}/v1/market/book`));
     assert.equal(((book.book as { bids: unknown[] }).bids).length, 1);
     assert.equal((await fetch(`${origin}/v1/checkpoint`)).status, 200);
@@ -377,6 +387,9 @@ test("rejects ambiguous endpoints, idempotency mismatch, media type, and oversiz
     assert.equal((await fetch(`${origin}/v1/sequence?after=01`)).status, 400);
     assert.equal((await fetch(`${origin}/v1/sequence?limit=101`)).status, 400);
     assert.equal((await fetch(`${origin}/v1/requests/missing`)).status, 404);
+    assert.equal((await fetch(`${origin}/v1/accounts/0x12`)).status, 400);
+    assert.equal((await fetch(`${origin}/v1/accounts/${`0x${"AA".repeat(32)}`}`)).status, 400);
+    assert.equal((await fetch(`${origin}/v1/accounts/${`0x${"aa".repeat(32)}`}/extra`)).status, 404);
   } finally {
     await close(server);
     await rm(directory, { recursive: true, force: true });
