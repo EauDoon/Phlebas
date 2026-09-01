@@ -9,7 +9,7 @@ import { parseTerminalModeQuery } from "@/lib/terminal-mode";
 
 export const metadata: Metadata = {
   title: "Liquidity",
-  description: "Explore the no-value Phlebas ZEC liquidity simulation.",
+  description: "Wallet-held maker and solver quotes. Inventory stays in the provider wallet.",
 };
 
 function isMarketId(value: string | undefined): value is MarketId {

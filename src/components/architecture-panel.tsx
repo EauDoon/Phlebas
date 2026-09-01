@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { IncidentDemo } from "./incident-demo";
 import styles from "./terminal.module.css";
 
@@ -10,7 +12,7 @@ const layers = [
   {
     label: "Trading network",
     title: "Matcher and Arbitrum contracts",
-    items: ["Offchain matcher, not trustless", "Atomic settlement target", "Constrained constant product pools", "Native ZEC, native USDC, native USDT"],
+    items: ["Offchain matcher, not trustless", "Atomic settlement target", "Wallet-held maker and solver quotes", "Native ZEC, native USDC, native USDT"],
   },
   {
     label: "Historical custody model",
@@ -61,6 +63,25 @@ export function ArchitecturePanel({ highlightIncidents = false }: { highlightInc
         <strong>Target product boundary</strong>
         <span>Native settlement target: a non-custodial interface with user-signed actions and an offchain matcher. The matcher is not trustless. It can censor or delay orders. Simulation only. Mainnet access policy remains unresolved.</span>
       </div>
+      <section
+        id="historical-models"
+        aria-labelledby="historical-models-title"
+        tabIndex={-1}
+      >
+        <div className={styles.honestyBar}>
+          <strong id="historical-models-title">Historical models</strong>
+          <span className={styles.warningPill}>Retired</span>
+          <span>
+            Custody and AMM tours remain reachable. They are not the current liquidity product.
+            {" "}
+            <Link href="/trade?view=bridge">Deposit states</Link>
+            {" · "}
+            <Link href="/trade?view=bridge&journey=withdrawal">Withdrawal states</Link>
+            {" · "}
+            <Link href="/liquidity#historical-amm">Historical AMM model</Link>
+          </span>
+        </div>
+      </section>
       <IncidentDemo highlight={highlightIncidents} />
     </section>
   );

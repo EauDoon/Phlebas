@@ -3,7 +3,7 @@
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { quoteConstantProductSwapAtoms } from "@/lib/amm";
-import { AMM_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
+import { feeEnvelopeCopy } from "@/lib/fees";
 import { custodyRedemptionCopy, publicLinkabilityCopy } from "@/lib/review-copy";
 import {
   burnShares,
@@ -35,6 +35,12 @@ import {
   type FeedStatus,
 } from "@/lib/market-state";
 import { interpretRovingKey } from "@/lib/roving-keys";
+import {
+  SOLVER_QUOTE_SIGNED_FIELDS,
+  solverQuoteFieldCopy,
+  solverQuoteInventoryCopy,
+  solverQuoteRiskEntries,
+} from "@/lib/solver-quotes";
 import { parseAtomicUnits, formatAtomicUnits, ZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -68,6 +74,15 @@ function emptyDeposits(): Record<PoolId, EntryDeposit> {
   };
 }
 
+const QUOTE_FIELD_LABELS = {
+  pair: "Pair",
+  limits: "Limits",
+  capacity: "Capacity",
+  fee: "Fee",
+  expiry: "Expiry",
+  recipients: "Recipients",
+} as const;
+
 export function LiquidityPanel({
   marketId,
   feedStatus,
@@ -87,6 +102,8 @@ export function LiquidityPanel({
   const feedRefs = useRef<Partial<Record<FeedStatus, HTMLButtonElement | null>>>({});
   const [feedFocusId, setFeedFocusId] = useState<FeedStatus>(feedStatus);
   const selectedPool = marketId === "ZEC/USDT" ? pools[1] : pools[0];
+  const quoteFields = solverQuoteFieldCopy(selectedPool.id);
+  const quoteRisks = solverQuoteRiskEntries();
   const [amount, setAmount] = useState("10");
   const [poolState, setPoolState] = useState(initialPools);
   const [heldShares, setHeldShares] = useState<Record<PoolId, bigint>>(emptyShares);
@@ -362,17 +379,17 @@ export function LiquidityPanel({
       <section className={`${styles.panel} ${styles.lpQuote}`} aria-labelledby="liquidity-title">
         <div className={styles.panelHeader}>
           <div>
-            <span className={styles.eyebrow}>Constant product pools</span>
-            <h2 id="liquidity-title">Provide liquidity</h2>
+            <span className={styles.eyebrow}>Maker and solver quotes</span>
+            <h2 id="liquidity-title">Solver quotes</h2>
           </div>
-          <span className={styles.statusDot}>Local preview</span>
+          <span className={styles.statusDot}>Wallet-held inventory</span>
         </div>
 
         <div
           id="liquidity-pools"
           className={styles.poolTabs}
           role="radiogroup"
-          aria-label="Liquidity pool"
+          aria-label="Quote pair"
           tabIndex={-1}
         >
           {pools.map((pool) => (
@@ -393,6 +410,52 @@ export function LiquidityPanel({
             </button>
           ))}
         </div>
+
+        <p className={styles.featureLead}>{solverQuoteInventoryCopy()}</p>
+        <p className={styles.gateNotice} aria-label="Review custody notice">
+          This panel labels native ZEC. It is not live settlement. The matcher is not trustless.
+        </p>
+
+        <dl className={styles.ticketSummary}>
+          {SOLVER_QUOTE_SIGNED_FIELDS.map((field) => (
+            <div key={field}>
+              <dt>{QUOTE_FIELD_LABELS[field]}</dt>
+              <dd>{quoteFields[field]}</dd>
+            </div>
+          ))}
+        </dl>
+
+        <div className={styles.lpActions}>
+          <p className={styles.inlineNotice}>
+            No shared AMM shares. Unused capacity stays in the provider wallet.
+          </p>
+          <button type="button" className={styles.primaryAction} disabled>
+            Wallet actions stay disabled
+          </button>
+        </div>
+      </section>
+
+      <section
+        id="historical-amm"
+        className={`${styles.panel} ${styles.lpStats}`}
+        aria-labelledby="pool-stats-heading"
+        tabIndex={-1}
+      >
+        <div className={styles.panelHeader}>
+          <div>
+            <span className={styles.eyebrow}>Historical models</span>
+            <h2 id="pool-stats-heading">Historical AMM model</h2>
+          </div>
+          <span className={styles.warningPill}>Retired</span>
+        </div>
+        <p className={styles.inlineNotice}>
+          Retired constant-product math. It is not the current liquidity product.
+        </p>
+        {heldShares[selectedPool.id] === 0n && (
+          <p className={styles.inlineNotice}>
+            {emptyShareCopy(selectedPool.id)}
+          </p>
+        )}
 
         <div className={styles.inputLabel}>
           <span>Market data</span>
@@ -478,8 +541,8 @@ export function LiquidityPanel({
 
         {review ? (
           <div className={styles.reviewBlock}>
-            <p className={styles.gateNotice} aria-label="Review custody notice">
-              This preview labels native ZEC. It is not live settlement. This LP preview is public in the simulation. The matcher is not trustless.
+            <p className={styles.gateNotice} aria-label="Historical AMM review notice">
+              This historical AMM model labels native ZEC. It is not live settlement. The matcher is not trustless.
             </p>
             <dl className={styles.ticketSummary}>
               <div>
@@ -524,7 +587,7 @@ export function LiquidityPanel({
               LPs also face stablecoin risk, smart-contract risk, impermanent loss, and toxic flow from the order book.
             </p>
             <p className={styles.inlineNotice}>
-              Confirm runs the local integer pool preview. Wallet actions stay disabled.
+              Confirm runs the local integer pool. Wallet actions stay disabled.
             </p>
             <button
               type="button"
@@ -559,34 +622,18 @@ export function LiquidityPanel({
             </button>
           </div>
           <p className={styles.inlineNotice} aria-live="polite">{liveNotice}</p>
-          <button type="button" className={styles.primaryAction} disabled>
-            Wallet actions disabled in simulation
-          </button>
         </div>
-      </section>
 
-      <section className={`${styles.panel} ${styles.lpStats}`} aria-labelledby="pool-stats-heading">
-        <div className={styles.panelHeader}>
-          <div>
-            <span className={styles.eyebrow}>Integer pool math</span>
-            <h2 id="pool-stats-heading">Pool stats, IL versus hold, inventory</h2>
-          </div>
-        </div>
-        {heldShares[selectedPool.id] === 0n && (
-          <p className={styles.inlineNotice}>
-            {emptyShareCopy(selectedPool.id)}
-          </p>
-        )}
         <dl
           id="pool-stats"
           className={styles.statGrid}
           role="group"
-          aria-label="Pool stats and impermanent loss versus hold"
+          aria-label="Historical AMM pool stats"
           tabIndex={-1}
         >
           <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
-          <div><dt>TVL</dt><dd>Fixture {selectedPool.tvl}</dd></div>
-          <div><dt>24h volume</dt><dd>Fixture {selectedPool.volume}</dd></div>
+          <div><dt>Historical pool size</dt><dd>Fixture {selectedPool.tvl}</dd></div>
+          <div><dt>Historical pool volume</dt><dd>Fixture {selectedPool.volume}</dd></div>
           <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveZecAtoms, ZEC_DECIMALS, 2)}</dd></div>
           <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
           <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
@@ -606,29 +653,30 @@ export function LiquidityPanel({
           ))}
         </dl>
         <p className={styles.inlineNotice}>
-          Not a return or profit projection. Local integer preview of constant-product divergence versus holding the same deposited assets.
+          Not a return or profit projection. Local integer constant-product divergence versus holding the same deposited assets.
         </p>
         <p className={styles.inlineNotice}>
           The 0.30% pool fee applies to swaps, not the exactly balanced add. Swap fee paid in ZEC: {amountPreview.swapFee}.
           {amountPreview.swapNote ? ` ${amountPreview.swapNote}` : ""}
         </p>
+        <p className={styles.inlineNotice}>{lpRiskCopy()}</p>
       </section>
 
       <aside className={`${styles.panel} ${styles.lpRisk}`} aria-labelledby="lp-risk-title">
         <div className={styles.panelHeader}>
           <div>
-            <span className={styles.eyebrow}>LP risk</span>
-            <h2 id="lp-risk-title">Simple does not mean low risk</h2>
+            <span className={styles.eyebrow}>Quote risk</span>
+            <h2 id="lp-risk-title">Named quote risks</h2>
           </div>
         </div>
-        <p>
-          {lpRiskCopy()}
-        </p>
         <ul className={styles.cleanList}>
-          <li>Fixed {AMM_FEE_BPS} bps swap fee, paid entirely to LPs</li>
-          <li>No farming, leverage, flash callbacks, or arbitrary pair creation</li>
-          <li>LP withdrawal remains available during a trading pause</li>
-          <li>Public funds stay blocked until independent audits and custody gates pass</li>
+          {quoteRisks.map((entry) => (
+            <li key={entry.risk}>
+              <strong>{entry.risk}</strong>
+              {" — "}
+              {entry.copy}
+            </li>
+          ))}
         </ul>
       </aside>
     </div>
