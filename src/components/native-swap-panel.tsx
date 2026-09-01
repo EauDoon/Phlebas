@@ -76,13 +76,13 @@ export function NativeSwapPanel({
           <div className={styles.panelHeader}>
             <div>
               <span className={styles.eyebrow}>Fixture only</span>
-              <h2 id="native-swap-title" ref={phaseHeading} tabIndex={-1}>USDT identity unresolved</h2>
+              <h2 id="native-swap-title" ref={phaseHeading} tabIndex={-1}>USDT matcher undeployed</h2>
             </div>
             <span className={styles.warningPill}>Funding disabled</span>
           </div>
           <p className={styles.featureLead}>
-            This no-value walkthrough cannot substitute one stablecoin identity for another.
-            An exact network and token contract must be approved before any USDT fixture terms exist.
+            The exact Ethereum Mainnet USDT identity is bound separately from USDC.
+            Its matcher, lock deployment, wallet actions, and observation policy remain disabled.
           </p>
           <div className={styles.settlementToolbar}>
             <label>
@@ -114,9 +114,9 @@ export function NativeSwapPanel({
           <h2 id="usdt-boundary-title">USDT is not USDT0.</h2>
           <p>Network, token contract, decimals, and settlement policy must bind one exact asset identity.</p>
           <ul className={styles.cleanList}>
-            <li>No fixture terms were generated.</li>
+            <li>No USDT fixture terms were generated.</li>
             <li>No wallet or transaction control is available.</li>
-            <li>Select ZEC / USDC to inspect the deterministic walkthrough.</li>
+            <li>Select ZEC / USDC to inspect the currently implemented walkthrough.</li>
           </ul>
         </aside>
       </div>

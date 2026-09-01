@@ -11,6 +11,7 @@ const ACTIVE_MAINNET_FILES = [
   "infra/matcher/native-zec-usdc.schema.json",
   "infra/matcher/native-zec-usdt.json",
   "infra/matcher/native-zec-usdt.schema.json",
+  "src/components/native-swap-fixtures.ts",
   "src/components/wallet-bar.tsx",
   "src/lib/evm-provider-discovery.ts",
   "src/lib/evm-wallet-session.ts",

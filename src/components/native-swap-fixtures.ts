@@ -1,5 +1,9 @@
 import type { MarketId } from "@/lib/market-data";
 import {
+  ETHEREUM_MAINNET_NETWORK,
+  ETHEREUM_MAINNET_USDC_ASSET,
+} from "@/lib/mainnet-assets";
+import {
   deriveSwapFillId,
   hashSwapMarketPolicy,
   type SwapMarketPolicyV1,
@@ -75,7 +79,7 @@ const hex32 = (byte: string) => `0x${byte.repeat(32)}` as SwapTermsV1["fillId"];
 const hex20 = (byte: string) => `0x${byte.repeat(20)}` as `0x${string}`;
 
 const fixtureZecChain = "bip122:00040fe8ec8471911baa1db1266ea15d";
-const fixtureQuoteChain = "eip155:421614";
+const fixtureQuoteChain = ETHEREUM_MAINNET_NETWORK;
 
 const fixtureMarketPolicy: SwapMarketPolicyV1 = {
   version: 1,
@@ -83,7 +87,7 @@ const fixtureMarketPolicy: SwapMarketPolicyV1 = {
     zecChain: fixtureZecChain,
     zecAsset: `${fixtureZecChain}/slip44:133`,
     quoteChain: fixtureQuoteChain,
-    quoteAsset: `${fixtureQuoteChain}/erc20:0x1111111111111111111111111111111111111111`,
+    quoteAsset: ETHEREUM_MAINNET_USDC_ASSET,
   }],
 };
 
@@ -134,7 +138,7 @@ const fixtureTerms: SwapTermsV1 = {
   zecChain: fixtureZecChain,
   zecAsset: `${fixtureZecChain}/slip44:133`,
   quoteChain: fixtureQuoteChain,
-  quoteAsset: "eip155:421614/erc20:0x1111111111111111111111111111111111111111",
+  quoteAsset: ETHEREUM_MAINNET_USDC_ASSET,
   protocolFeeQuoteAtoms: 0n,
   feeRecipient: hex20("a3"),
   maximumFeeBps: 30n,
@@ -337,7 +341,7 @@ export function createNativeSwapFixture(
     return {
       availability: "disabled",
       marketId,
-      reason: "USDT and USDT0 are not interchangeable. No exact network and token contract has been approved for this walkthrough.",
+      reason: "The exact Ethereum Mainnet USDT identity is defined, but its matcher and per-fill lock remain undeployed. No USDT wallet action is available.",
     };
   }
   const state = scenario === "happy" || scenario === "refund" ? createdSwap() : unsafeState(scenario);
