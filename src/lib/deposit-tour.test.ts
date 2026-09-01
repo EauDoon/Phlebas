@@ -76,9 +76,19 @@ test("deposit tour unavailable is observer disagreement, not a live outage", () 
 
 test("deposit tour does not present a receivable address or shielded path", () => {
   const joined = DEPOSIT_TOUR.map((step) => `${step.title} ${step.body}`).join(" ");
+  const withoutHonest = joined.replace(/non-payable/gi, "");
   assert.doesNotMatch(joined, /tex1/i);
   assert.doesNotMatch(joined, /t1[A-Za-z0-9]/);
   assert.doesNotMatch(joined, /zs1/i);
+  assert.doesNotMatch(joined, /zcash:/i);
+  assert.doesNotMatch(joined, /receivable/i);
+  assert.doesNotMatch(withoutHonest, /payable/i);
+  assert.doesNotMatch(joined, /shielded/i);
   assert.doesNotMatch(joined, /Deposit ZEC/);
   assert.doesNotMatch(joined, /\blive\b/i);
+  for (let index = 0; index < DEPOSIT_TOUR.length; index += 1) {
+    const step = depositTourStep(index);
+    const text = `${step.title} ${step.body}`.replace(/non-payable/gi, "");
+    assert.doesNotMatch(text, /tex1|zs1|receivable|payable|shielded/i);
+  }
 });

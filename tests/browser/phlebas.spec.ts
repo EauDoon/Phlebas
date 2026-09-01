@@ -4074,7 +4074,7 @@ test("education disabled Back sticky copy Continue ring leftover 390 768 and ski
   await leftover("/", 390, 844, 7);
 });
 
-test("education Enter simulation stays in 320px Continue ring is #f4c95d leftover 320 768", async ({ page }) => {
+test("education Enter simulation stays in 320px Continue ring is teal leftover 320 768", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
@@ -4088,7 +4088,7 @@ test("education Enter simulation stays in 320px Continue ring is #f4c95d leftove
   await expect(continueButton).toBeFocused();
   await expect.poll(async () => {
     return continueButton.evaluate((element) => getComputedStyle(element).outlineColor);
-  }).toBe("rgb(244, 201, 93)");
+  }).toBe("rgb(45, 212, 191)");
 
   await continueButton.click();
   await continueButton.click();
@@ -4532,7 +4532,7 @@ test("education Enter Back heading 44px Continue ring at 390 and heading ring at
       parentRight: parentRect?.right ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(244, 201, 93)");
+  expect(continueRing.color).toBe("rgb(45, 212, 191)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
   expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
@@ -4675,7 +4675,7 @@ test("education Enter Back 44px Continue ring at 768 and heading ring at 390", a
       parentRight: parentRect?.right ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(244, 201, 93)");
+  expect(continueRing.color).toBe("rgb(45, 212, 191)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
   expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
@@ -4813,7 +4813,7 @@ test("education Enter Back heading 44px Continue ring at 1440 and heading ring a
       parentRight: parentRect?.right ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(244, 201, 93)");
+  expect(continueRing.color).toBe("rgb(45, 212, 191)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
   expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
@@ -5164,7 +5164,7 @@ test("education Continue in 1440 Enter Back in 768 heading ring 768 and Continue
       parentBottom: parentRect?.bottom ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(244, 201, 93)");
+  expect(continueRing.color).toBe("rgb(45, 212, 191)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(Number.parseFloat(continueRing.scrollMarginBottom)).toBeGreaterThanOrEqual(12);
   expect(Number.parseFloat(continueRing.paddingBottom)).toBeGreaterThanOrEqual(12);
@@ -5272,7 +5272,7 @@ test("education Enter Back in 1440 heading ring 1440 Continue ring 768 and Conti
       parentBottom: parentRect?.bottom ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(244, 201, 93)");
+  expect(continueRing.color).toBe("rgb(45, 212, 191)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
   expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);

@@ -16,6 +16,7 @@ import {
   walletConnectIdleTitle,
   walletConnectTitle,
   walletDisconnectLabel,
+  walletSigningDisabledCopy,
   walletStateWithSettlement,
   type Eip1193Provider,
 } from "./evm-wallet.ts";
@@ -235,4 +236,12 @@ test("rechecks the active chain immediately before signing", async () => {
     },
   };
   await assert.rejects(() => signTypedData(provider, "0xabc", {}), /Arbitrum Sepolia/);
+});
+
+test("wallet signing disabled copy never asks for a seed or spend key", () => {
+  const copy = walletSigningDisabledCopy();
+  assert.match(copy, /undeployed/);
+  assert.match(copy, /signing is disabled/);
+  assert.doesNotMatch(copy, /seed|spend(?:ing)? key|viewing key/i);
+  assert.doesNotMatch(copy, /\blive funds\b/i);
 });

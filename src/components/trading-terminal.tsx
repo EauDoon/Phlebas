@@ -14,7 +14,16 @@ import {
   rememberIncidentDemo,
   subscribeIncidentDemo,
 } from "@/lib/gateway-incidents";
+import { activateSkipLink } from "@/lib/skip-link";
+import { NO_TEX_ISSUED, ZEC_DESTINATION_LABEL } from "@/lib/wallet-bar-copy";
 import { terminalUrl } from "@/lib/terminal-url";
+import {
+  DEFAULT_TERMINAL_MODE,
+  resolveTerminalMode,
+  TERMINAL_MODE_STORAGE_KEY,
+  TERMINAL_MODES,
+  type TerminalMode,
+} from "@/lib/terminal-mode";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
@@ -77,8 +86,44 @@ import { TradeTicket } from "./trade-ticket";
 import { WalletBar } from "./wallet-bar";
 import styles from "./terminal.module.css";
 
-function viewUrl(view: TerminalView, market: MarketId, feed: FeedStatus, demo?: string) {
-  return terminalUrl({ view, market, feed, demo });
+function viewUrl(
+  view: TerminalView,
+  market: MarketId,
+  feed: FeedStatus,
+  demo?: string,
+  mode?: TerminalMode,
+) {
+  return terminalUrl({ view, market, feed, demo, mode });
+}
+
+function readStoredMode(): string | null {
+  try {
+    return window.localStorage.getItem(TERMINAL_MODE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function persistMode(mode: TerminalMode) {
+  try {
+    window.localStorage.setItem(TERMINAL_MODE_STORAGE_KEY, mode);
+    window.dispatchEvent(new Event("phlebas-terminal-mode"));
+  } catch {
+    // Private mode still lets the visitor switch.
+  }
+}
+
+function subscribeTerminalMode(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("phlebas-terminal-mode", onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("phlebas-terminal-mode", onStoreChange);
+  };
+}
+
+function getStoredTerminalMode() {
+  return resolveTerminalMode(undefined, readStoredMode());
 }
 
 function seedBooks() {
@@ -103,6 +148,7 @@ export function TradingTerminal({
   initialAccess = "open",
   forceEducation = false,
   highlightIncidents = false,
+  initialMode,
 }: {
   initialView?: TerminalView;
   initialMarket?: MarketId;
@@ -111,6 +157,7 @@ export function TradingTerminal({
   initialAccess?: AccessDemo;
   forceEducation?: boolean;
   highlightIncidents?: boolean;
+  initialMode?: TerminalMode;
 }) {
   const router = useRouter();
   const [view, setView] = useState<TerminalView>(initialView);
@@ -127,6 +174,13 @@ export function TradingTerminal({
   const [accountEpoch, setAccountEpoch] = useState(0);
   const [priceSelection, setPriceSelection] = useState<{ ticks: bigint; nonce: number } | null>(null);
   const [wallet, setWallet] = useState<WalletState>(disconnectedWallet);
+  const storedMode = useSyncExternalStore(
+    subscribeTerminalMode,
+    getStoredTerminalMode,
+    () => DEFAULT_TERMINAL_MODE,
+  );
+  const mode = initialMode ?? storedMode;
+  const isSimple = mode === "simple";
   const storedIncidentDemo = useSyncExternalStore(
     subscribeIncidentDemo,
     getIncidentDemoSnapshot,
@@ -154,10 +208,15 @@ export function TradingTerminal({
     }
   }, [highlightIncidents]);
 
+  function selectMode(nextMode: TerminalMode) {
+    persistMode(nextMode);
+    router.replace(viewUrl(view, marketId, feedStatus, demoQuery, nextMode), { scroll: false });
+  }
+
   function selectView(nextView: TerminalView) {
     setView(nextView);
     setViewFocusId(nextView);
-    router.replace(viewUrl(nextView, marketId, feedStatus, demoQuery), { scroll: false });
+    router.replace(viewUrl(nextView, marketId, feedStatus, demoQuery, mode), { scroll: false });
   }
 
   function moveViewFocus(next: TerminalView) {
@@ -195,13 +254,13 @@ export function TradingTerminal({
   function selectMarket(nextMarket: MarketId) {
     setMarketId(nextMarket);
     setMarketFocusId(nextMarket);
-    router.replace(viewUrl(view, nextMarket, feedStatus, demoQuery), { scroll: false });
+    router.replace(viewUrl(view, nextMarket, feedStatus, demoQuery, mode), { scroll: false });
   }
 
   function selectFeed(nextFeed: FeedStatus) {
     setFeedStatus(nextFeed);
     setFeedFocusId(nextFeed);
-    router.replace(viewUrl(view, marketId, nextFeed, demoQuery), { scroll: false });
+    router.replace(viewUrl(view, marketId, nextFeed, demoQuery, mode), { scroll: false });
   }
 
   function moveMarketFocus(next: MarketId) {
@@ -404,20 +463,24 @@ export function TradingTerminal({
   const sessionTape = fills.filter((fill) => fill.marketId === marketId).slice(0, 6);
   const fixtureTape = feed.showFixtures ? recentTrades[marketId] : [];
 
+  const operatingView = initialAccess === "open" && (view === "trade" || view === "liquidity");
+
   return (
-    <div className={styles.shell}>
+    <div className={operatingView ? `${styles.shell} ${styles.operatingShell}` : styles.shell}>
       <nav className={styles.skipNav} aria-label="Skip links">
-        <a className={styles.skipLink} href="#main-content">Skip to main content</a>
+        <a className={styles.skipLink} href="#main-content" onClick={activateSkipLink}>Skip to main content</a>
         {initialAccess === "blocked" ? (
-          <a className={styles.skipLink} href="#country-block">Skip to country-block notice</a>
+          <a className={styles.skipLink} href="#country-block" onClick={activateSkipLink}>Skip to country-block notice</a>
         ) : null}
         {initialAccess === "open" && view === "trade" ? (
           <>
-            <a className={styles.skipLink} href="#order-ticket">Skip to order ticket</a>
-            <a className={styles.skipLink} href="#price-chart">Skip to price chart</a>
-            <a className={styles.skipLink} href="#order-book">Skip to order book</a>
-            <a className={styles.skipLink} href="#session-blotter">Skip to blotter</a>
-            <a className={styles.skipLink} href="#recent-trades">Skip to recent trades</a>
+            <a className={styles.skipLink} href="#order-ticket" onClick={activateSkipLink}>Skip to order ticket</a>
+            <a className={styles.skipLink} href="#price-chart" onClick={activateSkipLink}>Skip to price chart</a>
+            {isSimple ? null : (
+              <a className={styles.skipLink} href="#order-book" onClick={activateSkipLink}>Skip to order book</a>
+            )}
+            <a className={styles.skipLink} href="#session-blotter" onClick={activateSkipLink}>Skip to blotter</a>
+            <a className={styles.skipLink} href="#recent-trades" onClick={activateSkipLink}>Skip to recent trades</a>
           </>
         ) : null}
         {initialAccess === "open" && view === "settlement" ? (
@@ -425,21 +488,21 @@ export function TradingTerminal({
         ) : null}
         {initialAccess === "open" && view === "architecture" ? (
           <>
-            <a className={styles.skipLink} href="#architecture-layers">Skip to architecture layers</a>
-            <a className={styles.skipLink} href="#honesty-bar">Skip to honesty bar</a>
-            <a className={styles.skipLink} href="#incident-demonstration">Skip to incident demonstration</a>
+            <a className={styles.skipLink} href="#architecture-layers" onClick={activateSkipLink}>Skip to architecture layers</a>
+            <a className={styles.skipLink} href="#honesty-bar" onClick={activateSkipLink}>Skip to honesty bar</a>
+            <a className={styles.skipLink} href="#incident-demonstration" onClick={activateSkipLink}>Skip to incident demonstration</a>
           </>
         ) : null}
         {initialAccess === "open" && view === "liquidity" ? (
           <>
-            <a className={styles.skipLink} href="#liquidity-pools">Skip to pool tabs</a>
-            <a className={styles.skipLink} href="#pool-stats">Skip to pool stats</a>
+            <a className={styles.skipLink} href="#liquidity-pools" onClick={activateSkipLink}>Skip to pool tabs</a>
+            <a className={styles.skipLink} href="#pool-stats" onClick={activateSkipLink}>Skip to pool stats</a>
           </>
         ) : null}
         {initialAccess === "open" && view === "bridge" ? (
           <>
-            <a className={styles.skipLink} href="#destination-inspector">Skip to destination inspector</a>
-            <a className={styles.skipLink} href="#privacy-callouts">Skip to privacy callouts</a>
+            <a className={styles.skipLink} href="#destination-inspector" onClick={activateSkipLink}>Skip to destination inspector</a>
+            <a className={styles.skipLink} href="#privacy-callouts" onClick={activateSkipLink}>Skip to privacy callouts</a>
           </>
         ) : null}
       </nav>
@@ -483,16 +546,35 @@ export function TradingTerminal({
             </button>
           ))}
         </nav>
-        {view !== "settlement" ? (
-          <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
-        ) : (
-          <span className={styles.fixturePill}>No wallet · fixture only</span>
-        )}
+        <div className={styles.headerActions}>
+          <div className={styles.selectorTabs} role="radiogroup" aria-label="Terminal mode">
+            {TERMINAL_MODES.map((id) => (
+              <button
+                type="button"
+                key={id}
+                role="radio"
+                aria-checked={mode === id}
+                className={mode === id ? styles.selectorActive : undefined}
+                onClick={() => selectMode(id)}
+              >
+                {id === "simple" ? "Simple" : "Advanced"}
+              </button>
+            ))}
+          </div>
+          {view !== "settlement" ? (
+            <>
+              <span className={styles.network} aria-label={ZEC_DESTINATION_LABEL}>{NO_TEX_ISSUED}</span>
+              <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
+            </>
+          ) : (
+            <span className={styles.fixturePill}>No wallet · fixture only</span>
+          )}
+        </div>
       </header>
 
       {view !== "settlement" && <PreviewEducation force={forceEducation} />}
 
-      <main id="main-content" tabIndex={-1}>
+      <main id="main-content" className={styles.main} tabIndex={-1}>
         <h1 className={styles.srOnly}>
           {view === "settlement" ? "Phlebas native settlement walkthrough" : "Phlebas ZEC trading terminal"}
         </h1>
@@ -566,7 +648,7 @@ export function TradingTerminal({
               <p className={styles.inlineNotice}>{feed.statsNote}</p>
             </section>
 
-            <div className={styles.tradeGrid}>
+            <div className={isSimple ? `${styles.tradeGrid} ${styles.simpleTradeGrid}` : styles.tradeGrid}>
               <section id="price-chart" tabIndex={-1} className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
                 <div className={styles.panelHeader}>
                   <div>
@@ -597,15 +679,17 @@ export function TradingTerminal({
                 <PriceChart marketId={marketId} range={range} feedStatus={feedStatus} />
               </section>
 
-              <OrderBook
-                marketId={marketId}
-                book={displayedBook}
-                feedStatus={feedStatus}
-                onPriceSelect={(ticks) => {
-                  setPriceSelection({ ticks, nonce: nextPriceNonce.current });
-                  nextPriceNonce.current += 1;
-                }}
-              />
+              {isSimple ? null : (
+                <OrderBook
+                  marketId={marketId}
+                  book={displayedBook}
+                  feedStatus={feedStatus}
+                  onPriceSelect={(ticks) => {
+                    setPriceSelection({ ticks, nonce: nextPriceNonce.current });
+                    nextPriceNonce.current += 1;
+                  }}
+                />
+              )}
               <TradeTicket
                 key={feedStatus}
                 market={market}
@@ -619,6 +703,7 @@ export function TradingTerminal({
                 accountEpoch={accountEpoch}
                 feedStatus={feedStatus}
                 walletAddress={wallet.address}
+                variant={mode}
                 onRetryFeed={() => selectFeed("illustrative")}
                 onSubmit={submitUserOrder}
               />
@@ -694,7 +779,33 @@ export function TradingTerminal({
           <NativeSwapPanel marketId={marketId} onMarketChange={selectMarket} />
         )}
         {initialAccess === "open" && view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
-        {initialAccess === "open" && view === "architecture" && <ArchitecturePanel highlightIncidents={incidentDemo} />}
+        {initialAccess === "open" && view === "architecture" && (
+          <>
+            <div className={styles.marketSelectorWrap}>
+              <div className={styles.selectorTabs} role="radiogroup" aria-label="Selected market">
+                {MARKET_IDS.map((id) => (
+                  <button
+                    type="button"
+                    key={id}
+                    role="radio"
+                    aria-checked={marketId === id}
+                    tabIndex={marketFocusId === id ? 0 : -1}
+                    className={marketId === id ? styles.selectorActive : undefined}
+                    ref={(node) => {
+                      marketRefs.current[id] = node;
+                    }}
+                    onClick={() => selectMarket(id)}
+                    onKeyDown={(event) => onMarketKeyDown(event, id)}
+                  >
+                    {MARKET_ID_LABELS[id]}
+                  </button>
+                ))}
+              </div>
+              <span className={styles.settlementBadge}>legacy simulation: {market.settlementPair}</span>
+            </div>
+            <ArchitecturePanel highlightIncidents={incidentDemo} />
+          </>
+        )}
       </main>
 
       <footer className={styles.footer}>

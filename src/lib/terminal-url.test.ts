@@ -53,6 +53,21 @@ test("Trade and Liquidity drop demo=incidents and Architecture restores it", () 
   );
 });
 
+test("advanced mode is explicit in the URL and simple is the omitted default", () => {
+  assert.equal(
+    terminalUrl({ view: "trade", market: "ZEC/USDC", mode: "simple" }),
+    "/trade?market=ZEC%2FUSDC&view=trade",
+  );
+  assert.equal(
+    terminalUrl({ view: "trade", market: "ZEC/USDC", mode: "advanced" }),
+    "/trade?market=ZEC%2FUSDC&mode=advanced&view=trade",
+  );
+  assert.match(
+    terminalUrl({ view: "liquidity", market: "ZEC/USDT", mode: "advanced" }),
+    /^\/liquidity\?market=ZEC%2FUSDT&mode=advanced$/,
+  );
+});
+
 test("ZEC gateway omits demo=incidents and Architecture restores it", () => {
   assert.equal(
     terminalUrl({ view: "bridge", market: "ZEC/USDT", demo: "incidents" }),

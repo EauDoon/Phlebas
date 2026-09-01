@@ -1,11 +1,15 @@
+"use client";
+
+import { activateSkipLink } from "@/lib/skip-link";
+
 import styles from "./terminal.module.css";
 
 export function SimulationLoading() {
   return (
     <div className={styles.shell}>
       <nav className={styles.skipNav} aria-label="Skip links">
-        <a className={styles.skipLink} href="#main-content">Skip to main content</a>
-        <a className={styles.skipLink} href="#withheld-price">Skip to withheld-price notice</a>
+        <a className={styles.skipLink} href="#main-content" onClick={activateSkipLink}>Skip to main content</a>
+        <a className={styles.skipLink} href="#withheld-price" onClick={activateSkipLink}>Skip to withheld-price notice</a>
       </nav>
       <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
         <strong>Simulation only</strong>
