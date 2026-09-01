@@ -7,12 +7,16 @@ import {
   fixturePreimage,
   fixtureSecretHash,
   fundedZecSwap,
+  sampleEvidencePolicies,
+  sampleMarketPolicy,
+  sampleTimingPolicy,
 } from "./swap-test-fixtures.ts";
 import { createZip317TransparentPolicy } from "./zcash-fees.ts";
 import {
   buildTermsBoundZcashClaimArtifact,
   buildTermsBoundZcashFundingArtifact,
   buildTermsBoundZcashRefundArtifact,
+  appendTermsBoundZcashFunding,
   type TermsBoundClaimArtifactRequest,
   type TermsBoundFundingArtifactRequest,
   type TermsBoundRefundArtifactRequest,
@@ -26,6 +30,8 @@ import {
 import { createPcztEnvelope, walletPcztReadiness } from "./zcash-pczt.ts";
 import { createNu63EncodingProfile } from "./zcash-transaction-policy.ts";
 import { encodeTransparentAddress, transparentScriptPubKey } from "./zcash-transparent.ts";
+import { appendSwapEvent, emptySwapJournal, verifySwapJournal } from "./swap-journal.ts";
+import { createSwapState } from "./swap-state.ts";
 
 const SOURCE = encodeTransparentAddress("mainnet", "p2pkh", hexToBytes("77".repeat(20)));
 const PROFILE = createNu63EncodingProfile({ network: "mainnet", transactionVersion: 5, coinType: 133 });
@@ -230,5 +236,43 @@ test("rejects PCZT, manifest, binding, and release-boundary substitution", () =>
       walletReview: { ...review.walletReview, pcztByteSha256: "99".repeat(32) },
     }),
     /PCZT envelope fields|review digest/,
+  );
+});
+
+test("journals the swap-bound funding digest instead of an arbitrary artifact hash", () => {
+  const terms = canonicalMainnetSwapTerms();
+  const created = createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy);
+  let journal = emptySwapJournal(created);
+  let state = created;
+  ({ journal, state } = appendSwapEvent(journal, state, {
+    kind: "authorize-terms",
+    partyId: terms.zecSellerId,
+    termsHash: state.termsHash,
+    occurredAtSeconds: terms.authorizationDeadline - 2n,
+  }));
+  ({ journal, state } = appendSwapEvent(journal, state, {
+    kind: "authorize-terms",
+    partyId: terms.stablecoinSellerId,
+    termsHash: state.termsHash,
+    occurredAtSeconds: terms.authorizationDeadline - 1n,
+  }));
+  const bound = buildTermsBoundZcashFundingArtifact(fundingRequest({ terms }));
+  const prepared = appendTermsBoundZcashFunding(journal, state, bound, terms.zecFundBy - 1n);
+  assert.equal(prepared.state.zec.fundingArtifactHash, bound.binding.bindingDigest);
+  assert.equal(prepared.receipt.payload.kind, "prepare-funding");
+  assert.equal(verifySwapJournal(prepared.journal), true);
+
+  assert.throws(
+    () => appendTermsBoundZcashFunding(journal, state, {
+      ...bound,
+      binding: { ...bound.binding, bindingDigest: `0x${"99".repeat(32)}` },
+    }, terms.zecFundBy - 1n),
+    /digest does not match/,
+  );
+  const otherTerms = canonicalMainnetSwapTerms({ secretHash: `0x${"45".repeat(32)}` });
+  const otherCreated = createSwapState(otherTerms, sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy);
+  assert.throws(
+    () => appendTermsBoundZcashFunding(emptySwapJournal(otherCreated), otherCreated, bound, otherTerms.zecFundBy - 1n),
+    /authoritative swap terms/,
   );
 });

@@ -1,10 +1,11 @@
 import { hexToBytes } from "./keccak.ts";
 import type { SwapTermsV1 } from "./swap-domain.ts";
-import { verifyZcashArtifact, type CommittedZcashArtifact } from "./zcash-artifact.ts";
+import { canonicalArtifactJson, verifyZcashArtifact, type CommittedZcashArtifact } from "./zcash-artifact.ts";
 import { buildFundingArtifact, type FundingArtifactRequest } from "./zcash-funding.ts";
 import { htlcP2shScriptPubKey, validateHtlcRedeemScript } from "./zcash-htlc.ts";
 import {
   commitZcashSettlementArtifactBinding,
+  verifyZcashSettlementArtifactBinding,
   type CommittedZcashSettlementArtifactBinding,
 } from "./zcash-settlement-binding.ts";
 import { projectZcashSwapTerms, type ZcashSwapProjectionV1 } from "./zcash-swap-projection.ts";
@@ -20,6 +21,7 @@ import {
   type ClaimArtifactRequest,
   type RefundArtifactRequest,
 } from "./zcash-spend.ts";
+import { appendSwapEvent, type SwapJournal } from "./swap-journal.ts";
 
 export type TermsBoundZcashArtifact = Readonly<{
   projection: ZcashSwapProjectionV1;
@@ -52,6 +54,30 @@ function exactSafePositiveNumber(value: bigint, label: string): number {
 
 function freezeBound(value: TermsBoundZcashArtifact): TermsBoundZcashArtifact {
   return Object.freeze(value);
+}
+
+function verifyBoundArtifactIdentity(
+  terms: SwapTermsV1,
+  bound: TermsBoundZcashArtifact,
+  expectedAction?: "fund" | "claim" | "refund",
+): ZcashSwapProjectionV1 {
+  const expectedProjection = projectZcashSwapTerms(terms);
+  verifyZcashArtifact(bound.artifact);
+  verifyZcashSettlementArtifactBinding(bound.binding);
+  if (canonicalArtifactJson(bound.projection as never) !== canonicalArtifactJson(expectedProjection as never)) {
+    throw new Error("Terms-bound Zcash projection does not match the authoritative swap terms");
+  }
+  const binding = bound.binding.binding;
+  if (binding.swapId !== expectedProjection.swapId
+    || binding.termsHash !== expectedProjection.termsHash
+    || binding.action !== bound.artifact.manifest.kind
+    || binding.artifactManifestDigest !== bound.artifact.manifestDigest) {
+    throw new Error("Terms-bound Zcash artifact, binding, and projection are inconsistent");
+  }
+  if (expectedAction !== undefined && binding.action !== expectedAction) {
+    throw new Error(`Terms-bound Zcash artifact must be a ${expectedAction} action`);
+  }
+  return expectedProjection;
 }
 
 export function buildTermsBoundZcashFundingArtifact(
@@ -197,4 +223,27 @@ export function buildTermsBoundZcashRefundArtifact(
     artifactManifestDigest: artifact.manifestDigest,
   });
   return freezeBound({ projection: context.projection, artifact, binding });
+}
+
+export function appendTermsBoundZcashFunding(
+  journal: SwapJournal,
+  state: SwapState,
+  bound: TermsBoundZcashArtifact,
+  occurredAtSeconds: bigint,
+) {
+  const projection = verifyBoundArtifactIdentity(state.terms, bound, "fund");
+  const manifest = bound.artifact.manifest;
+  if (manifest.network !== "mainnet"
+    || manifest.outputs[0]?.role !== "contract"
+    || manifest.outputs[0].valueZatoshis !== projection.amountZatoshis
+    || manifest.authorization.redeemScriptHex !== projection.redeemScriptHex.slice(2)
+    || manifest.authorization.fundingLockCutoff?.toString() !== projection.fundingCutoffSeconds) {
+    throw new Error("Terms-bound Zcash funding manifest does not match its authoritative swap terms");
+  }
+  return appendSwapEvent(journal, state, {
+    kind: "prepare-funding",
+    leg: "zec",
+    artifactHash: bound.binding.bindingDigest,
+    occurredAtSeconds,
+  });
 }
