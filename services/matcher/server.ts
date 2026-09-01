@@ -38,6 +38,7 @@ import { UINT64_MAX, assetIdentifier, chainIdentifier, normalizeHex32 } from "..
 import type { TypedOrderIntent } from "../../src/lib/eip712-order.ts";
 import { activeAccountEpoch } from "../../src/lib/order-lifecycle.ts";
 import { listenHost } from "../../src/lib/operator-url.ts";
+import { nativeZecUsdcMatcherPersistentConfiguration } from "./native-zec-usdc-configuration.ts";
 import type { JournalValue } from "./journal.ts";
 import {
   PersistentMatcherStore,
@@ -234,16 +235,19 @@ function pageLimit(value: string | null): number {
   return parsed;
 }
 
-function persistenceOptions(options: MatcherServerOptions): PersistentMatcherStoreOptions | null {
-  if (!options.configuration) return null;
+function persistenceOptions(
+  options: MatcherServerOptions,
+  configuration: PersistentMatcherConfiguration | null | undefined = options.configuration,
+): PersistentMatcherStoreOptions | null {
+  if (!configuration) return null;
   const directory = options.dataDirectory ?? (options.persistPath ? dirname(options.persistPath) : DEFAULT_DATA_DIRECTORY);
   return {
     journalPath: join(directory, "events.jsonl"),
     checkpointPath: join(directory, "checkpoint.json"),
     markerPath: join(directory, "initialized"),
     lockPath: join(directory, "writer.lock"),
-    configuration: options.configuration,
-    verifier: options.verifier ?? createEvmEoaSignatureVerifier(options.configuration.domain.chainId),
+    configuration,
+    verifier: options.verifier ?? createEvmEoaSignatureVerifier(configuration.domain.chainId),
     maximumJournalBytes: options.maximumJournalBytes,
     maximumJournalRecords: options.maximumJournalRecords,
     maximumJournalLineBytes: options.maximumJournalLineBytes,
@@ -456,7 +460,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
     1_000_000,
   );
   const clockSeconds = options.clockSeconds ?? (() => BigInt(Math.floor(Date.now() / 1_000)));
-  const configured = persistenceOptions(options);
+  const configured = persistenceOptions(options, options.configuration ?? nativeZecUsdcMatcherPersistentConfiguration());
   let metricsState: MetricsState = defineCounter(emptyMetricsState(), "requests_total", "Total HTTP requests");
   let sloState: SloState = emptySloState();
   let rateLimit: RateLimitMiddleware = emptyRateLimitMiddleware({ capacity: 60n, refillPerSecond: 1n });
