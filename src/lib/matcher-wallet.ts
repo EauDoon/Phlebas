@@ -1,7 +1,5 @@
 import type { Eip1193Provider } from "./evm-wallet.ts";
-import {
-  type NativeZecUsdcMatcherDeploymentState,
-} from "./native-zec-usdc-matcher-manifest.ts";
+import type { MatcherMarketDeployment } from "./matcher-market-routing.ts";
 import {
   ETHEREUM_MAINNET_CHAIN_HEX,
   ETHEREUM_MAINNET_CHAIN_ID,
@@ -31,7 +29,7 @@ function canonicalChainId(value: unknown): string {
   return `0x${BigInt(value).toString(16)}`;
 }
 
-function assertEnabledMatcher(deployment: NativeZecUsdcMatcherDeploymentState): void {
+function assertEnabledMatcher(deployment: MatcherMarketDeployment): void {
   if (!deployment.enabled || deployment.expectedMatcher === null || deployment.orderDomain === null) {
     throw new Error("Native matcher wallet connection is disabled by the deployment manifest");
   }
@@ -58,7 +56,7 @@ async function switchToEthereumMainnet(provider: Eip1193Provider): Promise<void>
 
 export async function connectMatcherWallet(
   provider: Eip1193Provider,
-  deployment: NativeZecUsdcMatcherDeploymentState,
+  deployment: MatcherMarketDeployment,
 ): Promise<MatcherWalletConnection> {
   assertEnabledMatcher(deployment);
   const requestedAccount = await activeAccount(provider, "eth_requestAccounts");

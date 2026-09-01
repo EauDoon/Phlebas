@@ -10,14 +10,13 @@ import {
   type VerifiedMatcherAccount,
   type VerifiedMatcherOrderReceipt,
 } from "./matcher-client.ts";
-import { matcherApiPathForMarket } from "./matcher-market-routing.ts";
+import { matcherApiPathForMarket, type MatcherMarketDeployment } from "./matcher-market-routing.ts";
 import {
   buildMatcherBuyOrderDraft,
   type MatcherBuyOrderDraft,
   type MatcherBuyOrderDraftInput,
 } from "./matcher-order-draft.ts";
 import { connectMatcherWallet, type MatcherWalletConnection } from "./matcher-wallet.ts";
-import type { NativeZecUsdcMatcherDeploymentState } from "./native-zec-usdc-matcher-manifest.ts";
 import type { Hex32 } from "./order-domain.ts";
 import { signTypedOrderIntent } from "./evm-wallet.ts";
 
@@ -29,7 +28,7 @@ export type MatcherOrderFetch = (
 export type ReviewMatcherBuyOrderInput = Readonly<{
   fetch: MatcherOrderFetch;
   provider: Eip1193Provider;
-  deployment: NativeZecUsdcMatcherDeploymentState;
+  deployment: MatcherMarketDeployment;
   selectedMarket: string;
   zcashRecipient: string;
   priceTicks: bigint;
@@ -41,7 +40,7 @@ export type ReviewMatcherBuyOrderInput = Readonly<{
 }>;
 
 export type ReviewedMatcherBuyOrder = Readonly<{
-  deployment: NativeZecUsdcMatcherDeploymentState;
+  deployment: MatcherMarketDeployment;
   wallet: MatcherWalletConnection;
   makerAccountId: Hex32;
   draft: MatcherBuyOrderDraft;
@@ -103,7 +102,7 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-function assertEnabledDeployment(deployment: NativeZecUsdcMatcherDeploymentState): void {
+function assertEnabledDeployment(deployment: MatcherMarketDeployment): void {
   if (deployment.enabled !== true
     || deployment.deployed !== true
     || deployment.submissionEnabled !== true
@@ -145,17 +144,17 @@ async function jsonResponse(
   }
 }
 
-function healthPath(deployment: NativeZecUsdcMatcherDeploymentState): string {
+function healthPath(deployment: MatcherMarketDeployment): string {
   return matcherApiPathForMarket(deployment.manifest.market.id);
 }
 
-function accountPath(deployment: NativeZecUsdcMatcherDeploymentState, makerAccountId: string): string {
+function accountPath(deployment: MatcherMarketDeployment, makerAccountId: string): string {
   return `${healthPath(deployment)}&account=${encodeURIComponent(makerAccountId)}`;
 }
 
 async function reviewedMatcherState(
   fetcher: MatcherOrderFetch,
-  deployment: NativeZecUsdcMatcherDeploymentState,
+  deployment: MatcherMarketDeployment,
   makerAccountId: Hex32,
 ): Promise<Readonly<{ health: unknown; account: VerifiedMatcherAccount }>> {
   const expectedMatcher = deployment.expectedMatcher;

@@ -7,6 +7,11 @@ import {
   computeNativeZecUsdcMatcherConfigurationHash,
   parseNativeZecUsdcMatcherManifest,
 } from "./native-zec-usdc-matcher-manifest.ts";
+import {
+  NATIVE_ZEC_USDT_MATCHER_MANIFEST,
+  computeNativeZecUsdtMatcherConfigurationHash,
+  parseNativeZecUsdtMatcherManifest,
+} from "./native-zec-usdt-matcher-manifest.ts";
 import { buildMatcherBuyOrderDraft, type MatcherBuyOrderDraftInput } from "./matcher-order-draft.ts";
 import { evmAuthorizedSignerId } from "./matcher-auth.ts";
 import { hashTypedOrder } from "./eip712-order.ts";
@@ -31,13 +36,30 @@ function activatedDeployment() {
   return parseNativeZecUsdcMatcherManifest(manifest);
 }
 
+function activatedUsdtDeployment() {
+  const manifest = JSON.parse(JSON.stringify(NATIVE_ZEC_USDT_MATCHER_MANIFEST)) as {
+    deployed: boolean;
+    submissionEnabled: boolean;
+    evm: { verifyingContract: string | null };
+    configurationHash: string | null;
+  };
+  manifest.deployed = true;
+  manifest.submissionEnabled = true;
+  manifest.evm.verifyingContract = CONTRACT;
+  manifest.configurationHash = computeNativeZecUsdtMatcherConfigurationHash(CONTRACT);
+  return parseNativeZecUsdtMatcherManifest(manifest);
+}
+
 function validInput(overrides: Partial<MatcherBuyOrderDraftInput> = {}): MatcherBuyOrderDraftInput {
-  const deployment = activatedDeployment();
-  const makerAccountId = evmAuthorizedSignerId(deployment.orderDomain!.chainId, WALLET);
-  const configurationHash = deployment.configurationHash!;
+  const deployment = overrides.deployment ?? activatedDeployment();
+  const configuredDeployment = deployment.orderDomain === null
+    ? deployment.manifest.market.id === "ZEC/USDT" ? activatedUsdtDeployment() : activatedDeployment()
+    : deployment;
+  const makerAccountId = evmAuthorizedSignerId(configuredDeployment.orderDomain!.chainId, WALLET);
+  const configurationHash = configuredDeployment.configurationHash!;
   return {
     deployment,
-    selectedMarket: "ZEC/USDC",
+    selectedMarket: deployment.manifest.market.id,
     connectedEvmWallet: WALLET,
     zcashRecipient: RECIPIENT,
     matcherHealth: {
@@ -79,10 +101,10 @@ test("fails closed when the native matcher manifest is disabled", () => {
   assert.throws(() => buildMatcherBuyOrderDraft(input), /not enabled/);
 });
 
-test("rejects every market except ZEC/USDC and only constructs the buy-side CLOB GTC order", () => {
+test("requires the exact selected manifest market and only constructs the buy-side CLOB GTC order", () => {
   assert.throws(
     () => buildMatcherBuyOrderDraft(validInput({ selectedMarket: "ZEC/USDT" })),
-    /exact ZEC\/USDC market/,
+    /exact selected ZEC\/USDC or ZEC\/USDT market/,
   );
 
   const draft = buildMatcherBuyOrderDraft(validInput());
@@ -90,6 +112,15 @@ test("rejects every market except ZEC/USDC and only constructs the buy-side CLOB
   assert.equal(draft.order.timeInForce, 0);
   assert.equal(draft.order.maximumFeeBps, 0n);
   assert.equal(draft.order.allowedVenues, 1);
+});
+
+test("builds an exact ZEC/USDT draft without substituting USDC identity", () => {
+  const deployment = activatedUsdtDeployment();
+  const draft = buildMatcherBuyOrderDraft(validInput({ deployment }));
+  assert.equal(deployment.manifest.market.id, "ZEC/USDT");
+  assert.equal(draft.order.quoteChainId, deployment.orderPair.quoteChainId);
+  assert.equal(draft.order.quoteAssetId, deployment.orderPair.quoteAssetId);
+  assert.equal(draft.order.settlementAdapterId, deployment.settlementAdapterId);
 });
 
 test("rejects a non-canonical or non-mainnet transparent Zcash recipient", () => {

@@ -1,13 +1,19 @@
 import type { AtomicSwapPair } from "./atomic-swap-plan.ts";
 import type { MarketId } from "./market-data.ts";
-import { NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT } from "./native-zec-usdc-matcher-manifest.ts";
-import { NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT } from "./native-zec-usdt-matcher-manifest.ts";
+import {
+  NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+  type NativeZecUsdcMatcherDeploymentState,
+} from "./native-zec-usdc-matcher-manifest.ts";
+import {
+  NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT,
+  type NativeZecUsdtMatcherDeploymentState,
+} from "./native-zec-usdt-matcher-manifest.ts";
 
 export const MATCHER_MARKET_QUERY_KEY = "market" as const;
 
 export type MatcherMarketDeployment =
-  | typeof NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT
-  | typeof NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT;
+  | NativeZecUsdcMatcherDeploymentState
+  | NativeZecUsdtMatcherDeploymentState;
 
 export type MatcherMarketSelection = Readonly<{
   marketId: MarketId;

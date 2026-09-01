@@ -27,6 +27,7 @@ import {
   type ReviewedMatcherOrderControl,
 } from "./matcher-order-controls.ts";
 import { hash160Value, p2shAddress } from "./zcash-address.ts";
+import type { MatcherMarketDeployment } from "./matcher-market-routing.ts";
 
 const NOW = 1_800_000_000n;
 const CONTRACT = `0x${"11".repeat(20)}`;
@@ -63,7 +64,7 @@ function deployment() {
   });
 }
 
-function health(active = deployment()) {
+function health(active: MatcherMarketDeployment = deployment()) {
   return {
     ok: true,
     matcher: "persistent-native-v1",
@@ -76,7 +77,7 @@ function health(active = deployment()) {
   };
 }
 
-function account(active = deployment(), sequence = "9", epoch = "7") {
+function account(active: MatcherMarketDeployment = deployment(), sequence = "9", epoch = "7") {
   const makerAccountId = evmAuthorizedSignerId(active.orderDomain!.chainId, WALLET);
   return {
     ok: true,
@@ -123,11 +124,12 @@ function provider(calls: string[], control: () => ReviewedMatcherOrderControl | 
   };
 }
 
-async function reviewedOrder(active = deployment()): Promise<ReviewedMatcherBuyOrder> {
+async function reviewedOrder(active: MatcherMarketDeployment = deployment()): Promise<ReviewedMatcherBuyOrder> {
   const maker = evmAuthorizedSignerId(active.orderDomain!.chainId, WALLET);
   const fetcher: MatcherOrderFetch = async (path) => {
-    if (String(path) === "/api/matcher?market=ZEC%2FUSDC") return json(health(active));
-    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(active));
+    const basePath = `/api/matcher?market=${encodeURIComponent(active.manifest.market.id)}`;
+    if (String(path) === basePath) return json(health(active));
+    if (String(path) === `${basePath}&account=${maker}`) return json(account(active));
     throw new Error(String(path));
   };
   const injected: Eip1193Provider = {
@@ -141,7 +143,7 @@ async function reviewedOrder(active = deployment()): Promise<ReviewedMatcherBuyO
     deployment: active,
     provider: injected,
     fetch: fetcher,
-    selectedMarket: "ZEC/USDC",
+    selectedMarket: active.manifest.market.id,
     zcashRecipient: RECIPIENT,
     priceTicks: 650_000n,
     sizeAtoms: 100_000_000n,

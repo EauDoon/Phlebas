@@ -20,14 +20,13 @@ import {
   type VerifiedMatcherAccount,
   type VerifiedMatcherControlReceipt,
 } from "./matcher-client.ts";
-import { matcherApiPathForMarket } from "./matcher-market-routing.ts";
+import { matcherApiPathForMarket, type MatcherMarketDeployment } from "./matcher-market-routing.ts";
 import {
   assertConfirmedMatcherOrderArtifact,
   type ConfirmedMatcherOrderArtifact,
   type ReviewedMatcherBuyOrder,
 } from "./matcher-order-workflow.ts";
 import { connectMatcherWallet, type MatcherWalletConnection } from "./matcher-wallet.ts";
-import type { NativeZecUsdcMatcherDeploymentState } from "./native-zec-usdc-matcher-manifest.ts";
 import { UINT64_MAX, type Hex32 } from "./order-domain.ts";
 
 export type MatcherControlFetch = (
@@ -40,7 +39,7 @@ export type { ConfirmedMatcherOrderArtifact } from "./matcher-order-workflow.ts"
 type UserMatcherControl = MatcherOrderCancellationControl | MatcherAccountEpochAdvanceControl;
 
 type MatcherControlReviewBase<TControl extends UserMatcherControl> = Readonly<{
-  deployment: NativeZecUsdcMatcherDeploymentState;
+  deployment: MatcherMarketDeployment;
   wallet: MatcherWalletConnection;
   makerAccountId: Hex32;
   accountCheckpoint: VerifiedMatcherAccount["checkpoint"];
@@ -120,7 +119,7 @@ function isDeepFrozen(value: unknown, visited = new WeakSet<object>()): boolean 
   return Object.values(value).every((nested) => isDeepFrozen(nested, visited));
 }
 
-function assertEnabledDeployment(deployment: NativeZecUsdcMatcherDeploymentState): void {
+function assertEnabledDeployment(deployment: MatcherMarketDeployment): void {
   if (deployment.enabled !== true
     || deployment.deployed !== true
     || deployment.submissionEnabled !== true
@@ -151,7 +150,7 @@ function assertOccurredAt(value: bigint): bigint {
 }
 
 function controlRequestId(
-  deployment: NativeZecUsdcMatcherDeploymentState,
+  deployment: MatcherMarketDeployment,
   control: UserMatcherControl,
   occurredAt: bigint,
 ): string {
@@ -171,11 +170,11 @@ function sameCheckpoint(
     && left.configurationHash === right.configurationHash;
 }
 
-function healthPath(deployment: NativeZecUsdcMatcherDeploymentState): string {
+function healthPath(deployment: MatcherMarketDeployment): string {
   return matcherApiPathForMarket(deployment.manifest.market.id);
 }
 
-function accountPath(deployment: NativeZecUsdcMatcherDeploymentState, makerAccountId: Hex32): string {
+function accountPath(deployment: MatcherMarketDeployment, makerAccountId: Hex32): string {
   return `${healthPath(deployment)}&account=${encodeURIComponent(makerAccountId)}`;
 }
 
@@ -206,7 +205,7 @@ async function jsonResponse(
 
 async function reviewedMatcherState(
   fetcher: MatcherControlFetch,
-  deployment: NativeZecUsdcMatcherDeploymentState,
+  deployment: MatcherMarketDeployment,
   makerAccountId: Hex32,
 ): Promise<Readonly<{ health: unknown; account: VerifiedMatcherAccount }>> {
   const expectedMatcher = deployment.expectedMatcher;

@@ -16,14 +16,18 @@ import {
 import {
   NATIVE_ZEC_USDC_MARKET_ID,
   NATIVE_ZEC_USDC_SETTLEMENT_PAIR,
-  type NativeZecUsdcMatcherDeploymentState,
 } from "./native-zec-usdc-matcher-manifest.ts";
+import {
+  NATIVE_ZEC_USDT_MARKET_ID,
+  NATIVE_ZEC_USDT_SETTLEMENT_PAIR,
+} from "./native-zec-usdt-matcher-manifest.ts";
+import type { MatcherMarketDeployment } from "./matcher-market-routing.ts";
 import { accountIdentifier, normalizeAddress, normalizeHex32, type Hex32 } from "./order-domain.ts";
 import { assertOrderPolicy, VENUE_CLOB } from "./order-policy.ts";
 import { assertZcashTransparentAccount, canonicalZcashTransparentAccount } from "./zcash-address.ts";
 
 export type MatcherBuyOrderDraftInput = Readonly<{
-  deployment: NativeZecUsdcMatcherDeploymentState;
+  deployment: MatcherMarketDeployment;
   selectedMarket: string;
   connectedEvmWallet: string;
   zcashRecipient: string;
@@ -58,7 +62,7 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-function enabledExpectedMatcher(deployment: NativeZecUsdcMatcherDeploymentState) {
+function enabledExpectedMatcher(deployment: MatcherMarketDeployment) {
   if (deployment.enabled !== true
     || deployment.state !== "enabled"
     || deployment.deployed !== true
@@ -66,7 +70,7 @@ function enabledExpectedMatcher(deployment: NativeZecUsdcMatcherDeploymentState)
     || deployment.expectedMatcher === null
     || deployment.orderDomain === null
     || deployment.configurationHash === null) {
-    throw new Error("Native ZEC/USDC matcher deployment is not enabled");
+    throw new Error("Native matcher deployment is not enabled");
   }
 
   const expected = deployment.expectedMatcher;
@@ -82,25 +86,28 @@ function enabledExpectedMatcher(deployment: NativeZecUsdcMatcherDeploymentState)
     || expected.market.quote.asset !== deployment.market.quote.asset
     || expected.market.quote.environment !== deployment.market.quote.environment
     || expected.market.quote.decimals !== deployment.market.quote.decimals) {
-    throw new Error("Native ZEC/USDC matcher deployment identity is inconsistent");
+    throw new Error("Native matcher deployment identity is inconsistent");
   }
   return expected;
 }
 
 function assertSelectedNativeMarket(
-  deployment: NativeZecUsdcMatcherDeploymentState,
+  deployment: MatcherMarketDeployment,
   selectedMarket: string,
 ): void {
-  if (selectedMarket !== NATIVE_ZEC_USDC_MARKET_ID
-    || deployment.manifest.market.id !== NATIVE_ZEC_USDC_MARKET_ID
-    || deployment.manifest.market.settlementPair !== NATIVE_ZEC_USDC_SETTLEMENT_PAIR) {
-    throw new Error("Only the exact ZEC/USDC market can create a matcher buy-order draft");
+  const identity = deployment.manifest.market;
+  const exactUsdc = identity.id === NATIVE_ZEC_USDC_MARKET_ID
+    && identity.settlementPair === NATIVE_ZEC_USDC_SETTLEMENT_PAIR;
+  const exactUsdt = identity.id === NATIVE_ZEC_USDT_MARKET_ID
+    && identity.settlementPair === NATIVE_ZEC_USDT_SETTLEMENT_PAIR;
+  if (selectedMarket !== identity.id || (!exactUsdc && !exactUsdt)) {
+    throw new Error("Only the exact selected ZEC/USDC or ZEC/USDT market can create a matcher buy-order draft");
   }
 }
 
 function assertBaseAmountWithinManifestLimits(
   sizeAtoms: bigint,
-  deployment: NativeZecUsdcMatcherDeploymentState,
+  deployment: MatcherMarketDeployment,
 ): void {
   if (typeof sizeAtoms !== "bigint"
     || sizeAtoms < deployment.limits.minimumBaseAmountAtoms
@@ -122,7 +129,7 @@ export function buildMatcherBuyOrderDraft(input: MatcherBuyOrderDraftInput): Mat
   const wallet = normalizeAddress(input.connectedEvmWallet, "Connected EVM wallet");
   const quoteNetwork = deployment.market.quote.network;
   if (quoteNetwork !== `eip155:${domain.chainId}`) {
-    throw new Error("Native ZEC/USDC quote network does not match the signing domain");
+    throw new Error("Native matcher quote network does not match the signing domain");
   }
 
   const sourceAccount = `${quoteNetwork}:${wallet}`;

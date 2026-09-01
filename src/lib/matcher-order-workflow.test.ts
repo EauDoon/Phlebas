@@ -10,6 +10,12 @@ import {
   parseNativeZecUsdcMatcherManifest,
 } from "./native-zec-usdc-matcher-manifest.ts";
 import {
+  NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT,
+  computeNativeZecUsdtMatcherConfigurationHash,
+  parseNativeZecUsdtMatcherManifest,
+} from "./native-zec-usdt-matcher-manifest.ts";
+import type { MatcherMarketDeployment } from "./matcher-market-routing.ts";
+import {
   MatcherOrderWorkflowError,
   confirmMatcherBuyOrder,
   retryMatcherBuyOrder,
@@ -57,7 +63,19 @@ function deployment() {
   return parseNativeZecUsdcMatcherManifest(manifest);
 }
 
-function health(active = deployment()) {
+function usdtDeployment() {
+  const source = NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT.manifest;
+  const manifest = {
+    ...source,
+    deployed: true,
+    submissionEnabled: true,
+    evm: { ...source.evm, verifyingContract: CONTRACT },
+    configurationHash: computeNativeZecUsdtMatcherConfigurationHash(CONTRACT),
+  };
+  return parseNativeZecUsdtMatcherManifest(manifest);
+}
+
+function health(active: MatcherMarketDeployment = deployment()) {
   return {
     ok: true,
     matcher: "persistent-native-v1",
@@ -70,7 +88,7 @@ function health(active = deployment()) {
   };
 }
 
-function account(active = deployment(), sequence = "9") {
+function account(active: MatcherMarketDeployment = deployment(), sequence = "9") {
   const makerAccountId = evmAuthorizedSignerId(active.orderDomain!.chainId, WALLET);
   const recordHash = sequence === "9" ? `0x${"33".repeat(32)}` : `0x${"55".repeat(32)}`;
   return {
@@ -94,7 +112,7 @@ function json(value: unknown, status = 200): Response {
 }
 
 function reviewInput(
-  active: ReturnType<typeof deployment>,
+  active: MatcherMarketDeployment,
   provider: Eip1193Provider,
   fetcher: MatcherOrderFetch,
 ): ReviewMatcherBuyOrderInput {
@@ -102,7 +120,7 @@ function reviewInput(
     deployment: active,
     provider,
     fetch: fetcher,
-    selectedMarket: "ZEC/USDC",
+    selectedMarket: active.manifest.market.id,
     zcashRecipient: RECIPIENT,
     priceTicks: 650_000n,
     sizeAtoms: 100_000_000n,
@@ -202,6 +220,25 @@ test("review fetches no-store matcher state, connects the manifest wallet, and f
     [`/api/matcher?market=ZEC%2FUSDC&account=${maker}`, "GET", "no-store"],
   ]);
   assert.deepEqual(providerCalls, ["eth_requestAccounts", "eth_chainId", "eth_chainId", "eth_accounts"]);
+});
+
+test("review routes an exact enabled ZEC/USDT manifest only to the USDT matcher", async () => {
+  const active = usdtDeployment();
+  const maker = evmAuthorizedSignerId(active.orderDomain!.chainId, WALLET);
+  const fetchCalls: string[] = [];
+  const fetcher: MatcherOrderFetch = async (path) => {
+    fetchCalls.push(String(path));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDT") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDT&account=${maker}`) return json(account(active));
+    throw new Error(String(path));
+  };
+  const reviewed = await reviewMatcherBuyOrder(reviewInput(active, provider([], () => null), fetcher));
+  assert.equal(reviewed.deployment.manifest.market.id, "ZEC/USDT");
+  assert.equal(reviewed.draft.order.quoteAssetId, active.orderPair.quoteAssetId);
+  assert.deepEqual(fetchCalls, [
+    "/api/matcher?market=ZEC%2FUSDT",
+    `/api/matcher?market=ZEC%2FUSDT&account=${maker}`,
+  ]);
 });
 
 test("confirmation rejects matcher-account drift before it signs or posts", async () => {
