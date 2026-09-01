@@ -4171,7 +4171,6 @@ test("skip-nav returns data-skip-nav-state to visible when a child skip link is 
   await secondLink.focus();
   await expect(nav).toHaveAttribute("data-skip-nav-state", "visible");
 });
-});
 
 test("native settlement refund path stays early, then recovers both fixture legs", async ({ page }) => {
   await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
