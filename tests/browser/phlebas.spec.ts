@@ -166,8 +166,8 @@ for (const width of viewports) {
           });
           expect(bannerBeforeHeader).toBe(true);
           await expect(page.getByRole("heading", { name: "Current system" })).toBeVisible();
-          await expect(page.getByText("Wallet connection")).toBeVisible();
-          await expect(page.getByText("Unavailable", { exact: true })).toBeVisible();
+          await expect(page.getByText("Wallet connection", { exact: true })).toBeVisible();
+          await expect(page.getByLabel("Current system").getByText("Not deployed", { exact: true })).toBeVisible();
           await expect(page.getByText(
             "The simulation now labels settlement as ZEC-USDC and ZEC-USDT. Native labels are simulation names, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.",
             { exact: true },
@@ -492,10 +492,10 @@ test("status Architecture link keeps the demonstration label", async ({ page }) 
 test("only the matcher operator API remains and stays unavailable without its loopback URL", async ({ page }) => {
   const removedGateway = await page.request.post("/api/deposit-intent");
   expect(removedGateway.status()).toBe(404);
-  const matcher = await page.request.get("/api/matcher");
+  const matcher = await page.request.get("/api/matcher?market=ZEC%2FUSDC");
   expect(matcher.status()).toBe(503);
   expect((await matcher.json()).reason).toBe("matcher-unavailable");
-  const matcherPost = await page.request.post("/api/matcher", { data: {} });
+  const matcherPost = await page.request.post("/api/matcher?market=ZEC%2FUSDC&action=accept-order", { data: {} });
   expect(matcherPost.status()).toBe(503);
   expect((await matcherPost.json()).reason).toBe("matcher-unavailable");
 });
@@ -4201,9 +4201,10 @@ for (const unsafe of [
   });
 }
 
-test("native settlement keeps USDT disabled until one exact asset identity is approved", async ({ page }) => {
+test("native settlement binds exact mainnet USDT but remains disabled until deployment", async ({ page }) => {
   await page.goto("/trade?view=settlement&market=ZEC/USDT", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "USDT identity unresolved" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "USDT matcher undeployed" })).toBeVisible();
+  await expect(page.getByText("The exact Ethereum Mainnet USDT identity is bound separately from USDC.")).toBeVisible();
   await expect(page.getByText("USDT is not USDT0.", { exact: true })).toBeVisible();
   const disabled = page.getByRole("button", { name: "Fixture action disabled" });
   await expect(disabled).toBeDisabled();
