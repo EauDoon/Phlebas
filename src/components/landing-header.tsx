@@ -3,15 +3,9 @@
 import Link from "next/link";
 import { useRef, type MouseEvent } from "react";
 
-import styles from "./landing.module.css";
+import { LANDING_HERO, LANDING_NAV } from "@/lib/landing-copy";
 
-const navigation = [
-  { href: "#markets", label: "Markets" },
-  { href: "/trade?view=trade", label: "Terminal" },
-  { href: "/liquidity", label: "Liquidity" },
-  { href: "/trade?view=architecture", label: "Docs" },
-  { href: "/status", label: "Status" },
-] as const;
+import styles from "./landing.module.css";
 
 export function LandingHeader() {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -44,7 +38,7 @@ export function LandingHeader() {
       </Link>
 
       <nav className={styles.desktopNav} aria-label="Landing navigation">
-        {navigation.map((item) => (
+        {LANDING_NAV.map((item) => (
           item.href.startsWith("#")
             ? <a href={item.href} key={item.href}>{item.label}</a>
             : <Link href={item.href} key={item.href}>{item.label}</Link>
@@ -52,8 +46,8 @@ export function LandingHeader() {
       </nav>
 
       <div className={styles.headerActions}>
-        <Link href="/trade?view=settlement" className={styles.headerSecondary}>How settlement works</Link>
-        <Link href="/trade?view=trade" className={styles.headerCta}>Open terminal</Link>
+        <Link href={LANDING_HERO.secondaryHref} className={styles.headerSecondary}>{LANDING_HERO.secondaryAction}</Link>
+        <Link href={LANDING_HERO.primaryHref} className={styles.headerCta}>{LANDING_HERO.primaryAction}</Link>
         <button type="button" className={styles.menuButton} onClick={openMenu}>Menu</button>
       </div>
 
@@ -63,7 +57,7 @@ export function LandingHeader() {
           <button type="button" onClick={closeMenu} aria-label="Close menu">Close</button>
         </div>
         <nav aria-label="Mobile landing navigation">
-          {navigation.map((item) => (
+          {LANDING_NAV.map((item) => (
             item.href.startsWith("#")
               ? (
                 <a href={item.href} key={item.href} onClick={(event) => followHash(event, item.href)}>
@@ -76,8 +70,8 @@ export function LandingHeader() {
                 </Link>
               )
           ))}
-          <Link href="/trade?view=settlement" onClick={closeMenu}>How settlement works</Link>
-          <Link href="/trade?view=trade" onClick={closeMenu}>Open terminal</Link>
+          <Link href={LANDING_HERO.secondaryHref} onClick={closeMenu}>{LANDING_HERO.secondaryAction}</Link>
+          <Link href={LANDING_HERO.primaryHref} onClick={closeMenu}>{LANDING_HERO.primaryAction}</Link>
         </nav>
       </dialog>
     </header>

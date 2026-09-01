@@ -1,18 +1,18 @@
 export const LANDING_EVIDENCE = [
   {
-    title: "Order book preview",
-    body: "Price-time ordering, illustrative depth, and preview-only order validation.",
+    title: "No pZEC",
+    body: "Phlebas does not mint a wrapped ZEC receipt. Native ZEC stays ZEC.",
   },
   {
-    title: "LP math preview",
-    body: "Constant-product calculations for two fixed pool fixtures, with no deposits and no return projection.",
+    title: "No mint",
+    body: "There is no platform mint and no customer-asset receipt token.",
   },
   {
-    title: "Historical custody model",
-    body: "A removed transparent-ZEC custody state model, retained only as a keyless tour with no address generation, custody, mint, or redemption.",
+    title: "No omnibus",
+    body: "Locks are funded from the parties’ wallets. There is no shared omnibus account.",
   },
   {
-    title: "Published boundary",
-    body: "Architecture, custody assumptions, launch gates, and failure handling are readable before any product action.",
+    title: "No shared LP token",
+    body: "Solvers keep inventory in their own wallets. There is no pooled claim on customer assets.",
   },
 ] as const;
