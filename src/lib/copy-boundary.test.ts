@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,6 +12,68 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 function withoutHonestBridgeNegation(copy: string) {
   return copy.replace(/not (?:native ZEC, shielded ZEC, or )?a trustless bridge asset/gi, "");
 }
+
+function withoutHonestCopyNegation(copy: string) {
+  return withoutHonestBridgeNegation(copy)
+    .replace(/\bnot trustless\b/gi, "")
+    .replace(/\bdoes not provide shielded(?: deposits)?\b/gi, "")
+    .replace(/\bNo shielded deposit or withdrawal is planned for v1\b/gi, "")
+    .replace(/\bnot native ZEC(?: or the target asset)?\b/gi, "")
+    .replace(/\bno native ZEC or stablecoin enters this application\b/gi, "")
+    .replace(/\bNo live funds(?: or custody)?\b/gi, "")
+    .replace(/\bNot a payable QR\b/gi, "")
+    .replace(/\bNot payable\b/gi, "")
+    .replace(/\bNative settlement target:[^.]*(?:\.|$)/gi, "")
+    .replace(/\bnot the native-settlement target\b/gi, "");
+}
+
+async function shippedUiFiles() {
+  const files = [];
+
+  async function walk(directory, match) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await walk(path, match);
+        continue;
+      }
+      if (entry.isFile() && match(entry.name)) {
+        files.push(path);
+      }
+    }
+  }
+
+  await walk(join(root, "src/components"), (name) => name.endsWith(".tsx"));
+  await walk(join(root, "src/app"), (name) => name.endsWith(".tsx"));
+  await walk(
+    join(root, "src/lib"),
+    (name) => name.includes("copy") && name.endsWith(".ts") && !name.endsWith(".test.ts"),
+  );
+  return files;
+}
+
+test("shipped UI copy does not claim live trustless, shielded, or native-ZEC settlement", async () => {
+  const files = await shippedUiFiles();
+  assert.ok(files.some((file) => file.endsWith("architecture-panel.tsx")));
+  assert.ok(files.some((file) => file.endsWith("landing-copy.ts")));
+  const joined = withoutHonestCopyNegation(
+    (await Promise.all(files.map((file) => readFile(file, "utf8")))).join("\n"),
+  );
+  assert.doesNotMatch(joined, /\btrustless\b/i);
+  assert.doesNotMatch(joined, /\bshielded\b/i);
+  assert.doesNotMatch(joined, /native-ZEC/i);
+  assert.doesNotMatch(joined, /wallet-signed native[- ]ZEC/i);
+  assert.doesNotMatch(joined, /native ZEC atomic settlement/i);
+  assert.doesNotMatch(joined, /\bis audited\b/i);
+  assert.doesNotMatch(joined, /\baccepts live funds\b/i);
+  assert.doesNotMatch(joined, /\bhas live funds\b/i);
+  assert.doesNotMatch(joined, /\bpayable\b/i);
+  const architecture = await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8");
+  assert.match(architecture, /Native settlement target/);
+  assert.match(architecture, /The matcher is not trustless/);
+  assert.match(architecture, /Simulation only/);
+  assert.doesNotMatch(architecture, /wallet-signed native-ZEC atomic settlement/);
+});
 
 test("status payload cannot be read as live funds or custody", async () => {
   const statusRoute = await readFile(join(root, "src/app/api/status/route.ts"), "utf8");
