@@ -7,27 +7,27 @@ const SETTLEMENT_PAIR = "ZEC-USDC" as const;
 test("320px LP loading feed disables mint and retries", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/liquidity?feed=loading", { waitUntil: "networkidle" });
-  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review mint" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review swap" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
   await expect(page.getByText("Loading market data", { exact: true }).first()).toBeVisible();
   await expect(page.getByText(loadingGateCopy(SETTLEMENT_PAIR)).first()).toBeVisible();
   await expect(page.getByText(lpFeedBlockCopy()).first()).toBeVisible();
   await page.getByRole("button", { name: "Retry illustrative feed" }).first().click();
-  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Review mint" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Review swap" })).toBeEnabled();
 });
 
 test("320px LP stale feed disables mint and retries", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/liquidity?feed=stale", { waitUntil: "networkidle" });
-  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review mint" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review swap" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
   await expect(page.getByText("Market data stale", { exact: true }).first()).toBeVisible();
   await expect(page.getByText(staleGateCopy(SETTLEMENT_PAIR)).first()).toBeVisible();
   await expect(page.getByText(lpFeedBlockCopy()).first()).toBeVisible();
   await page.getByRole("button", { name: "Retry illustrative feed" }).first().click();
-  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Review mint" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Review swap" })).toBeEnabled();
 });

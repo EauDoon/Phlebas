@@ -94,22 +94,19 @@ test.describe("desktop operating density", () => {
     await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   });
 
-  test("liquidity keeps solver quotes, historical controls, and risks on one screen", async ({ page }) => {
+  test("liquidity keeps solver quotes on one screen and labels historical AMM retired", async ({ page }) => {
     await page.goto("/liquidity", { waitUntil: "networkidle" });
 
-    const pools = page.locator("#liquidity-pools");
-    const stats = page.locator("#pool-stats");
-    const mint = page.getByRole("button", { name: "Review simulated mint" });
-    const burn = page.getByRole("button", { name: "Burn session shares" });
-    const swap = page.getByRole("button", { name: "Review simulated swap" });
+    const quotes = page.getByRole("heading", { name: "Solver quotes" });
+    const pairs = page.locator("#liquidity-pools");
     const wallet = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
 
-    await expectIntersectingViewport(pools, "pool tabs");
-    await expectIntersectingViewport(stats, "pool stats");
-    await expectIntersectingViewport(mint, "review mint");
-    await expectIntersectingViewport(burn, "burn shares");
-    await expectIntersectingViewport(swap, "review swap");
+    await expectIntersectingViewport(quotes, "solver quotes");
+    await expectIntersectingViewport(pairs, "quote pairs");
     await expectIntersectingViewport(wallet, "wallet connect");
+    await expect(page.getByText("Wallet-held inventory")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Historical AMM model" })).toBeVisible();
+    await expect(page.getByText("Retired", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Session LP shares", { exact: true })).toBeVisible();
     await expect(page.getByText("Session IL vs hold", { exact: true })).toBeVisible();
     await expect(page.getByText("IL vs hold at 4x ZEC/quote")).toBeVisible();
@@ -120,6 +117,14 @@ test.describe("desktop operating density", () => {
     await expect(historicalAmm).toContainText("Retired constant-product math");
     await expect(historicalAmm.locator("#pool-stats")).toBeVisible();
     await expect(risks).toBeVisible();
+
+    const mint = page.getByRole("button", { name: "Review mint" });
+    const burn = page.getByRole("button", { name: "Burn session shares" });
+    const swap = page.getByRole("button", { name: "Review swap" });
+    await mint.scrollIntoViewIfNeeded();
+    await expect(mint).toBeVisible();
+    await expect(swap).toBeVisible();
+    await expect(burn).toBeEnabled();
 
     await page.getByRole("radio", { name: "Loading" }).click();
     await expect(mint).toBeDisabled();

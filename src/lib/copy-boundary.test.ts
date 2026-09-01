@@ -358,7 +358,8 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /Review custody notice/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /feeEnvelopeCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /ticketReviewRows/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /ticketReviewCompleteCopy/);
+  assert.match(await readFile(join(root, "src/lib/ticket-review-copy.ts"), "utf8"), /ticketReviewCompleteCopy/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /setNotice\(result\)/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /ticketReviewFeeCopy/);
   assert.match(await readFile(join(root, "src/lib/order.ts"), "utf8"), /no unbounded market instruction/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/order.ts"), "utf8"), /pZEC/);
@@ -584,7 +585,7 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /No session LP shares/);
   assert.match(liquidity, /not a return or profit projection/i);
   assert.match(liquidity, /feeEnvelopeCopy/);
-  assert.match(liquidity, /Confirm simulated \{review\.kind\}/);
+  assert.match(liquidity, /Complete \{review\.kind\}/);
   assert.match(liquidity, /custodyRedemptionCopy/);
   assert.match(liquidity, /publicLinkabilityCopy/);
   assert.match(liquidity, /lpRiskCopy/);
@@ -593,7 +594,7 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.doesNotMatch(liquidity, /adverse selection/);
   assert.match(liquidity, /publicly linkable/);
   assert.match(liquidity, /Review custody notice/);
-  assert.match(liquidity, /Review simulated mint/);
+  assert.match(liquidity, /Review mint/);
   assert.match(liquidity, /nextFeedStatus/);
   assert.match(liquidity, /interpretRovingKey/);
   assert.match(liquidity, /id="liquidity-pools"/);

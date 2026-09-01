@@ -39,7 +39,6 @@ import {
   ticketIdleNoticeCopy,
   ticketRetryFeedCopy,
   ticketReviewActionCopy,
-  ticketReviewCompleteCopy,
   ticketReviewFeeCopy,
   ticketReviewNoticeCopy,
   ticketReviewRows,
@@ -464,7 +463,7 @@ export function TradeTicket({
       expiryUnix: review.expiryUnix,
     });
     setRejected(isTicketRejectCopy(result) ? result : null);
-    setNotice(isTicketRejectCopy(result) ? result : ticketReviewCompleteCopy());
+    setNotice(result);
     setReview(null);
   }
 

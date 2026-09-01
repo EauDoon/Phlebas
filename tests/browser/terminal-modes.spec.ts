@@ -2,19 +2,36 @@ import { type Page } from "@playwright/test";
 
 import { missingProviderCopy } from "../../src/lib/evm-wallet.ts";
 import { markets } from "../../src/lib/market-data.ts";
+import { submitOrder } from "../../src/lib/matcher.ts";
+import { describeSubmit, seedBook } from "../../src/lib/session.ts";
 import { TERMINAL_MODE_STORAGE_KEY } from "../../src/lib/terminal-mode.ts";
+import { parseAtomicUnits, PRICE_DECIMALS, worstPriceTicks, ZEC_DECIMALS } from "../../src/lib/units.ts";
 import { inspectTransparentDestination } from "../../src/lib/zcash-address.ts";
 
 import {
   expect,
   LANDING_HERO_HEADING,
   OPEN_TERMINAL_CTA,
-  ORDER_COMPLETE_COPY,
   PREVIEW_CHIP,
   test,
 } from "./fixtures";
 
 const viewports = [375, 768, 1280] as const;
+
+function expectedMarketBuyCopy() {
+  const book = seedBook("ZEC/USDC");
+  const slippageHundredths = parseAtomicUnits("0.50", PRICE_DECIMALS, { allowZero: true });
+  return describeSubmit(
+    submitOrder(book, {
+      id: "user-preview",
+      side: "buy",
+      tif: "IOC",
+      priceTicks: worstPriceTicks(book.lastTicks, "buy", slippageHundredths),
+      sizeAtoms: parseAtomicUnits("1", ZEC_DECIMALS),
+    }),
+    "ZEC/USDC",
+  );
+}
 
 async function expectNoHorizontalOverflow(page: Page) {
   const overflow = await page.evaluate(() => ({
@@ -32,6 +49,7 @@ async function expectHonestPreview(page: Page) {
 }
 
 test("simple market review confirm uses matcher IOC copy", async ({ page }) => {
+  const copy = expectedMarketBuyCopy();
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
   await expectHonestPreview(page);
   await expect(page.getByRole("radio", { name: "Simple" })).toHaveAttribute("aria-checked", "true");
@@ -40,7 +58,7 @@ test("simple market review confirm uses matcher IOC copy", async ({ page }) => {
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review buy" }).click();
   await page.getByRole("button", { name: "Complete buy" }).click();
-  await expect(page.locator("#order-ticket").getByText(ORDER_COMPLETE_COPY, { exact: true })).toBeVisible();
+  await expect(page.getByText(copy, { exact: true })).toBeVisible();
   await expect(page.getByRole("table", { name: /Recent ZEC\/USDC trades settled as ZEC-USDC/ })
     .getByRole("row", { name: /^Buy 52\.91 1\.00 / })).toBeVisible();
 });
@@ -123,9 +141,9 @@ test("primary CTAs on landing trade and liquidity change visible state", async (
 
   await page.goto("/liquidity", { waitUntil: "networkidle" });
   await expectHonestPreview(page);
-  await expect(page.getByRole("button", { name: "Confirm simulated mint" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Review simulated mint" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated mint" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete mint" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Review mint" }).click();
+  await expect(page.getByRole("button", { name: "Complete mint" })).toBeVisible();
 });
 
 test("ZEC TEX reject shielded destination and sends nothing", async ({ page }) => {

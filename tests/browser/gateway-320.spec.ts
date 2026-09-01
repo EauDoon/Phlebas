@@ -8,6 +8,7 @@ test("320px historical custody tour stays non-payable", async ({ page }) => {
   await expect(page.getByText("ZEC to pZEC")).toHaveCount(0);
   await expect(page.getByText(/without generating addresses, receiving assets, or handing off to a wallet/)).toBeVisible();
   await expect(page.getByText("No address is generated, copied, or accepted by this application.")).toBeVisible();
+  await expect(page.getByText("Retired", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("textest", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Issue testnet TEX" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Copy.*URI/ })).toHaveCount(0);

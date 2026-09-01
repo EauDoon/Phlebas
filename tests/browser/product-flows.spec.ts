@@ -2,14 +2,16 @@ import { blotterEmptyOrdersCopy } from "../../src/lib/blotter-copy.ts";
 import { DEPOSIT_TOUR } from "../../src/lib/deposit-tour.ts";
 import { missingProviderCopy } from "../../src/lib/evm-wallet.ts";
 import { markets } from "../../src/lib/market-data.ts";
+import { submitOrder } from "../../src/lib/matcher.ts";
 import { NATIVE_MATCHER_DISABLED_COPY } from "../../src/lib/native-matcher-order-action.ts";
 import { payoutClaimForTourStep } from "../../src/lib/payout.ts";
 import { isEducationLastStep, PREVIEW_EDUCATION_STEPS } from "../../src/lib/preview-education.ts";
-import { ticketRejectCopy } from "../../src/lib/session.ts";
+import { describeSubmit, seedBook, ticketRejectCopy } from "../../src/lib/session.ts";
 import { simulationStatus } from "../../src/lib/status.ts";
+import { parseAtomicUnits, PRICE_DECIMALS, worstPriceTicks, ZEC_DECIMALS } from "../../src/lib/units.ts";
 import { unresolvedWithdrawalTourIndex, WITHDRAWAL_TOUR } from "../../src/lib/withdrawal-tour.ts";
 
-import { expect, ORDER_COMPLETE_COPY, test } from "./fixtures";
+import { expect, test } from "./fixtures";
 
 const TRANSPARENT_SHAPE_DESTINATION = "t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc";
 
@@ -125,12 +127,35 @@ test("status, missing route, and render-failure retry change visible state", asy
 });
 
 test("GTC remainder can be cancelled, IOC cancels remainder, and FOK rejects a miss", async ({ page }) => {
+  const book = seedBook("ZEC/USDC");
+  const rest = submitOrder(book, {
+    id: "user-preview",
+    side: "buy",
+    tif: "GTC",
+    priceTicks: parseAtomicUnits("50.00", PRICE_DECIMALS),
+    sizeAtoms: parseAtomicUnits("1", ZEC_DECIMALS),
+  });
+  const ioc = submitOrder(book, {
+    id: "user-preview",
+    side: "buy",
+    tif: "IOC",
+    priceTicks: parseAtomicUnits("50.00", PRICE_DECIMALS),
+    sizeAtoms: parseAtomicUnits("1", ZEC_DECIMALS),
+  });
+  const fok = submitOrder(book, {
+    id: "user-preview",
+    side: "buy",
+    tif: "FOK",
+    priceTicks: parseAtomicUnits("52.91", PRICE_DECIMALS),
+    sizeAtoms: parseAtomicUnits("100", ZEC_DECIMALS),
+  });
+
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review buy" }).click();
   await page.getByRole("button", { name: "Complete buy" }).click();
-  await expect(page.locator("#order-ticket").getByText(ORDER_COMPLETE_COPY, { exact: true })).toBeVisible();
+  await expect(page.getByText(describeSubmit(rest, "ZEC/USDC"), { exact: true })).toBeVisible();
   const openOrders = page.getByRole("tabpanel", { name: "Open orders" });
   await expect(openOrders.getByRole("row", { name: "Buy 50.00 1 ZEC-USDC Cancel" })).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -141,7 +166,7 @@ test("GTC remainder can be cancelled, IOC cancels remainder, and FOK rejects a m
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review buy" }).click();
   await page.getByRole("button", { name: "Complete buy" }).click();
-  await expect(page.locator("#order-ticket").getByText(ORDER_COMPLETE_COPY, { exact: true })).toBeVisible();
+  await expect(page.getByText(describeSubmit(ioc, "ZEC/USDC"), { exact: true })).toBeVisible();
   await expect(openOrders.getByText(blotterEmptyOrdersCopy(markets["ZEC/USDC"].settlementPair))).toBeVisible();
   await expect(openOrders.getByRole("button", { name: "Cancel", exact: true })).toHaveCount(0);
 
@@ -150,10 +175,21 @@ test("GTC remainder can be cancelled, IOC cancels remainder, and FOK rejects a m
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("100");
   await page.getByRole("button", { name: "Review buy" }).click();
   await page.getByRole("button", { name: "Complete buy" }).click();
+  await expect(page.getByText(describeSubmit(fok, "ZEC/USDC"), { exact: true })).toBeVisible();
   await expect(page.getByText(ticketRejectCopy("Fill-or-kill could not fill in full", "ZEC/USDC"), { exact: true })).toBeVisible();
 });
 
 test("market IOC confirm fills against the fixture book", async ({ page }) => {
+  const book = seedBook("ZEC/USDC");
+  const slippageHundredths = parseAtomicUnits("0.50", PRICE_DECIMALS, { allowZero: true });
+  const market = submitOrder(book, {
+    id: "user-preview",
+    side: "buy",
+    tif: "IOC",
+    priceTicks: worstPriceTicks(book.lastTicks, "buy", slippageHundredths),
+    sizeAtoms: parseAtomicUnits("1", ZEC_DECIMALS),
+  });
+
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Market" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
@@ -163,7 +199,7 @@ test("market IOC confirm fills against the fixture book", async ({ page }) => {
   await expect(worstPrice).toContainText("53.11 USDC");
   await expect(ticket.getByText("IOC", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Complete buy" }).click();
-  await expect(ticket.getByText(ORDER_COMPLETE_COPY, { exact: true })).toBeVisible();
+  await expect(ticket.getByText(describeSubmit(market, "ZEC/USDC"), { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Fills" }).click();
   const fills = page.getByRole("tabpanel", { name: "Fills" });
   await expect(fills.getByRole("table", { name: "Session fills for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
