@@ -20,20 +20,21 @@ Each matched fill will become one two-chain atomic-swap workflow:
 
 1. The matcher creates immutable terms for one fill. The terms bind both parties, both assets, both networks, integer amounts, recipients, the shared hash, refund deadlines, a zero protocol fee, fee limits, and the protocol version.
 2. The native-ZEC leg uses a transparent Zcash P2SH conditional lock. The claim path requires the matching preimage and recipient signature. The refund path returns control to the funder after its lock time.
-3. The stablecoin leg uses a non-upgradeable EVM conditional-lock contract for the exact approved token. Its claim and refund paths use the same hash and a shorter deadline.
-4. Independent read-only observers report funding, confirmation, claim, refund, replacement, and reorganization evidence. They never sign or control funds.
-5. A coordinator records deterministic state and tells each wallet which action is safe. It cannot change terms or spend either leg.
-6. The user or solver signs every funding, claim, and refund transaction in its own wallet boundary.
 
-The [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf) states that transparent addresses include P2SH and that BIP 16 and BIP 65 apply from the Zcash genesis block. [ZIP 300](https://zips.z.cash/zip-0300) gives a candidate transparent atomic-swap construction with a hash-protected claim branch and a lock-time refund branch. [BIP 65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki) defines `OP_CHECKLOCKTIMEVERIFY` lock-time semantics. Exact scripts, relay policy, transaction construction, and wallet interoperability still require current test evidence before any chain action.
+## Scope
 
-The EVM order authorization uses [EIP-712](https://eips.ethereum.org/EIPS/eip-712) domain separation and deterministic structured-data hashing. Any deployed stablecoin contract identity must come from its current issuer registry. Circle currently publishes the [USDC contract registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). USDT and USDT0 remain unresolved until the product selects one exact asset and verifies its current issuer and deployment records.
+- Settlement pairs: ZEC-USDC and ZEC-USDT. USDT0 is legacy simulation language only.
+- Shielded ZEC: out of scope for v1. v1 is transparent only.
+- pZEC: legacy simulation language only. Not in the live product path.
 
-## Order-book role
+## Out of scope
 
-The order book is an offchain coordination service. It can sequence signed orders, match price-time priority, produce receipts, and propose settlement terms. It cannot move funds or declare a match settled.
+- Shielded deposits or withdrawals.
+- Custodial minting of a ZEC receipt.
+- Operator-controlled redemption.
+- Mainnet addresses, custody keys, or production matcher hosting.
 
-Every partial fill creates a separate swap identifier and separate conditional locks. `matched`, `funded`, and `settled` are different states.
+## See also
 
 Market orders remain IOC orders with a signed worst price. A matcher may omit or delay an order, so sequence receipts and externally checkable checkpoints remain required.
 
