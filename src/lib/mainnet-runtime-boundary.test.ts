@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +13,7 @@ const ACTIVE_MAINNET_FILES = [
   "infra/matcher/native-zec-usdt.json",
   "infra/matcher/native-zec-usdt.schema.json",
   "src/components/native-swap-fixtures.ts",
+  "src/components/settlement-ticket.tsx",
   "src/components/architecture-panel.tsx",
   "src/components/liquidity-panel.tsx",
   "src/components/trade-ticket.tsx",
@@ -28,6 +30,7 @@ const ACTIVE_MAINNET_FILES = [
   "src/lib/stablecoin-wallet-action.ts",
   "src/lib/market-data.ts",
   "src/lib/review-copy.ts",
+  "src/lib/settlement-ticket-copy.ts",
   "src/lib/status.ts",
   "src/lib/ticket-expiry.ts",
   "src/lib/withdrawal-tour.ts",
@@ -76,5 +79,31 @@ test("active application code cannot supply its own stablecoin deployment author
     if (path === "src/lib/stablecoin-wallet-action.ts") continue;
     const source = await readFile(absolute, "utf8");
     assert.doesNotMatch(source, /(?:Funding|Claim|Refund)ActionWithAuthority|StablecoinLockDeploymentAuthority/, path);
+  }
+});
+
+test("retired Sepolia wallet submission cannot be re-enabled from shipped application source", async () => {
+  assert.equal(existsSync(join(root, "src/lib/sepolia-submit.ts")), false);
+  assert.equal(existsSync(join(root, "src/lib/sepolia-submit.test.ts")), false);
+  const packageJson = await readFile(join(root, "package.json"), "utf8");
+  const readme = await readFile(join(root, "README.md"), "utf8");
+  const contractsReadme = await readFile(join(root, "contracts/README.md"), "utf8");
+  assert.doesNotMatch(packageJson, /record:sepolia|NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT/);
+  assert.doesNotMatch(readme, /NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT|Local wallet submission remains disabled unless/);
+  assert.doesNotMatch(contractsReadme, /Arbitrum Sepolia deploy|--broadcast|--mark-deployed/);
+
+  const pending = [join(root, "src")];
+  while (pending.length > 0) {
+    const directory = pending.pop()!;
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const absolute = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(absolute);
+      } else if (/\.(?:ts|tsx)$/.test(entry.name) && !/\.test\.(?:ts|tsx)$/.test(entry.name)) {
+        const source = await readFile(absolute, "utf8");
+        const path = relative(root, absolute).replaceAll("\\", "/");
+        assert.doesNotMatch(source, /eth_sendTransaction|NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT/, path);
+      }
+    }
   }
 });

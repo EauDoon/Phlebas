@@ -1,5 +1,6 @@
 import { swapDeadlineStatus } from "./swap-policy.ts";
 import { swapStateRoot } from "./swap-root.ts";
+import { ETHEREUM_MAINNET_USDT_ADDRESS } from "./mainnet-assets.ts";
 import {
   swapPhase,
   type SwapPhase,
@@ -49,10 +50,10 @@ export const SETTLEMENT_PROGRESS_STEPS = [
 ] as const;
 
 export const USDT_SETTLEMENT_DISABLED = {
-  title: "USDT identity unresolved",
-  reason: "USDT settlement is disabled until one exact network and token contract is approved. USDT0 is abandoned.",
-  headline: "USDT is not USDT0.",
-  body: "Network, token contract, decimals, and settlement policy must bind one exact asset identity.",
+  title: "USDT settlement undeployed",
+  reason: `USDT is bound to Ethereum Mainnet ${ETHEREUM_MAINNET_USDT_ADDRESS} with 6 decimals. USDT0 is abandoned. The matcher and per-fill ConditionalLock remain undeployed.`,
+  headline: "Exact Ethereum Mainnet USDT identity",
+  body: "The token identity is fixed. Wallet actions remain disabled until the matcher and per-fill ConditionalLock deployment manifests are approved.",
 } as const;
 
 export function settlementLockCopy() {

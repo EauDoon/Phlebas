@@ -17,7 +17,7 @@ The target markets are:
 * `ZEC/USDC`
 * `ZEC/USDT`
 
-`ZEC` means native transparent ZEC on Zcash. It is not wrapped, minted, or represented as a Phlebas platform balance. Each quote market must name one exact EVM chain and one approved stablecoin contract. USDC is the first quote candidate. USDT remains disabled until an exact asset, contract, issuer model, and jurisdiction policy pass review.
+`ZEC` means native transparent ZEC on Zcash. It is not wrapped, minted, or represented as a Phlebas platform balance. Each quote market names Ethereum Mainnet and one exact stablecoin contract. USDC is bound to `0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`; USDT is bound to `0xdac17f958d2ee523a2206206994597c13d831ec7`. Both use 6 decimals. Their wallet actions remain disabled until the exact matcher and per-fill ConditionalLock deployment manifests are approved.
 
 Version 1 is transparent. It does not provide shielded settlement or transaction privacy.
 
@@ -194,7 +194,7 @@ PHLEBAS_MATCHER_USDT_URL=http://127.0.0.1:8789
 
 Do not set those variables on Vercel. See [services/README.md](services/README.md) for the isolated Compose workflow.
 
-The Arbitrum Sepolia deployment procedure is documented in [contracts/README.md](contracts/README.md). `infra/testnet/arbitrum-sepolia.json` must remain `"deployed": false` until a real deployment is authorized, executed, and recorded. Local wallet submission remains disabled unless `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1` is set for an approved Testnet run.
+The retired Arbitrum Sepolia artifacts are retained only as historical test and contract-development records. The prior browser transaction submitter, public activation flag, and package activation command have been removed. They are not a supported wallet or deployment path.
 
 ## Wallet boundary
 

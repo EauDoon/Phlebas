@@ -12,7 +12,7 @@ ADR 0002 defines the production target: one two-chain atomic swap per matched fi
 
 The current repository has the EVM contract, the in-browser matcher, the order lifecycle, the EIP-712 order intent, the keccak primitives, the observer and gateway services, and the simulation UI. It does not have a state machine that tracks a single fill across both chains. It does not have a UI that shows the user the current state of a fill and the next action that is safe. It does not have a preimage primitive that the browser can generate, display, and verify.
 
-The state machine and the UI can be built without any wallet or deployment key. The user or solver still signs every funding, claim, and refund transaction. The state machine and the UI only encode the rules, the available actions, and the next safe step. The signing surface remains gated by `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1` and by the Zcash wallet adapter that the next batch ships.
+The state machine and the UI can be built without any wallet or deployment key. The user or solver still signs every funding, claim, and refund transaction. The state machine and the UI only encode the rules, the available actions, and the next safe step. The signing surface remains disabled until repository-approved Ethereum Mainnet deployment manifests, independently sourced current chain evidence, and a qualified Zcash wallet adapter are available.
 
 ## Decision
 

@@ -16,7 +16,6 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test src/lib/*.test.ts services/*.test.ts services/matcher/*.test.ts services/atomic-swap-observer/*.test.ts",
     "test:manifests": "node scripts/validate-conditional-lock-manifest.mjs contracts/manifests/conditional-lock.not-deployed.json && node --test scripts/validate-conditional-lock-manifest.test.mjs",
-    "record:sepolia": "node scripts/record-sepolia-deploy.mjs",
     "build:contracts": "forge build src/swap/ConditionalLock.sol --root contracts --sizes",
     "test:contracts": "forge test --root contracts",
     "test:browser": "playwright test",
