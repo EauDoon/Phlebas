@@ -308,3 +308,56 @@ export function solverQuoteAsOrder(
     settlementAdapterId: adapterIdentifier(accepted.quote.settlementProtocolVersion),
   };
 }
+
+export const SOLVER_QUOTE_SIGNED_FIELDS = [
+  "pair",
+  "limits",
+  "capacity",
+  "fee",
+  "expiry",
+  "recipients",
+] as const;
+
+export type SolverQuoteSignedField = (typeof SOLVER_QUOTE_SIGNED_FIELDS)[number];
+
+export const SOLVER_QUOTE_RISKS = [
+  "inventory",
+  "stablecoin",
+  "contract",
+  "toxic flow",
+  "public linkability",
+] as const;
+
+export type SolverQuoteRisk = (typeof SOLVER_QUOTE_RISKS)[number];
+
+export const SOLVER_QUOTE_RISK_COPY: Record<SolverQuoteRisk, string> = {
+  inventory: "Advertised capacity stays in the provider wallet until one swap is authorized.",
+  stablecoin: "Quote inventory is the exact issuer token. Peg, issuer, and token-contract risk remain.",
+  contract: "Settlement uses wallet-controlled conditional locks. A contract failure can delay or block a fill.",
+  "toxic flow": "Signed quotes can be taken by informed flow. Capacity, fee, and expiry bound that exposure.",
+  "public linkability": "Transparent ZEC, quote transfers, and settlement recipients are publicly linkable.",
+};
+
+export type SolverQuoteFieldCopy = Readonly<Record<SolverQuoteSignedField, string>>;
+
+export function solverQuoteFieldCopy(pair: "ZEC/USDC" | "ZEC/USDT"): SolverQuoteFieldCopy {
+  const quote = pair === "ZEC/USDT" ? "USDT" : "USDC";
+  return {
+    pair,
+    limits: "Minimum fill 0.10 ZEC. Maximum equals signed capacity.",
+    capacity: pair === "ZEC/USDT"
+      ? "2.00 ZEC held in the provider wallet"
+      : "3.00 ZEC held in the provider wallet",
+    fee: "10 bps, signed with the quote",
+    expiry: "Bounded unix expiry; unused capacity stays in the provider wallet",
+    recipients: `Provider ZEC source and ${quote} recipient, both bound in the quote`,
+  };
+}
+
+export function solverQuoteInventoryCopy(): string {
+  return "Inventory stays in the provider wallet. Phlebas does not hold a custodial ZEC balance, wrap ZEC, or issue shared AMM shares.";
+}
+
+export function solverQuoteRiskEntries(): readonly { risk: SolverQuoteRisk; copy: string }[] {
+  return SOLVER_QUOTE_RISKS.map((risk) => ({ risk, copy: SOLVER_QUOTE_RISK_COPY[risk] }));
+}

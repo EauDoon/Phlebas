@@ -38,16 +38,16 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
         className={styles.chart}
         viewBox={`0 0 ${CHART_DISPLAY_WIDTH} ${CHART_DISPLAY_HEIGHT}`}
         role="img"
-        aria-label={feedStatus === "stale" ? `Delayed ${chartLabel}` : chartLabel}
+        aria-label={chartLabel}
         preserveAspectRatio="none"
       >
         <title>
-          {feedStatus === "stale" ? `Delayed ${chartLabel}` : chartLabel}
+          {chartLabel}
         </title>
         <defs>
           <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#2dd4bf" stopOpacity="0" />
+            <stop offset="0%" stopColor="#f0c14b" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#f0c14b" stopOpacity="0" />
           </linearGradient>
         </defs>
         {[0, 1, 2, 3].map((line) => (

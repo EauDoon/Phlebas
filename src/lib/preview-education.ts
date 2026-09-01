@@ -1,18 +1,18 @@
-export const PREVIEW_EDUCATION_VERSION = "2026-09-01-1";
+export const PREVIEW_EDUCATION_VERSION = "2026-09-01-2";
 export const PREVIEW_EDUCATION_STORAGE_KEY = "phlebas.previewEducationVersion";
 
 export const PREVIEW_EDUCATION_STEPS = [
   {
-    title: "This is a no-value simulation.",
-    body: "Prices, orders, pools, balances, and historical state-tour events are illustrative. Optional Arbitrum Sepolia wallet connection is sign-only by default and does not move mainnet funds.",
+    title: "This public preview uses illustrative data.",
+    body: "No chain is connected.",
   },
   {
     title: "Pairs are native ZEC against USDC and USDT.",
-    body: "This preview labels ZEC-USDC and ZEC-USDT. It is not live settlement, not shielded ZEC, and not a trustless bridge. USDT0 is abandoned. No mainnet funds move here.",
+    body: "Not live settlement, not shielded, not a trustless bridge. USDT0 is abandoned.",
   },
   {
-    title: "Preview actions stay in this browser.",
-    body: "You can inspect order entry, pool math, and historical custody states. Session fills stay in this browser. Optional Sepolia signing does not move mainnet funds and is not a financial record.",
+    title: "Actions stay in this browser.",
+    body: "Until wallets and contracts are enabled, preview actions stay in this browser.",
   },
 ] as const;
 

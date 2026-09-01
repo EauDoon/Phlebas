@@ -29,6 +29,21 @@ test("demo=incidents is omitted off architecture and for invalid values", () => 
   );
 });
 
+test("settlement view stays on the trade route", () => {
+  assert.equal(
+    terminalUrl({ view: "settlement", market: "ZEC/USDC" }),
+    "/trade?market=ZEC%2FUSDC&view=settlement",
+  );
+  assert.equal(
+    terminalUrl({ view: "settlement", market: "ZEC/USDT", demo: "incidents" }),
+    "/trade?market=ZEC%2FUSDT&view=settlement",
+  );
+  assert.equal(
+    terminalUrl({ view: "settlement", market: "ZEC/USDC", mode: "advanced" }),
+    "/trade?market=ZEC%2FUSDC&mode=advanced&view=settlement",
+  );
+});
+
 test("Trade and Liquidity drop demo=incidents and Architecture restores it", () => {
   const demo = "incidents" as const;
   assert.equal(
@@ -44,8 +59,8 @@ test("Trade and Liquidity drop demo=incidents and Architecture restores it", () 
     "/liquidity?market=ZEC%2FUSDT",
   );
   assert.equal(
-    terminalUrl({ view: "bridge", market: "ZEC/USDC", demo }),
-    "/trade?market=ZEC%2FUSDC&view=bridge",
+    terminalUrl({ view: "settlement", market: "ZEC/USDC", demo }),
+    "/trade?market=ZEC%2FUSDC&view=settlement",
   );
   assert.equal(
     terminalUrl({ view: "architecture", market: "ZEC/USDT", demo }),
@@ -68,7 +83,7 @@ test("advanced mode is explicit in the URL and simple is the omitted default", (
   );
 });
 
-test("ZEC gateway omits demo=incidents and Architecture restores it", () => {
+test("historical bridge deep link omits demo=incidents and Architecture restores it", () => {
   assert.equal(
     terminalUrl({ view: "bridge", market: "ZEC/USDT", demo: "incidents" }),
     "/trade?market=ZEC%2FUSDT&view=bridge",

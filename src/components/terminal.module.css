@@ -106,7 +106,9 @@ a.skipLink:focus-visible {
 :global(#country-block),
 :global(#honesty-bar),
 :global(#privacy-callouts),
-:global(#architecture-layers) {
+:global(#architecture-layers),
+:global(#fill-ticket),
+:global(#native-swap-title) {
   scroll-margin-top: 12px;
 }
 
@@ -182,6 +184,11 @@ a.skipLink:focus-visible {
   min-height: 44px;
 }
 
+:global(#fill-ticket),
+:global(#native-swap-title) {
+  min-height: 44px;
+}
+
 :global(#status-ledger) {
   min-height: 44px;
 }
@@ -215,9 +222,9 @@ a.skipLink:focus-visible {
   justify-content: center;
   gap: 10px;
   padding: 6px 20px;
-  border-bottom: 1px solid rgba(45, 212, 191, 0.28);
+  border-bottom: 1px solid rgba(240, 193, 75, 0.28);
   color: var(--text);
-  background: rgba(45, 212, 191, 0.07);
+  background: rgba(240, 193, 75, 0.07);
   font-size: 12px;
   letter-spacing: 0.01em;
 }
@@ -273,7 +280,6 @@ a.skipLink:focus-visible {
   width: 28px;
   height: 28px;
   border-radius: 7px 2px 7px 2px;
-  box-shadow: 0 0 22px rgba(45, 212, 191, 0.14);
 }
 
 .coinMark {
@@ -354,7 +360,7 @@ a.skipLink:focus-visible {
   align-items: center;
   gap: 7px;
   white-space: nowrap;
-  border-radius: 999px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
 }
@@ -368,13 +374,12 @@ a.skipLink:focus-visible {
   height: 7px;
   border-radius: 50%;
   background: var(--info);
-  box-shadow: 0 0 10px rgba(123, 184, 255, 0.65);
 }
 
 .connectButton,
 .primaryAction {
   min-height: 38px;
-  border: 1px solid rgba(45, 212, 191, 0.46);
+  border: 1px solid rgba(240, 193, 75, 0.46);
   border-radius: 7px;
   color: var(--accent-fg);
   background: var(--accent);
@@ -382,10 +387,23 @@ a.skipLink:focus-visible {
   font-weight: 730;
 }
 
-.connectButton {
+.connectButton,
+.headerCta {
   min-width: 44px;
   min-height: 44px;
   padding: 0 15px;
+}
+
+.headerCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(240, 193, 75, 0.46);
+  border-radius: 7px;
+  color: var(--accent-fg);
+  background: var(--accent);
+  font-size: 12px;
+  font-weight: 730;
 }
 
 .connectButton:disabled,
@@ -484,8 +502,8 @@ a.skipLink:focus-visible {
 
 .gateBadge {
   padding: 5px 8px;
-  border: 1px solid rgba(45, 212, 191, 0.35);
-  border-radius: 999px;
+  border: 1px solid rgba(240, 193, 75, 0.35);
+  border-radius: 4px;
   color: var(--accent);
   background: var(--accent-soft);
   font-size: 9px;
@@ -524,7 +542,7 @@ a.skipLink:focus-visible {
   grid-template-areas:
     "chart book ticket"
     "trades book matcher"
-    "blotter blotter blotter";
+    "blotter blotter settlement";
   grid-template-columns: minmax(430px, 1fr) 285px 345px;
   grid-template-rows: minmax(320px, 1fr) auto auto;
   gap: 1px;
@@ -764,7 +782,7 @@ a.skipLink:focus-visible {
   padding: 9px 12px;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  background: rgba(45, 212, 191, 0.04);
+  background: rgba(240, 193, 75, 0.04);
 }
 
 .midPrice strong {
@@ -818,7 +836,7 @@ a.skipLink:focus-visible {
   grid-template-areas:
     "chart ticket"
     "trades matcher"
-    "blotter blotter";
+    "blotter settlement";
   grid-template-columns: minmax(430px, 1fr) 345px;
 }
 
@@ -857,7 +875,7 @@ a.skipLink:focus-visible {
   min-width: 44px;
   min-height: 44px;
   padding: 0 14px;
-  border: 1px solid rgba(45, 212, 191, 0.46);
+  border: 1px solid rgba(240, 193, 75, 0.46);
   border-radius: 6px;
   color: var(--accent);
   background: var(--accent-soft);
@@ -894,7 +912,7 @@ a.skipLink:focus-visible {
 }
 
 .warningPill {
-  border-color: rgba(45, 212, 191, 0.25);
+  border-color: rgba(240, 193, 75, 0.25);
   color: var(--accent);
   background: var(--accent-soft);
 }
@@ -958,7 +976,7 @@ a.skipLink:focus-visible {
 
 .inputShell:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.18);
+  box-shadow: 0 0 0 2px rgba(240, 193, 75, 0.18);
 }
 
 .inputShell input {
@@ -1098,6 +1116,97 @@ a.skipLink:focus-visible {
 .blotter {
   grid-area: blotter;
   min-height: 180px;
+}
+
+.settlementTicket {
+  grid-area: settlement;
+  min-width: 0;
+  min-height: 0;
+}
+
+.compactTicket {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: auto;
+  padding-bottom: 8px;
+}
+
+.compactTicket .panelHeader {
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.compactTicket .panelHeader h2 {
+  margin-top: 0;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.compactLead {
+  margin: 8px 12px 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.compactTicket .unsafeNotice,
+.compactTicket .disabledReason {
+  margin: 8px 12px 0;
+}
+
+.compactTicket .settlementActions {
+  margin: 8px 12px 0;
+}
+
+.compactTicket .primaryAction,
+.compactTicket .textButton {
+  width: auto;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  flex: 1 1 auto;
+}
+
+.compactLocks {
+  display: grid;
+  gap: 4px;
+  margin: 8px 12px 0;
+}
+
+.compactLocks > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+}
+
+.compactLocks dt {
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.compactLocks dd {
+  color: var(--text-secondary);
+  font-family: var(--font-geist-mono), monospace;
+}
+
+.architectureLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 22px 18px;
+}
+
+.architectureLinks a {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .depthFill {
@@ -1253,9 +1362,9 @@ a.skipLink:focus-visible {
   min-height: 44px;
   margin: 0 14px 10px;
   padding: 10px 12px;
-  border: 1px solid rgba(45, 212, 191, 0.28);
+  border: 1px solid rgba(240, 193, 75, 0.28);
   border-radius: 6px;
-  background: rgba(45, 212, 191, 0.07);
+  background: rgba(240, 193, 75, 0.07);
 }
 
 .ticketBlocked strong {
@@ -1474,8 +1583,8 @@ a.skipLink:focus-visible {
 
 .poolTabs button small {
   padding: 3px 6px;
-  border: 1px solid rgba(45, 212, 191, 0.28);
-  border-radius: 999px;
+  border: 1px solid rgba(240, 193, 75, 0.28);
+  border-radius: 4px;
   color: var(--accent);
   font-size: 8px;
   letter-spacing: 0.04em;
@@ -1492,7 +1601,7 @@ a.skipLink:focus-visible {
   min-height: 44px;
   margin: 14px 22px 0;
   padding: 10px 12px;
-  border: 1px solid rgba(45, 212, 191, 0.25);
+  border: 1px solid rgba(240, 193, 75, 0.25);
   border-radius: 6px;
   color: var(--text-secondary);
   background: var(--accent-soft);
@@ -1521,7 +1630,7 @@ a.skipLink:focus-visible {
 
 .assetInput:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.18);
+  box-shadow: 0 0 0 2px rgba(240, 193, 75, 0.18);
 }
 
 .assetInput > span {
@@ -1588,9 +1697,7 @@ a.skipLink:focus-visible {
 
 .riskCard {
   padding: 28px 24px;
-  background:
-    linear-gradient(180deg, rgba(45, 212, 191, 0.045), transparent 42%),
-    var(--surface);
+  background: var(--surface);
 }
 
 .riskCard h2 {
@@ -1816,7 +1923,7 @@ a.skipLink:focus-visible {
   gap: 18px;
   margin: 22px 22px 0;
   padding: 15px 17px;
-  border: 1px solid rgba(45, 212, 191, 0.22);
+  border: 1px solid rgba(240, 193, 75, 0.22);
   border-radius: 7px;
   background: var(--accent-soft);
 }
@@ -1835,14 +1942,14 @@ a.skipLink:focus-visible {
   line-height: 1.5;
 }
 
-.fixturePill {
+.statusPill {
   display: inline-flex;
   min-height: 32px;
   align-items: center;
   justify-content: center;
   padding: 6px 10px;
-  border: 1px solid rgba(45, 212, 191, 0.34);
-  border-radius: 999px;
+  border: 1px solid rgba(240, 193, 75, 0.34);
+  border-radius: 4px;
   color: var(--accent);
   background: var(--accent-soft);
   font-size: 10px;
@@ -1928,7 +2035,7 @@ a.skipLink:focus-visible {
 
 .settlementSteps li[data-state="current"] {
   box-shadow: inset 0 2px var(--accent);
-  background: rgba(45, 212, 191, 0.06);
+  background: rgba(240, 193, 75, 0.06);
 }
 
 .settlementSteps li[data-state="current"] > span:first-child,
@@ -2388,7 +2495,7 @@ a.skipLink:focus-visible {
       "trades book"
       "ticket ticket"
       "matcher matcher"
-      "blotter blotter";
+      "blotter settlement";
     grid-template-columns: minmax(430px, 1fr) 300px;
     grid-template-rows: auto auto auto auto auto;
   }
@@ -2399,7 +2506,8 @@ a.skipLink:focus-visible {
       "trades"
       "ticket"
       "matcher"
-      "blotter";
+      "blotter"
+      "settlement";
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -2502,7 +2610,9 @@ a.skipLink:focus-visible {
 
   .brand,
   .nav button,
+  .nav a,
   .connectButton,
+  .headerCta,
   .marketSelectorWrap select,
   .selectorTabs button,
   .rangeTabs button,
@@ -2583,9 +2693,10 @@ a.skipLink:focus-visible {
     grid-template-areas:
       "chart"
       "ticket"
-      "matcher"
       "book"
       "trades"
+      "settlement"
+      "matcher"
       "blotter";
     grid-template-columns: 1fr;
   }
@@ -2594,8 +2705,9 @@ a.skipLink:focus-visible {
     grid-template-areas:
       "chart"
       "ticket"
-      "matcher"
       "trades"
+      "settlement"
+      "matcher"
       "blotter";
     grid-template-columns: 1fr;
   }
@@ -2680,6 +2792,11 @@ a.skipLink:focus-visible {
 
   .ticket {
     display: block;
+  }
+
+  .architectureLinks {
+    margin-right: 16px;
+    margin-left: 16px;
   }
 
   .featureGrid {

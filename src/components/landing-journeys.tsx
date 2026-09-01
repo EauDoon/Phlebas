@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 
 import {
+  LANDING_JOURNEY_IDS,
   LANDING_JOURNEYS,
   type LandingJourneyId,
   nextLandingJourneyId,
 } from "@/lib/landing-journeys";
+import { LANDING_PATHS_INTRO } from "@/lib/landing-copy";
 
 import styles from "./landing.module.css";
 
@@ -39,6 +41,7 @@ export function LandingJourneys() {
   const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
   const [selected, setSelected] = useState<LandingJourneyId>("trader");
   const [focusId, setFocusId] = useState<LandingJourneyId>("trader");
+  const lastId = LANDING_JOURNEY_IDS[LANDING_JOURNEY_IDS.length - 1];
 
   useEffect(() => {
     function onClick(event: MouseEvent) {
@@ -46,9 +49,9 @@ export function LandingJourneys() {
       if (!(target instanceof Element)) {
         return;
       }
-      if (target.closest("a[href='#journeys']")) {
-        setSelected("lp");
-        setFocusId("lp");
+      if (target.closest("a[href='#paths']") || target.closest("a[href='#journeys']")) {
+        setSelected("quotes");
+        setFocusId("quotes");
       }
     }
     document.addEventListener("click", onClick);
@@ -73,12 +76,12 @@ export function LandingJourneys() {
     }
     if (event.key === "Home") {
       event.preventDefault();
-      moveFocus("trader");
+      moveFocus(LANDING_JOURNEY_IDS[0]);
       return;
     }
     if (event.key === "End") {
       event.preventDefault();
-      moveFocus("withdrawal");
+      moveFocus(lastId);
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
@@ -90,7 +93,7 @@ export function LandingJourneys() {
 
   if (!hydrated) {
     return (
-      <div className={styles.journeyList} role="list" aria-label="Preview journeys">
+      <div className={styles.journeyList} role="list" aria-label={LANDING_PATHS_INTRO.eyebrow}>
         {LANDING_JOURNEYS.map((journey) => (
           <JourneyArticle key={journey.id} journey={journey} />
         ))}
@@ -103,7 +106,7 @@ export function LandingJourneys() {
       <div
         className={styles.journeyTabs}
         role="tablist"
-        aria-label="Preview journeys"
+        aria-label={LANDING_PATHS_INTRO.eyebrow}
         aria-orientation="horizontal"
       >
         {LANDING_JOURNEYS.map((journey) => (

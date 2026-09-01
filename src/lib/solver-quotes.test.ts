@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import type { MatcherSignatureVerifier } from "./matcher-auth.ts";
 import { keccak256Text } from "./keccak.ts";
@@ -10,7 +12,12 @@ import {
   assertSolverQuote,
   consumeSolverCapacity,
   hashSolverQuote,
+  SOLVER_QUOTE_RISKS,
+  SOLVER_QUOTE_SIGNED_FIELDS,
   solverQuoteAsOrder,
+  solverQuoteFieldCopy,
+  solverQuoteInventoryCopy,
+  solverQuoteRiskEntries,
   type SolverQuote,
   type SolverQuotePolicy,
 } from "./solver-quotes.ts";
@@ -150,4 +157,58 @@ test("quote hashes change on recipient, asset, price, capacity, or protocol chan
   ]) {
     assert.notEqual(hashSolverQuote(baseline), hashSolverQuote(changed));
   }
+});
+
+test("signed quote copy exposes pair, limits, capacity, fee, expiry, and recipients", () => {
+  assert.deepEqual([...SOLVER_QUOTE_SIGNED_FIELDS], [
+    "pair",
+    "limits",
+    "capacity",
+    "fee",
+    "expiry",
+    "recipients",
+  ]);
+  for (const pair of ["ZEC/USDC", "ZEC/USDT"] as const) {
+    const fields = solverQuoteFieldCopy(pair);
+    for (const key of SOLVER_QUOTE_SIGNED_FIELDS) {
+      assert.equal(typeof fields[key], "string");
+      assert.ok(fields[key].trim().length > 0, `${key} must be present`);
+    }
+    assert.equal(fields.pair, pair);
+    assert.match(fields.capacity, /provider wallet/);
+    assert.match(fields.recipients, pair === "ZEC/USDT" ? /USDT/ : /USDC/);
+    assert.doesNotMatch(fields.recipients, /USDT0/);
+  }
+  assert.match(solverQuoteInventoryCopy(), /provider wallet/);
+  assert.match(solverQuoteInventoryCopy(), /does not hold a custodial ZEC balance/);
+});
+
+test("risks array includes inventory, stablecoin, contract, toxic flow, and public linkability", () => {
+  const named = [
+    "inventory",
+    "stablecoin",
+    "contract",
+    "toxic flow",
+    "public linkability",
+  ] as const;
+  for (const risk of named) {
+    assert.ok(SOLVER_QUOTE_RISKS.includes(risk), `${risk} must be named`);
+  }
+  const entries = solverQuoteRiskEntries();
+  assert.equal(entries.length, named.length);
+  assert.deepEqual(entries.map((entry) => entry.risk), [...named]);
+  for (const entry of entries) {
+    assert.ok(entry.copy.trim().length > 0);
+  }
+});
+
+test("live solver-quote module has no APY or TVL-as-deposit strings", async () => {
+  const source = await readFile(fileURLToPath(new URL("./solver-quotes.ts", import.meta.url)), "utf8");
+  assert.doesNotMatch(source, /\bAPY\b/i);
+  assert.doesNotMatch(source, /\bEarn\b/);
+  assert.doesNotMatch(source, /TVL-as-deposit/i);
+  assert.doesNotMatch(source, /TVL as deposit/i);
+  assert.doesNotMatch(source, /\bTVL\b/);
+  assert.doesNotMatch(source, /return projection/i);
+  assert.doesNotMatch(source, /LP token/i);
 });

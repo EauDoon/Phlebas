@@ -1,5 +1,13 @@
 import type { MarketId } from "@/lib/market-data";
 import {
+  USDT_SETTLEMENT_DISABLED,
+  settlementEvidence,
+  settlementPhaseCopy,
+  settlementTicketAction,
+  type SettlementTicketScenario,
+  type SettlementTicketSession,
+} from "@/lib/settlement-ticket-copy";
+import {
   deriveSwapFillId,
   hashSwapMarketPolicy,
   type SwapMarketPolicyV1,
@@ -14,7 +22,6 @@ import {
   type SwapEvidencePolicies,
   type SwapTimingPolicy,
 } from "@/lib/swap-policy";
-import { swapStateRoot } from "@/lib/swap-root";
 import {
   authorizeSwapTerms,
   confirmSwapFunding,
@@ -30,23 +37,13 @@ import {
   swapPhase,
   type FundingEvidence,
   type SpendEvidence,
-  type SwapPhase,
   type SwapState,
 } from "@/lib/swap-state";
 
-export type NativeSwapScenario =
-  | "happy"
-  | "refund"
-  | "stale"
-  | "conflict"
-  | "reorganization"
-  | "contract-mismatch";
+export type NativeSwapScenario = SettlementTicketScenario;
 
-export type NativeSwapFixtureSession = Readonly<{
+export type NativeSwapFixtureSession = SettlementTicketSession & Readonly<{
   marketId: "ZEC/USDC";
-  scenario: NativeSwapScenario;
-  state: SwapState;
-  nowSeconds: bigint;
 }>;
 
 export type NativeSwapFixture =
@@ -322,11 +319,11 @@ function unsafeState(scenario: Exclude<NativeSwapScenario, "happy" | "refund">):
     return flagSwapDispute(funded, "observer-conflict", "Approved observers disagree on the stablecoin lock.");
   }
   if (scenario === "contract-mismatch") {
-    return flagSwapDispute(funded, "semantic-mismatch", "Observed contract identity differs from the signed fixture terms.");
+    return flagSwapDispute(funded, "semantic-mismatch", "Observed contract identity differs from the signed terms.");
   }
   const claim = spendEvidence("evm", "claim", fixtureTerms.evmClaimSafetyCutoff);
   const revealed = observeSwapSpend(funded, claim);
-  return retractSwapEvidence(revealed, claim.attestation.evidenceId, "The fixture EVM claim left the canonical chain.");
+  return retractSwapEvidence(revealed, claim.attestation.evidenceId, "The EVM claim left the canonical chain.");
 }
 
 export function createNativeSwapFixture(
@@ -337,7 +334,7 @@ export function createNativeSwapFixture(
     return {
       availability: "disabled",
       marketId,
-      reason: "USDT and USDT0 are not interchangeable. No exact network and token contract has been approved for this walkthrough.",
+      reason: USDT_SETTLEMENT_DISABLED.reason,
     };
   }
   const state = scenario === "happy" || scenario === "refund" ? createdSwap() : unsafeState(scenario);
@@ -353,64 +350,7 @@ export function createNativeSwapFixture(
 }
 
 export function nativeSwapAction(session: NativeSwapFixtureSession): NativeSwapAction {
-  const { state, scenario, nowSeconds } = session;
-  const phase = swapPhase(state);
-  if (phase === "disputed") {
-    return {
-      label: "Fixture action disabled",
-      enabled: false,
-      disabledReason: "Evidence is unsafe or conflicting. Funding and claim controls remain disabled.",
-    };
-  }
-  if (phase === "settled" || phase === "refunded") {
-    return { label: phase === "settled" ? "Fixture settled" : "Fixture refunded", enabled: false };
-  }
-  if (phase === "awaiting-authorizations") return { label: "Accept exact fixture terms", enabled: true };
-  if (phase === "awaiting-zec-funding") {
-    return {
-      label: state.zec.phase === "unfunded" ? "Prepare fixture ZEC lock" : "Record fixture ZEC funding",
-      enabled: true,
-    };
-  }
-  if (phase === "awaiting-zec-confirmation") return { label: "Confirm fixture ZEC evidence", enabled: true };
-  if (phase === "awaiting-evm-funding") {
-    return {
-      label: state.evm.phase === "unfunded" ? "Prepare fixture USDC lock" : "Record fixture USDC funding",
-      enabled: true,
-    };
-  }
-  if (phase === "awaiting-evm-confirmation") return { label: "Confirm fixture USDC evidence", enabled: true };
-  if (phase === "awaiting-evm-claim" && scenario === "refund") {
-    const deadlines = swapDeadlineStatus(state.terms, nowSeconds);
-    return {
-      label: deadlines.evmRefundEligible ? "Record fixture USDC refund" : "Advance fixture to USDC refund deadline",
-      enabled: true,
-    };
-  }
-  if (phase === "awaiting-evm-claim") return { label: "Record fixture USDC claim", enabled: true };
-  if (phase === "secret-observed") return { label: "Confirm fixture USDC claim", enabled: true };
-  if (phase === "awaiting-zec-claim") {
-    return {
-      label: state.zec.phase === "funded-confirmed" ? "Record fixture ZEC claim" : "Confirm fixture ZEC claim",
-      enabled: true,
-    };
-  }
-  if (phase === "refund-recovery") {
-    if (state.evm.phase === "refund-seen") return { label: "Confirm fixture USDC refund", enabled: true };
-    if (state.zec.phase === "funded-confirmed") {
-      const deadlines = swapDeadlineStatus(state.terms, nowSeconds);
-      return {
-        label: deadlines.zecRefundEligible ? "Record fixture ZEC refund" : "Advance fixture to ZEC refund deadline",
-        enabled: true,
-      };
-    }
-    if (state.zec.phase === "refund-seen") return { label: "Confirm fixture ZEC refund", enabled: true };
-  }
-  return {
-    label: "Fixture action disabled",
-    enabled: false,
-    disabledReason: "No safe fixture transition is available from this state.",
-  };
+  return settlementTicketAction(session);
 }
 
 export function advanceNativeSwapFixture(session: NativeSwapFixtureSession): Readonly<{
@@ -421,45 +361,45 @@ export function advanceNativeSwapFixture(session: NativeSwapFixtureSession): Rea
   const phase = swapPhase(state);
   let nextState = state;
   let nextTime = nowSeconds;
-  let announcement = "Fixture state unchanged.";
+  let announcement = "Ticket state unchanged.";
 
   if (phase === "awaiting-authorizations") {
     const zecAuthorized = authorizeSwapTerms(state, state.terms.zecSellerId, state.termsHash, nowSeconds);
     nextState = authorizeSwapTerms(zecAuthorized, state.terms.stablecoinSellerId, state.termsHash, nowSeconds + 1n);
-    announcement = "Exact fixture terms accepted. ZEC lock preparation is now available.";
+    announcement = "Exact terms accepted. ZEC P2SH lock preparation is now available.";
   } else if (phase === "awaiting-zec-funding" && state.zec.phase === "unfunded") {
     nextState = prepareSwapFunding(state, "zec", hex32("61"), state.terms.zecFundBy - 1n);
-    announcement = "Fixture ZEC lock prepared. No transaction was built or signed.";
+    announcement = "ZEC P2SH lock prepared. No transaction was built or signed.";
   } else if (phase === "awaiting-zec-funding" && state.zec.phase === "funding-prepared") {
     nextState = observeSwapFunding(observeSwapFunding(state, fundingEvidence("zec", 0)), fundingEvidence("zec", 1));
-    announcement = "Two fixture ZEC observer reports agree. Policy qualification is still required.";
+    announcement = "Two ZEC observer reports agree. Policy qualification is still required.";
   } else if (phase === "awaiting-zec-confirmation") {
     const evidence = fundingEvidence("zec", 0);
     nextState = confirmSwapFunding(state, "zec", evidence.fact.factId, evidence.attestation.observedAtSeconds);
-    announcement = "Fixture ZEC evidence confirmed. Stablecoin lock preparation is now available.";
+    announcement = "ZEC evidence confirmed. Exact-token EVM lock preparation is now available.";
   } else if (phase === "awaiting-evm-funding" && state.evm.phase === "unfunded") {
     nextState = prepareSwapFunding(state, "evm", hex32("62"), state.terms.evmFundBy - 1n);
-    announcement = "Fixture USDC lock prepared. No transaction was built or signed.";
+    announcement = "Exact-token EVM lock prepared. No transaction was built or signed.";
   } else if (phase === "awaiting-evm-funding" && state.evm.phase === "funding-prepared") {
     nextState = observeSwapFunding(observeSwapFunding(state, fundingEvidence("evm", 0)), fundingEvidence("evm", 1));
-    announcement = "Two fixture USDC observer reports agree. Policy qualification is still required.";
+    announcement = "Two USDC observer reports agree. Policy qualification is still required.";
   } else if (phase === "awaiting-evm-confirmation") {
     const evidence = fundingEvidence("evm", 0);
     nextState = confirmSwapFunding(state, "evm", evidence.fact.factId, evidence.attestation.observedAtSeconds);
     announcement = scenario === "refund"
-      ? "Both fixture locks are funded. The refund deadline has not passed."
-      : "Both fixture locks are funded. The fixture USDC claim is now available.";
+      ? "Both locks are funded. The refund deadline has not passed."
+      : "Both locks are funded. The USDC claim is now available.";
   } else if (phase === "awaiting-evm-claim" && scenario === "refund") {
     const deadlines = swapDeadlineStatus(state.terms, nowSeconds);
     if (!deadlines.evmRefundEligible) {
       nextTime = state.terms.evmRefundTime;
-      announcement = "Fixture clock advanced to the USDC refund deadline. No chain time changed.";
+      announcement = "Clock advanced to the USDC refund deadline. No chain time changed.";
     } else {
       nextState = observeSwapSpend(
         observeSwapSpend(state, spendEvidence("evm", "refund", nowSeconds, 0)),
         spendEvidence("evm", "refund", nowSeconds, 1),
       );
-      announcement = "Two fixture USDC refund reports agree. Policy qualification is still required.";
+      announcement = "Two USDC refund reports agree. Policy qualification is still required.";
     }
   } else if (phase === "awaiting-evm-claim") {
     const executedAt = state.terms.evmClaimSafetyCutoff;
@@ -467,7 +407,7 @@ export function advanceNativeSwapFixture(session: NativeSwapFixtureSession): Rea
       observeSwapSpend(state, spendEvidence("evm", "claim", executedAt, 0)),
       spendEvidence("evm", "claim", executedAt, 1),
     );
-    announcement = "Fixture USDC claim evidence recorded. The shared preimage is now visible in this fixture.";
+    announcement = "USDC claim evidence recorded. The shared preimage is now visible.";
   } else if (phase === "secret-observed") {
     const evidence = state.evm.spend!;
     const qualifiedAt = state.evm.spendAttestations!.reduce(
@@ -475,39 +415,39 @@ export function advanceNativeSwapFixture(session: NativeSwapFixtureSession): Rea
       0n,
     );
     nextState = confirmSwapSpend(state, "evm", evidence.factId, qualifiedAt);
-    announcement = "Fixture USDC claim confirmed. The fixture ZEC claim is now available.";
+    announcement = "USDC claim confirmed. The ZEC claim is now available.";
   } else if (phase === "awaiting-zec-claim" && state.zec.phase === "funded-confirmed") {
     const executedAt = state.terms.zecRefundTime - 1n;
     nextState = observeSwapSpend(
       observeSwapSpend(state, spendEvidence("zec", "claim", executedAt, 0)),
       spendEvidence("zec", "claim", executedAt, 1),
     );
-    announcement = "Fixture ZEC claim evidence recorded. Confirmation is still required.";
+    announcement = "ZEC claim evidence recorded. Confirmation is still required.";
   } else if (phase === "awaiting-zec-claim" && state.zec.phase === "claim-seen") {
     const qualifiedAt = state.zec.spendAttestations!.reduce(
       (latest, item) => item.observedAtSeconds > latest ? item.observedAtSeconds : latest,
       0n,
     );
     nextState = confirmSwapSpend(state, "zec", state.zec.spend!.factId, qualifiedAt);
-    announcement = "Fixture settled. No asset moved.";
+    announcement = "Settled. No asset moved.";
   } else if (phase === "refund-recovery" && state.evm.phase === "refund-seen") {
     const qualifiedAt = state.evm.spendAttestations!.reduce(
       (latest, item) => item.observedAtSeconds > latest ? item.observedAtSeconds : latest,
       0n,
     );
     nextState = confirmSwapSpend(state, "evm", state.evm.spend!.factId, qualifiedAt);
-    announcement = "Fixture USDC refund confirmed. ZEC remains locked until its later fixture deadline.";
+    announcement = "USDC refund confirmed. ZEC remains locked until its later deadline.";
   } else if (phase === "refund-recovery" && state.zec.phase === "funded-confirmed") {
     const deadlines = swapDeadlineStatus(state.terms, nowSeconds);
     if (!deadlines.zecRefundEligible) {
       nextTime = state.terms.zecRefundTime;
-      announcement = "Fixture clock advanced to the ZEC refund deadline. No chain time changed.";
+      announcement = "Clock advanced to the ZEC refund deadline. No chain time changed.";
     } else {
       nextState = observeSwapSpend(
         observeSwapSpend(state, spendEvidence("zec", "refund", nowSeconds, 0)),
         spendEvidence("zec", "refund", nowSeconds, 1),
       );
-      announcement = "Two fixture ZEC refund reports agree. Policy qualification is still required.";
+      announcement = "Two ZEC refund reports agree. Policy qualification is still required.";
     }
   } else if (phase === "refund-recovery" && state.zec.phase === "refund-seen") {
     const qualifiedAt = state.zec.spendAttestations!.reduce(
@@ -515,7 +455,7 @@ export function advanceNativeSwapFixture(session: NativeSwapFixtureSession): Rea
       0n,
     );
     nextState = confirmSwapSpend(state, "zec", state.zec.spend!.factId, qualifiedAt);
-    announcement = "Fixture refunded. No asset moved.";
+    announcement = "Refunded. No asset moved.";
   }
 
   return {
@@ -524,113 +464,12 @@ export function advanceNativeSwapFixture(session: NativeSwapFixtureSession): Rea
   };
 }
 
-export function nativeSwapPhaseCopy(session: NativeSwapFixtureSession): Readonly<{
-  phase: SwapPhase;
-  title: string;
-  body: string;
-  stage: number;
-}> {
-  const { state, scenario, nowSeconds } = session;
-  const phase = swapPhase(state);
-  if (phase === "disputed") {
-    return {
-      phase,
-      title: "Disputed fixture evidence",
-      body: state.disputes.at(-1)?.detail ?? "Fixture evidence is unsafe.",
-      stage: 4,
-    };
-  }
-  if (phase === "awaiting-authorizations") {
-    return { phase, title: "Matched fixture", body: "A match is not settlement. Review the immutable fixture terms.", stage: 0 };
-  }
-  if (phase === "awaiting-zec-funding") {
-    return {
-      phase,
-      title: state.zec.phase === "unfunded" ? "Terms accepted" : "ZEC lock prepared",
-      body: state.zec.phase === "unfunded"
-        ? "The native ZEC leg uses the later refund deadline."
-        : "No transaction was built or signed.",
-      stage: 1,
-    };
-  }
-  if (phase === "awaiting-zec-confirmation") {
-    return { phase, title: "ZEC funding observed", body: "Waiting for approved Zcash confirmation evidence.", stage: 2 };
-  }
-  if (phase === "awaiting-evm-funding") {
-    return {
-      phase,
-      title: state.evm.phase === "unfunded" ? "ZEC funding confirmed" : "USDC lock prepared",
-      body: state.evm.phase === "unfunded"
-        ? "The stablecoin leg remains unfunded."
-        : "Contract identity and deadline policy remain bound to the fixture terms.",
-      stage: 3,
-    };
-  }
-  if (phase === "awaiting-evm-confirmation") {
-    return { phase, title: "USDC funding observed", body: "Waiting for fixture EVM confirmation evidence.", stage: 3 };
-  }
-  if (phase === "awaiting-evm-claim") {
-    const refundEligible = swapDeadlineStatus(state.terms, nowSeconds).evmRefundEligible;
-    if (scenario === "refund") {
-      return {
-        phase,
-        title: refundEligible ? "USDC refund available" : "Both fixture locks funded",
-        body: refundEligible
-          ? "The fixture USDC refund deadline has passed. Claim and refund are mutually exclusive."
-          : "Both fixture locks are funded. Neither leg is settled, and refund remains early.",
-        stage: 4,
-      };
-    }
-    return { phase, title: "Both fixture locks funded", body: "Both fixture locks are funded. Neither leg is settled.", stage: 4 };
-  }
-  if (phase === "secret-observed") {
-    return { phase, title: "Shared preimage observed", body: "The fixture USDC claim revealed the shared preimage.", stage: 4 };
-  }
-  if (phase === "awaiting-zec-claim") {
-    return {
-      phase,
-      title: state.zec.phase === "funded-confirmed" ? "USDC claim confirmed" : "ZEC claim observed",
-      body: state.zec.phase === "funded-confirmed"
-        ? "The canonical fixture preimage can now satisfy the ZEC lock."
-        : "Waiting for fixture Zcash claim confirmation.",
-      stage: 4,
-    };
-  }
-  if (phase === "refund-recovery") {
-    const zecEligible = swapDeadlineStatus(state.terms, nowSeconds).zecRefundEligible;
-    return {
-      phase,
-      title: state.evm.phase === "refund-seen"
-        ? "USDC refund observed"
-        : state.zec.phase === "refund-seen"
-          ? "ZEC refund observed"
-          : zecEligible
-            ? "ZEC refund available"
-            : "USDC refund confirmed",
-      body: state.zec.phase === "refund-seen"
-        ? "Waiting for fixture Zcash refund confirmation."
-        : zecEligible
-          ? "The later fixture ZEC refund deadline has passed."
-          : "ZEC remains locked until its later fixture refund deadline.",
-      stage: 4,
-    };
-  }
-  if (phase === "settled") return { phase, title: "Fixture settled", body: "Fixture journey complete. No asset moved.", stage: 5 };
-  if (phase === "expired") return { phase, title: "Fixture expired", body: "No chain funding was observed before the signed deadline.", stage: 5 };
-  return { phase, title: "Fixture refunded", body: "Fixture refund complete. No transaction was submitted.", stage: 5 };
+export function nativeSwapPhaseCopy(session: NativeSwapFixtureSession) {
+  return settlementPhaseCopy(session);
 }
 
 export function nativeSwapEvidence(session: NativeSwapFixtureSession) {
-  const { state } = session;
-  return {
-    swapId: state.swapId,
-    termsHash: state.termsHash,
-    stateRoot: swapStateRoot(state),
-    domainPhase: swapPhase(state),
-    zecLeg: state.zec.phase,
-    evmLeg: state.evm.phase,
-    observerEvidence: state.disputes.length > 0 ? "unsafe" : "fixture only",
-  } as const;
+  return settlementEvidence(session);
 }
 
 export const nativeSwapFixtureTerms = fixtureTerms;

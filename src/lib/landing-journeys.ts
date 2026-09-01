@@ -1,39 +1,31 @@
-export const LANDING_JOURNEY_IDS = ["trader", "lp", "deposit", "withdrawal"] as const;
+export const LANDING_JOURNEY_IDS = ["trader", "quotes", "settlement"] as const;
 
 export type LandingJourneyId = (typeof LANDING_JOURNEY_IDS)[number];
 
 export const LANDING_JOURNEYS = [
   {
     id: "trader",
-    tab: "Trader",
-    title: "Signed limits, visible bounds",
-    description: "Preview ZEC spot order entry and settlement disclosures.",
+    tab: "Trade",
+    title: "Trade",
+    description: "Open the ZEC/USDC and ZEC/USDT book. Orders stay unsigned while wallets are off.",
     href: "/trade?view=trade",
-    action: "Preview trading",
+    action: "Open terminal",
   },
   {
-    id: "lp",
-    tab: "LP",
-    title: "Legacy pool math, clearly bounded",
-    description: "Inspect the superseded fixed-pair AMM simulation. Native cross-chain liquidity uses wallet-held solvers instead.",
+    id: "quotes",
+    tab: "Provide quotes",
+    title: "Provide quotes",
+    description: "Solvers keep inventory in their own wallets. There is no shared LP token and no platform balance.",
     href: "/liquidity",
-    action: "Preview liquidity",
+    action: "Open quotes",
   },
   {
-    id: "deposit",
-    tab: "Deposit",
-    title: "Legacy custody path",
-    description: "Inspect the historical transparent-ZEC custody state tour. It is not the native atomic-settlement path.",
-    href: "/trade?view=bridge",
-    action: "Preview deposit states",
-  },
-  {
-    id: "withdrawal",
-    tab: "Withdrawal",
-    title: "Legacy payout recovery",
-    description: "Inspect the historical burn-and-payout fixture. The native target preserves wallet-controlled refunds instead.",
-    href: "/trade?view=bridge&journey=withdrawal",
-    action: "Preview withdrawal states",
+    id: "settlement",
+    tab: "Read settlement",
+    title: "Read settlement",
+    description: "Follow a fill from signed order through ZEC lock, stablecoin lock, and mutually exclusive claim or refund.",
+    href: "/trade?view=settlement",
+    action: "How settlement works",
   },
 ] as const;
 

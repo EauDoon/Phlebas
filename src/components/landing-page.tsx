@@ -8,14 +8,30 @@ import {
   LANDING_HERO,
   LANDING_LEDGER,
   LANDING_LEDGER_HEADING,
+  LANDING_LEDGER_NOTE,
+  LANDING_LEDGER_PILL,
+  LANDING_MARKETS,
+  LANDING_MARKETS_INTRO,
+  LANDING_PATHS_INTRO,
+  LANDING_SETTLEMENT_INTRO,
+  LANDING_SETTLEMENT_STEPS,
   LANDING_SKIP_LINKS,
+  LANDING_STATUS_DETAILS,
+  LANDING_WHY_NOT_WRAPPED_INTRO,
 } from "@/lib/landing-copy";
 import { LANDING_EVIDENCE } from "@/lib/landing-evidence";
-import { LANDING_GATE_STATUS, LANDING_MAINNET_GATES } from "@/lib/landing-gates";
+import {
+  LANDING_GATES_ACTION,
+  LANDING_GATES_HREF,
+  LANDING_GATES_INTRO,
+  LANDING_GATES_SUMMARY,
+} from "@/lib/landing-gates";
 
 import { LandingHeader } from "./landing-header";
 import { LandingJourneys } from "./landing-journeys";
 import { LandingTerminalPreview } from "./landing-terminal-preview";
+import { PreviewChip } from "./preview-chip";
+import { SiteFooter } from "./site-footer";
 import styles from "./landing.module.css";
 
 export function LandingPage() {
@@ -26,174 +42,117 @@ export function LandingPage() {
           <a className={styles.skipLink} href={link.href} key={link.href} onClick={activateSkipLink}>{link.label}</a>
         ))}
       </nav>
-      <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
-        <strong>Simulation only</strong>
-        <span>No-value simulation. Optional Sepolia wallet and local testnet services stay off until started. No mainnet funds.</span>
-      </div>
+      <PreviewChip />
       <LandingHeader />
 
       <main id="main-content" tabIndex={-1}>
         <section className={styles.hero} aria-labelledby="hero-title">
           <div className={styles.heroStatement}>
-            <span className={styles.eyebrow}>Transparent ZEC markets</span>
-            <h1 id="hero-title">The custody line, drawn in public.</h1>
-            <p>
-              Phlebas is a no-value implementation of a transparent ZEC order book, native
-              two-chain atomic settlement, and wallet-held solver liquidity. Native labels are
-              simulation names, not live settlement.
-            </p>
+            <span className={styles.eyebrow}>{LANDING_HERO.eyebrow}</span>
+            <h1 id="hero-title">{LANDING_HERO.heading}</h1>
+            <p>{LANDING_HERO.supporting}</p>
           </div>
 
           <aside className={styles.systemLedger} aria-labelledby="system-ledger-title">
             <div className={styles.ledgerHeader}>
               <div><h2 id="system-ledger-title">{LANDING_LEDGER_HEADING}</h2></div>
-              <span className={styles.designPill}>Design only</span>
+              <span className={styles.designPill}>{LANDING_LEDGER_PILL}</span>
             </div>
-            <dl role="list" aria-label="Current system">
+            <dl role="list" aria-label={LANDING_LEDGER_HEADING}>
               {LANDING_LEDGER.map((row) => (
                 <div key={row.label} role="listitem"><dt>{row.label}</dt><dd>{row.value}</dd></div>
               ))}
-              {!LANDING_LEDGER.some((row) => row.value === "Deny by default") ? (
-                <div role="listitem"><dt>Country access</dt><dd>Deny by default</dd></div>
-              ) : null}
             </dl>
-            <p>Every displayed price, order, trade, pool reserve, and volume is synthetic.</p>
-            <Link href="/status" className={styles.secondaryCta}>Open status details</Link>
+            <p>{LANDING_LEDGER_NOTE}</p>
+            <Link href="/status" className={styles.secondaryCta}>{LANDING_STATUS_DETAILS}</Link>
           </aside>
 
           <div className={styles.heroActions}>
-            <Link href="/trade?view=trade" className={styles.primaryCta}>{LANDING_HERO.primaryAction} <span>↗</span></Link>
-            <Link href="/trade?view=settlement&market=ZEC%2FUSDC" className={styles.secondaryCta}>Open settlement walkthrough</Link>
-            <a href="#pairs" className={styles.secondaryCta}>Understand native pairs</a>
+            <Link href={LANDING_HERO.primaryHref} className={styles.primaryCta}>{LANDING_HERO.primaryAction} <span>↗</span></Link>
+            <Link href={LANDING_HERO.secondaryHref} className={styles.secondaryCta}>{LANDING_HERO.secondaryAction}</Link>
             <p>{LANDING_HERO.disclosure}</p>
           </div>
         </section>
 
         <section className={styles.marketSection} id="markets" tabIndex={-1} aria-labelledby="markets-title">
           <div className={styles.sectionIntro}>
-            <span className={styles.eyebrow}>Two focused markets</span>
-            <h2 id="markets-title">Familiar labels.<br />Exact settlement.</h2>
-            <p>Phlebas presents native ZEC against native USDC and native USDT. This preview still moves no live funds.</p>
+            <span className={styles.eyebrow}>{LANDING_MARKETS_INTRO.eyebrow}</span>
+            <h2 id="markets-title">{LANDING_MARKETS_INTRO.heading}</h2>
+            <p>{LANDING_MARKETS_INTRO.supporting}</p>
           </div>
-          <div className={styles.marketCards} role="list" aria-label="Focused markets">
-            <article role="listitem">
-              <span className={styles.marketIndex}>01</span>
-              <div><span>First settlement target</span><h3>ZEC / USDC</h3><p>No-value native atomic-swap fixture</p></div>
-              <Link href={{ pathname: "/trade", query: { view: "settlement", market: "ZEC/USDC" } }}>Inspect settlement <span>→</span></Link>
-            </article>
-            <article role="listitem">
-              <span className={styles.marketIndex}>02</span>
-              <div><span>Market label only</span><h3>ZEC / USDT</h3><p>Settlement disabled until one exact token identity is approved</p></div>
-              <Link href={{ pathname: "/trade", query: { view: "settlement", market: "ZEC/USDT" } }}>Inspect listing gate <span>→</span></Link>
-            </article>
+          <div className={styles.marketCards} role="list" aria-label={LANDING_MARKETS_INTRO.eyebrow}>
+            {LANDING_MARKETS.map((market, index) => (
+              <article key={market.title} role="listitem">
+                <span className={styles.marketIndex}>{String(index + 1).padStart(2, "0")}</span>
+                <div>
+                  <span>{market.kicker}</span>
+                  <h3>{market.title}</h3>
+                  <p>{market.body}</p>
+                </div>
+                <Link href={market.href}>{market.action} <span>→</span></Link>
+              </article>
+            ))}
           </div>
         </section>
 
-        <section className={styles.evidenceSection} id="exists-today" tabIndex={-1} aria-labelledby="exists-title">
-          <div className={styles.sectionIntro}>
-            <span className={styles.eyebrow}>What exists today</span>
-            <h2 id="exists-title">A working preview, bounded on purpose.</h2>
+        <section className={styles.pairsSection} id="settlement-how" tabIndex={-1} aria-labelledby="settlement-how-title">
+          <div className={styles.pairsCopy}>
+            <span className={styles.eyebrow}>{LANDING_SETTLEMENT_INTRO.eyebrow}</span>
+            <h2 id="settlement-how-title">{LANDING_SETTLEMENT_INTRO.heading}</h2>
+            <p>{LANDING_SETTLEMENT_INTRO.supporting}</p>
           </div>
-          <div className={styles.evidenceList} role="list" aria-label="What exists today">
+          <ol className={styles.assetFlow} aria-label={LANDING_SETTLEMENT_INTRO.eyebrow}>
+            {LANDING_SETTLEMENT_STEPS.map((step, index) => (
+              <li key={step.title}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <div><strong>{step.title}</strong><small>{step.detail}</small></div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className={styles.evidenceSection} id="why-not-wrapped" tabIndex={-1} aria-labelledby="why-not-wrapped-title">
+          <div className={styles.sectionIntro}>
+            <span className={styles.eyebrow}>{LANDING_WHY_NOT_WRAPPED_INTRO.eyebrow}</span>
+            <h2 id="why-not-wrapped-title">{LANDING_WHY_NOT_WRAPPED_INTRO.heading}</h2>
+            <p>{LANDING_WHY_NOT_WRAPPED_INTRO.supporting}</p>
+          </div>
+          <div className={styles.evidenceList} role="list" aria-label={LANDING_WHY_NOT_WRAPPED_INTRO.eyebrow}>
             {LANDING_EVIDENCE.map((row, index) => (
               <article key={row.title} role="listitem">
                 <span className={styles.journeyNumber}>{String(index + 1).padStart(2, "0")}</span>
                 <div>
                   <h3>{row.title}</h3>
-                  <p>
-                    {row.title === "Historical custody model"
-                      ? "A removed transparent-ZEC custody state model, retained only as a keyless tour with no address generation, custody, mint, or redemption."
-                      : row.body}
-                  </p>
+                  <p>{row.body}</p>
                 </div>
               </article>
             ))}
           </div>
         </section>
 
-        <section className={styles.pairsSection} id="pairs" tabIndex={-1} aria-labelledby="pairs-title">
-          <div className={styles.pairsCopy}>
-            <span className={styles.eyebrow}>Native assets</span>
-            <h2 id="pairs-title">Native ZEC against native USDC and USDT.</h2>
-            <p>
-              The simulation now labels settlement as ZEC-USDC and ZEC-USDT. Native labels are simulation names, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.
-            </p>
-            <p>
-              Native settlement target: each fill uses one transparent Zcash conditional lock
-              and one exact-token EVM conditional lock. There is no custodial ZEC platform balance.
-            </p>
-            <strong>This is a no-value simulation. It is not a live exchange and not a shielded market.</strong>
-            <p>
-              No shielded deposit or withdrawal is planned for v1.
-              {" "}
-              <a href="https://zips.z.cash/zip-0320">Read the ZIP 320 TEX address specification</a>.
-            </p>
-          </div>
-          <ol className={styles.assetFlow} aria-label="Proposed ZEC to market flow">
-            <li><span>01</span><div><strong>Signed order</strong><small>Exact market, amount, price, and expiry</small></div></li>
-            <li><span>02</span><div><strong>Matched fill</strong><small>Deterministic terms and zero protocol fee</small></div></li>
-            <li><span>03</span><div><strong>Wallet-funded locks</strong><small>ZEC first, exact stablecoin second</small></div></li>
-            <li><span>04</span><div><strong>Claim or refund</strong><small>Evidence-gated, mutually exclusive recovery</small></div></li>
-          </ol>
-        </section>
-
         <LandingTerminalPreview />
 
-        <section className={styles.journeySection} id="journeys" tabIndex={-1} aria-labelledby="journeys-title">
+        <section className={styles.journeySection} id="paths" tabIndex={-1} aria-labelledby="paths-title">
           <div className={styles.sectionIntro}>
-            <span className={styles.eyebrow}>Choose a path</span>
-            <h2 id="journeys-title">Choose what to inspect.</h2>
+            <span className={styles.eyebrow}>{LANDING_PATHS_INTRO.eyebrow}</span>
+            <h2 id="paths-title">{LANDING_PATHS_INTRO.heading}</h2>
           </div>
           <LandingJourneys />
         </section>
 
         <section className={styles.gatesSection} id="launch-gates" tabIndex={-1} aria-labelledby="gates-title">
           <div>
-            <span className={styles.eyebrow}>Not cleared for real assets</span>
-            <h2 id="gates-title">Mainnet starts after evidence, not before it.</h2>
+            <span className={styles.eyebrow}>{LANDING_GATES_INTRO.eyebrow}</span>
+            <h2 id="gates-title">{LANDING_GATES_INTRO.heading}</h2>
           </div>
           <div className={styles.gateCopy}>
-            <p>Real assets stay blocked until entity, licensing, custody, reserve, signer, audit, market-integrity, jurisdiction, insurance, monitoring, and incident gates have current written evidence.</p>
-            <ul aria-label="Mainnet launch gates">
-              {LANDING_MAINNET_GATES.map((gate) => (
-                <li key={gate}>
-                  <span>
-                    {gate.includes("USDT0")
-                      ? "Final approval for USDC and USDT. USDT0 is abandoned."
-                      : gate}
-                  </span>
-                  <strong>{LANDING_GATE_STATUS}</strong>
-                </li>
-              ))}
-              <li>
-                <span>USDC and USDT are both native quote assets in this preview.</span>
-                <strong>{LANDING_GATE_STATUS}</strong>
-              </li>
-              <li>
-                <span>USDT0 is abandoned. It is not a listed settlement asset.</span>
-                <strong>{LANDING_GATE_STATUS}</strong>
-              </li>
-              <li>
-                <span>Shielded deposits, leverage, lending, and token incentives remain out of scope.</span>
-                <strong>{LANDING_GATE_STATUS}</strong>
-              </li>
-            </ul>
-            <Link href="/trade?view=architecture">Read the launch gates <span>→</span></Link>
+            <p>{LANDING_GATES_SUMMARY}</p>
+            <Link href={LANDING_GATES_HREF}>{LANDING_GATES_ACTION} <span>→</span></Link>
           </div>
         </section>
       </main>
 
-      <footer className={styles.footer}>
-        <div className={styles.brand}><span className={styles.brandMark}>P</span><span>PHLEBAS</span></div>
-        <p>Phlebas is a protocol preview, not a live exchange or an offer of financial services.</p>
-        <nav aria-label="Footer">
-          <Link href="/trade?view=architecture">Architecture</Link>
-          <Link href="/legal">Legal and compliance</Link>
-          <a href="#launch-gates">Launch gates</a>
-          <Link href="/security">Security</Link>
-          <Link href="/status">Status</Link>
-        </nav>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

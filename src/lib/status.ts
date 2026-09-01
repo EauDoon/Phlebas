@@ -7,7 +7,7 @@ export function simulationStatus(env: Record<string, string | undefined> = proce
   return {
     name: "phlebas",
     version: "0.1.0",
-    mode: "simulation",
+    mode: "preview",
     liveFunds: false,
     matcher: "in-browser",
     matcherService: matcherLoopback ? "persistent-native-v1-loopback" : "off",

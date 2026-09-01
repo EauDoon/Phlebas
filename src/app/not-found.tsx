@@ -9,7 +9,7 @@ export default function NotFound() {
       skipTo={{ href: "#missing-route", label: "Skip to missing-route copy" }}
     >
       <article id="missing-route" tabIndex={-1} aria-label="Missing-route copy">
-        <p>That route is not part of the Phlebas simulation.</p>
+        <p>That route is not part of the Phlebas public preview.</p>
         <p>
           <Link href="/">Return home</Link>
           {" · "}

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Phlebas mark">
   <rect width="64" height="64" rx="14" fill="#070b0c"/>
-  <path d="M13 10h38v38L45 54H13z" fill="#2dd4bf"/>
+  <path d="M13 10h38v38L45 54H13z" fill="#f0c14b"/>
   <path d="M24 20h11.5C42.4 20 46 23.5 46 29.4c0 6-3.8 9.6-10.8 9.6H30v7h-6zm6 5v9h4.8c3.4 0 5.2-1.5 5.2-4.6 0-3-1.8-4.4-5.2-4.4z" fill="#042f2e"/>
 </svg>

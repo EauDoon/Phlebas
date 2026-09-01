@@ -23,7 +23,7 @@ async function expectNoHorizontalOverflow(page: { evaluate: (fn: () => { body: n
   expect(overflow).toEqual({ body: 0, document: 0 });
 }
 
-test("education last step stays inside 320px with 44px Enter and Back", async ({ page }) => {
+test("education last step stays inside 320px with 44px Continue and Back", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
   const dialog = page.getByRole("dialog");
@@ -36,17 +36,17 @@ test("education last step stays inside 320px with 44px Enter and Back", async ({
 
   const last = PREVIEW_EDUCATION_STEPS[PREVIEW_EDUCATION_STEPS.length - 1];
   await expect(dialog.getByRole("heading", { name: last.title })).toBeVisible();
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const continueButton = dialog.getByRole("button", { name: "Continue" });
   const back = dialog.getByRole("button", { name: "Back" });
-  await expect(enter).toBeVisible();
+  await expect(continueButton).toBeVisible();
   await expect(back).toBeEnabled();
   const dialogBox = await dialog.boundingBox();
   expect(dialogBox, "education dialog bounding box").toBeTruthy();
   expect(dialogBox?.width ?? 0).toBeLessThanOrEqual(320);
-  expect((await enter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect((await continueButton.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   expect((await back.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   await expectNoHorizontalOverflow(page);
-  await enter.click();
+  await continueButton.click();
   await expect(dialog).toHaveCount(0);
 });
 
@@ -153,8 +153,8 @@ test("GTC remainder can be cancelled, IOC cancels remainder, and FOK rejects a m
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(describeSubmit(rest, "ZEC/USDC"))).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByText(blotterEmptyOrdersCopy(markets["ZEC/USDC"].settlementPair))).toBeVisible();
@@ -162,15 +162,15 @@ test("GTC remainder can be cancelled, IOC cancels remainder, and FOK rejects a m
   await page.getByRole("button", { name: "IOC" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(describeSubmit(ioc, "ZEC/USDC"))).toBeVisible();
 
   await page.getByRole("button", { name: "FOK" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("52.91");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("100");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(describeSubmit(fok, "ZEC/USDC"), { exact: true })).toBeVisible();
   await expect(page.getByText(ticketRejectCopy("Fill-or-kill could not fill in full", "ZEC/USDC"), { exact: true })).toBeVisible();
 });
@@ -189,9 +189,9 @@ test("market IOC confirm fills against the fixture book", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Market" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("Worst acceptable price")).toBeVisible();
   await expect(page.getByText("IOC", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(describeSubmit(market, "ZEC/USDC"))).toBeVisible();
 });

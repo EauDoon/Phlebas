@@ -75,10 +75,10 @@ export function BridgePanel({ initialJourney = "deposit" }: { initialJourney?: G
       <section className={`${styles.panel} ${styles.featurePrimary}`} aria-labelledby="bridge-title">
         <div className={styles.panelHeader}>
           <div>
-            <span className={styles.eyebrow}>Historical custody model</span>
+            <span className={styles.eyebrow}>Historical models</span>
             <h2 id="bridge-title">Historical ZEC state tour</h2>
           </div>
-          <span className={styles.warningPill}>No runtime gateway</span>
+          <span className={styles.warningPill}>Retired</span>
         </div>
         <p className={styles.featureLead}>
           Native ZEC cannot live inside an EVM liquidity pool. This keyless state tour preserves
