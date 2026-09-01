@@ -2,6 +2,7 @@ import {
   encodeClaimCalldata,
   encodeFundCalldata,
   encodeRefundCalldata,
+  type ConditionalLockTerms,
 } from "./conditional-lock-abi.ts";
 import { bytesToHex, hexToBytes, keccak256 } from "./keccak.ts";
 import {
@@ -14,18 +15,56 @@ import type { MarketId } from "./market-data.ts";
 import { UINT256_MAX, normalizeAddress, normalizeHex32, type Hex32, type HexAddress } from "./order-domain.ts";
 import { sha256Hex } from "./sha256.ts";
 
-export const STABLECOIN_WALLET_REVIEW_VERSION = 1 as const;
+export const STABLECOIN_WALLET_REVIEW_VERSION = 2 as const;
 export const STABLECOIN_NETWORK_ACTION = "disabled-until-deployment-manifest" as const;
+
+export type StablecoinLockState = "unfunded" | "funded";
+
+/**
+ * An independently sourced Ethereum observation. A future submitter must obtain
+ * these values from chain ID 1 and compare the code hash with an approved,
+ * receipt-backed deployment record before it can enable a wallet request.
+ */
+export type StablecoinLockDeploymentReceipt = Readonly<{
+  chainId: typeof ETHEREUM_MAINNET_CHAIN_HEX;
+  address: string;
+  transactionHash: string;
+  blockNumber: bigint;
+  blockHash: string;
+  receiptStatus: "0x1";
+  runtimeBytecodeSha256: string;
+  receiptVerified: true;
+  constructorArgumentsVerified: true;
+  runtimeBytecodeVerified: true;
+}>;
+
+export type StablecoinLockObservation = Readonly<{
+  chainId: typeof ETHEREUM_MAINNET_CHAIN_HEX;
+  lock: string;
+  runtimeBytecode: string;
+  immutableTerms: ConditionalLockTerms;
+  state: StablecoinLockState;
+  blockNumber: bigint;
+  blockHash: string;
+  blockTimestampSeconds: bigint;
+}>;
 
 export type StablecoinLockContext = Readonly<{
   marketId: MarketId;
-  token: string;
   lock: string;
-  funder: string;
-  claimRecipient: string;
+  expectedTerms: ConditionalLockTerms;
+  deploymentReceipt: StablecoinLockDeploymentReceipt;
+  observation: StablecoinLockObservation;
+}>;
+
+export type StablecoinAllowanceObservation = Readonly<{
+  chainId: typeof ETHEREUM_MAINNET_CHAIN_HEX;
+  token: string;
+  owner: string;
+  spender: string;
   amountAtoms: bigint;
-  termsHash: string;
-  secretHash: string;
+  blockNumber: bigint;
+  blockHash: string;
 }>;
 
 export type StablecoinWalletAction = Readonly<{
@@ -41,9 +80,18 @@ export type StablecoinWalletAction = Readonly<{
   data: `0x${string}`;
   token: HexAddress;
   lock: HexAddress;
+  swapId: Hex32;
   amountAtoms: string;
   termsHash: Hex32;
-  expectedLockState: "unfunded" | "funded";
+  secretHash: Hex32;
+  fundingCutoffSeconds: string;
+  claimCutoffSeconds: string;
+  refundTimeSeconds: string;
+  lockRuntimeBytecodeSha256: Hex32;
+  observationBlockNumber: string;
+  observationBlockHash: Hex32;
+  observationBlockTimestampSeconds: string;
+  expectedLockState: StablecoinLockState;
   expectedAllowanceAfter: string | null;
   networkAction: typeof STABLECOIN_NETWORK_ACTION;
 }>;
@@ -56,20 +104,34 @@ type NormalizedContext = Readonly<{
   lock: HexAddress;
   funder: HexAddress;
   claimRecipient: HexAddress;
+  refundRecipient: HexAddress;
   amountAtoms: bigint;
+  swapId: Hex32;
   termsHash: Hex32;
   secretHash: Hex32;
+  fundingCutoff: bigint;
+  claimCutoff: bigint;
+  refundTime: bigint;
+  observedState: StablecoinLockState;
+  runtimeBytecodeSha256: Hex32;
+  observationBlockNumber: bigint;
+  observationBlockHash: Hex32;
+  observationBlockTimestampSeconds: bigint;
 }>;
+
+const ZERO_ADDRESS = `0x${"00".repeat(20)}`;
+const ZERO_HEX32 = `0x${"00".repeat(32)}`;
+const UINT64_MAX = (1n << 64n) - 1n;
 
 function nonzeroAddress(value: string, label: string): HexAddress {
   const address = normalizeAddress(value, label);
-  if (address === `0x${"00".repeat(20)}`) throw new RangeError(`${label} cannot be zero`);
+  if (address === ZERO_ADDRESS) throw new RangeError(`${label} cannot be zero`);
   return address;
 }
 
 function nonzeroHex32(value: string, label: string): Hex32 {
   const hex = normalizeHex32(value, label);
-  if (hex === `0x${"00".repeat(32)}`) throw new RangeError(`${label} cannot be zero`);
+  if (hex === ZERO_HEX32) throw new RangeError(`${label} cannot be zero`);
   return hex;
 }
 
@@ -80,28 +142,146 @@ function uint256(value: bigint, label: string, allowZero: boolean): bigint {
   return value;
 }
 
+function uint64(value: bigint, label: string, allowZero = false): bigint {
+  if (typeof value !== "bigint" || value < (allowZero ? 0n : 1n) || value > UINT64_MAX) {
+    throw new RangeError(`${label} must fit ${allowZero ? "uint64" : "a positive uint64"}`);
+  }
+  return value;
+}
+
+function runtimeBytecode(value: string, label: string): Uint8Array {
+  if (typeof value !== "string" || !/^0x[0-9a-fA-F]+$/.test(value) || (value.length - 2) % 2 !== 0) {
+    throw new TypeError(`${label} must be nonempty even-length hex bytes`);
+  }
+  return hexToBytes(value);
+}
+
+function normalizeTerms(terms: ConditionalLockTerms, label: string) {
+  const token = nonzeroAddress(terms.token, `${label} token`);
+  const funder = nonzeroAddress(terms.funder, `${label} funder`);
+  const claimRecipient = nonzeroAddress(terms.claimRecipient, `${label} claim recipient`);
+  const refundRecipient = nonzeroAddress(terms.refundRecipient, `${label} refund recipient`);
+  const amount = uint256(terms.amount, `${label} amount`, false);
+  const swapId = nonzeroHex32(terms.swapId, `${label} swap ID`);
+  const termsHash = nonzeroHex32(terms.termsHash, `${label} terms hash`);
+  const hashlock = nonzeroHex32(terms.hashlock, `${label} hashlock`);
+  const fundingCutoff = uint64(terms.fundingCutoff, `${label} funding cutoff`);
+  const claimCutoff = uint64(terms.claimCutoff, `${label} claim cutoff`);
+  const refundTime = uint64(terms.refundTime, `${label} refund time`);
+  if (funder !== refundRecipient) throw new Error(`${label} refund recipient must equal the funder`);
+  if (funder === claimRecipient || token === funder || token === claimRecipient) {
+    throw new Error(`${label} roles must be distinct from the token and each other`);
+  }
+  if (fundingCutoff >= claimCutoff || claimCutoff + 1n >= refundTime) {
+    throw new Error(`${label} deadlines must increase and leave a refund gap`);
+  }
+  return Object.freeze({
+    token,
+    funder,
+    claimRecipient,
+    refundRecipient,
+    amount,
+    swapId,
+    termsHash,
+    hashlock,
+    fundingCutoff,
+    claimCutoff,
+    refundTime,
+  });
+}
+
+function sameTerms(left: ReturnType<typeof normalizeTerms>, right: ReturnType<typeof normalizeTerms>): boolean {
+  return left.token === right.token
+    && left.funder === right.funder
+    && left.claimRecipient === right.claimRecipient
+    && left.refundRecipient === right.refundRecipient
+    && left.amount === right.amount
+    && left.swapId === right.swapId
+    && left.termsHash === right.termsHash
+    && left.hashlock === right.hashlock
+    && left.fundingCutoff === right.fundingCutoff
+    && left.claimCutoff === right.claimCutoff
+    && left.refundTime === right.refundTime;
+}
+
 function normalizeContext(input: StablecoinLockContext): NormalizedContext {
   const market = mainnetMarket(input.marketId);
-  const token = nonzeroAddress(input.token, "Stablecoin token");
-  assertMainnetStablecoinAddress(market.quote.symbol, token);
   const lock = nonzeroAddress(input.lock, "Conditional lock");
-  const funder = nonzeroAddress(input.funder, "Stablecoin funder");
-  const claimRecipient = nonzeroAddress(input.claimRecipient, "Stablecoin claim recipient");
-  if (lock === token || funder === claimRecipient || funder === token || claimRecipient === token) {
-    throw new Error("Stablecoin wallet action roles must be distinct from the token and each other");
+  const receipt = input.deploymentReceipt;
+  if (receipt.chainId !== ETHEREUM_MAINNET_CHAIN_HEX
+    || receipt.receiptStatus !== "0x1"
+    || receipt.receiptVerified !== true
+    || receipt.constructorArgumentsVerified !== true
+    || receipt.runtimeBytecodeVerified !== true) {
+    throw new Error("Conditional lock requires a verified successful Ethereum Mainnet deployment receipt");
   }
+  if (nonzeroAddress(receipt.address, "Deployment receipt address") !== lock) {
+    throw new Error("Conditional lock address does not match the verified deployment receipt");
+  }
+  nonzeroHex32(receipt.transactionHash, "Deployment transaction hash");
+  const deploymentBlockNumber = uint256(receipt.blockNumber, "Deployment block number", false);
+  nonzeroHex32(receipt.blockHash, "Deployment block hash");
+  const observation = input.observation;
+  if (observation.chainId !== ETHEREUM_MAINNET_CHAIN_HEX) {
+    throw new Error("Conditional lock observation must come from Ethereum Mainnet chain ID 1");
+  }
+  if (nonzeroAddress(observation.lock, "Observed conditional lock") !== lock) {
+    throw new Error("Observed conditional lock address does not match the reviewed deployment");
+  }
+  const expectedTerms = normalizeTerms(input.expectedTerms, "Expected conditional lock");
+  const observedTerms = normalizeTerms(observation.immutableTerms, "Observed conditional lock");
+  if (!sameTerms(expectedTerms, observedTerms)) {
+    throw new Error("Observed conditional lock immutable terms do not match all 11 reviewed terms");
+  }
+  assertMainnetStablecoinAddress(market.quote.symbol, expectedTerms.token);
+  if (lock === expectedTerms.token || lock === expectedTerms.funder || lock === expectedTerms.claimRecipient) {
+    throw new Error("Conditional lock address must differ from the token and user roles");
+  }
+  const observedRuntime = runtimeBytecode(observation.runtimeBytecode, "Observed runtime bytecode");
+  const expectedRuntimeHash = nonzeroHex32(
+    receipt.runtimeBytecodeSha256,
+    "Approved runtime bytecode SHA-256",
+  );
+  if (sha256Hex(observedRuntime) !== expectedRuntimeHash) {
+    throw new Error("Observed conditional lock runtime bytecode does not match the approved deployment hash");
+  }
+  if (observation.state !== "unfunded" && observation.state !== "funded") {
+    throw new Error("Observed conditional lock state is not actionable");
+  }
+  const blockNumber = uint256(observation.blockNumber, "Observation block number", false);
+  if (blockNumber < deploymentBlockNumber) {
+    throw new Error("Conditional lock observation predates its verified deployment receipt");
+  }
+  const blockHash = nonzeroHex32(observation.blockHash, "Observation block hash");
+  const blockTimestampSeconds = uint64(observation.blockTimestampSeconds, "Observation block timestamp", true);
   return Object.freeze({
     marketId: market.id,
     settlementPair: market.settlementPair,
     symbol: market.quote.symbol,
-    token,
+    token: expectedTerms.token,
     lock,
-    funder,
-    claimRecipient,
-    amountAtoms: uint256(input.amountAtoms, "Stablecoin amount", false),
-    termsHash: nonzeroHex32(input.termsHash, "Swap terms hash"),
-    secretHash: nonzeroHex32(input.secretHash, "Swap secret hash"),
+    funder: expectedTerms.funder,
+    claimRecipient: expectedTerms.claimRecipient,
+    refundRecipient: expectedTerms.refundRecipient,
+    amountAtoms: expectedTerms.amount,
+    swapId: expectedTerms.swapId,
+    termsHash: expectedTerms.termsHash,
+    secretHash: expectedTerms.hashlock,
+    fundingCutoff: expectedTerms.fundingCutoff,
+    claimCutoff: expectedTerms.claimCutoff,
+    refundTime: expectedTerms.refundTime,
+    observedState: observation.state,
+    runtimeBytecodeSha256: expectedRuntimeHash,
+    observationBlockNumber: blockNumber,
+    observationBlockHash: blockHash,
+    observationBlockTimestampSeconds: blockTimestampSeconds,
   });
+}
+
+function requireState(context: NormalizedContext, state: StablecoinLockState): void {
+  if (context.observedState !== state) {
+    throw new Error(`Conditional lock must be observed ${state} before this review can be created`);
+  }
 }
 
 function selector(signature: string): string {
@@ -128,18 +308,39 @@ function review(
     value: "0x0",
     token: context.token,
     lock: context.lock,
+    swapId: context.swapId,
     amountAtoms: context.amountAtoms.toString(),
     termsHash: context.termsHash,
+    secretHash: context.secretHash,
+    fundingCutoffSeconds: context.fundingCutoff.toString(),
+    claimCutoffSeconds: context.claimCutoff.toString(),
+    refundTimeSeconds: context.refundTime.toString(),
+    lockRuntimeBytecodeSha256: context.runtimeBytecodeSha256,
+    observationBlockNumber: context.observationBlockNumber.toString(),
+    observationBlockHash: context.observationBlockHash,
+    observationBlockTimestampSeconds: context.observationBlockTimestampSeconds.toString(),
     networkAction: STABLECOIN_NETWORK_ACTION,
   });
 }
 
 export function planStablecoinFundingActions(
   input: StablecoinLockContext,
-  currentAllowance: bigint,
+  allowanceObservation: StablecoinAllowanceObservation,
 ): readonly StablecoinWalletAction[] {
   const context = normalizeContext(input);
-  const allowance = uint256(currentAllowance, "Current stablecoin allowance", true);
+  requireState(context, "unfunded");
+  if (context.observationBlockTimestampSeconds > context.fundingCutoff) {
+    throw new Error("Conditional lock funding cutoff has passed");
+  }
+  if (allowanceObservation.chainId !== ETHEREUM_MAINNET_CHAIN_HEX
+    || nonzeroAddress(allowanceObservation.token, "Allowance token") !== context.token
+    || nonzeroAddress(allowanceObservation.owner, "Allowance owner") !== context.funder
+    || nonzeroAddress(allowanceObservation.spender, "Allowance spender") !== context.lock
+    || allowanceObservation.blockNumber !== context.observationBlockNumber
+    || nonzeroHex32(allowanceObservation.blockHash, "Allowance block hash") !== context.observationBlockHash) {
+    throw new Error("Stablecoin allowance must be observed for the exact fill at the same reviewed Ethereum block");
+  }
+  const allowance = uint256(allowanceObservation.amountAtoms, "Current stablecoin allowance", true);
   const actions: StablecoinWalletAction[] = [];
   if (allowance !== context.amountAtoms) {
     if (context.symbol === "USDT" && allowance !== 0n) {
@@ -178,6 +379,10 @@ export function createStablecoinClaimAction(
   preimage: string,
 ): StablecoinWalletAction {
   const context = normalizeContext(input);
+  requireState(context, "funded");
+  if (context.observationBlockTimestampSeconds > context.claimCutoff) {
+    throw new Error("Conditional lock claim cutoff has passed");
+  }
   const claimant = nonzeroAddress(actor, "Stablecoin claim actor");
   if (claimant !== context.claimRecipient) throw new Error("Stablecoin claim actor is not the immutable recipient");
   const bytes = hexToBytes(preimage);
@@ -198,8 +403,12 @@ export function createStablecoinRefundAction(
   actor: string,
 ): StablecoinWalletAction {
   const context = normalizeContext(input);
+  requireState(context, "funded");
+  if (context.observationBlockTimestampSeconds < context.refundTime) {
+    throw new Error("Conditional lock refund time has not been reached");
+  }
   const funder = nonzeroAddress(actor, "Stablecoin refund actor");
-  if (funder !== context.funder) throw new Error("Stablecoin refund actor is not the immutable funder");
+  if (funder !== context.refundRecipient) throw new Error("Stablecoin refund actor is not the immutable refund recipient");
   return review(context, {
     action: "refund-lock",
     from: funder,
