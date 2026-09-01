@@ -85,14 +85,14 @@ This historical PR is superseded by `docs/ZCASH_TRANSACTION_LAB.md`. Its transac
 | Insertions | 408 |
 | Surface | Per-IP rate limiter middleware, wiring into matcher and observer services, tests, audit checklist updates |
 
-## PR 9 — 320px skip-nav wrap (TBD commits)
+## PR 9 — 320px skip-nav wrap
 
 | Aspect | Detail |
 | --- | --- |
 | Branch | `feat/skip-nav-wrap` |
-| Stack base | `main` at `9367044` |
-| Files | TBD |
-| Insertions | TBD |
+| Stack base | `main` at `46a222b` (rebased off `9367044`) |
+| Files | src/components/simulation-frame.tsx, src/components/terminal.module.css, src/lib/skip-nav-state.ts + test, src/lib/skip-nav-restore.ts + test, tests/browser/phlebas.spec.ts, docs/adr/0010-skip-nav-wrap.md, docs/adr/0010-impl-notes.md, docs/adr/0002-native-zec-atomic-settlement.md, docs/runbooks/a11y-test.md, docs/operations/a11y-slo.md, docs/operations/a11y-verdict-history.md, docs/audit/a11y-checklist.md, docs/audit/a11y-changelog.md, docs/audit/open-items.md, docs/THREAT_MODEL.md, docs/ARCHITECTURE.md, docs/SOURCES.md, docs/index.md, PROGRESS.md |
+| Insertions | 30+ meaningful commits (rebase absorbed 2 CSS and 2 test commits that were duplicates of upstream) |
 | Surface | Skip-nav wrap at 320px, activation state via data-skip-nav-state, lib/skip-nav-state state machine, Playwright tests, docs/adr/0010, docs/runbooks/a11y-test.md, docs/operations/a11y-slo.md, docs/audit/a11y-checklist.md, threat model section 24, architecture section, sources |
 | Verifications | `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:browser` (in CI) |
 | Out of scope | full accessibility audit, screen reader testing, skip-nav wiring in trading-terminal.tsx |
