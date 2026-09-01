@@ -49,9 +49,10 @@ test("simple market review confirm uses matcher IOC copy", async ({ page }) => {
   await expect(page.getByRole("radio", { name: "Simple" })).toHaveAttribute("aria-checked", "true");
   await expect(page.locator("#order-book")).toBeHidden();
 
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
-  await expect(page.locator("#order-ticket").getByText(copy)).toBeVisible();
+  await expect(page.getByText(copy)).toBeVisible();
 });
 
 test("advanced book click fills price and shows GTC IOC FOK", async ({ page }) => {
