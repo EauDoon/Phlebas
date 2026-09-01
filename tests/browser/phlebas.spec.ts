@@ -5315,3 +5315,32 @@ test("liquidity architecture leftover at 1440 legal status leftover at 768 and 4
   await leftover("/status", 768, 1024, 2);
   await leftover("/this-route-is-not-part-of-the-simulation", 390, 844, 2);
 });
+
+test("session blotter copies a session JSON snapshot to the clipboard", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const button = page.getByRole("button", { name: /copy session json/i });
+  await expect(button).toBeVisible();
+  await button.click();
+  await expect(button).toHaveText(/copied session json/i);
+  const clipboard = await page.evaluate(() => navigator.clipboard.readText());
+  const parsed = JSON.parse(clipboard) as { schema: string; market: string; settlementPair: string; fills: unknown[]; sessionLog: unknown[] };
+  expect(parsed.schema).toBe("phlebas-session-snapshot");
+  expect(parsed.market).toBe("ZEC/USDC");
+  expect(parsed.settlementPair).toBe("ZEC-USDC");
+  expect(Array.isArray(parsed.fills)).toBe(true);
+  expect(Array.isArray(parsed.sessionLog)).toBe(true);
+});
+
+test("session blotter copy button reports a failure when the clipboard is unavailable", async ({ page }) => {
+  // Override navigator.clipboard to undefined so the component falls into the failed branch.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const button = page.getByRole("button", { name: /copy session json|copy failed/i });
+  await button.click();
+  await expect(button).toHaveText(/copy failed/i);
+});
