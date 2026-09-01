@@ -213,19 +213,38 @@ export async function assertConnectedWalletAuthority(
   return address;
 }
 
-export async function signTypedOrderIntent(
+async function signReviewedTypedData(
+  provider: Eip1193Provider,
+  expectedAddress: string,
+  expectedChainId: bigint,
+  typedData: unknown,
+  signatureLabel: "order" | "matcher control",
+): Promise<string> {
+  const address = await assertConnectedWalletAuthority(provider, expectedAddress, expectedChainId);
+  const signature = await provider.request({
+    method: "eth_signTypedData_v4",
+    params: [address, JSON.stringify(typedData)],
+  });
+  if (typeof signature !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(signature)) {
+    throw new Error(`Provider did not return a 65-byte ${signatureLabel} signature`);
+  }
+  return signature;
+}
+
+export function signTypedOrderIntent(
   provider: Eip1193Provider,
   expectedAddress: string,
   expectedChainId: bigint,
   orderTypedData: unknown,
 ): Promise<string> {
-  const address = await assertConnectedWalletAuthority(provider, expectedAddress, expectedChainId);
-  const signature = await provider.request({
-    method: "eth_signTypedData_v4",
-    params: [address, JSON.stringify(orderTypedData)],
-  });
-  if (typeof signature !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(signature)) {
-    throw new Error("Provider did not return a 65-byte order signature");
-  }
-  return signature;
+  return signReviewedTypedData(provider, expectedAddress, expectedChainId, orderTypedData, "order");
+}
+
+export function signTypedMatcherControl(
+  provider: Eip1193Provider,
+  expectedAddress: string,
+  expectedChainId: bigint,
+  controlTypedData: unknown,
+): Promise<string> {
+  return signReviewedTypedData(provider, expectedAddress, expectedChainId, controlTypedData, "matcher control");
 }
