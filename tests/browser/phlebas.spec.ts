@@ -385,7 +385,7 @@ test("invalid demo query does not highlight incidents", async ({ page }) => {
 test("architecture keeps demo=incidents when the market changes", async ({ page }) => {
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page).toHaveURL(/USDT/);
@@ -572,8 +572,8 @@ test("LP pause notice names the newly selected pool after a pool switch", async 
   await page.goto("/liquidity", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Pause trading preview" }).click();
   await expect(page.getByText("Trading paused. LP withdrawal remains available. Settled as pZEC-USDC.")).toBeVisible();
-  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
-  await expect(page.getByRole("button", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /pZEC\/USDT0/ }).click();
+  await expect(page.getByRole("radio", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByText("Trading paused. LP withdrawal remains available. Settled as pZEC-USDT0.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
@@ -588,8 +588,8 @@ test("LP lifted pause notice names the newly selected pool after a pool switch",
   await expect(page.getByText("Trading paused. LP withdrawal remains available. Settled as pZEC-USDC.")).toBeVisible();
   await page.getByRole("button", { name: "Resume trading preview" }).click();
   await expect(page.getByText("Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDC.")).toBeVisible();
-  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
-  await expect(page.getByRole("button", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /pZEC\/USDT0/ }).click();
+  await expect(page.getByRole("radio", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByText("Trading pause lifted. Mint and swap are available again. Settled as pZEC-USDT0.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeEnabled();
@@ -597,8 +597,8 @@ test("LP lifted pause notice names the newly selected pool after a pool switch",
 
 test("LP pause notice names pZEC-USDT0 on the USDT0 pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
-  await expect(page.getByRole("button", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /pZEC\/USDT0/ }).click();
+  await expect(page.getByRole("radio", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Pause trading preview" }).click();
   await expect(page.getByText("Trading paused. LP withdrawal remains available. Settled as pZEC-USDT0.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
@@ -618,8 +618,8 @@ test("LP swap success notice names the settlement pair", async ({ page }) => {
 
 test("LP swap success notice names pZEC-USDT0 on the USDT0 pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
-  await expect(page.getByRole("button", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /pZEC\/USDT0/ }).click();
+  await expect(page.getByRole("radio", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Review simulated swap" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated swap" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated swap" }).click();
@@ -628,8 +628,8 @@ test("LP swap success notice names pZEC-USDT0 on the USDT0 pool", async ({ page 
 
 test("LP mint success notice names pZEC-USDT0 on the USDT0 pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
-  await expect(page.getByRole("button", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /pZEC\/USDT0/ }).click();
+  await expect(page.getByRole("radio", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Review simulated mint" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated mint" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated mint" }).click();
@@ -638,8 +638,8 @@ test("LP mint success notice names pZEC-USDT0 on the USDT0 pool", async ({ page 
 
 test("LP burn success notice names pZEC-USDT0 on the USDT0 pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
-  await expect(page.getByRole("button", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /pZEC\/USDT0/ }).click();
+  await expect(page.getByRole("radio", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Review simulated mint" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated mint" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated mint" }).click();
@@ -650,8 +650,8 @@ test("LP burn success notice names pZEC-USDT0 on the USDT0 pool", async ({ page 
 
 test("LP reset-pool notice names pZEC-USDT0 on the USDT0 pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
-  await expect(page.getByRole("button", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /pZEC\/USDT0/ }).click();
+  await expect(page.getByRole("radio", { name: /pZEC\/USDT0/ })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Review simulated mint" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated mint" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated mint" }).click();
@@ -759,7 +759,7 @@ test("connect wallet without a provider shows a visible rejection", async ({ pag
 
 test("connect wallet without a provider names pZEC-USDT0 after switching market", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
   await expect(connect).toHaveAttribute(
     "title",
@@ -778,7 +778,7 @@ test("missing-provider error keeps settlement after switching market", async ({ 
   await expect(
     page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDC.", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   const retargeted = "No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDT0.";
   await expect(page.getByText(retargeted, { exact: true })).toBeVisible();
   await expect(connect).toHaveAttribute("title", retargeted);
@@ -804,7 +804,7 @@ test("rejected connect error keeps settlement after switching market", async ({ 
   await expect(
     page.getByText("User rejected the request. Settled as pZEC-USDC.", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   const retargeted = "User rejected the request. Settled as pZEC-USDT0.";
   await expect(page.getByText(retargeted, { exact: true })).toBeVisible();
   await expect(connect).toHaveAttribute("title", retargeted);
@@ -853,7 +853,7 @@ test("connecting wallet title keeps settlement after switching market", async ({
     "title",
     "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDC.",
   );
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(connect).toHaveText("Connecting");
   await expect(connect).toBeDisabled();
   await expect(connect).toHaveAttribute(
@@ -893,7 +893,7 @@ test("connecting wallet title after rejected connect hang keeps settlement", asy
     "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDC.",
   );
   await expect(page.getByText(rejectUsdc, { exact: true })).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(connect).toHaveText("Connecting");
   await expect(connect).toBeDisabled();
   await expect(connect).toHaveAttribute(
@@ -913,7 +913,7 @@ test("idle Connect wallet title keeps settlement after switching market", async 
     "title",
     "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDC.",
   );
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(connect).toHaveText("Connect wallet");
   await expect(connect).toHaveAttribute(
     "title",
@@ -950,7 +950,7 @@ test("ticket sign missing-provider copy names the selected market settlement pai
   await page.getByRole("button", { name: "Sign testnet typed data" }).click();
   await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDC.")).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toBeVisible();
@@ -987,7 +987,7 @@ test("ticket sign missing-provider copy names pZEC-USDT0 if market switches whil
   await page.getByRole("button", { name: "Sign testnet typed data" }).click();
   await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDC.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toBeVisible();
   await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDT0.")).toBeVisible();
@@ -1018,7 +1018,7 @@ test("wallet disconnect accessible name keeps settlement after switching market"
     "aria-label",
     "Disconnect 0xf39f…2266. Settled as pZEC-USDC.",
   );
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   const connectedUsdt = page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as pZEC-USDT0." });
   await expect(connectedUsdt).toHaveText("0xf39f…2266");
   await expect(connectedUsdt).toHaveAttribute(
@@ -1191,7 +1191,7 @@ test("ticket reject copy names pZEC-USDT0 if market switches while rejected pane
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Order expiry has passed. Settled as pZEC-USDC.", { exact: true })).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Order expiry has passed. Settled as pZEC-USDT0.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
@@ -1201,7 +1201,7 @@ test("blotter tabs expose a selected tabpanel", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByRole("tab", { name: "Open orders" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("tabpanel", { name: "Open orders" })).toContainText("No open session orders. Settled as pZEC-USDC.");
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(page.getByRole("tabpanel", { name: "Open orders" })).toContainText("Settled as pZEC-USDT0");
   await page.getByRole("tab", { name: "Inventory" }).click();
   await expect(page.getByRole("tabpanel", { name: "Inventory" })).toContainText("Account epoch");
@@ -1213,7 +1213,7 @@ test("blotter event log empty copy names the settlement pair", async ({ page }) 
   await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText(
     "No session events yet. Settled as pZEC-USDC.",
   );
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText("Settled as pZEC-USDT0");
   await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText(
     "Replaying this log reconstructs the book and balances.",
@@ -1255,8 +1255,8 @@ test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
 
 test("unavailable ZEC/USDT withholds chart copy naming pZEC-USDT0 before retry", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
-  await page.getByRole("combobox", { name: "Market data state" }).selectOption("unavailable");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
+  await page.getByRole("radio", { name: "Unavailable" }).click();
   await expect(
     page.getByText("Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDT0.").first(),
   ).toBeVisible();
@@ -1265,12 +1265,12 @@ test("unavailable ZEC/USDT withholds chart copy naming pZEC-USDT0 before retry",
 
 test("chart withheld copy names pZEC-USDT0 if market switches while unavailable", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("combobox", { name: "Market data state" }).selectOption("unavailable");
+  await page.getByRole("radio", { name: "Unavailable" }).click();
   await expect(
     page.getByText("Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDC.").first(),
   ).toBeVisible();
   await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(
     page.getByText("Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDT0.").first(),
   ).toBeVisible();
@@ -1279,9 +1279,9 @@ test("chart withheld copy names pZEC-USDT0 if market switches while unavailable"
 
 test("chart 1H and 1D img labels return on ZEC/USDT after fixtures", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDT, settled as pZEC-USDT0" })).toBeVisible();
-  await page.getByRole("combobox", { name: "Market data state" }).selectOption("unavailable");
+  await page.getByRole("radio", { name: "Unavailable" }).click();
   await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDT, settled as pZEC-USDT0" })).toBeVisible();
@@ -1346,7 +1346,7 @@ test("chart range uses a tablist and unavailable tape names the feed", async ({ 
   await page.getByRole("tab", { name: "1D · pZEC-USDC" }).click();
   await expect(page.getByRole("tabpanel", { name: "1D · pZEC-USDC" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Illustrative 1D price chart for ZEC/USDC, settled as pZEC-USDC" })).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(page.getByRole("tab", { name: "1D · pZEC-USDT0" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("heading", { name: "ZEC/USDT · pZEC-USDT0" })).toBeVisible();
   await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
@@ -1373,7 +1373,7 @@ test("ticket G I F shortcuts ignore review until Escape", async ({ page }) => {
 test("LP empty-share copy names the selected pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
   await expect(page.getByText("No session LP shares in pZEC/USDC.")).toBeVisible();
-  await page.getByRole("button", { name: /pZEC\/USDT0/ }).click();
+  await page.getByRole("radio", { name: /pZEC\/USDT0/ }).click();
   await expect(page.getByText("No session LP shares in pZEC/USDT0.")).toBeVisible();
   await page.getByRole("button", { name: "Burn session shares" }).click();
   await expect(page.getByText("No session LP shares in pZEC/USDT0. Burn stays idle until a local mint.").first()).toBeVisible();

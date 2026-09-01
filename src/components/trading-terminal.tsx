@@ -682,7 +682,33 @@ export function TradingTerminal({
           />
         )}
         {initialAccess === "open" && view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
-        {initialAccess === "open" && view === "architecture" && <ArchitecturePanel highlightIncidents={incidentDemo} />}
+        {initialAccess === "open" && view === "architecture" && (
+          <>
+            <div className={styles.marketSelectorWrap}>
+              <div className={styles.selectorTabs} role="radiogroup" aria-label="Selected market">
+                {MARKET_IDS.map((id) => (
+                  <button
+                    type="button"
+                    key={id}
+                    role="radio"
+                    aria-checked={marketId === id}
+                    tabIndex={marketFocusId === id ? 0 : -1}
+                    className={marketId === id ? styles.selectorActive : undefined}
+                    ref={(node) => {
+                      marketRefs.current[id] = node;
+                    }}
+                    onClick={() => selectMarket(id)}
+                    onKeyDown={(event) => onMarketKeyDown(event, id)}
+                  >
+                    {MARKET_ID_LABELS[id]}
+                  </button>
+                ))}
+              </div>
+              <span className={styles.settlementBadge}>legacy simulation: {market.settlementPair}</span>
+            </div>
+            <ArchitecturePanel highlightIncidents={incidentDemo} />
+          </>
+        )}
       </main>
 
       <footer className={styles.footer}>
