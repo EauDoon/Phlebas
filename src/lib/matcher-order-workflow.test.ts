@@ -118,7 +118,7 @@ function provider(calls: string[], review: () => ReviewedMatcherBuyOrder | null)
     async request({ method, params }) {
       calls.push(method);
       if (method === "eth_requestAccounts" || method === "eth_accounts") return [WALLET.toUpperCase().replace("0X", "0x")];
-      if (method === "eth_chainId") return "0xa4b1";
+      if (method === "eth_chainId") return "0x1";
       if (method === "eth_signTypedData_v4") {
         const current = review();
         assert.ok(current);

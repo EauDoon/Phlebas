@@ -122,7 +122,7 @@ test("builds a deterministic, fully reviewed draft from an activated manifest cl
   assert.equal(deployment.configurationHash, computeNativeZecUsdcMatcherConfigurationHash(CONTRACT));
   assert.equal(draft.healthConfigurationHash, deployment.configurationHash);
   assert.equal(draft.order.accountEpoch, 7n);
-  assert.equal(draft.accounts.sourceAccount, `eip155:42161:${WALLET}`);
+  assert.equal(draft.accounts.sourceAccount, `eip155:1:${WALLET}`);
   assert.equal(draft.accounts.recipientAccount, `zcash:mainnet:${RECIPIENT}`);
   assert.equal(draft.requestId, `order-${hashTypedOrder(deployment.orderDomain!, draft.order).slice(2)}`);
   assert.deepEqual(draft.typedOrderData.message.accountEpoch, "7");

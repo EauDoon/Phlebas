@@ -238,7 +238,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminal, /Fixture \$\{market\.volume\}/);
   assert.match(terminal, /do not move mainnet funds/);
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /Wallet connection rejection/);
-  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /No injected EVM wallet/);
+  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /connectMainnetWallet/);
+  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /Ethereum Mainnet/);
   assert.match(terminal, /not trustless/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /custodyRedemptionCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicLinkabilityCopy/);

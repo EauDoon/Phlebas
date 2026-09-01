@@ -111,7 +111,7 @@ function provider(calls: string[], control: () => ReviewedMatcherOrderControl | 
     async request({ method, params }) {
       calls.push(method);
       if (method === "eth_requestAccounts" || method === "eth_accounts") return [WALLET];
-      if (method === "eth_chainId") return "0xa4b1";
+      if (method === "eth_chainId") return "0x1";
       if (method === "eth_signTypedData_v4") {
         const review = control();
         assert.ok(review);
@@ -133,7 +133,7 @@ async function reviewedOrder(active = deployment()): Promise<ReviewedMatcherBuyO
   const injected: Eip1193Provider = {
     async request({ method }) {
       if (method === "eth_requestAccounts" || method === "eth_accounts") return [WALLET];
-      if (method === "eth_chainId") return "0xa4b1";
+      if (method === "eth_chainId") return "0x1";
       throw new Error(`unexpected provider RPC ${method}`);
     },
   };
@@ -195,7 +195,7 @@ async function confirmedOrder(
   const injected: Eip1193Provider = {
     async request({ method, params }) {
       if (method === "eth_accounts") return [WALLET];
-      if (method === "eth_chainId") return "0xa4b1";
+      if (method === "eth_chainId") return "0x1";
       if (method === "eth_signTypedData_v4") {
         assert.deepEqual(JSON.parse(params?.[1] as string), order.draft.typedOrderData);
         return signDigest(orderHash);
