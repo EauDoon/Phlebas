@@ -9,6 +9,14 @@
   flex-direction: column;
 }
 
+@media (min-height: 800px) {
+  .operatingShell {
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
+}
+
 .main {
   min-width: 0;
 }
