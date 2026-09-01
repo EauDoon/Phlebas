@@ -62,3 +62,17 @@ The secret scanner reads tracked bytes from `git ls-files`; it does not enumerat
 - Obtain separate authorization before any Testnet value movement, contract deployment, funded address, RPC credential, push, PR merge, Vercel deployment, or mainnet activation.
 
 Until those gates close, all public copy and actions must remain truthful about the no-value preview boundary.
+
+## Done this batch (PR 11 — session export)
+
+- Session export module (`src/lib/session-export.ts`) builds a deterministic, versioned JSON snapshot of the in-browser session state for a given market. The snapshot includes the account, the book, the fills, and the session log. The schema tag is `phlebas-session-snapshot` and the schema version is `1`.
+- Session export serializer is deterministic for the same input and round-trips through `JSON.parse`. A `BigInt` replacer emits atoms as decimal strings so the bytes are portable.
+- 5 new unit tests in `src/lib/session-export.test.ts` cover the schema tag, the default and explicit `exportedAt`, the deterministic round-trip, and the human-readable description.
+- `src/components/order-blotter.tsx` adds a `Copy session JSON` button in the panel header. Clicking builds a snapshot, writes it to the clipboard, and updates the button label to `Copied session JSON` or `Copy failed` depending on the clipboard result. The button is the second of two header actions; the existing `Reset session` button is preserved.
+- `src/components/trading-terminal.tsx` now passes the full `Book` to the order blotter so the snapshot can include the bids, asks, sequence, and last ticks.
+- 2 new Playwright tests in `tests/browser/phlebas.spec.ts`: the happy path copies a parseable JSON snapshot to the clipboard, and a no-clipboard fallback reports `Copy failed` instead of crashing.
+- 1055 node tests pass (session-export adds 5 tests; the state machine is on a separate branch), 496-file secret-pattern scan clean, production build clean locally. Playwright browser tests will run on CI.
+
+## Branch
+
+`feat/session-export` off current `main` at `944c8b6`. PR body: stacks on current `main`, no key or token touched.
