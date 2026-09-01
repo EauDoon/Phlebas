@@ -8,7 +8,7 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, background: "#090b0f", color: "#eef1eb", fontFamily: "Segoe UI, sans-serif" }}>
+      <body style={{ margin: 0, background: "#070b0c", color: "#e7eef0", fontFamily: "Segoe UI, sans-serif" }}>
         <style>{`
           nav[aria-label="Skip links"] {
             display: flex;
@@ -16,6 +16,7 @@ export default function GlobalError({
             column-gap: 8px;
             row-gap: 8px;
             box-sizing: border-box;
+            width: 100%;
             max-width: 100%;
             padding: 8px;
           }
@@ -23,9 +24,16 @@ export default function GlobalError({
             box-sizing: border-box;
             flex: 1 1 calc(50% - 4px);
             max-width: min(100%, calc(50% - 4px));
+            min-width: 44px;
+            min-height: 44px;
+          }
+          nav[aria-label="Skip links"] a:last-child {
+            min-width: 44px;
+            min-height: 44px;
+            flex-shrink: 0;
           }
           nav[aria-label="Skip links"] a:focus-visible {
-            outline: 2px solid #15140d;
+            outline: 2px solid #042f2e;
             outline-offset: 2px;
           }
         `}</style>
@@ -38,8 +46,8 @@ export default function GlobalError({
               minHeight: 44,
               alignItems: "center",
               padding: "9px 12px",
-              color: "#15140d",
-              background: "#f4c95d",
+              color: "#042f2e",
+              background: "#2dd4bf",
               fontSize: 12,
               fontWeight: 700,
             }}
@@ -54,8 +62,8 @@ export default function GlobalError({
               minHeight: 44,
               alignItems: "center",
               padding: "9px 12px",
-              color: "#15140d",
-              background: "#f4c95d",
+              color: "#042f2e",
+              background: "#2dd4bf",
               fontSize: 12,
               fontWeight: 700,
             }}
@@ -64,7 +72,7 @@ export default function GlobalError({
           </a>
         </nav>
         <main id="main-content" tabIndex={-1} style={{ maxWidth: 720, padding: 28 }}>
-          <p style={{ color: "#f4c95d", letterSpacing: "0.08em", textTransform: "uppercase", fontSize: 11 }}>Simulation only</p>
+          <p style={{ color: "#2dd4bf", letterSpacing: "0.08em", textTransform: "uppercase", fontSize: 11 }}>Simulation only</p>
           <h1>The simulation failed to start</h1>
           <p>Nothing was submitted to a chain, matcher, or custody system.</p>
           <p>An unexpected rendering error occurred. No private diagnostic details are shown here.</p>
@@ -77,7 +85,7 @@ export default function GlobalError({
                 minWidth: 44,
                 minHeight: 44,
                 alignItems: "center",
-                color: "#f4c95d",
+                color: "#2dd4bf",
                 background: "transparent",
                 border: 0,
                 font: "inherit",

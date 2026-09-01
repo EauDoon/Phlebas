@@ -28,6 +28,18 @@ The native-settlement tests cover:
 - Focus transfer from the settlement skip link to the walkthrough heading.
 - 320px layout and touch-target behavior.
 - The absence of wallet connection, signing, RPC, service, and broadcast controls.
+- Successful production-route responses and the expected simulation disclosure.
+- Landing-to-liquidity navigation through the LP journey tab, and terminal view navigation.
+- Keyboard activation of responsive navigation, terminal tabs, pool tabs, and the LP amount field.
+- Skip-link visibility, focus styling, and focus transfer to the main landmark.
+- Reduced-motion media handling with all required content still visible.
+- Zero page-level horizontal overflow.
+- Zero browser console errors, uncaught page errors, or Next.js error overlays.
+- Education last-step Back inside the 320px viewport.
+- Education heading ring above the sticky tour navigation and inside the dialog overflow area.
+- Legal, architecture, and country-block leftover skip links at least 44px at 320px.
+- Error-page leftover skip link at least 44px at 768px.
+- Education Enter/Back, heading-ring, and leftover skip-link coverage through 1440px.
 
 These checks establish only the behavior of the no-value fixture. They do not validate the native-settlement authority, contract deployment, observer correctness, cross-chain commitments, or wallet interoperability.
 

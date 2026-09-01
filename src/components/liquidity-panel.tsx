@@ -358,8 +358,8 @@ export function LiquidityPanel({
   const liveNotice = isLpPauseNotice(notice) ? lpPauseNoticeCopy(markets[marketId].settlementPair, tradingPaused) : notice;
 
   return (
-    <div className={styles.featureGrid}>
-      <section className={`${styles.panel} ${styles.featurePrimary}`} aria-labelledby="liquidity-title">
+    <div className={styles.liquidityGrid}>
+      <section className={`${styles.panel} ${styles.lpQuote}`} aria-labelledby="liquidity-title">
         <div className={styles.panelHeader}>
           <div>
             <span className={styles.eyebrow}>Constant product pools</span>
@@ -434,6 +434,18 @@ export function LiquidityPanel({
           </div>
         )}
 
+        {!gate.canReview && feedStatus === "illustrative" && (
+          <p className={styles.gateNotice}>
+            <strong>{gate.heading}</strong>
+            {" "}
+            {gate.message}
+            {" "}
+            <button type="button" className={styles.textButton} onClick={() => { setReview(null); setFeedFocusId("illustrative"); onRetryFeed(); }}>
+              Retry illustrative feed
+            </button>
+          </p>
+        )}
+
         <div className={styles.depositStack}>
           <label className={styles.assetInput}>
             <span>ZEC amount</span>
@@ -462,48 +474,6 @@ export function LiquidityPanel({
         ) : null}
         <p id={amountHelpId} className={styles.inlineNotice} aria-live="polite">
           {amountPreview.valid ? amountPreview.message : "Use a positive plain decimal with no more than 8 places. Integer quote."}
-        </p>
-
-        <dl
-          id="pool-stats"
-          className={styles.statGrid}
-          role="group"
-          aria-label="Pool stats and impermanent loss versus hold"
-          tabIndex={-1}
-        >
-          <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
-          <div><dt>TVL</dt><dd>Fixture {selectedPool.tvl}</dd></div>
-          <div><dt>24h volume</dt><dd>Fixture {selectedPool.volume}</dd></div>
-          <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveZecAtoms, ZEC_DECIMALS, 2)}</dd></div>
-          <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
-          <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
-          <div>
-            <dt>Session LP shares</dt>
-            <dd>{heldShares[selectedPool.id].toString()}</dd>
-          </div>
-          <div>
-            <dt>Session IL vs hold</dt>
-            <dd>{formatAtomicUnits(sessionIl.lossQuoteAtoms, QUOTE_DECIMALS, 2)} {selectedPool.quote}</dd>
-          </div>
-          {hypotheticalIl.map((scenario) => (
-            <div key={scenario.label}>
-              <dt>IL vs hold at {scenario.label}</dt>
-              <dd>{formatAtomicUnits(scenario.preview.lossQuoteAtoms, QUOTE_DECIMALS, 2)} {selectedPool.quote}</dd>
-            </div>
-          ))}
-        </dl>
-        {heldShares[selectedPool.id] === 0n && (
-          <p className={styles.inlineNotice}>
-            {emptyShareCopy(selectedPool.id)}
-          </p>
-        )}
-        <p className={styles.inlineNotice}>
-          Not a return or profit projection. Local integer preview of constant-product divergence versus holding the same deposited assets.
-        </p>
-
-        <p className={styles.inlineNotice}>
-          The 0.30% pool fee applies to swaps, not the exactly balanced add. Swap fee paid in ZEC: {amountPreview.swapFee}.
-          {amountPreview.swapNote ? ` ${amountPreview.swapNote}` : ""}
         </p>
 
         {review ? (
@@ -569,33 +539,88 @@ export function LiquidityPanel({
           </div>
         ) : null}
 
-        <div className={styles.tourNav}>
-          <button type="button" onClick={requestMintReview} disabled={!mintEnabled}>Review simulated mint</button>
-          <button type="button" onClick={simulateBurn} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
-          <button type="button" onClick={requestSwapReview} disabled={!swapEnabled}>Review simulated swap</button>
-          <button
-            type="button"
-            aria-pressed={tradingPaused}
-            onClick={() => {
-              setTradingPaused((current) => !current);
-              setNotice(lpPauseNoticeCopy(markets[marketId].settlementPair, !tradingPaused));
-            }}
-          >
-            {tradingPaused ? "Resume trading preview" : "Pause trading preview"}
-          </button>
-          <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setReview(null); setNotice(lpResetNoticeCopy(markets[marketId].settlementPair)); }}>
-            Reset pool
+        <div className={styles.lpActions}>
+          <div className={styles.tourNav}>
+            <button type="button" onClick={requestMintReview} disabled={!mintEnabled}>Review simulated mint</button>
+            <button type="button" onClick={simulateBurn} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
+            <button type="button" onClick={requestSwapReview} disabled={!swapEnabled}>Review simulated swap</button>
+            <button
+              type="button"
+              aria-pressed={tradingPaused}
+              onClick={() => {
+                setTradingPaused((current) => !current);
+                setNotice(lpPauseNoticeCopy(markets[marketId].settlementPair, !tradingPaused));
+              }}
+            >
+              {tradingPaused ? "Resume trading preview" : "Pause trading preview"}
+            </button>
+            <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setReview(null); setNotice(lpResetNoticeCopy(markets[marketId].settlementPair)); }}>
+              Reset pool
+            </button>
+          </div>
+          <p className={styles.inlineNotice} aria-live="polite">{liveNotice}</p>
+          <button type="button" className={styles.primaryAction} disabled>
+            Wallet actions disabled in simulation
           </button>
         </div>
-        <p className={styles.inlineNotice} aria-live="polite">{liveNotice}</p>
-        <button type="button" className={styles.primaryAction} disabled>
-          Wallet actions disabled in simulation
-        </button>
       </section>
 
-      <aside className={`${styles.panel} ${styles.riskCard}`} aria-labelledby="lp-risk-title">
-        <span className={styles.eyebrow}>LP risk</span>
-        <h2 id="lp-risk-title">Simple does not mean low risk</h2>
+      <section className={`${styles.panel} ${styles.lpStats}`} aria-labelledby="pool-stats-heading">
+        <div className={styles.panelHeader}>
+          <div>
+            <span className={styles.eyebrow}>Integer pool math</span>
+            <h2 id="pool-stats-heading">Pool stats, IL versus hold, inventory</h2>
+          </div>
+        </div>
+        {heldShares[selectedPool.id] === 0n && (
+          <p className={styles.inlineNotice}>
+            {emptyShareCopy(selectedPool.id)}
+          </p>
+        )}
+        <dl
+          id="pool-stats"
+          className={styles.statGrid}
+          role="group"
+          aria-label="Pool stats and impermanent loss versus hold"
+          tabIndex={-1}
+        >
+          <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
+          <div><dt>TVL</dt><dd>Fixture {selectedPool.tvl}</dd></div>
+          <div><dt>24h volume</dt><dd>Fixture {selectedPool.volume}</dd></div>
+          <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveZecAtoms, ZEC_DECIMALS, 2)}</dd></div>
+          <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
+          <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
+          <div>
+            <dt>Session LP shares</dt>
+            <dd>{heldShares[selectedPool.id].toString()}</dd>
+          </div>
+          <div>
+            <dt>Session IL vs hold</dt>
+            <dd>{formatAtomicUnits(sessionIl.lossQuoteAtoms, QUOTE_DECIMALS, 2)} {selectedPool.quote}</dd>
+          </div>
+          {hypotheticalIl.map((scenario) => (
+            <div key={scenario.label}>
+              <dt>IL vs hold at {scenario.label}</dt>
+              <dd>{formatAtomicUnits(scenario.preview.lossQuoteAtoms, QUOTE_DECIMALS, 2)} {selectedPool.quote}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className={styles.inlineNotice}>
+          Not a return or profit projection. Local integer preview of constant-product divergence versus holding the same deposited assets.
+        </p>
+        <p className={styles.inlineNotice}>
+          The 0.30% pool fee applies to swaps, not the exactly balanced add. Swap fee paid in ZEC: {amountPreview.swapFee}.
+          {amountPreview.swapNote ? ` ${amountPreview.swapNote}` : ""}
+        </p>
+      </section>
+
+      <aside className={`${styles.panel} ${styles.lpRisk}`} aria-labelledby="lp-risk-title">
+        <div className={styles.panelHeader}>
+          <div>
+            <span className={styles.eyebrow}>LP risk</span>
+            <h2 id="lp-risk-title">Simple does not mean low risk</h2>
+          </div>
+        </div>
         <p>
           {lpRiskCopy()}
         </p>

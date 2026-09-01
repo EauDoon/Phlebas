@@ -4,7 +4,9 @@
 
 ## Current checkpoint
 
-- Active integration branch: `feat/remove-custodial-gateway`.
+- Active UI branch: `feat/simulation-hardening` (PR #28). Teal Simple/Advanced terminal. Simple is the default Uniswap-style Market IOC ticket; Advanced keeps the CLOB. Public Vercel stays a no-value simulation.
+- Merged: PR #26 education/skip-link 44px coverage.
+- Prior integration: custodial gateway runtime removed from `main`.
 - Product boundary: no-value production preview. The public application does not accept deposits, issue a receiver, mint or burn a redeemable asset, sign transactions, broadcast transactions, or move funds.
 - Release boundary: production use with live funds remains blocked. Testnet and mainnet activation require separate evidence, review, and explicit authorization.
 - The custody-capable TEX gateway and the legacy mint/reserve-attestation observer have been removed from the active runtime.

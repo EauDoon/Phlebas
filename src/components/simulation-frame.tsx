@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
+import { activateSkipLink } from "@/lib/skip-link";
+
 import styles from "./terminal.module.css";
 
 export function SimulationFrame({
@@ -17,8 +19,8 @@ export function SimulationFrame({
   return (
     <div className={styles.shell}>
       <nav className={styles.skipNav} aria-label="Skip links">
-        <a className={styles.skipLink} href="#main-content">Skip to main content</a>
-        {skipTo ? <a className={styles.skipLink} href={skipTo.href}>{skipTo.label}</a> : null}
+        <a className={styles.skipLink} href="#main-content" onClick={activateSkipLink}>Skip to main content</a>
+        {skipTo ? <a className={styles.skipLink} href={skipTo.href} onClick={activateSkipLink}>{skipTo.label}</a> : null}
       </nav>
       <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
         <strong>Simulation only</strong>

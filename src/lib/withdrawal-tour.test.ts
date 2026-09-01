@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { payoutClaimForTourStep } from "./payout.ts";
 import {
+  unresolvedWithdrawalTourIndex,
   WITHDRAWAL_TOUR,
   withdrawalTourById,
   withdrawalTourIds,
@@ -117,6 +119,18 @@ test("withdrawal tour does not present a payable address or shielded path", () =
   assert.doesNotMatch(joined, /tex1/i);
   assert.doesNotMatch(joined, /t1[A-Za-z0-9]/);
   assert.doesNotMatch(joined, /zs1/i);
+  assert.doesNotMatch(joined, /zcash:/i);
+  assert.doesNotMatch(joined, /receivable/i);
   assert.doesNotMatch(joined, /Withdraw ZEC/);
   assert.doesNotMatch(joined, /shielded/i);
+});
+
+test("unresolved withdrawal tour step keeps the stub claim unresolved", () => {
+  const index = unresolvedWithdrawalTourIndex();
+  assert.ok(index >= 0);
+  assert.equal(WITHDRAWAL_TOUR[index]?.id, "unresolved");
+  assert.equal(withdrawalTourStep(index).id, "unresolved");
+  const claim = payoutClaimForTourStep(withdrawalTourStep(index).id, "t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
+  assert.equal(claim.state, "unresolved");
+  assert.match(withdrawalTourStep(index).body, /Nothing is sent/);
 });

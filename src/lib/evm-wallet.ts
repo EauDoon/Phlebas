@@ -63,6 +63,10 @@ export function missingProviderCopy(settlementPair: Market["settlementPair"]): s
   return walletConnectFailureCopy("No injected EVM wallet. Arbitrum Sepolia only.", settlementPair);
 }
 
+export function walletSigningDisabledCopy(): string {
+  return "Settlement contract is undeployed. Testnet signing is disabled.";
+}
+
 export function isMissingProviderCopy(copy: string): boolean {
   return copy.startsWith("No injected EVM wallet.");
 }

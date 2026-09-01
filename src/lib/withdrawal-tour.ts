@@ -31,3 +31,7 @@ export function withdrawalTourById(id: string): (typeof WITHDRAWAL_TOUR)[number]
 export function withdrawalTourIds(): readonly WithdrawalTourId[] {
   return WITHDRAWAL_TOUR.map((step) => step.id);
 }
+
+export function unresolvedWithdrawalTourIndex(): number {
+  return WITHDRAWAL_TOUR.findIndex((step) => step.id === "unresolved");
+}

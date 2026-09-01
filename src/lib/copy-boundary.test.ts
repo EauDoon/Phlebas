@@ -1,17 +1,107 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import test from "node:test";
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { simulationStatus } from "./status.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
+const execFileAsync = promisify(execFile);
+
+async function scanSecrets(cwd: string) {
+  try {
+    const result = await execFileAsync(process.execPath, ["scripts/scan-secrets.mjs"], {
+      cwd,
+      encoding: "utf8",
+    });
+    return { code: 0, stdout: result.stdout, stderr: result.stderr };
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error) {
+      return {
+        code: Number(error.code),
+        stdout: "stdout" in error ? String(error.stdout ?? "") : "",
+        stderr: "stderr" in error ? String(error.stderr ?? "") : "",
+      };
+    }
+    throw error;
+  }
+}
 
 function withoutHonestBridgeNegation(copy: string) {
   return copy.replace(/not (?:native ZEC, shielded ZEC, or )?a trustless bridge asset/gi, "");
 }
+
+function withoutHonestCopyNegation(copy: string) {
+  return withoutHonestBridgeNegation(copy)
+    .replace(/\bnot trustless\b/gi, "")
+    .replace(/\bdoes not provide shielded(?: deposits)?\b/gi, "")
+    .replace(/\bNo shielded deposit or withdrawal is planned for v1\b/gi, "")
+    .replace(/\bnot a live exchange and not a shielded market\b/gi, "")
+    .replace(/\bShielded ZEC stays out of scope\b/gi, "")
+    .replace(/\bShielded deposits, leverage, lending, and token incentives remain out of scope\b/gi, "")
+    .replace(/\bnot native ZEC(?: or the target asset)?\b/gi, "")
+    .replace(/\bno native ZEC or stablecoin enters this application\b/gi, "")
+    .replace(/\bNo live funds(?: or custody)?\b/gi, "")
+    .replace(/\bNot a payable QR\b/gi, "")
+    .replace(/\bNot payable\b/gi, "")
+    .replace(/\bnon-payable\b/gi, "")
+    .replace(/\bNative settlement target:[^.]*(?:\.|$)/gi, "")
+    .replace(/\bnot the native-settlement target\b/gi, "");
+}
+
+async function shippedUiFiles() {
+  const files: string[] = [];
+
+  async function walk(directory: string, match: (name: string) => boolean) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await walk(path, match);
+        continue;
+      }
+      if (entry.isFile() && match(entry.name)) {
+        files.push(path);
+      }
+    }
+  }
+
+  await walk(join(root, "src/components"), (name) => name.endsWith(".tsx"));
+  await walk(join(root, "src/app"), (name) => name.endsWith(".tsx"));
+  await walk(
+    join(root, "src/lib"),
+    (name) => name.includes("copy") && name.endsWith(".ts") && !name.endsWith(".test.ts"),
+  );
+  return files;
+}
+
+test("shipped UI copy does not claim live trustless, shielded, or native-ZEC settlement", async () => {
+  const files = await shippedUiFiles();
+  assert.ok(files.some((file) => file.endsWith("architecture-panel.tsx")));
+  assert.ok(files.some((file) => file.endsWith("landing-copy.ts")));
+  const joined = withoutHonestCopyNegation(
+    (await Promise.all(files.map((file) => readFile(file, "utf8")))).join("\n"),
+  );
+  assert.doesNotMatch(joined, /\btrustless\b/i);
+  assert.doesNotMatch(joined, /\bshielded\b/i);
+  assert.doesNotMatch(joined, /native-ZEC/i);
+  assert.doesNotMatch(joined, /wallet-signed native[- ]ZEC/i);
+  assert.doesNotMatch(joined, /native ZEC atomic settlement/i);
+  assert.doesNotMatch(joined, /\bis audited\b/i);
+  assert.doesNotMatch(joined, /\baccepts live funds\b/i);
+  assert.doesNotMatch(joined, /\bhas live funds\b/i);
+  assert.doesNotMatch(joined, /\bpayable\b/i);
+  const architecture = await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8");
+  assert.match(architecture, /Native settlement target/);
+  assert.match(architecture, /The matcher is not trustless/);
+  assert.match(architecture, /Simulation only/);
+  assert.doesNotMatch(architecture, /wallet-signed native-ZEC atomic settlement/);
+  assert.doesNotMatch(architecture, /Onchain atomic settlement/);
+});
 
 test("status payload cannot be read as live funds or custody", async () => {
   const statusRoute = await readFile(join(root, "src/app/api/status/route.ts"), "utf8");
@@ -229,7 +319,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landingCss, /:global\(#terminal-preview\)/);
   assert.match(landingCss, /:global\(#journeys\)/);
   assert.match(landingCss, /:global\(#launch-gates\)/);
-  assert.match(landingCss, /outline: 2px solid #15140d/);
+  assert.match(landingCss, /outline: 2px solid var\(--accent-fg\)/);
   assert.match(landingCss, /outline-offset: 2px/);
   assert.match(landingCss, /top: 12px/);
   assert.match(landingCss, /left: 12px/);
@@ -262,17 +352,65 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /transition: none !important;/);
   assert.match(landingCss, /line-height: 1\.3;/);
   assert.match(terminalCss, /line-height: 1\.3;/);
-  assert.match(terminalCss, /max-height: calc\(100vh - min\(40vh, 17\.5rem\) - 12px\)/);
+  assert.match(terminalCss, /max-height: calc\(100vh - min\(40vh, 17\.5rem\) - 16px\)/);
   assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?position: sticky;/);
-  assert.match(terminalCss, /scroll-padding-top: 8px;/);
-  assert.match(terminalCss, /scroll-padding-bottom: 8px;/);
-  assert.match(terminalCss, /scroll-margin-top: 8px;/);
+  assert.match(terminalCss, /scroll-padding-top: 12px;/);
+  assert.match(terminalCss, /scroll-padding-bottom: 12px;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?scroll-margin-top: 12px;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button \{[\s\S]*?flex-shrink: 0;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button:disabled \{[\s\S]*?min-height: 44px;/);
   assert.match(terminalCss, /padding-bottom: 8px;/);
   assert.match(terminalCss, /flex-direction: column;/);
   assert.match(terminalCss, /margin-top: auto;/);
-  assert.match(terminalCss, /outline: 2px solid #f4c95d;/);
+  assert.match(terminalCss, /outline: 2px solid var\(--accent-fg\);/);
+  assert.match(terminalCss, /padding-top: 24px;/);
+  assert.match(terminalCss, /z-index: 2;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?overflow: visible;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?min-height: 44px;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?min-width: 44px;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?display: flex;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?align-items: center;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(
+    terminalCss,
+    /\.educationDialog h2 \{\r?\n  display: flex;\r?\n  align-items: center;\r?\n  box-sizing: border-box;\r?\n  min-width: 44px;\r?\n  min-height: 44px;/,
+  );
+  assert.match(terminalCss, /\.educationDialog \{[\s\S]*?overflow: visible;/);
+  assert.match(terminalCss, /\.educationDialog \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(terminalCss, /padding: 24px 18px 16px;/);
+  assert.match(
+    terminalCss,
+    /\.educationDialog \.tourNav \{\r?\n  box-sizing: border-box;\r?\n  display: flex;\r?\n  align-items: center;\r?\n  width: 100%;\r?\n  min-width: 0;\r?\n  max-width: 100%;\r?\n  min-height: 44px;\r?\n  flex-shrink: 0;/,
+  );
+  assert.match(terminalCss, /\.educationDialog \{[\s\S]*?scroll-padding-top: 12px;/);
+  assert.match(terminalCss, /padding-bottom: 12px;/);
+  assert.match(terminalCss, /max-height: calc\(100vh - 32px\)/);
+  assert.match(terminalCss, /max-width: 820px\) and \(max-height: 700px\)/);
+  assert.match(terminalCss, /margin-top: min\(24vh, 8rem\)/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?overflow: visible;/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?padding: 12px;/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?width: 100%;/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav button \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(terminalCss, /\.simpleMain a \{[\s\S]*?flex-shrink: 0;/);
+  assert.match(terminalCss, /\.simpleMain a \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(terminalCss, /\.tourNav a \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(terminalCss, /\.educationDialog \{[\s\S]*?padding-bottom: 8px;/);
+  assert.match(terminalCss, /min-width: 44px;\s*flex-shrink: 0;/);
+  assert.match(terminalCss, /\.skipLink:last-child \{[\s\S]*?min-width: 44px;/);
+  assert.match(landingCss, /\.skipLink:last-child \{[\s\S]*?min-width: 44px;/);
+  assert.match(
+    terminalCss,
+    /\.skipLink:last-child \{\r?\n  box-sizing: border-box;\r?\n  min-width: 44px;\r?\n  min-height: 44px;\r?\n  flex-shrink: 0;/,
+  );
+  assert.match(
+    landingCss,
+    /\.skipLink:last-child \{\r?\n  box-sizing: border-box;\r?\n  min-width: 44px;\r?\n  min-height: 44px;\r?\n  flex-shrink: 0;/,
+  );
+  assert.match(terminalCss, /\.skipLink:last-child \{[\s\S]*?flex-shrink: 0;/);
+  assert.match(landingCss, /\.skipLink:last-child \{[\s\S]*?flex-shrink: 0;/);
+  assert.match(terminalCss, /\.skipLink:last-child:nth-child\(odd\) \{[\s\S]*?flex-shrink: 0;/);
+  assert.match(landingCss, /\.skipLink:last-child:nth-child\(odd\) \{[\s\S]*?flex-shrink: 0;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button:focus,/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button:focus-visible \{/);
   assert.match(landingCss, /scrollbar-gutter: stable;/);
@@ -325,6 +463,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /Fixture \{selectedPool\.tvl\}/);
   assert.match(liquidity, /Fixture \{selectedPool\.volume\}/);
   assert.match(liquidity, /Retry illustrative feed/);
+  assert.match(liquidity, /emptyShareCopy\(selectedPool\.id\)/);
   assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /No session LP shares/);
   assert.match(liquidity, /not a return or profit projection/i);
   assert.match(liquidity, /feeEnvelopeCopy/);
@@ -443,11 +582,12 @@ test("landing and terminal banners stay simulation-only", async () => {
     await readFile(join(root, "src/components/price-chart.tsx"), "utf8"),
     /feedSurface\(feedStatus\)/,
   );
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /market\.settlementPair/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /missingProviderCopy/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /retargetSettlementCopy/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /isTicketRejectCopy/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /isMissingProviderCopy/);
+  const tradeTicket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
+  assert.match(tradeTicket, /market\.settlementPair/);
+  assert.match(tradeTicket, /retargetSettlementCopy/);
+  assert.match(tradeTicket, /isTicketRejectCopy/);
+  assert.doesNotMatch(tradeTicket, /missingProviderCopy|isMissingProviderCopy/);
+  assert.doesNotMatch(tradeTicket, /sendSettlement|planTestnetSubmit|sepoliaSubmitEnabled/);
   assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /key=\{feedStatus\}/);
   const terminalTape = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");
   assert.match(terminalTape, /tapeSideCopy/);
@@ -501,8 +641,11 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(globalError, /id="retry-copy"/);
   assert.match(globalError, /id="main-content"/);
   assert.match(globalError, /flex-wrap: wrap/);
+  assert.match(globalError, /width: 100%/);
   assert.match(globalError, /flex: 1 1 calc\(50% - 4px\)/);
-  assert.match(globalError, /outline: 2px solid #15140d/);
+  assert.match(globalError, /outline: 2px solid #042f2e/);
+  assert.match(globalError, /a:last-child/);
+  assert.match(globalError, /flex-shrink: 0/);
   assert.doesNotMatch(globalError, /is a live exchange/);
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
   const education = await readFile(join(root, "src/lib/preview-education.ts"), "utf8");
@@ -525,6 +668,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/incident-demo.tsx"), "utf8"), /architecture-demonstration/);
   assert.match(await readFile(join(root, "src/lib/ticket-shortcuts.ts"), "utf8"), /reviewOpen/);
   assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /emptyShareCopy/);
+  assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /emptyShareCopy\(selectedPool\.id\)/);
   assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /Settled as \$\{settlementPair\}/);
   assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /blotterEmptyLogCopy/);
   assert.match(await readFile(join(root, "src/lib/blotter-copy.ts"), "utf8"), /blotterLogEventCopy/);
@@ -546,6 +690,51 @@ test("vercel.json does not assign operator URLs", async () => {
   }
   const vercel = await readFile(vercelPath, "utf8");
   assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_URL\s*[:=]/);
+});
+
+test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "phlebas-secrets-"));
+  try {
+    await mkdir(join(dir, "scripts"));
+    await copyFile(join(root, "scripts/scan-secrets.mjs"), join(dir, "scripts/scan-secrets.mjs"));
+    await execFileAsync("git", ["init"], { cwd: dir });
+    await execFileAsync("git", ["add", "-A"], { cwd: dir });
+
+    const clean = await scanSecrets(dir);
+    assert.equal(clean.code, 0);
+
+    await writeFile(join(dir, ".env"), "PHLEBAS_GATEWAY_URL=http://127.0.0.1:8787\n");
+    await execFileAsync("git", ["add", "-A"], { cwd: dir });
+    const envHit = await scanSecrets(dir);
+    assert.notEqual(envHit.code, 0);
+    assert.match(`${envHit.stdout}${envHit.stderr}`, /vercel-operator-gateway/);
+    await rm(join(dir, ".env"));
+
+    await writeFile(join(dir, "vercel.json"), "{\n  env: { PHLEBAS_MATCHER_URL: \"http://127.0.0.1:8788\" }\n}\n");
+    await execFileAsync("git", ["add", "-A"], { cwd: dir });
+    const vercelHit = await scanSecrets(dir);
+    assert.notEqual(vercelHit.code, 0);
+    assert.match(`${vercelHit.stdout}${vercelHit.stderr}`, /vercel-operator-matcher/);
+    await rm(join(dir, "vercel.json"));
+
+    await mkdir(join(dir, ".vercel"));
+    await writeFile(join(dir, ".vercel", "project.json"), "PHLEBAS_GATEWAY_URL=http://example.com:8787\n");
+    await execFileAsync("git", ["add", "-A"], { cwd: dir });
+    const vercelDirHit = await scanSecrets(dir);
+    assert.notEqual(vercelDirHit.code, 0);
+    assert.match(`${vercelDirHit.stdout}${vercelDirHit.stderr}`, /vercel-operator-gateway/);
+    await rm(join(dir, ".vercel"), { recursive: true, force: true });
+
+    await writeFile(
+      join(dir, "readme.md"),
+      "PHLEBAS_GATEWAY_URL=http://example.com\nPHLEBAS_MATCHER_URL=http://example.com\n",
+    );
+    await execFileAsync("git", ["add", "-A"], { cwd: dir });
+    const ignored = await scanSecrets(dir);
+    assert.equal(ignored.code, 0);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("Open Graph and Twitter cards stay labeled as a simulation", async () => {
@@ -586,6 +775,18 @@ test("production CSP connect-src is self only", async () => {
   const withoutConnect = nextConfig.replace(connectSrc, "");
   assert.doesNotMatch(withoutConnect, /\bws:/);
   assert.doesNotMatch(withoutConnect, /\bhttp:/);
+});
+
+test("shipped UI CSS does not keep the retired gold accent", async () => {
+  const files = [
+    join(root, "src/app/globals.css"),
+    join(root, "src/components/landing.module.css"),
+    join(root, "src/components/terminal.module.css"),
+    join(root, "src/app/global-error.tsx"),
+  ];
+  const joined = (await Promise.all(files.map((file) => readFile(file, "utf8")))).join("\n");
+  assert.doesNotMatch(joined, /#f4c95d/i);
+  assert.doesNotMatch(joined, /244\s*,\s*201\s*,\s*93/);
 });
 
 test("design docs do not claim the repo has no matcher or wallet stubs", async () => {
