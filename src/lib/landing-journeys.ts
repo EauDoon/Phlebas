@@ -23,7 +23,7 @@ export const LANDING_JOURNEYS = [
     id: "deposit",
     tab: "Deposit",
     title: "Legacy custody path",
-    description: "Inspect the historical transparent-ZEC gateway tour. It is not the native atomic-settlement path.",
+    description: "Inspect the historical transparent-ZEC custody state tour. It is not the native atomic-settlement path.",
     href: "/trade?view=bridge",
     action: "Preview deposit states",
   },

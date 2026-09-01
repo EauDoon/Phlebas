@@ -25,7 +25,7 @@ export function listenHost(requested?: string, env: Record<string, string | unde
   return host;
 }
 
-export function operatorUnavailable(reason: "gateway-unavailable" | "matcher-unavailable", extra: Record<string, string> = {}) {
+export function operatorUnavailable(reason: "matcher-unavailable", extra: Record<string, string> = {}) {
   return Response.json(
     { ok: false, reason, ...extra },
     { status: 503, headers: { "Cache-Control": "no-store" } },

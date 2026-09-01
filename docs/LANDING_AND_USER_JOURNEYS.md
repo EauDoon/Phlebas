@@ -1,6 +1,6 @@
 # Phlebas Landing and User Journeys
 
-Status: the landing page, terminal shell, first-session education, country-blocked demonstration, local matcher, LP preview with review-and-confirm, ZIP 321 deposit-shape preview, deposit and withdrawal state tours, destination inspector, labeled incident demonstrations, `/legal`, `/security`, and architecture explanation are implemented locally as no-value fixtures. Optional local loopback stubs exist for a textest gateway, matcher operator, and observer. They are never hosted on Vercel. Wallet signing stays disabled while the verified testnet deployment manifest is undeployed. The public app remains a no-value simulation.
+Status: the landing page, terminal shell, first-session education, country-blocked demonstration, local matcher, LP preview with review-and-confirm, non-payable ZIP 321 format preview, deposit and withdrawal state tours, destination inspector, labeled incident demonstrations, `/legal`, `/security`, and architecture explanation are implemented locally as no-value fixtures. The matcher is the only loopback service in the current Compose workflow. Atomic-swap observer code remains a separate no-value reference component, not an operator service. Wallet signing stays disabled while the verified testnet deployment manifest is undeployed. The public app remains a no-value simulation.
 
 The pZEC, gateway, deposit, withdrawal, and passive LP surfaces are legacy simulation interfaces. The native-ZEC target and its replacement journey are governed by the architecture, product specification, and delivery plan.
 
@@ -48,7 +48,7 @@ Planning dials:
 | `/trade?access=blocked` | Country-blocked demonstration | Allowlisted access values: `open`, `blocked`. Invalid values return to open. Never infers location. |
 | `/trade?education=1` | First-session education | Allowlisted education values: `1`. Invalid values do not force the dialog. |
 | `/trade?view=liquidity` | LP preview | Implemented locally with illustrative pool calculations |
-| `/trade?view=bridge` | Gateway boundary | Implemented locally as a deposit ZIP 321 preview and withdrawal state tour |
+| `/trade?view=bridge` | Historical custody boundary | Implemented locally as a non-payable ZIP 321 format example and historical state tour |
 | `/trade?view=architecture` | Product boundary | Implemented locally as a read-only explanation plus labeled incident demonstrations |
 | `/legal` | Legal boundary | Implemented locally. Not legal advice. No licensed operator. |
 | `/security` | Security boundary | Implemented locally. No production support commitment. |
@@ -74,7 +74,7 @@ The banner uses `role="status"` on initial load. It must not repeatedly announce
 Desktop order:
 
 1. Phlebas mark and wordmark, linked to `/`.
-2. Navigation: `Markets`, `Liquidity`, `Gateway`, `Architecture`.
+2. Navigation: `Markets`, `Liquidity`, `Historical state tour`, `Architecture`.
 3. Status control: `No-value preview`.
 4. Primary action: `Enter simulation` on the landing page, or `Connect wallet` for optional Arbitrum Sepolia signing.
 
@@ -82,7 +82,7 @@ Landing navigation targets:
 
 - `Markets` points to `#terminal-preview`.
 - `Liquidity` points to `#journeys` with the LP path selected only after client hydration. Without JavaScript, it points to the section start.
-- `Gateway` points to `#journey-deposit`. The native-pairs section is `#pairs`.
+- `Historical state tour` points to `#journey-deposit`. The native-pairs section is `#pairs`.
 - `Architecture` points to `/trade?view=architecture`.
 
 At 820 pixels and below, use a menu button with the visible label `Menu`. The menu opens a modal navigation panel with focus containment, an explicit close button, Escape support, and the same DOM reading order. The simulation banner remains above it.
@@ -241,7 +241,7 @@ Use four horizontal evidence rows:
 
 1. `Order book preview`: Price-time ordering, illustrative depth, and preview-only order validation.
 2. `LP math preview`: Constant-product calculations for two fixed pool fixtures, with no deposits and no return projection.
-3. `Gateway design`: A transparent native ZEC to tZEC state model, with no address generation, custody, mint, or redemption.
+3. `Historical custody model`: A removed transparent-ZEC custody state model, retained only as a keyless tour with no address generation, custody, mint, or redemption.
 4. `Published boundary`: Architecture, custody assumptions, launch gates, and failure handling are readable before any product action.
 
 ### Native pairs boundary
@@ -294,7 +294,7 @@ Heading:
 
 Body:
 
-> Change a fixture, preview an order, inspect pool math, and walk through gateway states. Values are illustrative and actions remain inside the browser.
+> Change a fixture, preview an order, inspect pool math, and walk through historical custody states. Values are illustrative and actions remain inside the browser.
 
 The embedded preview may reuse current terminal components, but it is clipped to one market summary, one order-book slice, and one order-ticket slice. It must show `Simulation` inside the frame. The landing page must not show a fake wallet balance, account identifier, deposit address, reserve figure, transaction hash, filled order, return, or profit figure.
 
@@ -376,7 +376,7 @@ Title:
 
 Body:
 
-> Prices, orders, pools, balances, and gateway events are illustrative. No wallet or blockchain is connected.
+> Prices, orders, pools, balances, and historical custody-state events are illustrative. No wallet or blockchain is connected.
 
 Step 2:
 
@@ -396,7 +396,7 @@ Title:
 
 Body:
 
-> You can inspect order entry, pool math, and gateway states. Nothing is submitted, signed, deposited, withdrawn, or stored as a financial record.
+> You can inspect order entry, pool math, and historical custody states. Nothing is submitted, signed, deposited, withdrawn, or stored as a financial record.
 
 Actions:
 
@@ -404,7 +404,7 @@ Actions:
 - Step 3: `Enter simulation`
 - Every step: `Back` when a previous step exists
 
-The dialog has a visible step count, initial focus on the heading, focus containment, and Escape support. Closing it has the same result as `Enter simulation` because the persistent banner remains. Store only a local disclosure version such as `phlebas.previewEducationVersion = 2026-08-31-1`. Do not create an account, cookie identifier, fingerprint, or analytics identity.
+The dialog has a visible step count, initial focus on the heading, focus containment, and Escape support. Closing it has the same result as `Enter simulation` because the persistent banner remains. Store only a local disclosure version such as `phlebas.previewEducationVersion = 2026-09-01-1`. Do not create an account, cookie identifier, fingerprint, or analytics identity.
 
 Show the dialog again when the disclosure version changes or local storage is cleared.
 
@@ -484,8 +484,8 @@ A future release may let a wallet approve and add assets directly to an approved
 
 The entry action is `Preview deposit states`, not `Deposit ZEC`.
 
-1. The visitor opens Gateway and selects Deposit.
-2. The page states: `A production gateway would accept eligible transparent native ZEC and issue tZEC. No address is generated in this simulation.`
+1. The visitor opens Historical state tour and selects Deposit.
+2. The page states: `A removed custody model would have accepted eligible transparent native ZEC. No address is generated in this simulation.`
 3. The page repeats that tZEC would be custody-backed, transparent activity may be publicly linkable, and shielded deposits are not supported.
 4. The visitor selects `Walk through states`.
 5. A deterministic state tour displays Eligibility, Address request, Observed, Unavailable, Screening, Rejected, Confirming, Stale, Mint queued, and Complete.
@@ -529,8 +529,8 @@ The production address service, screening, deposit observer, reserve ledger, and
 
 The entry action is `Preview withdrawal states`, not `Withdraw ZEC`.
 
-1. The visitor opens Gateway and selects Withdrawal.
-2. The page states: `A production withdrawal would burn tZEC and create a claim for transparent native ZEC. No tZEC can be burned here.`
+1. The visitor opens Historical state tour and selects Withdrawal.
+2. The page states: `A removed custody model would have burned a receipt and created a transparent-native-ZEC claim. No burn can occur here.`
 3. The interface shows a fixed, clearly labeled example summary. It does not accept or display a real Zcash address.
 4. The visitor selects `Walk through states`.
 5. A deterministic state tour displays title-case labels for the PRODUCT_SPEC 9.3 happy path: Requested, Screened, Burn submitted, Burn finalized, Payable, Transaction prepared, Signed, Broadcast, Mined, Confirmed.
@@ -599,94 +599,91 @@ Actions:
 
 Do not name a sanctions list, reveal screening logic, invite VPN use, or offer an override. Do not send the country result to product analytics.
 
-### Eligibility under review
+### Historical custody-state examples
 
-Scope: future production gateway only.
+Scope: copy-only historical state tours. No service, account, receiver, mint, reserve, burn, payout, or support workflow exists.
 
 Title:
 
-> This request needs review.
+> Historical review state.
 
 Body:
 
-> No asset action will continue while the review is open. Completion is not guaranteed.
+> This copy-only fixture illustrates a former review hold. No asset action can start or continue in this application.
 
 Actions:
 
-- `View request status`
-- `Contact support`, only when a real support route exists
-
-Do not show a countdown, approval probability, internal rule, vendor score, or reviewer identity.
+- No action. The displayed state cannot start, resume, or review a request.
 
 ### Deposit review
 
 Title:
 
-> Deposit credit is paused for review.
+> Historical deposit-review state.
 
 Body:
 
-> The observed transaction has not been approved for minting. Do not send another deposit to the same intent.
+> This copy-only fixture preserves a former unapproved-observation state. No receiver, deposit intent, or minting path exists in this application.
 
-Allowed information is the public transaction reference, amount, observed time, and status after production approval. Do not state that funds are lost or promise credit.
+Do not present a transaction reference, amount, receiver, review status, or promise of credit.
 
 ### Withdrawal review
 
 Before burn:
 
-> Withdrawal review is open. No tZEC has been burned.
+> Historical pre-payout review state. No burn, payout request, or production gateway exists here.
 
 After a finalized burn:
 
-> Payout review is open. Your payout claim remains recorded while processing is paused.
+> Historical post-burn review state. It has no payout authority and no customer claim is recorded by this application.
 
-The UI must distinguish these states. It must never imply that a finalized burn can be silently discarded.
+The UI distinguishes only historical examples. It must never imply a payable customer claim.
 
 ### Reorganization before mint
 
 Title:
 
-> Zcash confirmations changed.
+> Historical confirmation-change state.
 
 Body:
 
-> The deposit is provisional again because its prior block is no longer in the accepted chain. No tZEC will be minted until the deposit is included and reaches the required confirmation threshold.
+> This copy-only fixture preserves a former chain-reorganization example. It cannot generate a receiver, credit a deposit, or mint any token.
 
-Show the last accepted block height and confirmation status only in a production-approved interface. Do not estimate a completion time.
+Do not display a block height, confirmation count, or completion estimate.
 
 ### Reorganization after mint
 
 Title:
 
-> Gateway incident controls are active.
+> Historical reconciliation state.
 
 Body:
 
-> A previously credited Zcash deposit changed after a chain reorganization. New mints and native ZEC withdrawals are paused while reserves and liabilities are reconciled.
+> This copy-only fixture preserves a former reconciliation example after a chain reorganization. There are no reserves, liabilities, mints, or native ZEC withdrawals in this application.
 
-Trading and LP controls follow their own system status. Do not automatically label them available or paused. Show the actual signed status supplied by the operating service.
+Trading and LP controls remain separate simulations. Do not derive an operating status from this historical copy.
 
 ### Planned maintenance
 
 Title:
 
-> Gateway maintenance is scheduled.
+> Historical maintenance state.
 
 Body pattern:
 
-> New deposit intents and withdrawal requests will be unavailable during the stated window. Existing requests keep their last confirmed status.
+> This copy-only fixture shows a former maintenance notice. The time window is illustrative, and this application has no deposit intents or withdrawal requests.
 
-Show an absolute start and end in the visitor's selected display zone and UTC. Do not use only relative wording such as `tomorrow`.
+Do not display an operational maintenance window or availability forecast.
 
 ### Unplanned maintenance
 
 Title:
 
-> This service is temporarily unavailable.
+> Historical service-unavailable state.
 
 Body:
 
-> No new action can start. Existing orders, balances, deposits, and withdrawal claims have not been inferred from this outage message.
+> This copy-only fixture shows a former unavailable-service message. It does not infer any order, balance, deposit, or withdrawal claim.
 
 Actions:
 
@@ -731,9 +728,9 @@ Allowed events:
 | `surface_view` | `surface`: `landing` or `preview`; `viewport_band`: `small`, `medium`, or `large`; `release_id` |
 | `landing_action` | `action_id`: `enter_simulation`, `understand_pairs`, `open_status`, `open_terminal`, or `read_launch_gates`; `release_id` |
 | `education_step` | `step`: `1`, `2`, or `3`; `action`: `view`, `continue`, `back`, or `close`; `release_id` |
-| `preview_view` | `view`: `trade`, `liquidity`, `gateway`, or `architecture`; `release_id` |
+| `preview_view` | `view`: `trade`, `liquidity`, `historical-tour`, or `architecture`; `release_id` |
 | `simulation_action` | `action_id`: `order_preview`, `lp_preview`, `deposit_state_tour`, or `withdrawal_state_tour`; `result`: `opened`, `validation_error`, or `completed`; `release_id` |
-| `disclosure_open` | `disclosure_id`: `simulation`, `pairs`, `lp_risk`, `gateway_risk`, or `mainnet_gate`; `release_id` |
+| `disclosure_open` | `disclosure_id`: `simulation`, `pairs`, `lp_risk`, `historical_custody_risk`, or `mainnet_gate`; `release_id` |
 | `state_demo_view` | `state_class`: `blocked`, `review`, `reorg`, `maintenance`, `stale`, or `unavailable`; `release_id` |
 
 Forbidden event fields and capture sources:

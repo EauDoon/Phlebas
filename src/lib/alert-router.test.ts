@@ -46,5 +46,5 @@ test("defaultRoutingTable registers critical and warning routes per service", ()
   assert.ok(t["matcher:warning"]);
   assert.ok(t["observer:critical"]);
   assert.ok(t["observer:warning"]);
-  assert.ok(t["gateway:critical"]);
+  assert.equal(t["gateway:critical"], undefined);
 });

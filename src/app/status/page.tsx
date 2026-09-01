@@ -36,7 +36,6 @@ export default function StatusPage() {
         <div role="listitem"><dt>Network</dt><dd>{status.network}</dd></div>
         <div role="listitem"><dt>Market data</dt><dd>{status.marketData}</dd></div>
         <div role="listitem"><dt>Country access</dt><dd>{status.countryAccess}</dd></div>
-        <div role="listitem"><dt>Intent cap</dt><dd>{status.intentCap === null ? "unset" : status.intentCap}</dd></div>
         <div role="listitem"><dt>Sequence root</dt><dd>{status.sequenceRoot === null ? "none" : status.sequenceRoot}</dd></div>
       </dl>
       <p>
@@ -61,7 +60,7 @@ export default function StatusPage() {
         <Link href="/#launch-gates">Launch gates</Link>
       </p>
       <p>
-        Architecture includes labeled incident demonstrations for blocked access, review, reorg, planned maintenance, and unplanned maintenance. They are copy-only. This status page is not an incident feed.
+        Architecture includes labeled historical-state demonstrations for blocked access, review, reorg, planned maintenance, and unplanned maintenance. They are copy-only. This status page is not an incident feed.
       </p>
     </SimulationFrame>
   );

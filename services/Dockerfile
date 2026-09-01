@@ -5,4 +5,4 @@ RUN npm ci --ignore-scripts
 COPY src ./src
 COPY services ./services
 ENV PHLEBAS_BIND=0.0.0.0
-EXPOSE 8787 8788 8789
+EXPOSE 8788

@@ -6,18 +6,15 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-test("Compose publishes gateway and matcher on loopback only and never sets Vercel env vars", async () => {
+test("Compose publishes only the matcher on loopback and never sets a Vercel operator URL", async () => {
   const compose = await readFile(join(root, "services/compose.yaml"), "utf8");
   const dockerfile = await readFile(join(root, "services/Dockerfile"), "utf8");
-  assert.match(compose, /127\.0\.0\.1:8787:8787/);
   assert.match(compose, /127\.0\.0\.1:8788:8788/);
-  assert.match(compose, /127\.0\.0\.1:8789:8789/);
-  assert.doesNotMatch(compose, /^\s*PHLEBAS_GATEWAY_URL:/m);
   assert.doesNotMatch(compose, /^\s*PHLEBAS_MATCHER_URL:/m);
-  assert.match(compose, /Do not set PHLEBAS_GATEWAY_URL or PHLEBAS_MATCHER_URL on Vercel/);
+  assert.match(compose, /Do not set PHLEBAS_MATCHER_URL on Vercel/);
   assert.match(compose, /PHLEBAS_ALLOW_NON_LOOPBACK: "1"/);
   assert.match(dockerfile, /node:24/);
-  assert.match(dockerfile, /services\/gateway\/server\.ts|COPY services/);
+  assert.match(dockerfile, /COPY services/);
 });
 
 test("LICENSE is Apache-2.0 and the Sepolia manifest stays undeployed", async () => {
@@ -40,26 +37,22 @@ test("LICENSE is Apache-2.0 and the Sepolia manifest stays undeployed", async ()
   assert.equal(manifest.broadcastTx, null);
 });
 
-test("operator runbook exists and CI does not set gateway or matcher URLs", async () => {
+test("operator runbook exists and CI does not set a matcher URL", async () => {
   const runbook = await readFile(join(root, "docs/OPERATOR_RUNBOOK.md"), "utf8");
   const ci = await readFile(join(root, ".github/workflows/ci.yml"), "utf8");
-  assert.match(runbook, /127\.0\.0\.1:8787/);
   assert.match(runbook, /127\.0\.0\.1:8788/);
-  assert.match(runbook, /127\.0\.0\.1:8789/);
-  assert.match(runbook, /Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel/);
-  assert.doesNotMatch(ci, /PHLEBAS_GATEWAY_URL/);
+  assert.match(runbook, /Do not set `PHLEBAS_MATCHER_URL` on Vercel/);
   assert.doesNotMatch(ci, /PHLEBAS_MATCHER_URL/);
 });
 
-test("secret scan fails operator URLs in committed Vercel env files", async () => {
+test("secret scan checks tracked bytes and fails matcher URLs in committed Vercel env files", async () => {
   const scan = await readFile(join(root, "scripts/scan-secrets.mjs"), "utf8");
   const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as {
     scripts: Record<string, string>;
   };
-  assert.match(scan, /name: "vercel-operator-gateway"/);
   assert.match(scan, /name: "vercel-operator-matcher"/);
-  assert.match(scan, /PHLEBAS_GATEWAY_URL\\s\*\[:=\]/);
   assert.match(scan, /PHLEBAS_MATCHER_URL\\s\*\[:=\]/);
+  assert.match(scan, /git", \["ls-files", "-z"\]/);
   assert.match(scan, /\(\^|\\\/\)\(\\\.env|vercel\\\.json|\\\.vercel\\\/\)/);
   assert.match(pkg.scripts.check, /scan:secrets/);
 });

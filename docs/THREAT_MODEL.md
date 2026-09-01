@@ -53,9 +53,9 @@ The public Vercel app is a no-value simulation. Local optional stubs exist and a
 - In-browser session matcher, plus a loopback matcher operator that is never hosted on Vercel.
 - Undeployed Arbitrum Sepolia contract sources. The manifest stays `deployed: false` until a real Sepolia transaction is recorded.
 - Optional EIP-1193 wallet connection on Arbitrum Sepolia only. Signing stays disabled while the verified deployment manifest is undeployed.
-- Local `textest` gateway and observer stubs on `127.0.0.1`. No Zebra RPC, no mainnet TEX.
+- Keyless TEX parsing and no-value observer reference code. No address generator, mint-attestation runtime, Zebra RPC, or mainnet TEX.
 
-Values shown for prices, depth, volume, total value locked, pool reserves, fees, and trades are simulation data. They are not evidence of a live market or asset backing. Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.
+Values shown for prices, depth, volume, total value locked, pool reserves, fees, and trades are simulation data. They are not evidence of a live market or asset backing. Do not set `PHLEBAS_MATCHER_URL` on Vercel.
 
 ## 3. Proposed architecture
 

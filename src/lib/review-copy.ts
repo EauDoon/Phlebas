@@ -3,5 +3,5 @@ export function publicLinkabilityCopy(action: "fill" | "LP action"): string {
 }
 
 export function custodyRedemptionCopy(): string {
-  return "ZEC custody and redemption, if ever offered, would depend on a gateway. This preview is not live settlement.";
+  return "The historical ZEC custody and redemption model was removed from runtime. This preview is not live settlement.";
 }

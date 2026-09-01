@@ -97,8 +97,8 @@ export function LandingPage() {
                 <div>
                   <h3>{row.title}</h3>
                   <p>
-                    {row.title === "Gateway design"
-                      ? "A transparent native ZEC gateway state model, with no address generation, custody, mint, or redemption."
+                    {row.title === "Historical custody model"
+                      ? "A removed transparent-ZEC custody state model, retained only as a keyless tour with no address generation, custody, mint, or redemption."
                       : row.body}
                   </p>
                 </div>

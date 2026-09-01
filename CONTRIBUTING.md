@@ -1,6 +1,6 @@
 # Contributing to Phlebas
 
-Phlebas is a no-value simulation with optional local testnet services. Do not add mainnet deposit addresses, custody credentials, production endpoints, real signing keys, fabricated market data, or language that implies the system is deployed, audited, or moving mainnet funds. Testnet `textest` addresses may be issued only by the local gateway.
+Phlebas is a no-value simulation with optional local testnet services. Do not add mainnet deposit addresses, custody credentials, production endpoints, receiver-key derivation, real signing keys, fabricated market data, or language that implies the system is deployed, audited, or moving mainnet funds. The historical TEX tour must remain keyless and non-payable.
 
 ## Before proposing a change
 

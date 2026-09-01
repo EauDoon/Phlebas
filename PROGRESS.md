@@ -42,18 +42,18 @@ The committed native-settlement stack is 27 commits beyond its original base, wh
 - Transparent destination inspector: shielded, TEX, and payment-request inputs are rejected; nothing is sent
 - Keccak-256 plus EIP-712 `Order` typed-data hashing for Arbitrum Sepolia (`PhlebasSettlement` v1). Session tickets still use SHA-256.
 - No-value Arbitrum Sepolia contracts: tZEC, quote faucets, settlement, factory, pair, router. Typehashes match the TypeScript vectors. Undeployed.
-- Receivable testnet TEX via a local gateway (`textest` only, single-use ledger). Public app issues nothing without `PHLEBAS_GATEWAY_URL`.
+- The former receivable testnet TEX gateway and its issuance ledger were removed. The public app retains only a literal non-payable ZIP 321 format example.
 - Injected EVM wallet connector limited to Arbitrum Sepolia. Signing does not submit a settlement transaction.
 - Local matcher operator sequences, recovers EIP-712 signatures, and matches. Not bundled into Vercel.
 - Foundry Sepolia deploy script plus `scripts/record-sepolia-deploy.mjs`. Manifest stays `deployed: false` until `--mark-deployed` verifies a successful receipt and bytecode at every recorded address over Sepolia RPC.
 - Session tickets bind keccak EIP-712 to settlement when a wallet is connected. SHA-256 remains the session-only simulation encoding.
 - Wallet signing stays disabled until the verified manifest is deployed. Sign-and-submit also requires `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1`.
 - Matcher persists book, receipts, recover, and sequence under `services/matcher/.data` on 127.0.0.1.
-- Isolated local Compose under `services/` for gateway, matcher, and observer. Host ports bind `127.0.0.1`. Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel.
-- Zebra observer and mint-attestation stubs: textest only, 10 confirmations, durable one-outpoint/one-mint replay protection, strict observation input, and conservative multi-observer confirmation agreement. No Zebra RPC. HTTP `/attest` is covered by a live loopback/restart test.
+- Isolated local Compose under `services/` runs the matcher only. Its host port binds `127.0.0.1`. Do not set `PHLEBAS_MATCHER_URL` on Vercel.
+- The legacy Zebra mint-attestation observer was removed. The retained atomic-swap observer is reference code and cannot attest, mint, sign, broadcast, or custody value.
 - License: Apache License 2.0 (`LICENSE`, `docs/LICENSE_CHOICE.md`). Not MIT. Product language unchanged.
-- Operator runbook for local Compose: `docs/OPERATOR_RUNBOOK.md`. Gateway, matcher, and observer health and incident steps. Loopback HTTP tests cover issue, sequence health, attest, quarantine, and disagreement.
-- Public `/api/deposit-intent` and `/api/matcher` only proxy `http://127.0.0.1` (or localhost / `[::1]`) with no path. Anything else, including unset, is 503.
+- Operator runbook for local Compose: `docs/OPERATOR_RUNBOOK.md`. Matcher health and incident steps only.
+- Public `/api/matcher` only proxies `http://127.0.0.1` (or localhost / `[::1]`) with no path. Anything else, including unset, is 503.
 - Public operator APIs accept only loopback HTTP services and remain unavailable on Vercel.
 - Payout stub: one burn, one transparent-shape destination, never TEX or shielded. Withdrawal inspector previews the stub and still sends nothing.
 - Observer reorg drops off-chain and under-confirmed observations.
@@ -61,34 +61,31 @@ The committed native-settlement stack is 27 commits beyond its original base, wh
 - Matcher loopback POST rejects a signature that does not recover to the maker.
 - Direct operator processes refuse `0.0.0.0` unless `PHLEBAS_ALLOW_NON_LOOPBACK=1` (Compose only).
 - SECURITY.md matches the current simulation-plus-local-stubs boundary.
-- Public `/api/deposit-intent` and `/api/matcher` refuse operator URLs with a path, user, TLS, query, or hash.
+- Public `/api/matcher` refuses operator URLs with a path, user, TLS, query, or hash.
 - Matcher health publishes a keccak sequence root over sequence plus receipt digests.
 - Production CSP `connect-src` is `'self'` only; `ws:`/`http:` are development-only. Asserted in `copy-boundary.test.ts`.
-- Secret scan fails `PHLEBAS_GATEWAY_URL` / `PHLEBAS_MATCHER_URL` in committed `.env`, `vercel.json`, or `.vercel/` files.
+- Secret scan reads tracked repository bytes only and fails `PHLEBAS_MATCHER_URL` in committed `.env`, `vercel.json`, or `.vercel/` files.
 - THREAT_MODEL, ARCHITECTURE, and landing-journey current-reality match the simulation-plus-local-stubs boundary.
 - Matcher persist ignores corrupt `state.json` and starts empty. Covered by a unit test.
 - Payout pre-burn screen: requested destinations are screened or rejected before a burn id is spent. Withdrawal inspector uses the screen; nothing is sent.
 - Observer `POST /coverage` reproduces `calculateReserveCoverage` from public inputs. Not a live reserve monitor.
 - Matcher health publishes `startedAt` and `lastSequenceAt` for third-party downtime polling.
 - Matcher `GET /sequence?after=N` is the receipt cursor. Observer `/attest` fails closed when a supplied reserve snapshot is uncovered.
-- Gateway loopback issue cap defaults to 64 intents (`PHLEBAS_GATEWAY_MAX_INTENTS`). Further issues are 429.
-- Persist restore keeps the same sequence root. Operator runbook notes Windows ignores POSIX `0o600` on the gateway master key.
+- Persist restore keeps the same matcher sequence root.
 - Payout claim stub walks requested → screened → burn-submitted → payable / unresolved. Nothing is sent.
-- Gateway issued count persists under `services/gateway/.data/issued`, so the intent cap survives a process restart. Corrupt issued files and a master key without `issued` fail closed at the cap.
+- Former gateway and legacy-observer ignored data and key material remain outside this PR's read/write scope.
 - Matcher persist stores the sequence root. A tampered root is ignored and the matcher starts empty.
 - Withdrawal tour drives `payoutClaimForTourStep` without changing tour copy. Stub claim state is visible. Nothing is sent.
 - Fills, resting orders, and the tape name the settlement pair (`ZEC-USDC` / `ZEC-USDT`).
 - Account epoch is visible on the ticket and blotter. Invalidate older session orders increments it.
 - LP trading pause disables mint and swap; burn stays available.
-- Wallet connect failures are visible. Gateway issue shows an issuing state.
+- Wallet connect failures are visible. The historical state tour has no issuance action.
 - Review repeats assets, fees, custody, and public-linkability (PRODUCT_SPEC §10).
 - Empty feed shows empty depth. Loading feed disables review.
-- `/api/status` never copies a remote operator URL. `intentCap` is 64 only when the gateway URL is loopback HTTP. `sequenceRoot` stays null without a fetched loopback matcher.
+- `/api/status` never copies a remote operator URL. `sequenceRoot` stays null without a fetched loopback matcher.
 - Blotter tables scroll inside the panel so the settlement column cannot blow the 320px page.
 - LP panel previews integer IL versus holding the same deposited assets at 4x and 1/4x ZEC/quote, plus session IL after mint. Not a return projection.
-- Gateway health publishes `issued` and `cap` from the shared `GATEWAY_DEFAULT_MAX_INTENTS` (64).
 - Ticket and LP copy bind to version-1 fee constants (5 / 15 / 30 bps, max 30).
-- Public `/status` shows intent cap `unset` when no loopback gateway URL is configured.
 - Matcher health reports `persistReadable`. Observer health reports the 10-confirmation floor.
 - Session ticket expiry is unix time or 0 for none. It binds the SHA-256 canonical encoding and the keccak typed order.
 - Playwright covers market-IOC worst price, expiry on review, IL versus hold, and `/status` intent-cap `unset`.
@@ -101,7 +98,7 @@ The committed native-settlement stack is 27 commits beyond its original base, wh
 - Architecture labeled incident demonstrations: blocked, review, reorg, planned and unplanned maintenance. Incident select is a 44px target.
 - Ticket keyboard: G/I/F time in force, Escape back from review. Shortcuts ignore an open dialog.
 - Landing journey chooser: four manual tabs (Trader, LP, Deposit, Withdrawal). Arrow keys move focus; Enter/Space selects. Without JavaScript, all four descriptions remain. Header Liquidity selects LP after hydration.
-- Landing evidence rows: order book, LP math, gateway design, published boundary.
+- Landing evidence rows: order book, LP math, historical custody model, published boundary.
 - Landing terminal preview (`#terminal-preview`): labeled Simulation, illustrative ZEC/USDC depth and a non-submitting ticket slice. Header Markets points here. No wallet, fill, or payable address.
 - Mainnet gates: six evidence rows, all `Not cleared`. Action is Read the launch gates.
 - pZEC section cites ZIP 320 and states no shielded deposit or withdrawal for v1.

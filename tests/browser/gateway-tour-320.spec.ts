@@ -4,10 +4,10 @@ import { WITHDRAWAL_TOUR, withdrawalTourById } from "../../src/lib/withdrawal-to
 
 const DEST = "t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc";
 
-test("320px gateway tour shows rejected and unresolved", async ({ page }) => {
+test("320px historical custody tour shows rejected and unresolved", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Withdrawal states" }).click();
+  await page.getByRole("button", { name: "Historical withdrawal states" }).click();
 
   const next = page.getByRole("button", { name: "Next state" });
   const rejected = withdrawalTourById("rejected");
@@ -37,10 +37,10 @@ test("320px gateway tour shows rejected and unresolved", async ({ page }) => {
   await expect(page.getByText("Nothing is sent", { exact: false }).first()).toBeVisible();
 });
 
-test("320px gateway tour shows refunded tZEC restore", async ({ page }) => {
+test("320px historical custody tour shows refunded tZEC restore", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Withdrawal states" }).click();
+  await page.getByRole("button", { name: "Historical withdrawal states" }).click();
 
   const next = page.getByRole("button", { name: "Next state" });
   const refunded = withdrawalTourById("refunded");
@@ -60,10 +60,10 @@ test("320px gateway tour shows refunded tZEC restore", async ({ page }) => {
   await expect(page.getByText("Nothing is sent", { exact: false }).first()).toBeVisible();
 });
 
-test("320px gateway tour shows expired evidence", async ({ page }) => {
+test("320px historical custody tour shows expired evidence", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Withdrawal states" }).click();
+  await page.getByRole("button", { name: "Historical withdrawal states" }).click();
 
   const next = page.getByRole("button", { name: "Next state" });
   const expired = withdrawalTourById("expired");
@@ -81,10 +81,10 @@ test("320px gateway tour shows expired evidence", async ({ page }) => {
   await expect(page.getByText("Nothing is sent", { exact: false }).first()).toBeVisible();
 });
 
-test("320px gateway tour shows unresolved recovery", async ({ page }) => {
+test("320px historical custody tour shows unresolved recovery", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Withdrawal states" }).click();
+  await page.getByRole("button", { name: "Historical withdrawal states" }).click();
 
   const next = page.getByRole("button", { name: "Next state" });
   const observed = withdrawalTourById("unresolved-observed");
@@ -106,10 +106,10 @@ test("320px gateway tour shows unresolved recovery", async ({ page }) => {
   }
 });
 
-test("320px gateway tour shows confirmed walker stub claim", async ({ page }) => {
+test("320px historical custody tour shows confirmed walker stub claim", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Withdrawal states" }).click();
+  await page.getByRole("button", { name: "Historical withdrawal states" }).click();
 
   const next = page.getByRole("button", { name: "Next state" });
   const confirmed = withdrawalTourById("confirmed");

@@ -67,7 +67,7 @@ The native-swap reference engine accepts only a zero protocol fee. The fee field
 
 ### Local and legacy surfaces
 
-The repository still contains an undeployed Arbitrum Sepolia contract candidate, a persistent loopback matcher, a local testnet TEX gateway, and historical pZEC and AMM simulations. These are development fixtures. The matcher starts unconfigured, holds no keys, constructs no transactions, and cannot sign or broadcast. None of these local services may run on Vercel.
+The repository still contains an undeployed Arbitrum Sepolia contract candidate, a persistent loopback matcher, atomic-swap observer reference code, and historical pZEC and AMM simulations. The custody-capable TEX gateway and legacy mint/reserve-attestation observer were removed from runtime. The matcher starts unconfigured, holds no keys, constructs no transactions, and cannot sign or broadcast. None of these local services may run on Vercel.
 
 The active settlement architecture is recorded in [ADR 0002](docs/adr/0002-native-zec-atomic-settlement.md). The persistent no-value matcher boundary is recorded in [ADR 0003](docs/adr/0003-persistent-native-matcher.md).
 
@@ -88,10 +88,10 @@ The current public app simulates this journey. Wallet signing and chain broadcas
 | Path | Purpose |
 | --- | --- |
 | `src/app` | Next.js routes, layouts, status surfaces, and global styles |
-| `src/components` | Landing, trading, liquidity, gateway, and settlement interfaces |
+| `src/components` | Landing, trading, liquidity, historical state-tour, and settlement interfaces |
 | `src/lib` | Orders, matching, native swaps, replay, policies, fixtures, and browser-safe domains |
 | `contracts/` | Undeployed EVM contract sources and local contract tests |
-| `services/` | Loopback gateway, matcher, and observer services, never for Vercel |
+| `services/` | Loopback matcher and read-only atomic-swap observer reference, never for Vercel |
 | `infra/testnet` | Key-free Testnet manifests and deployment records |
 | `docs/PRODUCT_SPEC.md` | Markets, order semantics, settlement, liquidity, and user journeys |
 | `docs/DELIVERY_PLAN.md` | Build sequence, acceptance gates, and per-PR release protocol |
@@ -164,19 +164,16 @@ The [browser acceptance guide](docs/BROWSER_ACCEPTANCE.md) defines the required 
 The local development services are isolated from the public app:
 
 ```bash
-npm run gateway
 npm run matcher
-npm run observer
 ```
 
 Set these only on a machine that should reach the loopback processes:
 
 ```text
-PHLEBAS_GATEWAY_URL=http://127.0.0.1:8787
 PHLEBAS_MATCHER_URL=http://127.0.0.1:8788
 ```
 
-Do not set those variables on Vercel. See [services/README.md](services/README.md) for the isolated Compose workflow.
+Do not set that variable on Vercel. See [services/README.md](services/README.md) for the isolated Compose workflow.
 
 The Arbitrum Sepolia deployment procedure is documented in [contracts/README.md](contracts/README.md). `infra/testnet/arbitrum-sepolia.json` must remain `"deployed": false` until a real deployment is authorized, executed, and recorded. Local wallet submission remains disabled unless `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1` is set for an approved Testnet run.
 

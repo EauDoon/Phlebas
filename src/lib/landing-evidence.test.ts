@@ -8,7 +8,7 @@ test("landing evidence is four bounded preview rows", () => {
   assert.deepEqual(LANDING_EVIDENCE.map((row) => row.title), [
     "Order book preview",
     "LP math preview",
-    "Gateway design",
+    "Historical custody model",
     "Published boundary",
   ]);
 });
@@ -22,4 +22,5 @@ test("landing evidence does not solicit deposits or project returns", () => {
   }
   assert.match(LANDING_EVIDENCE[1].body, /no return projection/);
   assert.match(LANDING_EVIDENCE[2].body, /no address generation/);
+  assert.match(LANDING_EVIDENCE[2].body, /keyless tour/);
 });

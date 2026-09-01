@@ -2,7 +2,7 @@
 
 This runbook is the operator-facing procedure for responding to
 incidents on any Phlebas service. The runbook applies to the
-matcher, the observer, the gateway, and the watchtower. The
+matcher, the atomic-swap observer reference service, and the watchtower. The
 runbook is intentionally short; the per-service runbooks in
 `docs/runbooks/` cover the service-specific restart procedures.
 
@@ -14,7 +14,6 @@ Use this runbook when one or more of the following is true:
 * the watchtower emits a critical alert;
 * the matcher service's `/orders` endpoint is returning 503;
 * the observer service's `/health` endpoint is returning 503;
-* the gateway service is unable to attest a mint outpoint.
 
 ## Pre-flight
 
@@ -38,10 +37,6 @@ depends on the failing service:
   polling loop by setting `PHLEBAS_OBSERVER_PAUSE=1`. Treat the
   on-disk snapshot as untrusted diagnostic state, not settlement
   authority. No wallet or matcher action may depend on it.
-* **gateway service**: if the gateway is failing, the mint
-  attestation surface is down. The mint surface is no-value for
-  the native-ZEC direction; the operator should halt the
-  gateway's `/attest` endpoint and notify the on-call.
 
 ## Diagnosis
 

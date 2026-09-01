@@ -29,7 +29,7 @@ export function IncidentDemo({ highlight = false }: { highlight?: boolean }) {
         <span>Demonstration</span>
         <div className={styles.inputShell}>
           <select
-            aria-label="Gateway incident demonstration"
+            aria-label="Historical custody incident demonstration"
             value={incident.id}
             onChange={(event) => setIncidentId(event.target.value as GatewayIncidentId)}
           >

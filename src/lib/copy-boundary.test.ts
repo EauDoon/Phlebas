@@ -33,7 +33,7 @@ test("status page links to legal and security without a live-funds claim", async
   assert.match(statusPage, /href="\/#launch-gates"/);
   assert.match(statusPage, /from "next\/link"/);
   assert.match(statusPage, /No live funds or custody/);
-  assert.match(statusPage, /labeled incident demonstrations/);
+  assert.match(statusPage, /labeled historical-state demonstrations/);
   assert.match(statusPage, /not an incident feed/);
   assert.doesNotMatch(statusPage, /is audited/);
 });
@@ -107,7 +107,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(await readFile(join(root, "src/lib/testnet.ts"), "utf8"), /pzec:/);
   assert.match(await readFile(join(root, "src/lib/sepolia-manifest.ts"), "utf8"), /Zec: string/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/sepolia-manifest.ts"), "utf8"), /PZec:/);
-  assert.match(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /ZEC gateway/);
+  assert.match(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /Historical ZEC state tour/);
   assert.doesNotMatch(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /ZEC to pZEC/);
   assert.doesNotMatch(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /pZEC/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /pZEC/);
@@ -159,7 +159,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(await readFile(join(root, "src/lib/order.ts"), "utf8"), /pZEC/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /parseExpiryUnix/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /Order expiry unix time/);
-  assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /never hosted on Vercel/);
+  assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /No local operator service is hosted on Vercel/);
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /id="honesty-bar"/);
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /id="architecture-layers"/);
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /The matcher is not trustless/);
@@ -169,24 +169,24 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(landing, /is audited/);
   assert.doesNotMatch(terminal, /is audited/);
   const bridge = await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8");
-  assert.match(bridge, /Preview withdrawal states, not Withdraw ZEC/);
-  assert.match(bridge, /Preview deposit states, not Deposit ZEC/);
+  assert.match(bridge, /Historical withdrawal states only/);
+  assert.match(bridge, /Historical deposit states only/);
   assert.match(bridge, /WITHDRAWAL_TOUR/);
   assert.match(bridge, /nextGatewayJourney/);
   assert.match(bridge, /interpretRovingKey/);
   assert.match(bridge, /payoutClaimForTourStep/);
   assert.match(bridge, /payoutClaimStubCopy/);
   assert.match(bridge, /Nothing is sent/);
-  assert.match(bridge, /gatewayOffCopy/);
-  assert.match(bridge, /gatewayUnavailableCopy/);
-  assert.match(bridge, /gatewayIssuingCopy/);
+  assert.doesNotMatch(bridge, /gatewayOffCopy/);
+  assert.doesNotMatch(bridge, /gatewayUnavailableCopy/);
+  assert.doesNotMatch(bridge, /gatewayIssuingCopy/);
   assert.match(await readFile(join(root, "src/lib/withdrawal-tour.ts"), "utf8"), /does not invent a payout/);
   assert.match(bridge, /Nothing is sent/);
   assert.match(bridge, /id="privacy-callouts"/);
   assert.match(bridge, /does not provide shielded deposits/);
   assert.match(bridge, /id="destination-inspector"/);
-  assert.match(bridge, /Not a payable QR/);
-  assert.match(bridge, /copyUri/);
+  assert.match(bridge, /PlaceholderQr/);
+  assert.doesNotMatch(bridge, /copyUri/);
   assert.match(bridge, /Not payable/);
   assert.match(terminal, /feedSurface/);
   assert.match(terminal, /nextTerminalView/);
@@ -516,7 +516,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(await readFile(join(root, "src/lib/access-demo.ts"), "utf8"), /geolocat/i);
   assert.match(await readFile(join(root, "src/lib/ticket-shortcuts.ts"), "utf8"), /dialogOpen/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /interpretTicketKey/);
-  assert.match(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /No address generated in simulation/);
+  assert.match(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /No address is generated/);
   assert.match(await readFile(join(root, "src/components/incident-demo.tsx"), "utf8"), /State demonstration/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /\blive outage\b/i);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /Architecture incident demonstrations/);
@@ -545,7 +545,6 @@ test("vercel.json does not assign operator URLs", async () => {
     return;
   }
   const vercel = await readFile(vercelPath, "utf8");
-  assert.doesNotMatch(vercel, /PHLEBAS_GATEWAY_URL\s*[:=]/);
   assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_URL\s*[:=]/);
 });
 
