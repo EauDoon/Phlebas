@@ -62,3 +62,17 @@ The secret scanner reads tracked bytes from `git ls-files`; it does not enumerat
 - Obtain separate authorization before any Testnet value movement, contract deployment, funded address, RPC credential, push, PR merge, Vercel deployment, or mainnet activation.
 
 Until those gates close, all public copy and actions must remain truthful about the no-value preview boundary.
+
+## Done this batch (PR 12 — session import lib)
+
+- Session import module (`src/lib/session-import.ts`) parses a JSON snapshot string produced by `src/lib/session-export.ts` and returns either the parsed snapshot or a structured rejection. The import never reaches out to the network and never signs a transaction.
+- Session import validator checks the schema tag (`phlebas-session-snapshot`), the schema version (`1`), the market (`ZEC/USDC` or `ZEC/USDT`), and the field shape. A rejection returns one of three error kinds: `invalid-json`, `schema-mismatch`, or `shape-invalid`.
+- `applyImportedSnapshot` returns the four pieces the trading terminal needs to seed its state: market, account, book, fills, and session log.
+- Session export module added back to this branch as the consumer of the import path. The two modules form a deterministic roundtrip.
+- 9 new unit tests in `src/lib/session-import.test.ts` cover the happy-path roundtrip, every rejection kind, the human-readable error description, and the apply path.
+- `docs/runbooks/session-roundtrip.md` documents the export + import roundtrip with failure modes and cross-references.
+- 1055 node tests pass (session-import adds 9; the session-export module is on this branch as the consumer; PR 10's state machine is on `feat/skip-nav-hook`), 496-file secret-pattern scan clean, production build clean locally.
+
+## Branch
+
+`feat/session-import` off current `main` at `944c8b6`. PR body: stacks on current `main`, no key or token touched.
