@@ -27,6 +27,7 @@ This is a hybrid DEX design. The AMM and trade settlement can be onchain, but th
 - Click-to-price depth, local last/spread, and slippage-bounded market orders as IOC
 - Integer constant-product quotes and local add/swap previews for `ZEC/USDC` and `ZEC/USDT`
 - ZIP 321 testnet TEX issuance through a local gateway, plus the PRODUCT_SPEC withdrawal state tour
+- A key-independent native Zcash transaction lab with exact transparent P2SH script vectors and committed unsigned fund, claim, and refund plans
 - `/status` and `/api/status`, branded 404/error surfaces, and production `noindex`
 - Executable withdrawal-coverage checks after a finalized burn; production mint, custody, and payout remain design-only
 - Threat model, operational controls, compliance gates, and staged launch plan
@@ -57,6 +58,7 @@ The terminal takes structural cues from [Hyperliquid](https://app.hyperliquid.xy
 | `docs/ARCHITECTURE.md` | System boundaries and proposed production topology |
 | `docs/ASSET_AND_ACCOUNTING.md` | Settlement ZEC (`tZEC`), reserves, liabilities, and reconciliation |
 | `docs/WALLET_COMPATIBILITY.md` | Current ZEC wallet evidence and executable Testnet qualification |
+| `docs/ZCASH_TRANSACTION_LAB.md` | Exact script, artifact, fee, locktime, expiry, and candidate PCZT boundaries |
 | `docs/THREAT_MODEL.md` | Abuse cases, invariants, tests, and stop conditions |
 | `docs/OPERATIONS.md` | Proposed services, observability, and incident control |
 | `docs/OPERATOR_RUNBOOK.md` | Loopback Compose start, health, and stop for gateway, matcher, observer |

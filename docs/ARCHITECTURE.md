@@ -38,7 +38,7 @@ The current repository contains a Next.js no-value simulation, undeployed Arbitr
 | Market data | Illustrative fixtures plus session fills | Signed and independently monitored public feeds |
 | Order book | In-browser matcher and optional loopback operator | Persistent signed-order matcher with receipts |
 | Settlement | Local inventory updates and undeployed legacy Sepolia contracts | One two-chain atomic swap per fill |
-| Zcash path | Local textest gateway, ZIP 321, TEX, and payout-tour stubs | Transparent P2SH fund, claim, and refund transactions |
+| Zcash path | Key-independent transparent P2SH script and unsigned-artifact lab, plus superseded local gateway stubs | Wallet-reviewed fund, claim, and refund transactions |
 | EVM path | Optional Sepolia wallet flow against an undeployed legacy manifest | Exact-token conditional-lock contract |
 | Liquidity | Simulation AMM and LP previews. Each pool holds `tZEC` | Wallet-held maker and solver quotes |
 | Simulation mint | tZEC mint controller in undeployed Sepolia sources | Not live native-ZEC execution |
@@ -124,6 +124,8 @@ The final implementation must verify:
 * wallet review, signature, broadcast, claim, and refund support.
 
 No repository fixture may contain a real key, funded address, private endpoint, or executable mainnet transaction.
+
+The [Zcash transaction lab](ZCASH_TRANSACTION_LAB.md) records the implemented byte, script, fee, locktime, expiry, artifact, and candidate PCZT boundaries. Its manifest digest is not a transaction ID, and the lab has no wallet, RPC, signing, extraction, or broadcast path.
 
 ## EVM leg
 
