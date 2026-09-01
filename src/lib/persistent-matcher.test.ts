@@ -170,6 +170,21 @@ function solverQuote(
   };
 }
 
+test("requires the signed order domain to match the exact EVM quote network", () => {
+  assert.throws(() => createPersistentMatcher({
+    ...configuration,
+    domain: createOrderDomain(42162n, domain.verifyingContract),
+    atomicSwapPolicy: {
+      ...configuration.atomicSwapPolicy,
+      orderDomain: createOrderDomain(42162n, domain.verifyingContract),
+    },
+    solverQuotePolicy: {
+      ...configuration.solverQuotePolicy,
+      matcherDomainHash: hashOrderDomain(createOrderDomain(42162n, domain.verifyingContract)),
+    },
+  }), /domain chain must match the exact EVM quote network/);
+});
+
 test("sequences GTC intake and atomically maps an IOC cross to a no-value plan", () => {
   let state = createPersistentMatcher(configuration);
   const maker = intent("maker", 1, 100_000_000n, 5_000n, 0, 1n, VENUE_CLOB);
