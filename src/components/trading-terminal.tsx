@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -14,6 +14,7 @@ import {
   rememberIncidentDemo,
   subscribeIncidentDemo,
 } from "@/lib/gateway-incidents";
+import { activateSkipLink } from "@/lib/skip-link";
 import { terminalUrl } from "@/lib/terminal-url";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
@@ -91,17 +92,6 @@ function seedAccounts(): Record<MarketId, PaperAccount> {
     "ZEC/USDC": seedPaperAccount(),
     "ZEC/USDT": seedPaperAccount(),
   };
-}
-
-function activateSkipLink(event: MouseEvent<HTMLAnchorElement>) {
-  const href = event.currentTarget.getAttribute("href");
-  if (!href?.startsWith("#")) return;
-  const target = document.getElementById(href.slice(1));
-  if (!(target instanceof HTMLElement)) return;
-  event.preventDefault();
-  event.currentTarget.blur();
-  target.focus();
-  window.history.replaceState(null, "", href);
 }
 
 export function TradingTerminal({

@@ -1,7 +1,8 @@
 "use client";
 
-import { type MouseEvent } from "react";
 import Link from "next/link";
+
+import { activateSkipLink } from "@/lib/skip-link";
 
 import {
   LANDING_HERO,
@@ -17,17 +18,6 @@ import { LandingHeader } from "./landing-header";
 import { LandingJourneys } from "./landing-journeys";
 import { LandingTerminalPreview } from "./landing-terminal-preview";
 import styles from "./landing.module.css";
-
-function activateSkipLink(event: MouseEvent<HTMLAnchorElement>) {
-  const href = event.currentTarget.getAttribute("href");
-  if (!href?.startsWith("#")) return;
-  const target = document.getElementById(href.slice(1));
-  if (!(target instanceof HTMLElement)) return;
-  event.preventDefault();
-  event.currentTarget.blur();
-  target.focus();
-  window.history.replaceState(null, "", href);
-}
 
 export function LandingPage() {
   return (

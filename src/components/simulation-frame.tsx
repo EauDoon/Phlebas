@@ -1,20 +1,11 @@
 "use client";
 
-import type { MouseEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 
-import styles from "./terminal.module.css";
+import { activateSkipLink } from "@/lib/skip-link";
 
-function activateSkipLink(event: MouseEvent<HTMLAnchorElement>) {
-  const href = event.currentTarget.getAttribute("href");
-  if (!href?.startsWith("#")) return;
-  const target = document.getElementById(href.slice(1));
-  if (!(target instanceof HTMLElement)) return;
-  event.preventDefault();
-  event.currentTarget.blur();
-  target.focus();
-  window.history.replaceState(null, "", href);
-}
+import styles from "./terminal.module.css";
 
 export function SimulationFrame({
   title,
