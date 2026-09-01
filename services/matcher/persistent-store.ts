@@ -589,9 +589,19 @@ export class PersistentMatcherStore {
 
   async #mutate(event: PersistentMatcherEvent): Promise<PersistentMutationResult> {
     if (this.#fault) throw this.#fault;
-    assertMatcherEventTime(event, trustedClock(this.#options), maximumFutureEventSeconds(this.#options));
-    const commandHash = matcherCommandHash(this.#options.configuration, event);
-    const prior = findRequestReceipt(this.#state, event.requestId, commandHash);
+    const nowSeconds = trustedClock(this.#options);
+    const maximumFutureSeconds = maximumFutureEventSeconds(this.#options);
+    assertMatcherEventTime(event, nowSeconds, maximumFutureSeconds);
+    // occurredAtSeconds is transport input, not trusted time. Stamp new
+    // mutations only after they reach the serialized mutation queue. An
+    // existing request reuses its receipt timestamp so retries retain the
+    // original command hash and deterministic replay bytes.
+    const priorRequest = findRequestReceipt(this.#state, event.requestId);
+    const effectiveEvent: PersistentMatcherEvent = priorRequest
+      ? { ...event, occurredAtSeconds: priorRequest.occurredAtSeconds }
+      : { ...event, occurredAtSeconds: nowSeconds };
+    const commandHash = matcherCommandHash(this.#options.configuration, effectiveEvent);
+    const prior = findRequestReceipt(this.#state, effectiveEvent.requestId, commandHash);
     if (prior) {
       try {
         await this.#writeCheckpoint();
@@ -601,13 +611,13 @@ export class PersistentMatcherStore {
       return { receipt: prior, replayed: true, checkpoint: this.#checkpoint };
     }
     const sequence = this.#state.sequence + 1n;
-    const candidate = applyPersistentMatcherEvent(this.#state, event, sequence, this.#options.verifier);
+    const candidate = applyPersistentMatcherEvent(this.#state, effectiveEvent, sequence, this.#options.verifier);
     let record;
     try {
       record = await appendJournal(
         this.#options.journalPath,
         this.#journal,
-        serializePersistentMatcherEvent(this.#options.configuration, event),
+        serializePersistentMatcherEvent(this.#options.configuration, effectiveEvent),
         {
           maxRecords: this.#options.maximumJournalRecords,
           maxLineBytes: this.#options.maximumJournalLineBytes,

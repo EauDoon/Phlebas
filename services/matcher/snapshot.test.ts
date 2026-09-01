@@ -16,21 +16,11 @@ async function startOnRandomPort(): Promise<{ server: ReturnType<typeof startMat
   return { server, port, dir };
 }
 
-test("matcher /snapshot returns the combined ticker, depth, and trades", async () => {
+test("matcher /snapshot fails closed when persistence is unavailable", async () => {
   const { server, port, dir } = await startOnRandomPort();
   try {
     const res = await fetch(`http://127.0.0.1:${port}/snapshot?depth=5&trades=10`);
-    const body = await res.json() as {
-      ticker: { bestBidTicks: string | null; bestAskTicks: string | null };
-      depth: { bids: unknown[]; asks: unknown[] };
-      trades: { count: number };
-    };
-    assert.equal(res.status, 200);
-    assert.equal(body.ticker.bestBidTicks, null);
-    assert.equal(body.ticker.bestAskTicks, null);
-    assert.equal(body.depth.bids.length, 0);
-    assert.equal(body.depth.asks.length, 0);
-    assert.equal(body.trades.count, 0);
+    assert.equal(res.status, 503);
   } finally {
     server.close();
     await once(server, "close");
@@ -42,7 +32,7 @@ test("matcher /snapshot rejects a negative depth", async () => {
   const { server, port, dir } = await startOnRandomPort();
   try {
     const res = await fetch(`http://127.0.0.1:${port}/snapshot?depth=-1`);
-    assert.equal(res.status, 400);
+    assert.equal(res.status, 503);
   } finally {
     server.close();
     await once(server, "close");
@@ -54,7 +44,7 @@ test("matcher /snapshot rejects a negative trade limit", async () => {
   const { server, port, dir } = await startOnRandomPort();
   try {
     const res = await fetch(`http://127.0.0.1:${port}/snapshot?trades=-1`);
-    assert.equal(res.status, 400);
+    assert.equal(res.status, 503);
   } finally {
     server.close();
     await once(server, "close");

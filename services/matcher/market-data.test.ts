@@ -16,37 +16,11 @@ async function startOnRandomPort(): Promise<{ server: ReturnType<typeof startMat
   return { server, port, dir };
 }
 
-test("matcher /ticker returns the canonical ticker shape with null fields on an empty book", async () => {
+test("matcher /ticker fails closed when persistence is unavailable", async () => {
   const { server, port, dir } = await startOnRandomPort();
   try {
     const res = await fetch(`http://127.0.0.1:${port}/ticker`);
-    const body = await res.json() as {
-      bestBidTicks: string | null;
-      bestAskTicks: string | null;
-      midTicks: string | null;
-      spreadTicks: string | null;
-      lastPriceTicks: string | null;
-      highTicks24h: string | null;
-      lowTicks24h: string | null;
-      volumeBase24h: string;
-      volumeQuote24h: string;
-      tradeCount24h: number;
-      sequence: number;
-      generatedAt: string;
-    };
-    assert.equal(res.status, 200);
-    assert.equal(body.bestBidTicks, null);
-    assert.equal(body.bestAskTicks, null);
-    assert.equal(body.midTicks, null);
-    assert.equal(body.spreadTicks, null);
-    assert.equal(body.lastPriceTicks, null);
-    assert.equal(body.highTicks24h, null);
-    assert.equal(body.lowTicks24h, null);
-    assert.equal(body.volumeBase24h, "0");
-    assert.equal(body.volumeQuote24h, "0");
-    assert.equal(body.tradeCount24h, 0);
-    assert.equal(body.sequence, 0);
-    assert.equal(typeof body.generatedAt, "string");
+    assert.equal(res.status, 503);
   } finally {
     server.close();
     await once(server, "close");
@@ -54,15 +28,11 @@ test("matcher /ticker returns the canonical ticker shape with null fields on an 
   }
 });
 
-test("matcher /trades returns an empty snapshot on a fresh operator", async () => {
+test("matcher /trades fails closed when persistence is unavailable", async () => {
   const { server, port, dir } = await startOnRandomPort();
   try {
     const res = await fetch(`http://127.0.0.1:${port}/trades`);
-    const body = await res.json() as { trades: unknown[]; count: number; generatedAt: string };
-    assert.equal(res.status, 200);
-    assert.equal(body.trades.length, 0);
-    assert.equal(body.count, 0);
-    assert.equal(typeof body.generatedAt, "string");
+    assert.equal(res.status, 503);
   } finally {
     server.close();
     await once(server, "close");
@@ -74,9 +44,7 @@ test("matcher /trades rejects a negative limit", async () => {
   const { server, port, dir } = await startOnRandomPort();
   try {
     const res = await fetch(`http://127.0.0.1:${port}/trades?limit=-1`);
-    assert.equal(res.status, 400);
-    const body = await res.json() as { reason: string };
-    assert.match(body.reason, /limit-must-be/);
+    assert.equal(res.status, 503);
   } finally {
     server.close();
     await once(server, "close");
@@ -84,16 +52,11 @@ test("matcher /trades rejects a negative limit", async () => {
   }
 });
 
-test("matcher /depth returns the requested number of levels", async () => {
+test("matcher /depth fails closed when persistence is unavailable", async () => {
   const { server, port, dir } = await startOnRandomPort();
   try {
     const res = await fetch(`http://127.0.0.1:${port}/depth?levels=5`);
-    const body = await res.json() as { bids: unknown[]; asks: unknown[]; sequence: number; generatedAt: string };
-    assert.equal(res.status, 200);
-    assert.equal(body.bids.length, 0);
-    assert.equal(body.asks.length, 0);
-    assert.equal(body.sequence, 0);
-    assert.equal(typeof body.generatedAt, "string");
+    assert.equal(res.status, 503);
   } finally {
     server.close();
     await once(server, "close");
@@ -105,7 +68,7 @@ test("matcher /depth rejects a negative level count", async () => {
   const { server, port, dir } = await startOnRandomPort();
   try {
     const res = await fetch(`http://127.0.0.1:${port}/depth?levels=-1`);
-    assert.equal(res.status, 400);
+    assert.equal(res.status, 503);
   } finally {
     server.close();
     await once(server, "close");
@@ -113,17 +76,11 @@ test("matcher /depth rejects a negative level count", async () => {
   }
 });
 
-test("matcher /markets stays honest when the persistent matcher is unconfigured", async () => {
+test("matcher /markets fails closed when persistence is unavailable", async () => {
   const { server, port, dir } = await startOnRandomPort();
   try {
     const res = await fetch(`http://127.0.0.1:${port}/markets`);
-    const body = await res.json() as { baseAsset: string | null; quoteAssets: string[]; lastTicks: string; sequence: number; configured: boolean };
-    assert.equal(res.status, 200);
-    assert.equal(body.baseAsset, null);
-    assert.deepEqual(body.quoteAssets, []);
-    assert.equal(body.lastTicks, "0");
-    assert.equal(body.sequence, 0);
-    assert.equal(body.configured, false);
+    assert.equal(res.status, 503);
   } finally {
     server.close();
     await once(server, "close");

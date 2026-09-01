@@ -147,6 +147,19 @@ test("starts loopback-only in an honest unconfigured no-value mode", async () =>
     assert.equal(body.custody, false);
     assert.equal((await fetch(`${origin}/v1/sequence`)).status, 503);
     assert.equal((await fetch(`${origin}/v1/orders`, { method: "POST" })).status, 503);
+    for (const path of [
+      "/ticker",
+      "/trades",
+      "/depth",
+      "/markets",
+      "/snapshot",
+      "/v1/checkpoint",
+      "/v1/market/book",
+      "/v1/solver-quotes",
+      "/v1/executions",
+    ]) {
+      assert.equal((await fetch(`${origin}${path}`)).status, 503, path);
+    }
   } finally {
     await close(server);
   }
@@ -169,7 +182,7 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
     const replay = await fetch(`${origin}/v1/orders`, {
       method: "POST",
       headers: { "content-type": "application/json", "idempotency-key": "order-one" },
-      body: JSON.stringify(payload(event())),
+      body: JSON.stringify(payload({ ...event(), occurredAtSeconds: now - 5n })),
     });
     assert.equal(replay.status, 200);
     assert.equal((await json(replay)).replayed, true);
@@ -288,6 +301,82 @@ test("times out and destroys partial mutation bodies without consuming the pendi
   }
 });
 
+test("rejects unexpected bodies and destroys a slow public body", async () => {
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    bodyReadTimeoutMilliseconds: 50,
+  });
+  const origin = await listen(server);
+  const address = new URL(origin);
+  let socket: Socket | undefined;
+  try {
+    const unknown = await fetch(`${origin}/unknown`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: "unexpected",
+    });
+    assert.equal(unknown.status, 400);
+    assert.equal((await json(unknown)).reason, "unexpected-request-body");
+
+    socket = createConnection(Number(address.port), "127.0.0.1");
+    await once(socket, "connect");
+    const closed = socketClosed(socket);
+    socket.write([
+      "GET /ticker HTTP/1.1",
+      "Host: 127.0.0.1",
+      "Content-Length: 20",
+      "Connection: close",
+      "",
+      "{\"",
+    ].join("\r\n"));
+    await closed;
+  } finally {
+    socket?.destroy();
+    await close(server);
+  }
+});
+
+test("configures bounded HTTP request, header, keep-alive, and socket timeouts", async () => {
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    requestTimeoutMilliseconds: 321,
+    headersTimeoutMilliseconds: 123,
+    keepAliveTimeoutMilliseconds: 45,
+  });
+  try {
+    assert.equal(server.requestTimeout, 321);
+    assert.equal(server.headersTimeout, 123);
+    assert.equal(server.keepAliveTimeout, 45);
+    assert.equal(server.timeout, 321);
+    await listen(server);
+  } finally {
+    await close(server);
+  }
+});
+
+test("destroys an incomplete header request within the configured header timeout", async () => {
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    headersTimeoutMilliseconds: 50,
+    requestTimeoutMilliseconds: 500,
+  });
+  const origin = await listen(server);
+  const address = new URL(origin);
+  const socket = createConnection(Number(address.port), "127.0.0.1");
+  try {
+    await once(socket, "connect");
+    const closed = socketClosed(socket);
+    socket.write("GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\n");
+    await closed;
+  } finally {
+    socket.destroy();
+    await close(server);
+  }
+});
+
 test("rejects mutation events outside the trusted server clock skew", async () => {
   const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-clock-"));
   const server = startMatcher({
@@ -307,6 +396,68 @@ test("rejects mutation events outside the trusted server clock skew", async () =
     });
     assert.equal(response.status, 400);
     assert.match(String((await json(response)).reason), /too far in the future/);
+  } finally {
+    await close(server);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("stamps accepted mutation time instead of trusting a backdated client timestamp", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-timestamp-"));
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: directory,
+    configuration,
+    verifier,
+    clockSeconds: () => now,
+  });
+  const origin = await listen(server);
+  try {
+    const response = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "backdated-server" },
+      body: JSON.stringify(payload({ ...event("backdated-server"), occurredAtSeconds: now - 5n })),
+    });
+    assert.equal(response.status, 201);
+    const receiptResponse = await fetch(`${origin}/v1/requests/backdated-server`);
+    assert.equal(receiptResponse.status, 200);
+    const receiptBody = await json(receiptResponse);
+    assert.equal((receiptBody.receipt as { occurredAtSeconds: string }).occurredAtSeconds, now.toString());
+  } finally {
+    await close(server);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("does not let an initially backdated client event revive an expired order", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-expiry-"));
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: directory,
+    configuration,
+    verifier,
+    clockSeconds: () => now,
+  });
+  const origin = await listen(server);
+  try {
+    const candidate = event("initial-backdate-server");
+    const response = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "initial-backdate-server" },
+      body: JSON.stringify(payload({
+        ...candidate,
+        occurredAtSeconds: 0n,
+        submission: {
+          ...candidate.submission,
+          order: { ...candidate.submission.order, expiry: 5_000n },
+        },
+      })),
+    });
+    assert.equal(response.status, 400);
+    assert.match(String((await json(response)).reason), /future/);
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
   } finally {
     await close(server);
     await rm(directory, { recursive: true, force: true });
@@ -343,6 +494,21 @@ test("reports a faulted store as unavailable and rejects future mutations", asyn
     const healthBody = await json(health);
     assert.equal(healthBody.acceptingMutations, false);
     assert.match(String(healthBody.reason), /persistence-unavailable/);
+    for (const path of [
+      "/ticker",
+      "/trades",
+      "/depth",
+      "/markets",
+      "/snapshot",
+      "/v1/checkpoint",
+      "/v1/sequence",
+      "/v1/market/book",
+      "/v1/solver-quotes",
+      "/v1/executions",
+      "/v1/requests/fault-one",
+    ]) {
+      assert.equal((await fetch(`${origin}${path}`)).status, 503, path);
+    }
     await close(server);
 
     server = startMatcher({
@@ -373,6 +539,9 @@ test("fails closed on a second writer and missing initialized journal", async ()
     const locked = await fetch(`${secondOrigin}/health`);
     assert.equal(locked.status, 503);
     assert.match(String((await json(locked)).reason), /writer lock already exists/);
+    for (const path of ["/ticker", "/snapshot", "/v1/checkpoint", "/v1/market/book", "/v1/solver-quotes", "/v1/executions"]) {
+      assert.equal((await fetch(`${secondOrigin}${path}`)).status, 503, path);
+    }
   } finally {
     await close(second);
     await close(first);
@@ -385,6 +554,9 @@ test("fails closed on a second writer and missing initialized journal", async ()
     const missing = await fetch(`${missingOrigin}/health`);
     assert.equal(missing.status, 503);
     assert.match(String((await json(missing)).reason), /persistence is missing/);
+    for (const path of ["/ticker", "/snapshot", "/v1/checkpoint", "/v1/market/book", "/v1/solver-quotes", "/v1/executions"]) {
+      assert.equal((await fetch(`${missingOrigin}${path}`)).status, 503, path);
+    }
   } finally {
     await close(first);
     await rm(directory, { recursive: true, force: true });

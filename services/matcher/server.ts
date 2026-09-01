@@ -49,11 +49,15 @@ import { parseStrictJson } from "./strict-json.ts";
 const DEFAULT_DATA_DIRECTORY = join(dirname(fileURLToPath(import.meta.url)), ".data", "native-v1");
 const DEFAULT_BODY_BYTES = 64 * 1024;
 const DEFAULT_BODY_READ_TIMEOUT_MILLISECONDS = 10_000;
+const DEFAULT_REQUEST_TIMEOUT_MILLISECONDS = 30_000;
+const DEFAULT_HEADERS_TIMEOUT_MILLISECONDS = 10_000;
+const DEFAULT_KEEP_ALIVE_TIMEOUT_MILLISECONDS = 5_000;
 const DEFAULT_PENDING_MUTATIONS = 64;
 const DEFAULT_RATE_WINDOW_MILLISECONDS = 60_000;
 const DEFAULT_RATE_LIMIT = 120;
 const DEFAULT_RATE_LIMIT_ENTRIES = 10_000;
 const MAX_BODY_READ_TIMEOUT_MILLISECONDS = 5 * 60 * 1_000;
+const MAX_HTTP_TIMEOUT_MILLISECONDS = 5 * 60 * 1_000;
 const MUTATION_KINDS = new Map<string, PersistentMatcherEvent["kind"]>([
   ["/v1/orders", "accept-order"],
   ["/v1/order-cancellations", "cancel-order"],
@@ -73,6 +77,9 @@ export type MatcherServerOptions = Readonly<{
   verifier?: MatcherSignatureVerifier;
   maximumBodyBytes?: number;
   bodyReadTimeoutMilliseconds?: number;
+  requestTimeoutMilliseconds?: number;
+  headersTimeoutMilliseconds?: number;
+  keepAliveTimeoutMilliseconds?: number;
   maximumPendingMutations?: number;
   mutationRateLimit?: number;
   mutationRateWindowMilliseconds?: number;
@@ -86,10 +93,12 @@ export type MatcherServerOptions = Readonly<{
 
 class HttpError extends Error {
   readonly status: number;
+  readonly destroyRequest: boolean;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, destroyRequest = false) {
     super(message);
     this.status = status;
+    this.destroyRequest = destroyRequest;
   }
 }
 
@@ -117,11 +126,12 @@ async function readJson(
   bodyReadTimeoutMilliseconds: number,
 ): Promise<Record<string, JournalValue>> {
   if (request.headers["content-type"]?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
+    if (hasRequestBody(request)) await drainUnexpectedBody(request, maximumBodyBytes, bodyReadTimeoutMilliseconds);
     throw new HttpError(415, "content-type-must-be-application-json");
   }
   const declaredLength = request.headers["content-length"];
   if (declaredLength && (!/^(?:0|[1-9][0-9]*)$/.test(declaredLength) || BigInt(declaredLength) > BigInt(maximumBodyBytes))) {
-    throw new HttpError(413, "request-body-too-large");
+    throw new HttpError(413, "request-body-too-large", true);
   }
   const readBody = async (): Promise<Record<string, JournalValue>> => {
     const chunks: Buffer[] = [];
@@ -154,6 +164,48 @@ async function readJson(
   });
   try {
     return await Promise.race([readBody(), deadline]);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
+}
+
+function hasRequestBody(request: IncomingMessage): boolean {
+  const contentLength = request.headers["content-length"];
+  if (Array.isArray(contentLength)) return true;
+  if (typeof contentLength === "string") return contentLength !== "0";
+  return typeof request.headers["transfer-encoding"] === "string";
+}
+
+async function drainUnexpectedBody(
+  request: IncomingMessage,
+  maximumBodyBytes: number,
+  bodyReadTimeoutMilliseconds: number,
+): Promise<void> {
+  const declaredLength = request.headers["content-length"];
+  if (typeof declaredLength === "string"
+    && (!/^(?:0|[1-9][0-9]*)$/.test(declaredLength) || BigInt(declaredLength) > BigInt(maximumBodyBytes))) {
+    throw new HttpError(413, "request-body-too-large", true);
+  }
+  const readBody = async (): Promise<void> => {
+    let length = 0;
+    for await (const chunk of request) {
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      length += bytes.length;
+      if (length > maximumBodyBytes) {
+        request.destroy();
+        throw new HttpError(413, "request-body-too-large");
+      }
+    }
+  };
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      request.destroy();
+      reject(new HttpError(408, "request-body-timeout"));
+    }, bodyReadTimeoutMilliseconds);
+  });
+  try {
+    await Promise.race([readBody(), deadline]);
   } finally {
     if (timeout !== undefined) clearTimeout(timeout);
   }
@@ -317,6 +369,21 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
     "Body read timeout",
     MAX_BODY_READ_TIMEOUT_MILLISECONDS,
   );
+  const requestTimeoutMilliseconds = positiveBoundedInteger(
+    options.requestTimeoutMilliseconds ?? DEFAULT_REQUEST_TIMEOUT_MILLISECONDS,
+    "HTTP request timeout",
+    MAX_HTTP_TIMEOUT_MILLISECONDS,
+  );
+  const headersTimeoutMilliseconds = positiveBoundedInteger(
+    options.headersTimeoutMilliseconds ?? DEFAULT_HEADERS_TIMEOUT_MILLISECONDS,
+    "HTTP headers timeout",
+    MAX_HTTP_TIMEOUT_MILLISECONDS,
+  );
+  const keepAliveTimeoutMilliseconds = positiveBoundedInteger(
+    options.keepAliveTimeoutMilliseconds ?? DEFAULT_KEEP_ALIVE_TIMEOUT_MILLISECONDS,
+    "HTTP keep-alive timeout",
+    MAX_HTTP_TIMEOUT_MILLISECONDS,
+  );
   const maximumPending = positiveBoundedInteger(options.maximumPendingMutations ?? DEFAULT_PENDING_MUTATIONS, "Maximum pending mutations", 10_000);
   const mutationRateLimit = positiveBoundedInteger(options.mutationRateLimit ?? DEFAULT_RATE_LIMIT, "Mutation rate limit", 1_000_000);
   const rateWindowMilliseconds = positiveBoundedInteger(
@@ -373,6 +440,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
   }
 
   const server = createServer((request, response) => {
+    request.socket.setTimeout(requestTimeoutMilliseconds);
     void (async () => {
       const requestNow = clockSeconds();
       const clientKey = extractClientKey(request);
@@ -381,10 +449,16 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
       rateLimit = { state: rl.state, config: rateLimit.config };
       if (!rl.allowed) {
         sendRateLimitExceeded(response, rl.remaining, rl.retryAfterSeconds);
+        if (hasRequestBody(request)) response.once("finish", () => request.destroy());
         return;
       }
       sendRateLimitHeaders(response, rl.remaining, 0n);
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
+      const expectedKind = request.method === "POST" ? MUTATION_KINDS.get(url.pathname) : undefined;
+      if (!expectedKind && hasRequestBody(request)) {
+        await drainUnexpectedBody(request, maximumBodyBytes, bodyReadTimeoutMilliseconds);
+        throw new HttpError(400, "unexpected-request-body");
+      }
       if (request.method === "GET" && url.pathname === "/health") {
         if (!configured) {
           send(response, 200, {
@@ -465,7 +539,9 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
       }
       if (request.method === "GET" && ["/ticker", "/trades", "/depth", "/markets", "/snapshot"].includes(url.pathname)) {
         const publicStore = await storeReady;
-        const state = publicStore?.state ?? null;
+        if (!publicStore) throw new HttpError(503, configured ? errorReason(storeError) : "matcher-configuration-unavailable");
+        if (!publicStore.acceptingMutations) throw new HttpError(503, publicStore.faultReason ?? "matcher-store-closed");
+        const state = publicStore.state;
         if (url.pathname === "/ticker") {
           send(response, 200, publicTicker(state, requestNow));
           return;
@@ -504,6 +580,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
 
       const store = await storeReady;
       if (!store) throw new HttpError(503, configured ? errorReason(storeError) : "matcher-configuration-unavailable");
+      if (!store.acceptingMutations) throw new HttpError(503, store.faultReason ?? "matcher-store-closed");
 
       if (request.method === "GET" && url.pathname === "/v1/checkpoint") {
         send(response, 200, { checkpoint: store.checkpoint, stateRoot: matcherStateRoot(store.state) });
@@ -568,7 +645,6 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
         return;
       }
 
-      const expectedKind = request.method === "POST" ? MUTATION_KINDS.get(url.pathname) : undefined;
       if (expectedKind) {
         checkRate(request);
         if (pendingMutations >= maximumPending) throw new HttpError(503, "mutation-queue-capacity-reached");
@@ -596,7 +672,18 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
       send(response, 404, { ok: false, reason: "not-found" });
     })().catch((error: unknown) => {
       send(response, errorStatus(error), { ok: false, reason: errorReason(error) });
+      if (error instanceof HttpError && error.destroyRequest) {
+        response.once("finish", () => request.destroy());
+      }
     });
+  });
+  server.requestTimeout = requestTimeoutMilliseconds;
+  server.headersTimeout = headersTimeoutMilliseconds;
+  server.keepAliveTimeout = keepAliveTimeoutMilliseconds;
+  server.timeout = requestTimeoutMilliseconds;
+  server.on("connection", (socket) => {
+    socket.setTimeout(headersTimeoutMilliseconds);
+    socket.once("timeout", () => socket.destroy());
   });
 
   const originalClose = server.close.bind(server);

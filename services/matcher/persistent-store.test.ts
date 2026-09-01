@@ -271,7 +271,7 @@ test("restarts with an identical state root and idempotent receipt", async () =>
   });
 });
 
-test("rejects events beyond the trusted future-clock skew on intake and replay", async () => {
+test("rejects client timestamps beyond the trusted skew and persists trusted intake time", async () => {
   await withDirectory(async (directory) => {
     const options = paths(directory);
     const store = await PersistentMatcherStore.open(options);
@@ -288,12 +288,55 @@ test("rejects events beyond the trusted future-clock skew on intake and replay",
     await store.close();
 
     const permissive = await PersistentMatcherStore.open({ ...options, maximumFutureEventSeconds: 60n });
-    await permissive.mutate({ ...orderEvent("future-replay", 2n), occurredAtSeconds: now + 31n });
+    const stamped = await permissive.mutate({ ...orderEvent("future-replay", 2n), occurredAtSeconds: now + 31n });
+    assert.equal(stamped.receipt.occurredAtSeconds, now);
+    const lastRecord = permissive.journal.records[permissive.journal.records.length - 1];
+    assert.ok(lastRecord);
+    const persisted = deserializePersistentMatcherEvent(configuration, lastRecord.event);
+    assert.equal(persisted.occurredAtSeconds, now);
     await permissive.close();
+    const reopened = await PersistentMatcherStore.open(options);
+    assert.equal(reopened.state.sequence, 2n);
+    assert.equal(reopened.state.lastEventAtSeconds, now);
+    await reopened.close();
+  });
+});
+
+test("does not let an initially backdated event revive an expired order", async () => {
+  await withDirectory(async (directory) => {
+    const options = paths(directory);
+    const store = await PersistentMatcherStore.open(options);
+    const candidate = orderEvent("initial-backdate", 1n);
+    const backdatedExpired = {
+      ...candidate,
+      occurredAtSeconds: 0n,
+      submission: {
+        ...candidate.submission,
+        order: { ...candidate.submission.order, expiry: 5_000n },
+      },
+    } satisfies Extract<PersistentMatcherEvent, { kind: "accept-order" }>;
     await assert.rejects(
-      () => PersistentMatcherStore.open(options),
-      /too far in the future/,
+      () => store.mutate(backdatedExpired),
+      /Order must have a future uint64 bigint expiry/,
     );
+    assert.equal(store.journal.sequence, 0n);
+    await store.close();
+  });
+});
+
+test("fails closed when trusted time moves backward after an accepted event", async () => {
+  await withDirectory(async (directory) => {
+    let trustedNow = now;
+    const store = await PersistentMatcherStore.open({ ...paths(directory), clockSeconds: () => trustedNow });
+    await store.mutate(orderEvent("trusted-clock-one", 1n));
+    trustedNow = now - 1n;
+    await assert.rejects(
+      () => store.mutate(orderEvent("trusted-clock-two", 2n)),
+      /moved backward/,
+    );
+    assert.equal(store.state.sequence, 1n);
+    assert.equal(store.journal.sequence, 1n);
+    await store.close();
   });
 });
 
