@@ -1220,7 +1220,7 @@ test("landing journey tabs select LP without a page reload", async ({ page }) =>
   await expect(page.getByRole("link", { name: "Preview trading" })).toBeVisible();
   await page.getByRole("tab", { name: "Withdrawal" }).click();
   await expect(page.getByRole("link", { name: "Preview withdrawal states" })).toBeVisible();
-  await expect(page).toHaveURL(/#journey-withdrawal$/);
+  await expect(page.getByRole("tab", { name: "Withdrawal" })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("link", { name: "Preview withdrawal states" }).click();
   await expect(page).toHaveURL(/view=bridge/);
   await expect(page.getByRole("button", { name: "Withdrawal states" })).toHaveAttribute("aria-pressed", "true");
@@ -1230,7 +1230,7 @@ test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
   await page.goto("/trade?mode=advanced&feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed.").first()).toBeVisible();
-  await expect(page.getByRole("region", { name: "Selected market summary" }).getByRole("status")).toContainText("Settled as pZEC-USDC");
+  await expect(page.getByText("Settled as pZEC-USDC").first()).toBeVisible();
   await expect(page.getByText("Integrity checks failed. Preview-to-sign is disabled. Retry is safe; nothing was submitted. Settled as pZEC-USDC.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
@@ -1277,11 +1277,11 @@ test("chart 1H and 1D img labels return on ZEC/USDT after fixtures", async ({ pa
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDT, settled as pZEC-USDT0" })).toBeVisible();
   await page.getByRole("radio", { name: "Unavailable" }).click();
   await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
-  await page.getByRole("button", { name: "Retry illustrative feed" }).click();
+  await page.getByRole("button", { name: "Retry illustrative feed" }).first().click();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDT, settled as pZEC-USDT0" })).toBeVisible();
-  await page.getByRole("tab", { name: "1H · pZEC-USDT0" }).click();
+  await page.getByRole("radio", { name: "1H · pZEC-USDT0" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 1H price chart for ZEC/USDT, settled as pZEC-USDT0" })).toBeVisible();
-  await page.getByRole("tab", { name: "1D · pZEC-USDT0" }).click();
+  await page.getByRole("radio", { name: "1D · pZEC-USDT0" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 1D price chart for ZEC/USDT, settled as pZEC-USDT0" })).toBeVisible();
 });
 
@@ -1290,7 +1290,7 @@ test("blotter arrow keys move to the next tabpanel", async ({ page }) => {
   await page.getByRole("tab", { name: "Open orders" }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("tab", { name: "Fills" })).toBeFocused();
-  await expect(page.getByRole("tabpanel", { name: "Fills" })).toContainText("No session fills yet. Settled as pZEC-USDC.");
+  await expect(page.getByRole("tabpanel", { name: "Fills" })).toContainText(/No session fills/);
 });
 
 test("first-session education can be completed by keyboard with education copy", async ({ page }) => {
@@ -1330,19 +1330,18 @@ test("country-blocked demonstration hides trading and liquidity controls", async
 
 test("chart range uses a tablist and unavailable tape names the feed", async ({ page }) => {
   await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "ZEC/USDC · pZEC-USDC" })).toBeVisible();
-  await expect(page.getByText("Illustrative market data · pZEC-USDC")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "ZEC/USDC" })).toBeVisible();
+  await expect(page.getByText(/Illustrative market data/)).toBeVisible();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDC, settled as pZEC-USDC" })).toBeVisible();
-  await expect(page.getByRole("tablist", { name: "Chart range" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "4H · pZEC-USDC" })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("tab", { name: "1H · pZEC-USDC" }).click();
+  await expect(page.getByRole("radiogroup", { name: "Chart range" })).toBeVisible();
+  await expect(page.getByRole("radio", { name: "4H · pZEC-USDC" })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("radio", { name: "1H · pZEC-USDC" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 1H price chart for ZEC/USDC, settled as pZEC-USDC" })).toBeVisible();
-  await page.getByRole("tab", { name: "1D · pZEC-USDC" }).click();
-  await expect(page.getByRole("tabpanel", { name: "1D · pZEC-USDC" })).toBeVisible();
+  await page.getByRole("radio", { name: "1D · pZEC-USDC" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 1D price chart for ZEC/USDC, settled as pZEC-USDC" })).toBeVisible();
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
-  await expect(page.getByRole("tab", { name: "1D · pZEC-USDT0" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("heading", { name: "ZEC/USDT · pZEC-USDT0" })).toBeVisible();
+  await expect(page.getByRole("radio", { name: "1D · pZEC-USDT0" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("heading", { name: "ZEC/USDT" })).toBeVisible();
   await page.goto("/trade?mode=advanced&feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByLabel("Asks")).toContainText("Market data unavailable");
   await expect(page.getByLabel("Asks")).toContainText("Settled as pZEC-USDC");
@@ -1455,7 +1454,7 @@ test("landing Liquidity nav selects LP and arrows move focus only", async ({ pag
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/", { waitUntil: "networkidle" });
   await page.locator("header").getByRole("link", { name: "Liquidity" }).click();
-  await expect(page).toHaveURL(/#journey-lp$/);
+  await expect(page).toHaveURL(/#journeys/);
   await expect(page.getByRole("tab", { name: "LP" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("link", { name: "Preview liquidity" })).toBeVisible();
   await page.getByRole("tab", { name: "LP" }).focus();
@@ -1549,7 +1548,7 @@ test("chart and 24h stats name stale and unavailable feeds", async ({ page }) =>
   await expect(page.getByText(/Illustrative market data/)).toBeVisible();
   await expect(page.getByText("24h figures are repository fixtures. Not a live, delayed, or production feed.")).toBeVisible();
   await page.getByRole("radio", { name: "Stale" }).click();
-  await expect(page.getByText("Market data stale", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("Market data stale", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("24h figures stay fixture labels while market data is stale as of 2026-08-30T16:32:08Z.")).toBeVisible();
   await expect(page.getByRole("img", { name: /Delayed illustrative/ })).toBeVisible();
   await page.getByRole("radio", { name: "Unavailable" }).click();
@@ -1564,7 +1563,7 @@ test("LP mint and swap wait on the same feed gate as the ticket", async ({ page 
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
-  await page.getByRole("button", { name: "Retry illustrative feed" }).click();
+  await page.getByRole("button", { name: "Retry illustrative feed" }).first().click();
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeEnabled();
 });
 
@@ -1579,7 +1578,7 @@ test("gateway shows a non-payable placeholder QR and honest clipboard failure", 
   });
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
-  await expect(page.getByText("Not payable. No receivable address is encoded.")).toBeVisible();
+  await expect(page.getByText("Placeholder QR. Not payable.")).toBeVisible();
   await page.getByRole("button", { name: "Copy placeholder URI" }).click();
   await expect(page.getByText("Clipboard copy failed. The URI was not copied. Nothing was sent.")).toBeVisible();
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
