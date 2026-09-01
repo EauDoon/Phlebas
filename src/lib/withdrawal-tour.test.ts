@@ -31,7 +31,7 @@ test("withdrawal tour list includes rejected, expired, refunded, and unresolved 
   assert.ok(ids.indexOf("input-restored") < ids.indexOf("confirmed"));
 });
 
-test("rejected and unresolved tour copy stays a simulation that sends nothing", () => {
+test("rejected and unresolved tour copy stays a demonstration that sends nothing", () => {
   const rejected = withdrawalTourById("rejected");
   const unresolved = withdrawalTourById("unresolved");
   assert.ok(rejected);

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { SimulationFrame } from "@/components/simulation-frame";
+import { SiteChrome } from "@/components/site-chrome";
 import { SITE_FOOTER_SENTENCE } from "@/components/site-footer";
 import { COUNTRY_ACCESS } from "@/lib/country-access";
 
@@ -16,7 +16,7 @@ export default function LegalPage() {
     : "misconfigured";
 
   return (
-    <SimulationFrame
+    <SiteChrome
       title="Legal and compliance"
       skipTo={{ href: "#legal-article", label: "Skip to legal article" }}
     >
@@ -46,6 +46,6 @@ export default function LegalPage() {
           <Link href="/status">Status</Link>
         </p>
       </article>
-    </SimulationFrame>
+    </SiteChrome>
   );
 }

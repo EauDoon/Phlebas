@@ -173,8 +173,12 @@ test("hash160Value exposes the underlying primitive", () => {
 });
 
 test("inspectTransparentDestination classifies empty input", () => {
-  assert.equal(inspectTransparentDestination("").class, "empty");
+  const empty = inspectTransparentDestination("");
+  assert.equal(empty.class, "empty");
   assert.equal(inspectTransparentDestination("   ").class, "empty");
+  assert.match(empty.message, /Enter a destination/);
+  assert.doesNotMatch(empty.message, /\bsimulation\b/i);
+  assert.doesNotMatch(empty.message, /\binspect\b/i);
 });
 
 test("inspectTransparentDestination classifies TEX addresses", () => {
@@ -196,7 +200,10 @@ test("inspectTransparentDestination classifies shielded addresses", () => {
 test("inspectTransparentDestination classifies transparent-shape strings", () => {
   // A well-formed mainnet P2PKH: 34 chars starting with t1
   const addr = "t1" + "abcdefghjkmnpqrstuvwxyz23456789a".slice(0, 33);
-  assert.equal(inspectTransparentDestination(addr).class, "transparent-shape");
+  const out = inspectTransparentDestination(addr);
+  assert.equal(out.class, "transparent-shape");
+  assert.match(out.message, /does not send ZEC/);
+  assert.doesNotMatch(out.message, /\bsimulation\b/i);
 });
 
 test("inspectTransparentDestination classifies unrecognized strings", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { SimulationFrame } from "@/components/simulation-frame";
+import { SiteChrome } from "@/components/site-chrome";
 import styles from "@/components/terminal.module.css";
 import { stripRenderFailureSearch } from "@/lib/render-demo";
 
@@ -22,7 +22,7 @@ export default function AppError({
   }
 
   return (
-    <SimulationFrame
+    <SiteChrome
       title="The page failed to render"
       skipTo={{ href: "#retry-copy", label: "Skip to retry copy" }}
     >
@@ -33,6 +33,6 @@ export default function AppError({
           <button type="button" className={styles.primaryAction} onClick={retry}>Retry</button>
         </p>
       </div>
-    </SimulationFrame>
+    </SiteChrome>
   );
 }

@@ -27,7 +27,7 @@ function JourneyArticle({
       <span className={styles.journeyNumber}>{String(LANDING_JOURNEYS.indexOf(journey) + 1).padStart(2, "0")}</span>
       <div>
         <span className={styles.eyebrow}>{journey.tab}</span>
-        <h3>{journey.tab}</h3>
+        <h3>{journey.title}</h3>
       </div>
       <p>{journey.description}</p>
       <Link href={journey.href}>{journey.action} <span>↗</span></Link>
@@ -140,7 +140,7 @@ export function LandingJourneys() {
           aria-labelledby={`${tablistId}-${journey.id}`}
           hidden={selected !== journey.id}
         >
-          <h3>{journey.tab}</h3>
+          <h3>{journey.title}</h3>
           <p>{journey.description}</p>
           <Link href={journey.href}>{journey.action} <span>↗</span></Link>
         </div>

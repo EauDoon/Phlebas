@@ -1,5 +1,5 @@
-import { SimulationLoading } from "@/components/simulation-loading";
+import { TerminalLoading } from "@/components/terminal-loading";
 
 export default function Loading() {
-  return <SimulationLoading />;
+  return <TerminalLoading />;
 }

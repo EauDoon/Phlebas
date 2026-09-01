@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { SimulationFrame } from "@/components/simulation-frame";
+import { SiteChrome } from "@/components/site-chrome";
 import {
   buildAtomicSwapScript,
 } from "@/lib/zcash-atomic-swap.ts";
@@ -103,11 +103,11 @@ export default async function ZcashPage({
   });
 
   return (
-    <SimulationFrame
+    <SiteChrome
       title="Legacy Zcash HASH160 display"
       skipTo={{ href: "#zcash-ledger", label: "Skip to legacy display" }}
     >
-      <p data-testid="zcash-simulation-notice">
+      <p data-testid="zcash-preview-notice">
         This is a historical, testnet-only HASH160 display. The script and every
         fund, claim, and refund value are legacy synthetic incomplete shapes. They are not the
         canonical SHA-256 transaction lab, Zcash transactions, addresses to fund, wallet inputs,
@@ -169,6 +169,6 @@ export default async function ZcashPage({
           {`?network=${network}&hash20=${hash20Hex}&buyer=${buyerHex}&seller=${sellerHex}&lock=${lock}`}
         </code>
       </p>
-    </SimulationFrame>
+    </SiteChrome>
   );
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { SimulationFrame } from "@/components/simulation-frame";
+import { SiteChrome } from "@/components/site-chrome";
 import { SwapPreimagePanel } from "@/components/swap-state-panel.tsx";
 import { isValidPreimage } from "@/lib/preimage.ts";
 import {
@@ -166,11 +166,11 @@ export default async function SwapPage({
   const observation = projectedDiagnosticNextStep(fill, nowSeconds);
 
   return (
-    <SimulationFrame
+    <SiteChrome
       title="Historical fill-event projection"
       skipTo={{ href: "#swap-state-ledger", label: "Skip to swap state" }}
     >
-      <p data-testid="swap-simulation-notice">
+      <p data-testid="swap-preview-notice">
         This is an untrusted, retired historical fill-event projection built from URL
         parameters. It is read-only and not live settlement. It is not the signed
         SwapState, it does not verify a SwapJournal, and it cannot authorize a wallet
@@ -232,6 +232,6 @@ export default async function SwapPage({
         The current viewer role is <strong data-testid="swap-role">{role}</strong>. This is
         a read-only historical projection. It exposes no action controls.
       </p>
-    </SimulationFrame>
+    </SiteChrome>
   );
 }

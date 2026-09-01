@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { SimulationFrame } from "@/components/simulation-frame";
+import { SiteChrome } from "@/components/site-chrome";
 
 export const metadata: Metadata = {
   title: "Security",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function SecurityPage() {
   return (
-    <SimulationFrame
+    <SiteChrome
       title="Security"
       skipTo={{ href: "#security-article", label: "Skip to security article" }}
     >
@@ -39,6 +39,6 @@ export default function SecurityPage() {
           <Link href="/">Return home</Link>
         </p>
       </article>
-    </SimulationFrame>
+    </SiteChrome>
   );
 }

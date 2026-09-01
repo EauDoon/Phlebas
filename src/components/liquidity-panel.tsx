@@ -304,7 +304,7 @@ export function LiquidityPanel({
     }
   }
 
-  function simulateBurn() {
+  function burnSessionShares() {
     const shares = heldShares[selectedPool.id];
     if (shares <= 0n) {
       setNotice(emptyShareCopy(selectedPool.id));
@@ -376,73 +376,11 @@ export function LiquidityPanel({
 
   const liveNotice = isLpPauseNotice(notice) ? lpPauseNoticeCopy(markets[marketId].settlementPair, tradingPaused) : notice;
 
-  return (
-    <div className={styles.liquidityGrid}>
-      {variant === "quotes" ? (
-      <section className={`${styles.panel} ${styles.lpQuote}`} aria-labelledby="liquidity-title">
-        <div className={styles.panelHeader}>
-          <div>
-            <span className={styles.eyebrow}>Maker and solver quotes</span>
-            <h2 id="liquidity-title">Solver quotes</h2>
-          </div>
-          <span className={styles.statusDot}>Wallet-held inventory</span>
-        </div>
-
-        <div
-          id="liquidity-pools"
-          className={styles.poolTabs}
-          role="radiogroup"
-          aria-label="Quote pair"
-          tabIndex={-1}
-        >
-          {pools.map((pool) => (
-            <button
-              type="button"
-              key={pool.id}
-              role="radio"
-              aria-checked={selectedPool.id === pool.id}
-              className={selectedPool.id === pool.id ? styles.poolActive : undefined}
-              tabIndex={selectedPool.id === pool.id ? 0 : -1}
-              ref={(node) => {
-                poolRefs.current[pool.id] = node;
-              }}
-              onClick={() => selectPool(pool.id)}
-              onKeyDown={(event) => onPoolKeyDown(event, pool.id)}
-            >
-              <span>{pool.id}</span>
-            </button>
-          ))}
-        </div>
-
-        <p className={styles.featureLead}>{solverQuoteInventoryCopy()}</p>
-        <p className={styles.gateNotice} aria-label="Review custody notice">
-          This panel labels native ZEC. It is not live settlement. The matcher is not trustless.
-        </p>
-
-        <dl className={styles.ticketSummary}>
-          {SOLVER_QUOTE_SIGNED_FIELDS.map((field) => (
-            <div key={field}>
-              <dt>{QUOTE_FIELD_LABELS[field]}</dt>
-              <dd>{quoteFields[field]}</dd>
-            </div>
-          ))}
-        </dl>
-
-        <div className={styles.lpActions}>
-          <p className={styles.inlineNotice}>
-            No shared AMM shares. Unused capacity stays in the provider wallet.
-          </p>
-          <button type="button" className={styles.primaryAction} disabled>
-            Wallet actions stay disabled
-          </button>
-        </div>
-      </section>
-      ) : null}
-
-      {variant === "historical-amm" ? (
+  if (variant === "historical-amm") {
+    return (
       <section
         id="historical-amm"
-        className={`${styles.panel} ${styles.lpStats}`}
+        className={`${styles.panel} ${styles.featurePrimary}`}
         aria-labelledby="pool-stats-heading"
         tabIndex={-1}
       >
@@ -453,7 +391,7 @@ export function LiquidityPanel({
           </div>
           <span className={styles.warningPill}>Retired</span>
         </div>
-        <p className={styles.inlineNotice}>
+        <p className={styles.featureLead}>
           Retired constant-product math. It is not the current liquidity product.
         </p>
         {heldShares[selectedPool.id] === 0n && (
@@ -607,27 +545,25 @@ export function LiquidityPanel({
           </div>
         ) : null}
 
-        <div className={styles.lpActions}>
-          <div className={styles.tourNav}>
-            <button type="button" onClick={requestMintReview} disabled={!mintEnabled}>Review mint</button>
-            <button type="button" onClick={simulateBurn} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
-            <button type="button" onClick={requestSwapReview} disabled={!swapEnabled}>Review swap</button>
-            <button
-              type="button"
-              aria-pressed={tradingPaused}
-              onClick={() => {
-                setTradingPaused((current) => !current);
-                setNotice(lpPauseNoticeCopy(markets[marketId].settlementPair, !tradingPaused));
-              }}
-            >
-              {tradingPaused ? "Resume trading preview" : "Pause trading preview"}
-            </button>
-            <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setReview(null); setNotice(lpResetNoticeCopy(markets[marketId].settlementPair)); }}>
-              Reset pool
-            </button>
-          </div>
-          <p className={styles.inlineNotice} aria-live="polite">{liveNotice}</p>
+        <div className={styles.tourNav}>
+          <button type="button" onClick={requestMintReview} disabled={!mintEnabled}>Review mint</button>
+          <button type="button" onClick={burnSessionShares} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
+          <button type="button" onClick={requestSwapReview} disabled={!swapEnabled}>Review swap</button>
+          <button
+            type="button"
+            aria-pressed={tradingPaused}
+            onClick={() => {
+              setTradingPaused((current) => !current);
+              setNotice(lpPauseNoticeCopy(markets[marketId].settlementPair, !tradingPaused));
+            }}
+          >
+            {tradingPaused ? "Resume trading preview" : "Pause trading preview"}
+          </button>
+          <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setReview(null); setNotice(lpResetNoticeCopy(markets[marketId].settlementPair)); }}>
+            Reset pool
+          </button>
         </div>
+        <p className={styles.inlineNotice} aria-live="polite">{liveNotice}</p>
 
         <dl
           id="pool-stats"
@@ -665,16 +601,71 @@ export function LiquidityPanel({
         </p>
         <p className={styles.inlineNotice}>{lpRiskCopy()}</p>
       </section>
-      ) : null}
+    );
+  }
 
-      {variant === "quotes" ? (
-      <aside className={`${styles.panel} ${styles.lpRisk}`} aria-labelledby="lp-risk-title">
+  return (
+    <div className={styles.featureGrid}>
+      <section className={`${styles.panel} ${styles.featurePrimary}`} aria-labelledby="liquidity-title">
         <div className={styles.panelHeader}>
           <div>
-            <span className={styles.eyebrow}>Quote risk</span>
-            <h2 id="lp-risk-title" tabIndex={-1}>Named quote risks</h2>
+            <span className={styles.eyebrow}>Maker and solver quotes</span>
+            <h2 id="liquidity-title">Solver quotes</h2>
           </div>
+          <span className={styles.statusDot}>Wallet-held inventory</span>
         </div>
+
+        <div
+          id="liquidity-pools"
+          className={styles.poolTabs}
+          role="radiogroup"
+          aria-label="Quote pair"
+          tabIndex={-1}
+        >
+          {pools.map((pool) => (
+            <button
+              type="button"
+              key={pool.id}
+              role="radio"
+              aria-checked={selectedPool.id === pool.id}
+              className={selectedPool.id === pool.id ? styles.poolActive : undefined}
+              tabIndex={selectedPool.id === pool.id ? 0 : -1}
+              ref={(node) => {
+                poolRefs.current[pool.id] = node;
+              }}
+              onClick={() => selectPool(pool.id)}
+              onKeyDown={(event) => onPoolKeyDown(event, pool.id)}
+            >
+              <span>{pool.id}</span>
+            </button>
+          ))}
+        </div>
+
+        <p className={styles.featureLead}>{solverQuoteInventoryCopy()}</p>
+        <p className={styles.gateNotice} aria-label="Review custody notice">
+          This panel labels native ZEC. It is not live settlement. The matcher is not trustless.
+        </p>
+
+        <dl className={styles.ticketSummary}>
+          {SOLVER_QUOTE_SIGNED_FIELDS.map((field) => (
+            <div key={field}>
+              <dt>{QUOTE_FIELD_LABELS[field]}</dt>
+              <dd>{quoteFields[field]}</dd>
+            </div>
+          ))}
+        </dl>
+
+        <p className={styles.inlineNotice}>
+          No shared AMM shares. Unused capacity stays in the provider wallet.
+        </p>
+        <button type="button" className={styles.primaryAction} disabled>
+          Wallet actions stay disabled
+        </button>
+      </section>
+
+      <aside className={`${styles.panel} ${styles.riskCard}`} aria-labelledby="lp-risk-title">
+        <span className={styles.eyebrow}>Quote risk</span>
+        <h2 id="lp-risk-title" tabIndex={-1}>Named quote risks</h2>
         <ul className={styles.cleanList}>
           {quoteRisks.map((entry) => (
             <li key={entry.risk}>
@@ -685,7 +676,6 @@ export function LiquidityPanel({
           ))}
         </ul>
       </aside>
-      ) : null}
     </div>
   );
 }

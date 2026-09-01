@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { SimulationFrame } from "@/components/simulation-frame";
-import { simulationStatus } from "@/lib/status";
+import { SiteChrome } from "@/components/site-chrome";
+import { previewStatus } from "@/lib/status";
 
 export const metadata: Metadata = {
   title: "Status",
@@ -10,10 +10,10 @@ export const metadata: Metadata = {
 };
 
 export default function StatusPage() {
-  const status = simulationStatus();
+  const status = previewStatus();
 
   return (
-    <SimulationFrame
+    <SiteChrome
       title="Status"
       skipTo={{ href: "#status-ledger", label: "Skip to status ledger" }}
     >
@@ -62,6 +62,6 @@ export default function StatusPage() {
       <p>
         Architecture includes labeled historical-state demonstrations for blocked access, review, reorg, planned maintenance, and unplanned maintenance. They are copy-only. This status page is not an incident feed.
       </p>
-    </SimulationFrame>
+    </SiteChrome>
   );
 }

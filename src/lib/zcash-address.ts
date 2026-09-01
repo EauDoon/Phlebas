@@ -68,7 +68,7 @@ export function inspectTransparentDestination(value: string): DestinationInspect
     return {
       class: "empty",
       eligibleLater: false,
-      message: "Enter a destination to inspect. This simulation never sends ZEC.",
+      message: "Enter a destination. This preview never sends ZEC.",
     };
   }
   if (destination.includes("{TEX_ADDRESS}") || destination.startsWith("zcash:")) {
@@ -96,7 +96,7 @@ export function inspectTransparentDestination(value: string): DestinationInspect
     return {
       class: "transparent-shape",
       eligibleLater: false,
-      message: "Transparent-shape input noted. No wallet is Phlebas-verified, and this simulation does not send ZEC.",
+      message: "Transparent-shape input noted. No wallet is Phlebas-verified, and this preview does not send ZEC.",
     };
   }
   return {

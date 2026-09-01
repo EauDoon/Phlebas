@@ -2474,7 +2474,7 @@ test("landing nav footer settlement flow and current-system ledger stay 44px on 
   expect((await ledger.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
-test("simulation-frame and terminal footer links stay 44px on desktop", async ({ page }) => {
+test("site chrome and terminal footer links stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/status", { waitUntil: "networkidle" });
   const statusFooter = page.getByRole("navigation", { name: "Footer" }).getByRole("link", { name: "Status" });
@@ -2505,7 +2505,7 @@ test("status legal and security ledgers are named lists", async ({ page }) => {
   expect((await security.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
-test("landing header CTA journey tabs settlement action and simulation-frame nav stay 44px on desktop", async ({ page }) => {
+test("landing header CTA journey tabs settlement action and site chrome nav stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/", { waitUntil: "networkidle" });
   const headerCta = page.locator("header").getByRole("link", { name: OPEN_TERMINAL_CTA });
