@@ -96,6 +96,7 @@ test("shipped UI copy does not claim live trustless, shielded, or native-ZEC set
   assert.match(architecture, /The matcher is not trustless/);
   assert.match(architecture, /Simulation only/);
   assert.doesNotMatch(architecture, /wallet-signed native-ZEC atomic settlement/);
+  assert.doesNotMatch(architecture, /Onchain atomic settlement/);
 });
 
 test("status payload cannot be read as live funds or custody", async () => {
