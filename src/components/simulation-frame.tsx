@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 
 import { activateSkipLink } from "@/lib/skip-link";
@@ -16,9 +16,31 @@ export function SimulationFrame({
   children: ReactNode;
   skipTo?: { href: string; label: string };
 }) {
+  const skipNavRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const nav = skipNavRef.current;
+    if (!nav) return;
+    const setState = (state: "hidden" | "visible" | "hidden-after-activation") => {
+      nav.setAttribute("data-skip-nav-state", state);
+    };
+    const onActivate = () => setState("hidden-after-activation");
+    const onFocusIn = () => setState("visible");
+    const onKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setState("hidden-after-activation");
+    };
+    nav.addEventListener("click", onActivate);
+    nav.addEventListener("focusin", onFocusIn);
+    nav.addEventListener("keydown", onKeydown);
+    return () => {
+      nav.removeEventListener("click", onActivate);
+      nav.removeEventListener("focusin", onFocusIn);
+      nav.removeEventListener("keydown", onKeydown);
+    };
+  }, []);
+
   return (
     <div className={styles.shell}>
-      <nav className={styles.skipNav} aria-label="Skip links">
+      <nav ref={skipNavRef} className={styles.skipNav} aria-label="Skip links" data-skip-nav-state="hidden">
         <a className={styles.skipLink} href="#main-content" onClick={activateSkipLink}>Skip to main content</a>
         {skipTo ? <a className={styles.skipLink} href={skipTo.href} onClick={activateSkipLink}>{skipTo.label}</a> : null}
       </nav>
