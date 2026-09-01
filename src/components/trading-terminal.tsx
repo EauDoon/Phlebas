@@ -786,6 +786,7 @@ export function TradingTerminal({
                 marketId={marketId}
                 account={account}
                 lastTicks={book.lastTicks}
+                book={book}
                 openOrders={userOrders(book)}
                 fills={fills}
                 events={events}
