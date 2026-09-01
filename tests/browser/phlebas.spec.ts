@@ -398,12 +398,12 @@ test("leaving Architecture for Trade drops demo=incidents and return restores it
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Primary navigation" });
-  await nav.getByRole("button", { name: "Trade" }).click();
+  await nav.getByRole("tab", { name: "Trade" }).click();
   await expect(page).toHaveURL(/view=trade/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
   await expect(page.getByText("Status field architecture-demonstration.")).toHaveCount(0);
-  await nav.getByRole("button", { name: "Architecture" }).click();
+  await nav.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
@@ -414,11 +414,11 @@ test("leaving Architecture for the ZEC gateway drops demo=incidents and return r
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Primary navigation" });
-  await nav.getByRole("button", { name: "ZEC gateway" }).click();
+  await nav.getByRole("tab", { name: "ZEC gateway" }).click();
   await expect(page).toHaveURL(/view=bridge/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
-  await nav.getByRole("button", { name: "Architecture" }).click();
+  await nav.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
@@ -428,11 +428,11 @@ test("leaving Architecture for Liquidity drops demo=incidents and return restore
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Primary navigation" });
-  await nav.getByRole("button", { name: "Liquidity" }).click();
+  await nav.getByRole("tab", { name: "Liquidity" }).click();
   await expect(page).toHaveURL(/\/liquidity/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
-  await nav.getByRole("button", { name: "Architecture" }).click();
+  await nav.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
@@ -1546,7 +1546,7 @@ test("blotter arrows move focus and Enter selects", async ({ page }) => {
 
 test("chart and 24h stats name stale and unavailable feeds", async ({ page }) => {
   await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
-  await expect(page.getByText("Illustrative market data", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Illustrative market data/)).toBeVisible();
   await expect(page.getByText("24h figures are repository fixtures. Not a live, delayed, or production feed.")).toBeVisible();
   await page.getByRole("radio", { name: "Stale" }).click();
   await expect(page.getByText("Market data stale", { exact: true })).toHaveCount(2);
@@ -1560,7 +1560,7 @@ test("chart and 24h stats name stale and unavailable feeds", async ({ page }) =>
 
 test("LP mint and swap wait on the same feed gate as the ticket", async ({ page }) => {
   await page.goto("/liquidity?feed=stale", { waitUntil: "networkidle" });
-  await expect(page.getByText("Market data stale", { exact: true })).toBeVisible();
+  await expect(page.getByText("Market data stale", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();

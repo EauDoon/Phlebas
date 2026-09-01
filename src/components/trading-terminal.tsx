@@ -15,6 +15,7 @@ import {
   subscribeIncidentDemo,
 } from "@/lib/gateway-incidents";
 import { activateSkipLink } from "@/lib/skip-link";
+import { NO_TEX_ISSUED, ZEC_DESTINATION_LABEL } from "@/lib/wallet-bar-copy";
 import { terminalUrl } from "@/lib/terminal-url";
 import {
   DEFAULT_TERMINAL_MODE,
@@ -551,7 +552,7 @@ export function TradingTerminal({
               </button>
             ))}
           </div>
-          <span className={styles.network}>No TEX issued</span>
+          <span className={styles.network} aria-label={ZEC_DESTINATION_LABEL}>{NO_TEX_ISSUED}</span>
           <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
         </div>
       </header>
