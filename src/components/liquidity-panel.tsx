@@ -594,7 +594,7 @@ export function LiquidityPanel({
               className={styles.primaryAction}
               onClick={review.kind === "mint" ? executeMint : executeSwap}
             >
-              Confirm simulated {review.kind}
+              Complete {review.kind}
             </button>
             <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
               Back
@@ -604,9 +604,9 @@ export function LiquidityPanel({
 
         <div className={styles.lpActions}>
           <div className={styles.tourNav}>
-            <button type="button" onClick={requestMintReview} disabled={!mintEnabled}>Review simulated mint</button>
+            <button type="button" onClick={requestMintReview} disabled={!mintEnabled}>Review mint</button>
             <button type="button" onClick={simulateBurn} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
-            <button type="button" onClick={requestSwapReview} disabled={!swapEnabled}>Review simulated swap</button>
+            <button type="button" onClick={requestSwapReview} disabled={!swapEnabled}>Review swap</button>
             <button
               type="button"
               aria-pressed={tradingPaused}

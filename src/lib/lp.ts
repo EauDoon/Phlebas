@@ -64,7 +64,7 @@ export function lpSwapNoticeCopy(
   quote: Market["quote"],
   settlementPair: Market["settlementPair"],
 ): string {
-  return `Simulated ZEC→${quote} swap. Output ${outputLabel} ${quote}. Local preview only. Settled as ${settlementPair}.`;
+  return `ZEC→${quote} swap. Output ${outputLabel} ${quote}. Local preview only. Settled as ${settlementPair}.`;
 }
 
 export function seedPool(reserveZecAtoms: bigint, reserveQuoteAtoms: bigint): PoolShares {

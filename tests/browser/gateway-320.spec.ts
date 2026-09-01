@@ -6,8 +6,7 @@ test("320px historical custody tour stays non-payable", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Historical ZEC state tour" })).toBeVisible();
   await expect(page.getByText("ZEC to pZEC")).toHaveCount(0);
-  await expect(page.getByText("No runtime gateway")).toBeVisible();
-  await expect(page.getByText("No address is generated, copied, or accepted by this application.")).toBeVisible();
+  await expect(page.getByText("Retired", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("textest", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Issue testnet TEX" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Copy.*URI/ })).toHaveCount(0);

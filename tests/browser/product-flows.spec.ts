@@ -112,14 +112,14 @@ test("status, missing route, and render-failure retry change visible state", asy
   await page.goto("/not-a-route", { waitUntil: "networkidle" });
   const missing = page.getByLabel("Missing-route copy");
   await expect(missing).toBeVisible();
-  await expect(missing).toContainText("That route is not part of the Phlebas simulation.");
+  await expect(missing).toContainText("That route is not part of the Phlebas public preview.");
   await page.getByRole("link", { name: "Open the trading terminal" }).click();
   await expect(page).toHaveURL(/\/trade/);
   await expect(page.getByRole("heading", { name: "Order entry" })).toBeVisible();
 
   await page.goto("/trade?error=1", { waitUntil: "networkidle" });
   const retryCopy = page.getByLabel("Retry copy");
-  await expect(page.getByRole("heading", { name: "The simulation failed to render" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The page failed to render" })).toBeVisible();
   await expect(retryCopy).toContainText("Nothing was submitted to a chain, matcher, or custody system.");
   await retryCopy.getByRole("button", { name: "Retry" }).click();
   await expect(page.getByRole("heading", { name: "Order entry" })).toBeVisible();
@@ -190,7 +190,7 @@ test("market IOC confirm fills against the fixture book", async ({ page }) => {
   await page.getByRole("button", { name: "Market" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review buy" }).click();
-  await expect(page.getByText("Worst acceptable price")).toBeVisible();
+  await expect(page.getByText("Worst price", { exact: true })).toBeVisible();
   await expect(page.getByText("IOC", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(describeSubmit(market, "ZEC/USDC"))).toBeVisible();

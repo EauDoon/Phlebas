@@ -14,11 +14,11 @@ test("320px LP empty shares and toxic-flow risk copy", async ({ page }) => {
 test("320px LP unavailable feed disables mint and retries", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/liquidity?feed=unavailable", { waitUntil: "networkidle" });
-  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review mint" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review swap" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
   await expect(page.getByText(lpFeedBlockCopy())).toBeVisible();
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
-  await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Review mint" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Review swap" })).toBeEnabled();
 });
