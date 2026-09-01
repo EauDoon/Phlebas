@@ -38,7 +38,7 @@ Stage the pinned toolchain and dependencies before entering an offline verificat
 ```bash
 npm ci --ignore-scripts
 forge fmt --root contracts --check
-forge build --root contracts --offline --force --sizes
+forge build src/swap/ConditionalLock.sol --root contracts --offline --force --sizes
 forge test --root contracts --offline -vvv
 ```
 

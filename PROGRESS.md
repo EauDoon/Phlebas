@@ -221,7 +221,7 @@ Last updated: 01-09-2026 after native ZEC-USDC/ZEC-USDT pair labels, reserve tZE
 - Matcher rejects replay, expiry, unapproved assets/venues, self-trades, unsupported multi-fill IOC/FOK, and fee caps that cannot settle. Signatures are mandatory outside explicit unit-test bypasses.
 - Matcher, gateway, and observer mutations are serialized and use file fsync plus atomic rename. Corrupt or unexpectedly missing replay state fails closed. Windows lacks a portable directory-fsync barrier, which is documented without weakening file fsync or rename.
 - Sepolia deployment requires distinct roles. The manifest is wired into runtime configuration and cannot be marked deployed without a complete, commit-bound successful Sepolia receipt and verified bytecode at every address.
-- CI pins the Foundry action and toolchain. Contract invariants include 10,000-case AMM-product and settlement-rounding fuzz runs in the release check.
+- CI pins the Foundry action and toolchain. Contract invariants and fuzz tests run with the checked-in Foundry profile (`256` fuzz cases and `64` invariant runs at depth `16`).
 - Chart, 24h stats, depth, and LP mint/swap reuse ticket-gate feed names. Empty, loading, and unavailable withhold fixtures. Chart panel keeps height. Stale still shows delayed fixtures.
 - ZIP 321 placeholder QR is labeled not payable. Clipboard failure and missing clipboard stay honest. Nothing is sent.
 - Ticket G/I/F stay idle while review is open. Escape leaves review. Shortcuts ignore native dialogs.
