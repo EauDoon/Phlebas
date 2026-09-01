@@ -33,6 +33,7 @@ import {
 } from "./matcher-client.ts";
 import {
   EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME,
+  matcherCommandHash,
   matcherConfigurationHash,
   type PersistentMatcherConfiguration,
   type PersistentMatcherEvent,
@@ -266,6 +267,7 @@ test("builds stable proxy bytes that round-trip through the native matcher seria
     [MATCHER_IDEMPOTENCY_HEADER]: value.requestId,
   });
   assert.deepEqual(payload, native.payload);
+  assert.equal(request.commandHash, matcherCommandHash(configuration, event));
   assert.equal(request.body, serializeMatcherOrderSubmission(value));
   assert.equal(JSON.stringify(payload).includes("eth_sendTransaction"), false);
   assert.equal(JSON.stringify(payload).includes("wallet"), false);
@@ -657,6 +659,7 @@ test("rejects ambiguous expected matcher identities before trusting health", () 
 
 test("binds a matcher receipt to the reviewed request, signed order, and configuration", () => {
   const subjectHash = hashTypedOrder(domain, order);
+  const request = buildMatcherOrderRequest(input());
   const response = {
     ok: true,
     replayed: false,
@@ -664,7 +667,7 @@ test("binds a matcher receipt to the reviewed request, signed order, and configu
       version: 1,
       sequence: "8",
       requestId: "order:testnet:0001",
-      commandHash: `0x${"ab".repeat(32)}`,
+      commandHash: request.commandHash,
       kind: "accept-order",
       status: "open",
       subjectHash,
@@ -691,12 +694,13 @@ test("binds a matcher receipt to the reviewed request, signed order, and configu
   const verified = assertMatcherOrderReceipt(response, {
     expectedMatcher,
     requestId: "order:testnet:0001",
-    subjectHash,
+    commandHash: request.commandHash,
+    order,
   });
   assert.equal(verified.receipt.sequence, 8n);
   assert.equal(verified.receipt.status, "open");
   assert.equal(verified.receipt.occurredAtSeconds, NOW);
-  assert.equal(verified.receipt.commandHash, `0x${"ab".repeat(32)}`);
+  assert.equal(verified.receipt.commandHash, request.commandHash);
   assert.equal(verified.receipt.remainingBaseAtoms, order.baseAmountAtoms);
   assert.deepEqual(verified.receipt.swapPlanIds, []);
   assert.equal(verified.receiptCheckpoint.sequence, 8n);
@@ -709,6 +713,7 @@ test("binds a matcher receipt to the reviewed request, signed order, and configu
 
 test("rejects matcher receipts that do not bind the reviewed no-value order", () => {
   const subjectHash = hashTypedOrder(domain, order);
+  const request = buildMatcherOrderRequest(input());
   const base = {
     ok: true,
     replayed: false,
@@ -716,7 +721,7 @@ test("rejects matcher receipts that do not bind the reviewed no-value order", ()
       version: 1,
       sequence: "8",
       requestId: "order:testnet:0001",
-      commandHash: `0x${"ab".repeat(32)}`,
+      commandHash: request.commandHash,
       kind: "accept-order",
       status: "open",
       subjectHash,
@@ -742,7 +747,8 @@ test("rejects matcher receipts that do not bind the reviewed no-value order", ()
   const expectation = {
     expectedMatcher,
     requestId: "order:testnet:0001",
-    subjectHash,
+    commandHash: request.commandHash,
+    order,
   };
 
   assert.throws(
@@ -752,6 +758,10 @@ test("rejects matcher receipts that do not bind the reviewed no-value order", ()
   assert.throws(
     () => assertMatcherOrderReceipt({ ...base, receipt: { ...base.receipt, subjectHash: `0x${"11".repeat(32)}` } }, expectation),
     /signed order/,
+  );
+  assert.throws(
+    () => assertMatcherOrderReceipt({ ...base, receipt: { ...base.receipt, commandHash: `0x${"12".repeat(32)}` } }, expectation),
+    /submitted command/,
   );
   const serverStamped = assertMatcherOrderReceipt({
     ...base,
@@ -788,6 +798,20 @@ test("rejects matcher receipts that do not bind the reviewed no-value order", ()
   }, expectation);
   assert.equal(routed.receipt.routeKind, "order-book");
   assert.deepEqual(routed.receipt.swapPlanIds, [`0x${"44".repeat(32)}`]);
+  assert.throws(
+    () => assertMatcherOrderReceipt({
+      ...base,
+      receipt: { ...base.receipt, status: "filled", remainingBaseAtoms: "1" },
+    }, expectation),
+    /inconsistent with the reviewed order/,
+  );
+  assert.throws(
+    () => assertMatcherOrderReceipt({
+      ...base,
+      receipt: { ...base.receipt, status: "open", remainingBaseAtoms: "0" },
+    }, expectation),
+    /inconsistent with the reviewed order/,
+  );
   const replayAtNewerHead = assertMatcherOrderReceipt({
     ...base,
     replayed: true,

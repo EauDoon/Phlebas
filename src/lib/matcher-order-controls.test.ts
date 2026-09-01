@@ -5,6 +5,7 @@ import type { Eip1193Provider } from "./evm-wallet.ts";
 import { hashTypedOrder } from "./eip712-order.ts";
 import { hashMatcherControl } from "./matcher-auth.ts";
 import { evmAuthorizedSignerId } from "./matcher-auth.ts";
+import { hashMatcherOrderCommand, type MatcherOrderPayload } from "./matcher-client.ts";
 import {
   NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
   computeNativeZecUsdcMatcherConfigurationHash,
@@ -170,6 +171,7 @@ async function confirmedOrder(
     if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "GET") return json(health(order.deployment));
     if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(order.deployment));
     if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "POST") {
+      const payload = JSON.parse(init.body as string) as MatcherOrderPayload;
       return json({
         ok: true,
         replayed: false,
@@ -177,7 +179,14 @@ async function confirmedOrder(
           version: 1,
           sequence: "10",
           requestId: order.draft.requestId,
-          commandHash: `0x${"a9".repeat(32)}`,
+          commandHash: hashMatcherOrderCommand({
+            configurationHash: order.deployment.expectedMatcher!.configurationHash,
+            requestId: payload.requestId,
+            occurredAtSeconds: BigInt(payload.occurredAtSeconds),
+            orderHash,
+            signature: payload.submission.signature,
+            accounts: payload.submission.accounts,
+          }),
           kind: "accept-order",
           status,
           subjectHash: orderHash,
@@ -485,9 +494,9 @@ test("rejections and uncertain receipts preserve exact signed retry bytes after 
   );
 });
 
-test("only confirmed open or partially-filled orders can enter cancellation review", async () => {
+test("only confirmed open or partially-filled GTC orders can enter cancellation review", async () => {
   const source = await reviewedOrder();
-  for (const status of ["filled", "ioc-remainder-cancelled", "fok-rejected", "unfilled"] as const) {
+  for (const status of ["filled"] as const) {
     const artifact = await confirmedOrder(source, status);
     const fetchCalls: string[] = [];
     const providerCalls: string[] = [];

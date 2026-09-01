@@ -1,4 +1,4 @@
-import { hexToBytes } from "./keccak.ts";
+import { bytesToHex, hexToBytes } from "./keccak.ts";
 import type { SwapTermsV1 } from "./swap-domain.ts";
 import { canonicalArtifactJson, verifyZcashArtifact, type CommittedZcashArtifact } from "./zcash-artifact.ts";
 import { buildFundingArtifact, type FundingArtifactRequest } from "./zcash-funding.ts";
@@ -56,7 +56,7 @@ function freezeBound(value: TermsBoundZcashArtifact): TermsBoundZcashArtifact {
   return Object.freeze(value);
 }
 
-function verifyBoundArtifactIdentity(
+export function verifyTermsBoundZcashArtifact(
   terms: SwapTermsV1,
   bound: TermsBoundZcashArtifact,
   expectedAction?: "fund" | "claim" | "refund",
@@ -78,6 +78,21 @@ function verifyBoundArtifactIdentity(
     throw new Error(`Terms-bound Zcash artifact must be a ${expectedAction} action`);
   }
   return expectedProjection;
+}
+
+function assertZcashClaimAuthorized(state: SwapState, preimage: Uint8Array): void {
+  if (state.disputes.length > 0) {
+    throw new Error("Terms-bound Zcash claim cannot be constructed while settlement evidence is disputed");
+  }
+  if (state.evm.phase !== "claimed-confirmed" || state.confirmedSecret === undefined) {
+    throw new Error("Terms-bound Zcash claim requires a policy-confirmed EVM claim");
+  }
+  if (!(preimage instanceof Uint8Array) || preimage.length !== 32) {
+    throw new TypeError("Terms-bound Zcash claim preimage must be exactly 32 bytes");
+  }
+  if (state.confirmedSecret !== `0x${bytesToHex(preimage)}`) {
+    throw new Error("Terms-bound Zcash claim requires the confirmed canonical preimage");
+  }
 }
 
 export function buildTermsBoundZcashFundingArtifact(
@@ -185,6 +200,7 @@ export function buildTermsBoundZcashClaimArtifact(
     throw new Error("Terms-bound Zcash claim requires the exact Mainnet encoding profile");
   }
   const context = spendArtifactContext(state, request.feeZatoshis);
+  assertZcashClaimAuthorized(state, request.preimage);
   const artifact = buildClaimArtifact({
     ...publicEvidence,
     contractUtxo: context.contractUtxo,
@@ -231,7 +247,7 @@ export function appendTermsBoundZcashFunding(
   bound: TermsBoundZcashArtifact,
   occurredAtSeconds: bigint,
 ) {
-  const projection = verifyBoundArtifactIdentity(state.terms, bound, "fund");
+  const projection = verifyTermsBoundZcashArtifact(state.terms, bound, "fund");
   const manifest = bound.artifact.manifest;
   if (manifest.network !== "mainnet"
     || manifest.outputs[0]?.role !== "contract"

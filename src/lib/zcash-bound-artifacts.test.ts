@@ -4,11 +4,14 @@ import { test } from "node:test";
 import { hexToBytes } from "./keccak.ts";
 import {
   canonicalMainnetSwapTerms,
+  authorizedSwap,
   fixturePreimage,
   fixtureSecretHash,
   fundedZecSwap,
+  fundedSwap,
   sampleEvidencePolicies,
   sampleMarketPolicy,
+  spendEvidence,
   sampleTimingPolicy,
 } from "./swap-test-fixtures.ts";
 import { createZip317TransparentPolicy } from "./zcash-fees.ts";
@@ -28,10 +31,11 @@ import {
   verifyBoundWalletReviewRequest,
 } from "./zcash-bound-pczt.ts";
 import { createPcztEnvelope, walletPcztReadiness } from "./zcash-pczt.ts";
+import { commitZcashSettlementArtifactBinding } from "./zcash-settlement-binding.ts";
 import { createNu63EncodingProfile } from "./zcash-transaction-policy.ts";
 import { encodeTransparentAddress, transparentScriptPubKey } from "./zcash-transparent.ts";
 import { appendSwapEvent, emptySwapJournal, verifySwapJournal } from "./swap-journal.ts";
-import { createSwapState } from "./swap-state.ts";
+import { confirmSwapSpend, createSwapState, observeSwapSpend } from "./swap-state.ts";
 
 const SOURCE = encodeTransparentAddress("mainnet", "p2pkh", hexToBytes("77".repeat(20)));
 const PROFILE = createNu63EncodingProfile({ network: "mainnet", transactionVersion: 5, coinType: 133 });
@@ -78,8 +82,12 @@ test("derives the Mainnet funding contract solely from signed swap terms", () =>
 
 function claimRequest(overrides: Partial<TermsBoundClaimArtifactRequest> = {}): TermsBoundClaimArtifactRequest {
   const terms = canonicalMainnetSwapTerms({ secretHash: fixtureSecretHash });
+  const first = spendEvidence("evm", "claim", terms.evmClaimSafetyCutoff - 1n, terms, 0);
+  const second = spendEvidence("evm", "claim", terms.evmClaimSafetyCutoff - 1n, terms, 1);
+  const observed = observeSwapSpend(observeSwapSpend(fundedSwap(terms), first), second);
+  const state = confirmSwapSpend(observed, "evm", first.fact.factId, second.attestation.observedAtSeconds);
   return {
-    state: fundedZecSwap(terms),
+    state,
     profile: PROFILE,
     targetHeight: 3_500_000,
     expiryHeight: 3_500_020,
@@ -124,7 +132,7 @@ test("derives claim and refund artifacts from confirmed funding and signed recip
 test("rejects wrong preimages, early refunds, and unconfirmed or mutated funding facts", () => {
   assert.throws(
     () => buildTermsBoundZcashClaimArtifact(claimRequest({ preimage: hexToBytes("99".repeat(32)) })),
-    /does not match/,
+    /confirmed canonical preimage|does not match/,
   );
   assert.throws(
     () => buildTermsBoundZcashRefundArtifact(refundRequest({
@@ -134,8 +142,21 @@ test("rejects wrong preimages, early refunds, and unconfirmed or mutated funding
   );
   const confirmed = claimRequest().state;
   assert.throws(
+    () => buildTermsBoundZcashClaimArtifact(claimRequest({ state: fundedZecSwap(confirmed.terms) })),
+    /policy-confirmed EVM claim/,
+  );
+  assert.throws(
+    () => buildTermsBoundZcashClaimArtifact(claimRequest({
+      state: {
+        ...confirmed,
+        disputes: [{ reason: "semantic-mismatch", detail: "review fixture dispute" }],
+      },
+    })),
+    /evidence is disputed/,
+  );
+  assert.throws(
     () => buildTermsBoundZcashClaimArtifact(claimRequest({ state: { ...confirmed, zec: { phase: "unfunded" } } })),
-    /confirmed canonical ZEC funding|integrity/,
+    /confirmed canonical ZEC funding|integrity|cannot predate policy-confirmed ZEC funding/,
   );
   assert.throws(
     () => buildTermsBoundZcashClaimArtifact(claimRequest({
@@ -188,9 +209,10 @@ test("ignores attempted runtime overrides of contract amount and redeem script",
 });
 
 test("binds PCZT review bytes to exact swap terms while keeping release blocked", () => {
-  const bound = buildTermsBoundZcashFundingArtifact(fundingRequest());
+  const request = fundingRequest();
+  const bound = buildTermsBoundZcashFundingArtifact(request);
   const pczt = createPcztEnvelope(Uint8Array.of(0x50, 0x43, 0x5a, 0x54, 2, 0, 0, 0, 0xaa));
-  const review = createBoundWalletReviewRequest({ boundArtifact: bound, pczt });
+  const review = createBoundWalletReviewRequest({ state: authorizedSwap(request.terms), boundArtifact: bound, pczt });
   verifyBoundWalletReviewRequest(review);
   assert.equal(review.releaseState, "blocked");
   assert.equal(review.settlementBinding.binding.swapId, bound.projection.swapId);
@@ -207,10 +229,14 @@ test("binds PCZT review bytes to exact swap terms while keeping release blocked"
 });
 
 test("rejects PCZT, manifest, binding, and release-boundary substitution", () => {
-  const bound = buildTermsBoundZcashFundingArtifact(fundingRequest());
+  const request = fundingRequest();
+  const state = authorizedSwap(request.terms);
+  const bound = buildTermsBoundZcashFundingArtifact(request);
+  const pczt = createPcztEnvelope(Uint8Array.of(0x50, 0x43, 0x5a, 0x54, 2, 0, 0, 0, 0xaa));
   const review = createBoundWalletReviewRequest({
+    state,
     boundArtifact: bound,
-    pczt: createPcztEnvelope(Uint8Array.of(0x50, 0x43, 0x5a, 0x54, 2, 0, 0, 0, 0xaa)),
+    pczt,
   });
   assert.throws(
     () => verifyBoundWalletReviewRequest({ ...review, releaseState: "ready" } as never),
@@ -236,6 +262,24 @@ test("rejects PCZT, manifest, binding, and release-boundary substitution", () =>
       walletReview: { ...review.walletReview, pcztByteSha256: "99".repeat(32) },
     }),
     /PCZT envelope fields|review digest/,
+  );
+  const forgedProjection = {
+    ...bound.projection,
+    swapId: `0x${"91".repeat(32)}` as const,
+    termsHash: `0x${"92".repeat(32)}` as const,
+  };
+  const relabelled = {
+    ...bound,
+    projection: forgedProjection,
+    binding: commitZcashSettlementArtifactBinding({
+      projection: forgedProjection,
+      action: bound.artifact.manifest.kind,
+      artifactManifestDigest: bound.artifact.manifestDigest,
+    }),
+  };
+  assert.throws(
+    () => createBoundWalletReviewRequest({ state, boundArtifact: relabelled, pczt }),
+    /authoritative swap terms/,
   );
 });
 

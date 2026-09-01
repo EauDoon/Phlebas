@@ -4,6 +4,7 @@ import test from "node:test";
 import type { Eip1193Provider } from "./evm-wallet.ts";
 import { hashTypedOrder } from "./eip712-order.ts";
 import { evmAuthorizedSignerId } from "./matcher-auth.ts";
+import { hashMatcherOrderCommand, type MatcherOrderPayload } from "./matcher-client.ts";
 import {
   NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
   computeNativeZecUsdcMatcherConfigurationHash,
@@ -150,10 +151,20 @@ function provider(calls: string[], review: () => ReviewedMatcherBuyOrder | null)
 
 function receipt(
   review: ReviewedMatcherBuyOrder,
+  requestBody: string,
   occurredAtSeconds = review.draft.occurredAt,
   currentSequence = "10",
 ) {
   const subjectHash = hashTypedOrder(review.deployment.orderDomain!, review.draft.order);
+  const payload = JSON.parse(requestBody) as MatcherOrderPayload;
+  const commandHash = hashMatcherOrderCommand({
+    configurationHash: review.deployment.expectedMatcher!.configurationHash,
+    requestId: payload.requestId,
+    occurredAtSeconds: BigInt(payload.occurredAtSeconds),
+    orderHash: subjectHash,
+    signature: payload.submission.signature,
+    accounts: payload.submission.accounts,
+  });
   return {
     ok: true,
     replayed: false,
@@ -161,7 +172,7 @@ function receipt(
       version: 1,
       sequence: "10",
       requestId: review.draft.requestId,
-      commandHash: `0x${"76".repeat(32)}`,
+      commandHash,
       kind: "accept-order",
       status: "open",
       subjectHash,
@@ -287,7 +298,7 @@ test("confirmation signs only the reviewed EIP-712 order, posts exact bytes, and
     if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "POST") {
       postBodies.push(init.body as string);
       postHeaders.push(init.headers);
-      return json(receipt(reviewed!, reviewed!.draft.occurredAt + 2n));
+      return json(receipt(reviewed!, init.body as string, reviewed!.draft.occurredAt + 2n));
     }
     throw new Error(String(path));
   };
@@ -319,7 +330,7 @@ test("definite POST rejection and unknown signed receipt retain a safe exact ret
       postBodies.push(init.body as string);
       if (postAttempt === 1) return json({ ok: false, reason: "matcher-rejected-order" }, 422);
       if (postAttempt === 2) throw new Error("response lost after signed POST");
-      return json(receipt(reviewed!, reviewed!.draft.occurredAt, "12"));
+      return json(receipt(reviewed!, init.body as string, reviewed!.draft.occurredAt, "12"));
     }
     throw new Error(String(path));
   };

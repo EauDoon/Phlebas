@@ -1,7 +1,10 @@
 import type { Hex32 } from "./order-domain.ts";
 import { sha256Hex } from "./sha256.ts";
 import { canonicalArtifactJson, verifyZcashArtifact } from "./zcash-artifact.ts";
-import type { TermsBoundZcashArtifact } from "./zcash-bound-artifacts.ts";
+import {
+  verifyTermsBoundZcashArtifact,
+  type TermsBoundZcashArtifact,
+} from "./zcash-bound-artifacts.ts";
 import {
   PCZT_HEADER_VALIDATION,
   createWalletReviewRequest,
@@ -13,6 +16,7 @@ import {
   verifyZcashSettlementArtifactBinding,
   type CommittedZcashSettlementArtifactBinding,
 } from "./zcash-settlement-binding.ts";
+import { assertSwapStateIntegrity, type SwapState } from "./swap-state.ts";
 
 export const BOUND_WALLET_REVIEW_SCHEMA = "phlebas-zcash-bound-wallet-review-v1" as const;
 export const BOUND_WALLET_REVIEW_BLOCKERS = Object.freeze([
@@ -99,18 +103,17 @@ export function verifyBoundWalletReviewRequest(value: BoundWalletReviewRequest):
 }
 
 export function createBoundWalletReviewRequest(options: {
+  state: SwapState;
   boundArtifact: TermsBoundZcashArtifact;
   pczt: PcztEnvelope | string;
 }): BoundWalletReviewRequest {
-  verifyZcashArtifact(options.boundArtifact.artifact);
-  verifyZcashSettlementArtifactBinding(options.boundArtifact.binding);
+  assertSwapStateIntegrity(options.state);
+  verifyTermsBoundZcashArtifact(
+    options.state.terms,
+    options.boundArtifact,
+    options.boundArtifact.artifact.manifest.kind,
+  );
   const binding = options.boundArtifact.binding.binding;
-  if (binding.swapId !== options.boundArtifact.projection.swapId
-    || binding.termsHash !== options.boundArtifact.projection.termsHash
-    || binding.action !== options.boundArtifact.artifact.manifest.kind
-    || binding.artifactManifestDigest !== options.boundArtifact.artifact.manifestDigest) {
-    throw new Error("Terms-bound artifact and settlement binding are inconsistent");
-  }
   const walletReview = createWalletReviewRequest({
     artifact: options.boundArtifact.artifact,
     pczt: options.pczt,
