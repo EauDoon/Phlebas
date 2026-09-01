@@ -119,3 +119,10 @@ These interface references inform hierarchy and density only. Phlebas uses its o
 - [NIST SP 800-53 security and privacy controls](https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final)
 - [CIS Critical Security Controls](https://www.cisecurity.org/controls)
 - [Google SRE release engineering chapter](https://sre.google/sre-book/release-engineering/)
+
+## Accessibility references
+
+- [Web Content Accessibility Guidelines (WCAG) 2.2](https://www.w3.org/TR/WCAG22/)
+- [WAI-ARIA Authoring Practices Guide (APG)](https://www.w3.org/WAI/ARIA/apg/)
+- [axe-core accessibility testing library](https://github.com/dequelabs/axe-core)
+- [Playwright accessibility testing guide](https://playwright.dev/docs/accessibility-testing)
