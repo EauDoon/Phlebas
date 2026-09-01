@@ -498,7 +498,6 @@ export function TradingTerminal({
         {initialAccess === "open" && view === "trade" ? (
           <>
             <a className={styles.skipLink} href="#order-ticket" onClick={activateSkipLink}>Skip to order ticket</a>
-            <a className={styles.skipLink} href="#native-matcher-order-action" onClick={activateSkipLink}>Skip to native matcher status</a>
             <a className={styles.skipLink} href="#price-chart" onClick={activateSkipLink}>Skip to price chart</a>
             {isSimple ? null : (
               <a className={styles.skipLink} href="#order-book" onClick={activateSkipLink}>Skip to order book</a>

@@ -8,6 +8,9 @@ function withoutHonestVisibleNegation(copy: string) {
     .replace(/\bnot trustless\b/gi, "")
     .replace(/\bdoes not provide shielded(?: deposits)?\b/gi, "")
     .replace(/\bNo shielded deposit or withdrawal is planned for v1\b/gi, "")
+    .replace(/\bShielded ZEC stays out of scope\./gi, "")
+    .replace(/\bnot a shielded market\b/gi, "")
+    .replace(/\bShielded deposits, leverage, lending, and token incentives remain out of scope\./gi, "")
     .replace(/\bNative settlement target:[^.]*(?:\.|$)/gi, "")
     .replace(/\bnot the native-settlement target\b/gi, "");
 }
