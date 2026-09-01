@@ -6,7 +6,9 @@ Phlebas is a non-custodial exchange under development for native transparent ZEC
 
 [Open the private GitHub repository](https://github.com/EauDoon/Phlebas)
 
-> Current status, 01-09-2026: Phlebas is a no-value product and protocol implementation. The public app uses synthetic markets and local browser state. No production contract, Zcash node, wallet signing path, mainnet transaction, or real asset is connected. Nothing in this repository is an offer of financial services.
+> Current status, 01-09-2026: Phlebas is a no-value product and protocol implementation. The public app uses synthetic markets and local browser state. No production contract, Zcash node, Zcash-wallet signing path, mainnet transaction, or real asset is connected. Nothing in this repository is an offer of financial services.
+
+The current integration target is a signed USDC buy-side order submitted to an accepting no-value matcher. The matcher can validate, sequence, and record the order, but it cannot move funds. ZEC sell-side submission remains disabled until a Zcash-wallet authorization format is integrated. The contract manifest is undeployed, and every live-value action remains disabled pending its required gates.
 
 ## Markets
 
@@ -67,7 +69,7 @@ The native-swap reference engine accepts only a zero protocol fee. The fee field
 
 ### Local and legacy surfaces
 
-The repository still contains an undeployed Arbitrum Sepolia contract candidate, a persistent loopback matcher, atomic-swap observer reference code, and historical pZEC and AMM simulations. The custody-capable TEX gateway and legacy mint/reserve-attestation observer were removed from runtime. The matcher starts unconfigured, holds no keys, constructs no transactions, and cannot sign or broadcast. None of these local services may run on Vercel.
+The repository still contains an undeployed Arbitrum Sepolia contract candidate, a persistent loopback matcher, atomic-swap observer reference code, and historical pZEC and AMM simulations. No local TEX issuance or custody gateway is part of the current runtime. The matcher starts unconfigured, holds no keys, constructs no transactions, and cannot sign, broadcast, or move funds. None of these local services may run on Vercel.
 
 The active settlement architecture is recorded in [ADR 0002](docs/adr/0002-native-zec-atomic-settlement.md). The persistent no-value matcher boundary is recorded in [ADR 0003](docs/adr/0003-persistent-native-matcher.md).
 
@@ -81,7 +83,7 @@ The active settlement architecture is recorded in [ADR 0002](docs/adr/0002-nativ
 6. Review and sign only the wallet action supported by the current chain evidence.
 7. Finish as settled or refunded. Unsafe evidence keeps the ticket disputed and disables normal progress.
 
-The current public app simulates this journey. Wallet signing and chain broadcast stay disabled until the exact wallet, Testnet, contract, observer, legal, and release gates pass.
+The current public app simulates this journey. Asset-moving wallet signing and chain broadcast stay disabled until the exact wallet, Testnet, contract, observer, legal, and release gates pass.
 
 ## Repository map
 

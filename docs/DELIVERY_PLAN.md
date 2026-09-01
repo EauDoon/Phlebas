@@ -1,9 +1,9 @@
 # Phlebas Delivery Plan
 
-Status: active full-build goal
+Status: no-value integration target
 Updated: 01-09-2026
 
-The public app now includes an in-browser matcher, integer seed books, legacy AMM previews, split-route comparison, LP share previews, feed-state ticket gates, SHA-256 session digests, keccak EIP-712 typed data, an optional Arbitrum Sepolia wallet connection, local testnet TEX issuance, a local matcher operator, `/status`, and branded error surfaces. The in-repository Sepolia contracts remain undeployed and belong to the legacy pZEC testnet slice, not the native-settlement target.
+The public app includes an in-browser matcher, integer seed books, legacy AMM previews, split-route comparison, LP share previews, feed-state ticket gates, SHA-256 session digests, keccak EIP-712 typed data, an optional Arbitrum Sepolia wallet connection, a local matcher operator, `/status`, and branded error surfaces. The current integration target is a signed USDC buy-side order submitted to an accepting no-value matcher. ZEC sell-side submission remains disabled until a Zcash-wallet authorization format is integrated. No local TEX issuance or custody gateway exists in the current runtime. The in-repository Sepolia contracts remain undeployed, and the missing live-value gates keep chain actions disabled.
 
 ## Objective
 
