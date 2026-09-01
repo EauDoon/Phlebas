@@ -26,19 +26,20 @@ import {
   chainIdentifier,
 } from "./order-domain.ts";
 import { VENUE_CLOB } from "./order-policy.ts";
+import { hash160Value, p2shAddress } from "./zcash-address.ts";
 import { serializePersistentMatcherEvent } from "../../services/matcher/persistent-store.ts";
 
 const NOW = 1_800_000_000n;
 const CHAIN_ID = 421_614n;
-const SIGNER = "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf";
-const SIGNATURE = "0xc6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee52e29550ce7efe4ccf200db72e5ae63658f00f2728b312dfb9989fc572f5c01811b";
+const SIGNER = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
+const SIGNATURE = "0xac14f0e6c59ffb853f21cf338a836705e68850f44f371eab0b06169856c8a7b86df9706894f19e865330d47237bf726503a8704e617920c5a23011b22ad850ba1c";
 const BASE_NETWORK = "bip122:00040fe8ec8471911baa1db1266ea15d";
 const BASE_ASSET = `${BASE_NETWORK}/slip44:133`;
 const QUOTE_NETWORK = `eip155:${CHAIN_ID}`;
 const QUOTE_ASSET = `${QUOTE_NETWORK}/erc20:0x2222222222222222222222222222222222222222`;
 const PROTOCOL = "transparent-htlc-v1";
 const SOURCE_ACCOUNT = `${QUOTE_NETWORK}:${SIGNER}`;
-const RECIPIENT_ACCOUNT = `zcash:mainnet:t3${"A".repeat(33)}`;
+const RECIPIENT_ACCOUNT = `zcash:mainnet:${p2shAddress(new Uint8Array(20).fill(0xaa), "mainnet")}`;
 const domain = createOrderDomain(CHAIN_ID, "0x1111111111111111111111111111111111111111");
 const market: AtomicSwapPair = {
   base: { network: BASE_NETWORK, asset: BASE_ASSET, environment: "mainnet", decimals: 8 },
@@ -184,7 +185,7 @@ test("canonicalizes every signed bytes32 field and the ECDSA recovery byte", () 
     recipientAccountId: upperHex(order.recipientAccountId),
     settlementAdapterId: upperHex(order.settlementAdapterId),
   };
-  const zeroOrOneRecovery = `0x${SIGNATURE.slice(2, -2).toUpperCase()}00`;
+  const zeroOrOneRecovery = `0x${SIGNATURE.slice(2, -2).toUpperCase()}01`;
   const request = buildMatcherOrderRequest(input({ order: upperOrder, signature: zeroOrOneRecovery }));
   const serialized = parsedPayload(request.body).submission;
 
@@ -344,7 +345,7 @@ test("rejects pair, quote, adapter, policy, account, role, and shape confusion b
     /source account does not match/,
   );
 
-  const zcashSource = `zcash:mainnet:t3${"B".repeat(33)}`;
+  const zcashSource = `zcash:mainnet:${p2shAddress(hash160Value(new TextEncoder().encode("matcher-role-confusion")), "mainnet")}`;
   const evmRecipient = `${QUOTE_NETWORK}:0x${"77".repeat(20)}`;
   const roleConfusedOrder: TypedOrderIntent = {
     ...order,

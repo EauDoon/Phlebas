@@ -12,6 +12,7 @@ import { keccak256Text } from "../../src/lib/keccak.ts";
 import type { MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
 import type { PersistentMatcherConfiguration, PersistentMatcherEvent } from "../../src/lib/persistent-matcher.ts";
 import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier } from "../../src/lib/order-domain.ts";
+import { hash160Value, p2shAddress } from "../../src/lib/zcash-address.ts";
 import { VENUE_CLOB } from "../../src/lib/order-policy.ts";
 import { serializePersistentMatcherEvent } from "./persistent-store.ts";
 import { startMatcher } from "./server.ts";
@@ -63,7 +64,7 @@ const configuration: PersistentMatcherConfiguration = {
 const verifier: MatcherSignatureVerifier = { verify() {} };
 
 function zcashAccount(name: string): string {
-  const address = `t3${keccak256Text(`zcash:${name}`).slice(2).replaceAll("0", "a").slice(0, 33)}`;
+  const address = p2shAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
   return `zcash:mainnet:${address}`;
 }
 
