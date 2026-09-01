@@ -325,7 +325,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /Fixture \{selectedPool\.tvl\}/);
   assert.match(liquidity, /Fixture \{selectedPool\.volume\}/);
   assert.match(liquidity, /Retry illustrative feed/);
-  assert.match(liquidity, /No session LP shares/);
+  assert.match(liquidity, /emptyShareCopy\(selectedPool\.id\)/);
   assert.match(liquidity, /not a return or profit projection/i);
   assert.match(liquidity, /feeEnvelopeCopy/);
   assert.match(liquidity, /Confirm simulated \{review\.kind\}/);
