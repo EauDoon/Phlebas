@@ -1,6 +1,7 @@
 import { type Locator, type Page } from "@playwright/test";
 
 import { ARBITRUM_SEPOLIA_HEX, walletSigningDisabledCopy } from "../../src/lib/evm-wallet.ts";
+import { emptyShareCopy } from "../../src/lib/lp.ts";
 import { expect, test } from "./fixtures";
 
 const viewports = [320, 390, 768, 1440] as const;
@@ -173,7 +174,7 @@ for (const width of viewports) {
       await tabTo(page, enterSimulation);
       await expectVisibleFocus(enterSimulation);
       await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(/\/trade\?view=trade$/);
+      await expect(page).toHaveURL(/\/trade\?view=trade/);
       await expect(page.getByRole("radio", { name: "ZEC / USDC" })).toHaveAttribute("aria-checked", "true");
       await expect(page.getByText("legacy simulation: pZEC-USDC", { exact: true })).toBeVisible();
 
@@ -200,13 +201,13 @@ for (const width of viewports) {
       await tabTo(page, lpLink);
       await expectVisibleFocus(lpLink);
       await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(/\/liquidity$/);
+      await expect(page).toHaveURL(/\/liquidity/);
       await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
 
       await page.goto("/trade?view=liquidity", { waitUntil: "networkidle" });
       await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
 
-      await page.goto("/trade", { waitUntil: "networkidle" });
+      await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
       const tradeNavigation = page.getByRole("tab", { name: "Trade" });
       await tabTo(page, tradeNavigation);
       await expectVisibleFocus(tradeNavigation);
@@ -214,7 +215,7 @@ for (const width of viewports) {
       const liquidityNavigation = page.getByRole("tab", { name: "Liquidity" });
       await expectVisibleFocus(liquidityNavigation);
       await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDC$/);
+      await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDC/);
       await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
 
       const laterPool = page.getByRole("radio", { name: /pZEC\/USDT0/ });
@@ -223,7 +224,7 @@ for (const width of viewports) {
       await page.keyboard.press("Enter");
       await expect(laterPool).toHaveAttribute("aria-checked", "true");
       await expect(page.getByText(/Later listing gate\. This is a preview/)).toBeVisible();
-      await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDT$/);
+      await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDT/);
 
       const amount = page.getByRole("textbox", { name: "pZEC liquidity amount" });
       await tabTo(page, amount);
@@ -285,7 +286,7 @@ for (const width of viewports) {
         await tabTo(page, enter);
         await expectVisibleFocus(enter);
         await page.keyboard.press("Enter");
-        await expect(page).toHaveURL(/\/trade\?view=trade$/);
+        await expect(page).toHaveURL(/\/trade\?view=trade/);
       }
 
       expect(runtimeErrors).toEqual([]);
@@ -294,7 +295,7 @@ for (const width of viewports) {
 }
 
 test("trade ticket shows parser errors instead of a tick notice", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const size = page.getByRole("textbox", { name: "Order size in pZEC" });
   await size.fill("0.000000001");
   await expect(page.getByText("Value must use no more than 8 decimal places").first()).toBeVisible();
@@ -320,7 +321,7 @@ test("gateway preview is not a receivable deposit", async ({ page }) => {
 });
 
 test("local matcher fills a buy against the fixture ask", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Ask 52.91" }).click();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
@@ -334,7 +335,7 @@ test("local matcher fills a buy against the fixture ask", async ({ page }) => {
 });
 
 test("price improvement cannot create a free pZEC atom", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("100");
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("0.00000001");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
@@ -358,7 +359,7 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   const boundary = page.locator("main#main-content");
   await expect(boundary.getByRole("link", { name: "Legal and compliance" })).toBeVisible();
   await expect(boundary.getByRole("link", { name: "Security" })).toHaveCount(2);
-  await expect(boundary.getByRole("link", { name: "Architecture" })).toBeVisible();
+  await expect(boundary.getByRole("link", { name: "Architecture", exact: true })).toBeVisible();
   await expect(boundary.getByRole("link", { name: "Launch gates" })).toBeVisible();
 
   const missing = await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "load" });
@@ -477,7 +478,7 @@ test("ZIP 321 copy stays disabled without a gateway", async ({ page }) => {
 });
 
 test("stale market data disables preview-to-sign and retries to illustrative", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await expect(page.getByLabel("Market statistics").getByText("Session last · pZEC-USDC")).toBeVisible();
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
@@ -492,7 +493,7 @@ test("stale market data disables preview-to-sign and retries to illustrative", a
 });
 
 test("Escape leaves review without confirming a session order", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
   await page.keyboard.press("Escape");
@@ -501,7 +502,7 @@ test("Escape leaves review without confirming a session order", async ({ page })
 });
 
 test("review names the cheaper venue before confirm", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Ask 52.91" }).click();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
@@ -513,7 +514,7 @@ test("review names the cheaper venue before confirm", async ({ page }) => {
 });
 
 test("GTC remainder can be cancelled and epoch invalidation is visible", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
@@ -528,7 +529,7 @@ test("GTC remainder can be cancelled and epoch invalidation is visible", async (
 });
 
 test("USDT market names USDT0 settlement and empty feed shows no depth", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(page.getByText("legacy simulation: pZEC-USDT0")).toBeVisible();
   await page.getByRole("radio", { name: "Empty" }).click();
@@ -672,7 +673,7 @@ test("withdrawal tour drives a stub claim without changing tour copy", async ({ 
 });
 
 test("IOC cancels an unfilled remainder and FOK rejects a full miss", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "IOC" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
@@ -689,7 +690,7 @@ test("IOC cancels an unfilled remainder and FOK rejects a full miss", async ({ p
 });
 
 test("invalidate-epoch control is keyboard focusable", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const invalidate = page.getByRole("button", { name: "Invalidate older session orders" });
   await invalidate.focus();
   await expect(invalidate).toBeFocused();
@@ -703,7 +704,7 @@ test("liquidity previews integer IL versus hold without a return claim", async (
 });
 
 test("market orders are IOC with a visible worst price", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Market" }).click();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
@@ -712,7 +713,7 @@ test("market orders are IOC with a visible worst price", async ({ page }) => {
 });
 
 test("invalid expiry stays on the ticket and does not open review", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1.5");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByText("Expiry must be a whole unix time, or 0 for none.").first()).toBeVisible();
@@ -721,7 +722,7 @@ test("invalid expiry stays on the ticket and does not open review", async ({ pag
 
 test("order expiry unix time appears on review", async ({ page }) => {
   const expiry = String(Math.floor(Date.now() / 1000) + 3600);
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await expect(page.getByRole("textbox", { name: "Order expiry unix time" })).toHaveValue("0");
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill(expiry);
@@ -732,7 +733,7 @@ test("order expiry unix time appears on review", async ({ page }) => {
 
 test("session event log includes expiry after confirm", async ({ page }) => {
   const expiry = String(Math.floor(Date.now() / 1000) + 3600);
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill(expiry);
   await page.getByRole("button", { name: "Review simulated buy" }).click();
@@ -748,7 +749,7 @@ test("architecture view keeps Vercel off the matcher", async ({ page }) => {
 });
 
 test("connect wallet without a provider shows a visible rejection", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await expect(page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" })).toHaveAttribute(
     "title",
     "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as pZEC-USDC.",
@@ -758,7 +759,7 @@ test("connect wallet without a provider shows a visible rejection", async ({ pag
 });
 
 test("connect wallet without a provider names pZEC-USDT0 after switching market", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
   await expect(connect).toHaveAttribute(
@@ -772,7 +773,7 @@ test("connect wallet without a provider names pZEC-USDT0 after switching market"
 });
 
 test("missing-provider error keeps settlement after switching market", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
   await connect.click();
   await expect(
@@ -798,7 +799,7 @@ test("rejected connect error keeps settlement after switching market", async ({ 
       },
     });
   });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
   await connect.click();
   await expect(
@@ -822,7 +823,7 @@ test("connecting wallet title keeps the settlement pair", async ({ page }) => {
       },
     });
   });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
   await connect.click();
   await expect(connect).toHaveText("Connecting");
@@ -845,7 +846,7 @@ test("connecting wallet title keeps settlement after switching market", async ({
       },
     });
   });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
   await connect.click();
   await expect(connect).toHaveText("Connecting");
@@ -881,7 +882,7 @@ test("connecting wallet title after rejected connect hang keeps settlement", asy
       },
     });
   });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
   await connect.click();
   const rejectUsdc = "User rejected the request. Settled as pZEC-USDC.";
@@ -906,7 +907,7 @@ test("connecting wallet title after rejected connect hang keeps settlement", asy
 });
 
 test("idle Connect wallet title keeps settlement after switching market", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
   await expect(connect).toHaveText("Connect wallet");
   await expect(connect).toHaveAttribute(
@@ -938,7 +939,7 @@ test("ticket sign missing-provider copy names the selected market settlement pai
       },
     });
   }, ARBITRUM_SEPOLIA_HEX);
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as pZEC-USDC." })).toBeVisible();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
@@ -972,7 +973,7 @@ test("ticket sign missing-provider copy names pZEC-USDT0 if market switches whil
       },
     });
   }, ARBITRUM_SEPOLIA_HEX);
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as pZEC-USDC." })).toBeVisible();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
@@ -1003,7 +1004,7 @@ test("wallet disconnect accessible name keeps settlement after switching market"
       },
     });
   }, ARBITRUM_SEPOLIA_HEX);
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
   const connectedUsdc = page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as pZEC-USDC." });
   await expect(connectedUsdc).toHaveText("0xf39f…2266");
@@ -1038,7 +1039,7 @@ test("first-session education can be completed by keyboard", async ({ page }) =>
 });
 
 test("ticket G I F shortcuts set time in force", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "Order entry" }).click();
   await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("i");
@@ -1118,7 +1119,7 @@ test("deposit tour never shows a receivable address", async ({ page }) => {
 });
 
 test("unavailable feed retry returns to illustrative", async ({ page }) => {
-  await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced&feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
@@ -1168,7 +1169,7 @@ test("landing without JavaScript still shows four journey descriptions", async (
 });
 
 test("past unix expiry rejects before review and names the rejected panel", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
@@ -1178,7 +1179,7 @@ test("past unix expiry rejects before review and names the rejected panel", asyn
 });
 
 test("ticket reject copy names pZEC-USDT0 if market switches while rejected panel is open", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
@@ -1191,7 +1192,7 @@ test("ticket reject copy names pZEC-USDT0 if market switches while rejected pane
 });
 
 test("blotter tabs expose a selected tabpanel", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await expect(page.getByRole("tab", { name: "Open orders" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("tabpanel", { name: "Open orders" })).toContainText("No open session orders. Settled as pZEC-USDC.");
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
@@ -1201,7 +1202,7 @@ test("blotter tabs expose a selected tabpanel", async ({ page }) => {
 });
 
 test("blotter event log empty copy names the settlement pair", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("tab", { name: "Event log" }).click();
   await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText(
     "No session events yet. Settled as pZEC-USDC.",
@@ -1226,7 +1227,7 @@ test("landing journey tabs select LP without a page reload", async ({ page }) =>
 });
 
 test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
-  await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced&feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed.").first()).toBeVisible();
   await expect(page.getByRole("region", { name: "Selected market summary" }).getByRole("status")).toContainText("Settled as pZEC-USDC");
@@ -1247,7 +1248,7 @@ test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
 });
 
 test("unavailable ZEC/USDT withholds chart copy naming pZEC-USDT0 before retry", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await page.getByRole("radio", { name: "Unavailable" }).click();
   await expect(
@@ -1257,7 +1258,7 @@ test("unavailable ZEC/USDT withholds chart copy naming pZEC-USDT0 before retry",
 });
 
 test("chart withheld copy names pZEC-USDT0 if market switches while unavailable", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("radio", { name: "Unavailable" }).click();
   await expect(
     page.getByText("Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as pZEC-USDC.").first(),
@@ -1271,7 +1272,7 @@ test("chart withheld copy names pZEC-USDT0 if market switches while unavailable"
 });
 
 test("chart 1H and 1D img labels return on ZEC/USDT after fixtures", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDT, settled as pZEC-USDT0" })).toBeVisible();
   await page.getByRole("radio", { name: "Unavailable" }).click();
@@ -1285,7 +1286,7 @@ test("chart 1H and 1D img labels return on ZEC/USDT after fixtures", async ({ pa
 });
 
 test("blotter arrow keys move to the next tabpanel", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("tab", { name: "Open orders" }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("tab", { name: "Fills" })).toBeFocused();
@@ -1328,7 +1329,7 @@ test("country-blocked demonstration hides trading and liquidity controls", async
 });
 
 test("chart range uses a tablist and unavailable tape names the feed", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "ZEC/USDC · pZEC-USDC" })).toBeVisible();
   await expect(page.getByText("Illustrative market data · pZEC-USDC")).toBeVisible();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDC, settled as pZEC-USDC" })).toBeVisible();
@@ -1342,7 +1343,7 @@ test("chart range uses a tablist and unavailable tape names the feed", async ({ 
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(page.getByRole("tab", { name: "1D · pZEC-USDT0" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("heading", { name: "ZEC/USDT · pZEC-USDT0" })).toBeVisible();
-  await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced&feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByLabel("Asks")).toContainText("Market data unavailable");
   await expect(page.getByLabel("Asks")).toContainText("Settled as pZEC-USDC");
   await expect(page.getByRole("heading", { name: "Recent trades" })).toBeVisible();
@@ -1352,7 +1353,7 @@ test("chart range uses a tablist and unavailable tape names the feed", async ({ 
 });
 
 test("ticket G I F shortcuts ignore review until Escape", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
@@ -1382,7 +1383,7 @@ test("LP empty-share copy clears after a mint", async ({ page }) => {
 });
 
 test("ticket G I F shortcuts set time in force and ignore an open dialog", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "Order entry" }).click();
   await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("i");
@@ -1528,7 +1529,7 @@ test("architecture incident select stays inside 320px", async ({ page }) => {
 });
 
 test("blotter arrows move focus and Enter selects", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const orders = page.getByRole("tab", { name: "Open orders" });
   const fills = page.getByRole("tab", { name: "Fills" });
   await orders.focus();
@@ -1544,7 +1545,7 @@ test("blotter arrows move focus and Enter selects", async ({ page }) => {
 });
 
 test("chart and 24h stats name stale and unavailable feeds", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await expect(page.getByText("Illustrative market data", { exact: true })).toBeVisible();
   await expect(page.getByText("24h figures are repository fixtures. Not a live, delayed, or production feed.")).toBeVisible();
   await page.getByRole("radio", { name: "Stale" }).click();
@@ -1577,7 +1578,7 @@ test("gateway shows a non-payable placeholder QR and honest clipboard failure", 
     });
   });
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await expect(page.getByRole("img", { name: "Not a payable QR. Placeholder ZIP 321 only." })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
   await expect(page.getByText("Not payable. No receivable address is encoded.")).toBeVisible();
   await page.getByRole("button", { name: "Copy placeholder URI" }).click();
   await expect(page.getByText("Clipboard copy failed. The URI was not copied. Nothing was sent.")).toBeVisible();
@@ -1597,7 +1598,7 @@ test("clipboard unavailable stays honest without writeText", async ({ page }) =>
 });
 
 test("G I F do not change time in force while review is open", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
@@ -1625,7 +1626,7 @@ test("status names architecture incident demonstrations", async ({ page }) => {
 });
 
 test("terminal skip links reach the ticket and blotter", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
   await page.keyboard.press("Tab");
@@ -1638,7 +1639,7 @@ test("terminal skip links reach the ticket and blotter", async ({ page }) => {
 test("placeholder QR stays inside 320px", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  const qr = page.getByRole("img", { name: "Not a payable QR. Placeholder ZIP 321 only." });
+  const qr = page.getByRole("img", { name: "Placeholder QR. Not payable." });
   await expect(qr).toBeVisible();
   const box = await qr.boundingBox();
   expect(box?.width ?? 0).toBeLessThanOrEqual(320);
@@ -1651,7 +1652,7 @@ test("placeholder QR stays inside 320px", async ({ page }) => {
 
 test("LP empty-share copy is visible before a mint", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await expect(page.getByText("No session LP shares. Burn stays available when shares exist. Mint is a local preview.")).toBeVisible();
+  await expect(page.getByText(emptyShareCopy("pZEC/USDC"))).toBeVisible();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
 });
 
@@ -1668,7 +1669,7 @@ test("incident select is a 44px target at 320px", async ({ page }) => {
 });
 
 test("chart range arrows select the next radio", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const fourHour = page.getByRole("radio", { name: "4H" });
   await expect(fourHour).toHaveAttribute("aria-checked", "true");
   await fourHour.focus();
@@ -1680,7 +1681,7 @@ test("chart range arrows select the next radio", async ({ page }) => {
 });
 
 test("terminal skip links reach the price chart after the ticket", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
@@ -1691,7 +1692,7 @@ test("terminal skip links reach the price chart after the ticket", async ({ page
 });
 
 test("invalid size shows a field error and keeps review closed", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("abc");
   await expect(page.getByText("Value must use plain decimal notation").first()).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Order size in pZEC" })).toHaveAttribute("aria-invalid", "true");
@@ -1701,7 +1702,7 @@ test("invalid size shows a field error and keeps review closed", async ({ page }
 });
 
 test("USDT review repeats the later listing gate", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
@@ -1732,7 +1733,7 @@ test("document metadata names a no-value simulation", async ({ page }) => {
 });
 
 test("terminal view arrows move focus and Enter selects", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const trade = page.getByRole("tab", { name: "Trade" });
   const liquidity = page.getByRole("tab", { name: "Liquidity" });
   await trade.focus();
@@ -1763,7 +1764,7 @@ test("invalid LP amount shows a field error and keeps review closed", async ({ p
 });
 
 test("24h volume and LP TVL values are labeled as fixtures", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await expect(page.getByText("Fixture $1.84M", { exact: true })).toBeVisible();
   await page.goto("/liquidity", { waitUntil: "networkidle" });
   await expect(page.getByText("Fixture $842,410", { exact: true })).toBeVisible();
@@ -1771,7 +1772,7 @@ test("24h volume and LP TVL values are labeled as fixtures", async ({ page }) =>
 });
 
 test("ticket keyboard is a named 44px region", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const region = page.getByRole("region", { name: "Ticket keyboard" });
   await expect(region).toBeVisible();
   await expect(region).toContainText("G/I/F time in force");
@@ -1793,7 +1794,7 @@ test("withdrawal tour demonstrates unresolved without inventing a payout", async
 });
 
 test("ticket side type and time in force arrows move focus and Enter selects", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const buy = page.getByRole("button", { name: "Buy", exact: true });
   const sell = page.getByRole("button", { name: "Sell", exact: true });
   await buy.focus();
@@ -1824,7 +1825,7 @@ test("ticket side type and time in force arrows move focus and Enter selects", a
 
 test("size percent shortcuts are 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const percent = page.getByRole("button", { name: "25%" });
   await expect(percent).toBeVisible();
   const box = await percent.boundingBox();
@@ -1865,7 +1866,7 @@ test("status skip link reaches the ledger", async ({ page }) => {
 });
 
 test("market arrows move focus and Enter selects USDT", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const usdc = page.getByRole("radio", { name: "ZEC / USDC" });
   const usdt = page.getByRole("radio", { name: "ZEC / USDT" });
   await usdc.focus();
@@ -1879,7 +1880,7 @@ test("market arrows move focus and Enter selects USDT", async ({ page }) => {
 });
 
 test("feed-state arrows move focus and Enter selects loading", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const illustrative = page.getByRole("radio", { name: "Illustrative" });
   const loading = page.getByRole("radio", { name: "Loading" });
   await illustrative.focus();
@@ -1899,7 +1900,7 @@ test("feed-state arrows move focus and Enter selects loading", async ({ page }) 
 
 test("review Back and ticket primary stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const review = page.getByRole("button", { name: "Review simulated buy" });
   const reviewBox = await review.boundingBox();
   expect(reviewBox?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -1955,7 +1956,7 @@ test("incident demonstration keeps selected copy in a named region", async ({ pa
 
 test("market feed connect chart range and ticket side stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const targets = [
     page.getByRole("radio", { name: "ZEC / USDC" }),
     page.getByRole("radio", { name: "Illustrative" }),
@@ -1998,7 +1999,7 @@ test("architecture skip link reaches the incident demonstration", async ({ page 
 
 test("order-type view and blotter tabs stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const targets = [
     page.getByRole("button", { name: "Limit" }),
     page.getByRole("tab", { name: "Trade" }),
@@ -2049,7 +2050,7 @@ test("error skip link reaches the retry copy", async ({ page }) => {
 
 test("GTC and order book price rows stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const gtc = page.getByRole("button", { name: "GTC" });
   const ask = page.getByRole("button", { name: "Ask 52.91" });
   await expect(gtc).toBeVisible();
@@ -2062,7 +2063,7 @@ test("GTC and order book price rows stay 44px on desktop", async ({ page }) => {
 
 test("Reset session Cancel Retry illustrative and tape rows stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const reset = page.getByRole("button", { name: "Reset session" });
   const tape = page.getByRole("table", { name: /Recent ZEC\/USDC trades/ }).locator("tbody tr").first();
   await expect(reset).toBeVisible();
@@ -2085,7 +2086,7 @@ test("Reset session Cancel Retry illustrative and tape rows stay 44px on desktop
 });
 
 test("terminal skip link reaches recent trades", async ({ page }) => {
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
@@ -2100,7 +2101,7 @@ test("terminal skip link reaches recent trades", async ({ page }) => {
 
 test("mid-price fills and inventory rows stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const mid = page.getByRole("cell", { name: /session last/ });
   await expect(mid).toBeVisible();
   expect((await mid.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -2136,7 +2137,7 @@ test("loading skip link reaches the withheld-price notice", async ({ page }) => 
 
 test("event-log LP stats and chart empty stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
@@ -2171,7 +2172,7 @@ test("liquidity skip link reaches pool stats", async ({ page }) => {
 
 test("ticket notice wallet rejection and simulation banner stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const banner = page.getByRole("status", { name: "Simulation disclosure" });
   await expect(banner).toBeVisible();
   expect((await banner.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -2194,7 +2195,7 @@ test("ticket notice wallet rejection and simulation banner stay 44px on desktop"
 
 test("ticket blocked gate country-block and education copy stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("radio", { name: "Stale" }).click();
   const blocked = page.getByRole("status", { name: "Ticket blocked" });
   await expect(blocked).toBeVisible();
@@ -2237,7 +2238,7 @@ test("honesty bar incident copy and review custody stay 44px on desktop", async 
   await expect(incident).toBeVisible();
   expect((await incident.locator("p").boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   const custody = page.getByLabel("Review custody notice");
   await expect(custody).toBeVisible();
@@ -2363,7 +2364,7 @@ test("simulation-frame and terminal footer links stay 44px on desktop", async ({
   await expect(statusFooter).toBeVisible();
   expect((await statusFooter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const tradeFooter = page.getByRole("navigation", { name: "Footer" }).getByRole("link", { name: "Status" });
   await expect(tradeFooter).toBeVisible();
   expect((await tradeFooter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -2427,7 +2428,7 @@ test("landing hero CTAs Open status details launch gates and brand home stay 44p
   await expect(statusBrand).toBeVisible();
   expect((await statusBrand.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const tradeBrand = page.getByRole("link", { name: "Phlebas home" });
   await expect(tradeBrand).toBeVisible();
   expect((await tradeBrand.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -2486,7 +2487,7 @@ test("landing skip links Menu and Close stay 44px", async ({ page }) => {
 
 test("terminal skip education Continue and error Retry stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.keyboard.press("Tab");
   const skip = page.getByRole("link", { name: "Skip to main content" });
   await expect(skip).toBeFocused();
@@ -2601,7 +2602,7 @@ test("architecture liquidity and bridge skip links stay 44px on desktop", async 
 
 test("trade skip links and incident skip stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const tradeSkips = [
     "Skip to order ticket",
     "Skip to price chart",
@@ -2665,7 +2666,7 @@ test("status legal and security skips stay 44px and skip targets keep scroll-mar
 
 test("trade and landing skip targets keep scroll-margin and landing skip links keep a focus ring", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
   const skipTicket = page.getByRole("link", { name: "Skip to order ticket" });
@@ -2690,7 +2691,7 @@ test("trade and landing skip targets keep scroll-margin and landing skip links k
 
 test("terminal skip-link focus ring skip-nav inset and remaining landing skip-margins", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   await page.keyboard.press("Tab");
   const skipTrade = page.getByRole("link", { name: "Skip to main content" });
   await expectVisibleFocus(skipTrade);
@@ -2755,7 +2756,7 @@ test("reduced-motion keeps skip-nav in place and skip-nav stacks above the banne
 
 test("terminal banner stays below skip-nav and 320px skip-nav does not cover the brand", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
   const tradeStacking = await page.evaluate(() => {
     const skipNav = document.querySelector('nav[aria-label="Skip links"]');
     const banner = document.querySelector('[aria-label="Simulation disclosure"]');
