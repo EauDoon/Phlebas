@@ -44,6 +44,7 @@ export function WalletBar({
   const [providers, setProviders] = useState<readonly Eip6963ProviderDetail[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const session = useRef<WalletSessionSubscription | null>(null);
+  const connectionGeneration = useRef(0);
   const errorCopy = wallet.error ? retargetSettlementCopy(wallet.error, settlementPair) : null;
 
   useEffect(() => {
@@ -61,19 +62,17 @@ export function WalletBar({
   }, []);
 
   useEffect(() => () => {
+    connectionGeneration.current += 1;
     session.current?.dispose();
     session.current = null;
-  }, []);
+    onChange(disconnectedWallet);
+  }, [onChange]);
 
-  useEffect(() => {
-    if (wallet.address) return;
+  function invalidateConnection(): number {
+    connectionGeneration.current += 1;
     session.current?.dispose();
     session.current = null;
-  }, [wallet.address]);
-
-  function clearSession(): void {
-    session.current?.dispose();
-    session.current = null;
+    return connectionGeneration.current;
   }
 
   function selectProvider(entries: readonly Eip6963ProviderDetail[]): Eip6963ProviderDetail | null {
@@ -81,12 +80,13 @@ export function WalletBar({
   }
 
   async function connect() {
-    clearSession();
+    const generation = invalidateConnection();
     setBusy(true);
     try {
       let discovered = providers;
       if (discovered.length === 0) {
         discovered = await discoverEip6963Providers();
+        if (connectionGeneration.current !== generation) return;
         setProviders(discovered);
         if (discovered.length > 0) setSelectedProviderId(discovered[0]!.info.uuid);
       }
@@ -96,6 +96,7 @@ export function WalletBar({
         return;
       }
       const connected = await connectMainnetWallet(provider);
+      if (connectionGeneration.current !== generation) return;
       if (connected.error || !connected.address) {
         onChange(walletStateWithSettlement(connected, settlementPair));
         return;
@@ -112,8 +113,10 @@ export function WalletBar({
         provider,
         { account: connected.address, chainId: "0x1" },
         (invalidation) => {
-          if (session.current !== watched) return;
+          if (connectionGeneration.current !== generation || session.current !== watched) return;
+          connectionGeneration.current += 1;
           session.current = null;
+          setBusy(false);
           onChange({
             ...disconnectedWallet,
             error: walletConnectFailureCopy(
@@ -125,13 +128,16 @@ export function WalletBar({
       );
       session.current = watched;
       await assertConnectedWalletAuthority(provider, connected.address, 1n);
-      if (!watched.isValid()) {
+      if (connectionGeneration.current !== generation || !watched.isValid()) {
+        watched.dispose();
         if (session.current === watched) session.current = null;
         return;
       }
       onChange(connected);
     } catch (error) {
-      clearSession();
+      if (connectionGeneration.current !== generation) return;
+      session.current?.dispose();
+      session.current = null;
       onChange({
         ...disconnectedWallet,
         error: walletConnectFailureCopy(
@@ -140,7 +146,7 @@ export function WalletBar({
         ),
       });
     } finally {
-      setBusy(false);
+      if (connectionGeneration.current === generation) setBusy(false);
     }
   }
 
@@ -152,7 +158,7 @@ export function WalletBar({
           type="button"
           className={styles.connectButton}
           onClick={() => {
-            clearSession();
+            invalidateConnection();
             onChange(disconnectedWallet);
           }}
           aria-label={walletDisconnectLabel(wallet.address, settlementPair)}

@@ -9,6 +9,7 @@ test("selects an EIP-6963 wallet and clears the reviewed session on provider dri
     type WalletHarness = Readonly<{
       emit(rdns: string, event: string, payload?: unknown): void;
       calls: Record<string, string[]>;
+      listenerCount(rdns: string): number;
     }>;
 
     const calls: Record<string, string[]> = { "io.metamask": [], "io.rabby": [] };
@@ -74,6 +75,9 @@ test("selects an EIP-6963 wallet and clears the reviewed session on provider dri
       emit(rdns, event, payload) {
         for (const listener of [...(listeners.get(rdns)?.get(event) ?? [])]) listener(payload);
       },
+      listenerCount(rdns) {
+        return [...(listeners.get(rdns)?.values() ?? [])].reduce((total, entries) => total + entries.size, 0);
+      },
     };
     Object.defineProperty(window, "__phlebasWalletHarness", { value: harness });
   }, ETHEREUM_MAINNET_CHAIN_HEX);
@@ -127,4 +131,101 @@ test("selects an EIP-6963 wallet and clears the reviewed session on provider dri
   ));
   expect(calls["io.metamask"]).toEqual([]);
   expect(calls["io.rabby"]).not.toContain("eth_sendTransaction");
+
+  await connect.click();
+  const disconnect = page.getByRole("button", { name: "Disconnect 0xbbbb…bbbb. Settled as ZEC-USDC." });
+  await expect(disconnect).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (
+    (window as unknown as {
+      __phlebasWalletHarness: { listenerCount(rdns: string): number };
+    }).__phlebasWalletHarness.listenerCount("io.rabby")
+  ))).toBe(3);
+  await page.getByRole("tab", { name: "Settlement" }).click();
+  await expect(page).toHaveURL(/view=settlement/);
+  await expect.poll(() => page.evaluate(() => (
+    (window as unknown as {
+      __phlebasWalletHarness: { listenerCount(rdns: string): number };
+    }).__phlebasWalletHarness.listenerCount("io.rabby")
+  ))).toBe(0);
+  await page.getByRole("tab", { name: "Trade" }).click();
+  await expect(page).toHaveURL(/view=trade/);
+  await expect(connect).toBeVisible();
+  await expect(disconnect).toHaveCount(0);
+});
+
+test("a pending wallet connection cannot survive leaving the wallet surface", async ({ page }) => {
+  await page.addInitScript((chainId) => {
+    type Listener = (...args: unknown[]) => void;
+    let resolveFirstAccounts: ((accounts: string[]) => void) | null = null;
+    let accountRequests = 0;
+    const methods: string[] = [];
+    const listeners = new Map<string, Set<Listener>>();
+    const account = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const provider = {
+      request({ method }: { method: string }) {
+        methods.push(method);
+        if (method === "eth_requestAccounts") {
+          accountRequests += 1;
+          if (accountRequests === 1) {
+            return new Promise<string[]>((resolve) => {
+              resolveFirstAccounts = resolve;
+            });
+          }
+          return Promise.resolve([account]);
+        }
+        if (method === "eth_accounts") return Promise.resolve([account]);
+        if (method === "eth_chainId") return Promise.resolve(chainId);
+        if (method === "wallet_switchEthereumChain") return Promise.resolve(null);
+        return Promise.reject(new Error(method));
+      },
+      on(event: string, listener: Listener) {
+        const eventListeners = listeners.get(event) ?? new Set<Listener>();
+        eventListeners.add(listener);
+        listeners.set(event, eventListeners);
+      },
+      removeListener(event: string, listener: Listener) {
+        listeners.get(event)?.delete(listener);
+      },
+    };
+    Object.defineProperty(window, "ethereum", { configurable: true, value: provider });
+    Object.defineProperty(window, "__phlebasPendingWalletHarness", {
+      value: {
+        resolveFirstAccounts() {
+          resolveFirstAccounts?.([account]);
+          resolveFirstAccounts = null;
+        },
+        methods,
+        listenerCount() {
+          return [...listeners.values()].reduce((total, entries) => total + entries.size, 0);
+        },
+      },
+    });
+  }, ETHEREUM_MAINNET_CHAIN_HEX);
+
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const connect = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
+  await connect.click();
+  await expect(connect).toHaveText("Connecting");
+
+  await page.getByRole("tab", { name: "Settlement" }).click();
+  await expect(page).toHaveURL(/view=settlement/);
+  await expect(connect).toHaveCount(0);
+  await page.evaluate(() => {
+    (window as unknown as {
+      __phlebasPendingWalletHarness: { resolveFirstAccounts(): void };
+    }).__phlebasPendingWalletHarness.resolveFirstAccounts();
+  });
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
+
+  await page.getByRole("tab", { name: "Trade" }).click();
+  await expect(page).toHaveURL(/view=trade/);
+  await expect(connect).toBeVisible();
+  await expect(page.getByRole("button", { name: /Disconnect/ })).toHaveCount(0);
+  expect(await page.evaluate(() => (
+    (window as unknown as {
+      __phlebasPendingWalletHarness: { listenerCount(): number };
+    }).__phlebasPendingWalletHarness.listenerCount()
+  ))).toBe(0);
 });

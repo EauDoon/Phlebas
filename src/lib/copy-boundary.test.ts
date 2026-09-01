@@ -777,11 +777,13 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
   const education = await readFile(join(root, "src/lib/preview-education.ts"), "utf8");
   assert.match(education, /This public preview uses illustrative data/);
-  assert.match(education, /No chain is connected/);
+  assert.match(education, /Ethereum Mainnet wallet can connect for identity/);
+  assert.match(education, /does not sign or submit a transaction/);
   assert.match(education, /Pairs are native ZEC against USDC and USDT/);
   assert.match(education, /not live settlement/i);
-  assert.match(education, /Actions stay in this browser/);
-  assert.match(education, /wallets and contracts are enabled/);
+  assert.match(education, /Value-moving actions stay disabled/);
+  assert.match(education, /Contracts are not deployed/);
+  assert.match(education, /no signing, submission, or asset movement is enabled/);
   assert.doesNotMatch(education, /pZEC would depend on custody/);
   assert.doesNotMatch(education, /I agree/);
   assert.doesNotMatch(education, /Enter simulation/);
@@ -964,7 +966,8 @@ test("simulation-label ADR is explicitly superseded by wallet-controlled settlem
   assert.match(adr2, /legacy fixtures/);
   const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
   assert.match(journeys, /Section ID: `pairs`/);
-  assert.match(journeys, /Native labels are simulation names, not live settlement/);
+  assert.match(journeys, /Those pairs are native ZEC against native USDC or native USDT/);
+  assert.match(journeys, /must not claim live native-ZEC execution/);
   const threat = await readFile(join(root, "docs/THREAT_MODEL.md"), "utf8");
   assert.match(threat, /retained as historical simulation evidence/);
   assert.match(threat, /does not define the production target/);
@@ -1085,7 +1088,6 @@ test("canonical settlement and wallet modules cannot import the diagnostic proje
     "src/lib/evm-wallet.ts",
     "src/lib/matcher-operator.ts",
     "src/lib/settlement-accounting.ts",
-    "src/lib/sepolia-submit.ts",
     "src/components/trade-ticket.tsx",
     "src/components/native-swap-panel.tsx",
     "src/components/settlement-ticket.tsx",
