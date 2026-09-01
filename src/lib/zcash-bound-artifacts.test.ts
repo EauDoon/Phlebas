@@ -2,19 +2,37 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 
 import { hexToBytes } from "./keccak.ts";
-import { canonicalMainnetSwapTerms } from "./swap-test-fixtures.ts";
+import {
+  canonicalMainnetSwapTerms,
+  fixturePreimage,
+  fixtureSecretHash,
+  fundedZecSwap,
+} from "./swap-test-fixtures.ts";
 import { createZip317TransparentPolicy } from "./zcash-fees.ts";
-import { buildTermsBoundZcashFundingArtifact, type TermsBoundFundingArtifactRequest } from "./zcash-bound-artifacts.ts";
+import {
+  buildTermsBoundZcashClaimArtifact,
+  buildTermsBoundZcashFundingArtifact,
+  buildTermsBoundZcashRefundArtifact,
+  type TermsBoundClaimArtifactRequest,
+  type TermsBoundFundingArtifactRequest,
+  type TermsBoundRefundArtifactRequest,
+} from "./zcash-bound-artifacts.ts";
 import { createNu63EncodingProfile } from "./zcash-transaction-policy.ts";
 import { encodeTransparentAddress, transparentScriptPubKey } from "./zcash-transparent.ts";
 
 const SOURCE = encodeTransparentAddress("mainnet", "p2pkh", hexToBytes("77".repeat(20)));
+const PROFILE = createNu63EncodingProfile({ network: "mainnet", transactionVersion: 5, coinType: 133 });
+const FEE_POLICY = createZip317TransparentPolicy({
+  maximumFeeZatoshis: 50_000n,
+  minimumOutputZatoshis: 10_000n,
+  maximumSerializedTransactionBytes: 10_000,
+});
 
 function fundingRequest(overrides: Partial<TermsBoundFundingArtifactRequest> = {}): TermsBoundFundingArtifactRequest {
   const terms = canonicalMainnetSwapTerms();
   const request: TermsBoundFundingArtifactRequest = {
     terms,
-    profile: createNu63EncodingProfile({ network: "mainnet", transactionVersion: 5, coinType: 133 }),
+    profile: PROFILE,
     targetHeight: 3_500_000,
     expiryHeight: 3_500_020,
     inputs: [{
@@ -26,11 +44,7 @@ function fundingRequest(overrides: Partial<TermsBoundFundingArtifactRequest> = {
     }],
     changeAddress: SOURCE,
     feeZatoshis: 10_000n,
-    feePolicy: createZip317TransparentPolicy({
-      maximumFeeZatoshis: 50_000n,
-      minimumOutputZatoshis: 10_000n,
-      maximumSerializedTransactionBytes: 10_000,
-    }),
+    feePolicy: FEE_POLICY,
     finalizedSizeWithoutChange: { inputBytes: 150, outputBytes: 34 },
     finalizedSizeWithChange: { inputBytes: 150, outputBytes: 68 },
     belowMinimumChange: "reject",
@@ -47,6 +61,81 @@ test("derives the Mainnet funding contract solely from signed swap terms", () =>
   assert.equal(bound.binding.binding.artifactManifestDigest, bound.artifact.manifestDigest);
   assert.equal(bound.binding.binding.swapId, bound.projection.swapId);
   assert.equal(Object.isFrozen(bound), true);
+});
+
+function claimRequest(overrides: Partial<TermsBoundClaimArtifactRequest> = {}): TermsBoundClaimArtifactRequest {
+  const terms = canonicalMainnetSwapTerms({ secretHash: fixtureSecretHash });
+  return {
+    state: fundedZecSwap(terms),
+    profile: PROFILE,
+    targetHeight: 3_500_000,
+    expiryHeight: 3_500_020,
+    observedHeight: 3_500_000,
+    preimage: hexToBytes(fixturePreimage),
+    feeZatoshis: 10_000n,
+    feePolicy: FEE_POLICY,
+    finalizedSize: { inputBytes: 300, outputBytes: 34 },
+    ...overrides,
+  };
+}
+
+function refundRequest(overrides: Partial<TermsBoundRefundArtifactRequest> = {}): TermsBoundRefundArtifactRequest {
+  const terms = canonicalMainnetSwapTerms({ secretHash: fixtureSecretHash });
+  return {
+    state: fundedZecSwap(terms),
+    profile: PROFILE,
+    targetHeight: 3_500_000,
+    expiryHeight: 3_500_020,
+    observedHeight: 3_500_000,
+    maturity: { currentBlockHeight: 3_500_000, medianTimePast: Number(terms.zecRefundTime) + 1 },
+    feeZatoshis: 10_000n,
+    feePolicy: FEE_POLICY,
+    finalizedSize: { inputBytes: 300, outputBytes: 34 },
+    ...overrides,
+  };
+}
+
+test("derives claim and refund artifacts from confirmed funding and signed recipients", () => {
+  const claim = buildTermsBoundZcashClaimArtifact(claimRequest());
+  assert.equal(claim.artifact.manifest.kind, "claim");
+  assert.equal(claim.artifact.manifest.inputs[0]?.txid, claimRequest().state.zec.funding?.transactionId.slice(2));
+  assert.equal(claim.binding.binding.action, "claim");
+
+  const refund = buildTermsBoundZcashRefundArtifact(refundRequest());
+  assert.equal(refund.artifact.manifest.kind, "refund");
+  assert.equal(refund.artifact.manifest.lockTime.toString(), refund.projection.refundTimeSeconds);
+  assert.equal(refund.binding.binding.action, "refund");
+  assert.notEqual(refund.artifact.manifest.outputs[0]?.scriptPubKeyHex, claim.artifact.manifest.outputs[0]?.scriptPubKeyHex);
+});
+
+test("rejects wrong preimages, early refunds, and unconfirmed or mutated funding facts", () => {
+  assert.throws(
+    () => buildTermsBoundZcashClaimArtifact(claimRequest({ preimage: hexToBytes("99".repeat(32)) })),
+    /does not match/,
+  );
+  assert.throws(
+    () => buildTermsBoundZcashRefundArtifact(refundRequest({
+      maturity: { currentBlockHeight: 3_500_000, medianTimePast: 1_000_000_000 },
+    })),
+    /early/,
+  );
+  const confirmed = claimRequest().state;
+  assert.throws(
+    () => buildTermsBoundZcashClaimArtifact(claimRequest({ state: { ...confirmed, zec: { phase: "unfunded" } } })),
+    /confirmed canonical ZEC funding|integrity/,
+  );
+  assert.throws(
+    () => buildTermsBoundZcashClaimArtifact(claimRequest({
+      state: {
+        ...confirmed,
+        zec: {
+          ...confirmed.zec,
+          funding: confirmed.zec.funding && { ...confirmed.zec.funding, amountAtoms: confirmed.zec.funding.amountAtoms - 1n },
+        },
+      },
+    })),
+    /integrity|fact ID|signed settlement projection/,
+  );
 });
 
 test("rejects wrong profiles, unsigned lock changes, and insufficient public UTXO evidence", () => {
