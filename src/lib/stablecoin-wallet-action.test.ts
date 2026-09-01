@@ -11,13 +11,20 @@ import {
 import { sha256Hex } from "./sha256.ts";
 import {
   ERC20_APPROVE_SELECTOR,
+  STABLECOIN_CLAIM_HEAD_MAX_AGE_SECONDS,
+  STABLECOIN_CLAIM_LATEST_HEAD_MAX_BLOCK_DIVERGENCE,
+  STABLECOIN_CLAIM_LATEST_HEAD_MAX_TIME_DIVERGENCE_SECONDS,
+  STABLECOIN_CLAIM_SAFETY_WINDOW_SECONDS,
   STABLECOIN_NETWORK_ACTION,
   createStablecoinClaimAction,
   createStablecoinClaimActionWithAuthority,
   createStablecoinRefundAction,
   createStablecoinRefundActionWithAuthority,
+  observeFinalizedStablecoinClaimHead,
   planStablecoinFundingActions,
   planStablecoinFundingActionsWithAuthority,
+  type StablecoinClaimHeadEvidence,
+  type StablecoinClaimReadProvider,
   type StablecoinLockContext,
   type StablecoinLockDeploymentAuthority,
 } from "./stablecoin-wallet-action.ts";
@@ -73,6 +80,30 @@ const AUTHORITY: StablecoinLockDeploymentAuthority = {
   runtimeBytecodeSha256: BASE.deploymentReceipt.runtimeBytecodeSha256 as `0x${string}`,
   terms: TERMS,
 };
+const CLAIM_HEAD: StablecoinClaimHeadEvidence = {
+  providerCount: 2,
+  chainId: "0x1",
+  lock: LOCK,
+  finalizedBlockNumber: OBSERVATION.blockNumber,
+  finalizedBlockHash: OBSERVATION.blockHash as `0x${string}`,
+  finalizedBlockTimestampSeconds: OBSERVATION.blockTimestampSeconds,
+  latestHeads: [
+    {
+      blockNumber: OBSERVATION.blockNumber + 64n,
+      blockHash: `0x${"21".repeat(32)}`,
+      blockTimestampSeconds: 1_800_000_040n,
+      verifiedAtSeconds: 1_800_000_050n,
+    },
+    {
+      blockNumber: OBSERVATION.blockNumber + 65n,
+      blockHash: `0x${"22".repeat(32)}`,
+      blockTimestampSeconds: 1_800_000_052n,
+      verifiedAtSeconds: 1_800_000_060n,
+    },
+  ],
+  runtimeBytecodeSha256: AUTHORITY.runtimeBytecodeSha256,
+  lockState: "funded",
+};
 
 const allowance = {
   chainId: "0x1" as const,
@@ -84,9 +115,50 @@ const allowance = {
   blockHash: OBSERVATION.blockHash,
 };
 
+function claimProviderFixture(input: Readonly<{
+  now: bigint;
+  finalizedHash?: string;
+  runtime?: string;
+  state?: bigint;
+  latestOffset?: bigint;
+  latestHash?: string;
+  latestTimestampOffset?: bigint;
+}>): Readonly<{ provider: StablecoinClaimReadProvider; calls: string[] }> {
+  const calls: string[] = [];
+  const finalizedNumber = 24_100_000n;
+  const provider: StablecoinClaimReadProvider = {
+    async request({ method, params }) {
+      calls.push(method);
+      if (method === "eth_chainId") return "0x1";
+      if (method === "eth_getBlockByNumber" && params?.[0] === "finalized") {
+        return {
+          number: `0x${finalizedNumber.toString(16)}`,
+          hash: input.finalizedHash ?? `0x${"51".repeat(32)}`,
+          timestamp: `0x${(input.now - 900n).toString(16)}`,
+        };
+      }
+      if (method === "eth_getCode") return input.runtime ?? RUNTIME;
+      if (method === "eth_call") return `0x${(input.state ?? 1n).toString(16).padStart(64, "0")}`;
+      if (method === "eth_getBlockByNumber" && params?.[0] === "latest") {
+        return {
+          number: `0x${(finalizedNumber + (input.latestOffset ?? 64n)).toString(16)}`,
+          hash: input.latestHash ?? `0x${"52".repeat(32)}`,
+          timestamp: `0x${(input.now - (input.latestTimestampOffset ?? 12n)).toString(16)}`,
+        };
+      }
+      throw new Error(`unexpected RPC method ${method}`);
+    },
+  };
+  return { provider, calls };
+}
+
 test("stablecoin wallet review constants stay exact and non-submitting", () => {
   assert.equal(ERC20_APPROVE_SELECTOR, "095ea7b3");
   assert.equal(STABLECOIN_NETWORK_ACTION, "disabled-until-deployment-manifest");
+  assert.equal(STABLECOIN_CLAIM_HEAD_MAX_AGE_SECONDS, 120n);
+  assert.equal(STABLECOIN_CLAIM_LATEST_HEAD_MAX_BLOCK_DIVERGENCE, 2n);
+  assert.equal(STABLECOIN_CLAIM_LATEST_HEAD_MAX_TIME_DIVERGENCE_SECONDS, 30n);
+  assert.equal(STABLECOIN_CLAIM_SAFETY_WINDOW_SECONDS, 120n);
 });
 
 test("the checked-in conditional-lock manifest is not a mainnet authority", () => {
@@ -103,12 +175,25 @@ test("caller-provided receipt claims cannot create approval or lock calldata", (
   );
 });
 
-test("claim and refund calldata stay unavailable without repository-approved deployment evidence", () => {
+test("claim and refund calldata stay unavailable without repository-approved deployment evidence", async () => {
   const funded = { ...BASE, observation: { ...OBSERVATION, state: "funded" as const } };
-  assert.throws(
-    () => createStablecoinClaimAction(funded, CLAIMANT, PREIMAGE),
+  let providerCalls = 0;
+  const unavailableProvider = () => ({
+    async request() {
+      providerCalls += 1;
+      throw new Error("provider must not be called while the manifest is undeployed");
+    },
+  });
+  await assert.rejects(
+    () => createStablecoinClaimAction(
+      funded,
+      CLAIMANT,
+      PREIMAGE,
+      [unavailableProvider(), unavailableProvider()],
+    ),
     /No approved Ethereum Mainnet conditional lock deployment manifest is active/,
   );
+  assert.equal(providerCalls, 0);
   assert.throws(
     () => createStablecoinRefundAction(funded, FUNDER),
     /No approved Ethereum Mainnet conditional lock deployment manifest is active/,
@@ -176,9 +261,15 @@ test("verified engine enforces USDT zero-first then exact approval", () => {
 test("verified engine binds claim and refund actor, secret, state, and time", () => {
   const fundedBeforeClaim = {
     ...BASE,
-    observation: { ...OBSERVATION, state: "funded" as const, blockTimestampSeconds: TERMS.claimCutoff },
+    observation: { ...OBSERVATION, state: "funded" as const },
   };
-  const claim = createStablecoinClaimActionWithAuthority(fundedBeforeClaim, CLAIMANT, PREIMAGE, AUTHORITY);
+  const claim = createStablecoinClaimActionWithAuthority(
+    fundedBeforeClaim,
+    CLAIMANT,
+    PREIMAGE,
+    AUTHORITY,
+    CLAIM_HEAD,
+  );
   assert.equal(claim.action, "claim-lock");
   assert.equal(claim.data, `0xbd66528a${PREIMAGE.slice(2)}`);
   const fundedAfterRefund = {
@@ -189,11 +280,17 @@ test("verified engine binds claim and refund actor, secret, state, and time", ()
   assert.equal(refund.action, "refund-lock");
   assert.equal(refund.data, "0x590e1ae3");
   assert.throws(
-    () => createStablecoinClaimActionWithAuthority(fundedBeforeClaim, FUNDER, PREIMAGE, AUTHORITY),
+    () => createStablecoinClaimActionWithAuthority(fundedBeforeClaim, FUNDER, PREIMAGE, AUTHORITY, CLAIM_HEAD),
     /not the immutable recipient/,
   );
   assert.throws(
-    () => createStablecoinClaimActionWithAuthority(fundedBeforeClaim, CLAIMANT, `0x${"43".repeat(32)}`, AUTHORITY),
+    () => createStablecoinClaimActionWithAuthority(
+      fundedBeforeClaim,
+      CLAIMANT,
+      `0x${"43".repeat(32)}`,
+      AUTHORITY,
+      CLAIM_HEAD,
+    ),
     /does not match/,
   );
   assert.throws(
@@ -201,13 +298,139 @@ test("verified engine binds claim and refund actor, secret, state, and time", ()
     /not the immutable refund recipient/,
   );
   assert.throws(
-    () => createStablecoinClaimActionWithAuthority(BASE, CLAIMANT, PREIMAGE, AUTHORITY),
+    () => createStablecoinClaimActionWithAuthority(BASE, CLAIMANT, PREIMAGE, AUTHORITY, CLAIM_HEAD),
     /observed funded/,
   );
   assert.throws(
     () => createStablecoinRefundActionWithAuthority(fundedBeforeClaim, FUNDER, AUTHORITY),
     /not been reached/,
   );
+});
+
+test("claim head observation cannot run with only one provider", async () => {
+  const fixture = claimProviderFixture({ now: BigInt(Math.floor(Date.now() / 1_000)) });
+  await assert.rejects(
+    observeFinalizedStablecoinClaimHead(
+      [fixture.provider] as unknown as readonly [StablecoinClaimReadProvider, StablecoinClaimReadProvider],
+      LOCK,
+    ),
+    /exactly two providers/,
+  );
+  assert.equal(fixture.calls.length, 0);
+});
+
+test("claim head observation rejects the same provider object twice before RPC", async () => {
+  const fixture = claimProviderFixture({ now: BigInt(Math.floor(Date.now() / 1_000)) });
+  await assert.rejects(
+    observeFinalizedStablecoinClaimHead([fixture.provider, fixture.provider], LOCK),
+    /must be distinct objects/,
+  );
+  assert.equal(fixture.calls.length, 0);
+});
+
+test("claim head observation rejects a finalized quorum mismatch", async () => {
+  const now = BigInt(Math.floor(Date.now() / 1_000));
+  const left = claimProviderFixture({ now });
+  const right = claimProviderFixture({ now, finalizedHash: `0x${"54".repeat(32)}` });
+  await assert.rejects(
+    observeFinalizedStablecoinClaimHead([left.provider, right.provider], LOCK),
+    /disagree on finalized conditional lock evidence/,
+  );
+});
+
+test("two-provider claim quorum reads matching finalized evidence without a transaction RPC", async () => {
+  const now = BigInt(Math.floor(Date.now() / 1_000));
+  const left = claimProviderFixture({ now });
+  const right = claimProviderFixture({
+    now,
+    latestOffset: 65n,
+    latestHash: `0x${"53".repeat(32)}`,
+    latestTimestampOffset: 6n,
+  });
+  const evidence = await observeFinalizedStablecoinClaimHead([left.provider, right.provider], LOCK);
+  const expectedCalls = [
+    "eth_chainId",
+    "eth_getBlockByNumber",
+    "eth_getCode",
+    "eth_call",
+    "eth_getBlockByNumber",
+    "eth_chainId",
+  ];
+  assert.deepEqual(left.calls, expectedCalls);
+  assert.deepEqual(right.calls, expectedCalls);
+  assert.equal([...left.calls, ...right.calls].some((method) => /sendTransaction|sign/i.test(method)), false);
+  assert.equal(evidence.providerCount, 2);
+  assert.equal(evidence.finalizedBlockHash, `0x${"51".repeat(32)}`);
+  assert.equal(evidence.latestHeads.length, 2);
+  assert.equal(evidence.latestHeads[0].blockHash, `0x${"52".repeat(32)}`);
+  assert.equal(evidence.latestHeads[1].blockHash, `0x${"53".repeat(32)}`);
+  assert.equal(evidence.runtimeBytecodeSha256, AUTHORITY.runtimeBytecodeSha256);
+  assert.equal(evidence.lockState, "funded");
+});
+
+test("claim review rejects stale, mismatched, unsafe, or non-funded head evidence before revealing a preimage", () => {
+  const funded = { ...BASE, observation: { ...OBSERVATION, state: "funded" as const } };
+  const attempts: ReadonlyArray<readonly [StablecoinClaimHeadEvidence, RegExp]> = [
+    [
+      { ...CLAIM_HEAD, finalizedBlockHash: `0x${"55".repeat(32)}` },
+      /must match the finalized block/,
+    ],
+    [
+      {
+        ...CLAIM_HEAD,
+        latestHeads: [
+          {
+            ...CLAIM_HEAD.latestHeads[0],
+            verifiedAtSeconds: CLAIM_HEAD.latestHeads[0].blockTimestampSeconds
+              + STABLECOIN_CLAIM_HEAD_MAX_AGE_SECONDS
+              + 1n,
+          },
+          CLAIM_HEAD.latestHeads[1],
+        ],
+      },
+      /latest head is stale/,
+    ],
+    [
+      {
+        ...CLAIM_HEAD,
+        latestHeads: CLAIM_HEAD.latestHeads.map((head) => ({
+          ...head,
+          blockTimestampSeconds: TERMS.claimCutoff - STABLECOIN_CLAIM_SAFETY_WINDOW_SECONDS,
+          verifiedAtSeconds: TERMS.claimCutoff - STABLECOIN_CLAIM_SAFETY_WINDOW_SECONDS,
+        })) as unknown as StablecoinClaimHeadEvidence["latestHeads"],
+      },
+      /claim window is too close/,
+    ],
+    [
+      {
+        ...CLAIM_HEAD,
+        latestHeads: [
+          CLAIM_HEAD.latestHeads[0],
+          {
+            ...CLAIM_HEAD.latestHeads[1],
+            blockNumber: CLAIM_HEAD.latestHeads[0].blockNumber
+              + STABLECOIN_CLAIM_LATEST_HEAD_MAX_BLOCK_DIVERGENCE
+              + 1n,
+          },
+        ],
+      },
+      /materially disagree on the latest head/,
+    ],
+    [
+      { ...CLAIM_HEAD, runtimeBytecodeSha256: `0x${"56".repeat(32)}` },
+      /must match the finalized block, state, and code/,
+    ],
+    [
+      { ...CLAIM_HEAD, lockState: "unfunded" as "funded" },
+      /funded conditional lock/,
+    ],
+  ];
+  for (const [head, expected] of attempts) {
+    assert.throws(
+      () => createStablecoinClaimActionWithAuthority(funded, CLAIMANT, PREIMAGE, AUTHORITY, head),
+      expected,
+    );
+  }
 });
 
 test("verified engine rejects receipt, code, observation, and immutable substitutions", () => {

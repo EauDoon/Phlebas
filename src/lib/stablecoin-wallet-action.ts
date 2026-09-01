@@ -9,6 +9,7 @@ import {
 import { bytesToHex, hexToBytes, keccak256 } from "./keccak.ts";
 import {
   ETHEREUM_MAINNET_CHAIN_HEX,
+  assertEthereumMainnetChainId,
   assertMainnetStablecoinAddress,
   mainnetMarket,
   type MainnetQuoteSymbol,
@@ -19,6 +20,10 @@ import { sha256Hex } from "./sha256.ts";
 
 export const STABLECOIN_WALLET_REVIEW_VERSION = 2 as const;
 export const STABLECOIN_NETWORK_ACTION = "disabled-until-deployment-manifest" as const;
+export const STABLECOIN_CLAIM_HEAD_MAX_AGE_SECONDS = 120n;
+export const STABLECOIN_CLAIM_SAFETY_WINDOW_SECONDS = 120n;
+export const STABLECOIN_CLAIM_LATEST_HEAD_MAX_BLOCK_DIVERGENCE = 2n;
+export const STABLECOIN_CLAIM_LATEST_HEAD_MAX_TIME_DIVERGENCE_SECONDS = 30n;
 
 export type StablecoinLockState = "unfunded" | "funded";
 
@@ -64,6 +69,39 @@ export type StablecoinAllowanceObservation = Readonly<{
   amountAtoms: bigint;
   blockNumber: bigint;
   blockHash: string;
+}>;
+
+export type StablecoinClaimReadProvider = Readonly<{
+  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+}>;
+
+export type StablecoinClaimProviderQuorum = readonly [
+  StablecoinClaimReadProvider,
+  StablecoinClaimReadProvider,
+];
+
+export type StablecoinClaimLatestHead = Readonly<{
+  blockNumber: bigint;
+  blockHash: Hex32;
+  blockTimestampSeconds: bigint;
+  verifiedAtSeconds: bigint;
+}>;
+
+/**
+ * Evidence read from exactly two distinct Ethereum provider objects
+ * immediately before a claim review is created. Their matching finalized
+ * block binds lock state and code; both fresh latest heads bound divergence.
+ */
+export type StablecoinClaimHeadEvidence = Readonly<{
+  providerCount: 2;
+  chainId: typeof ETHEREUM_MAINNET_CHAIN_HEX;
+  lock: HexAddress;
+  finalizedBlockNumber: bigint;
+  finalizedBlockHash: Hex32;
+  finalizedBlockTimestampSeconds: bigint;
+  latestHeads: readonly [StablecoinClaimLatestHead, StablecoinClaimLatestHead];
+  runtimeBytecodeSha256: Hex32;
+  lockState: "funded";
 }>;
 
 export type StablecoinWalletAction = Readonly<{
@@ -225,6 +263,17 @@ function requiredString(value: unknown, label: string): string {
   return value;
 }
 
+function rpcQuantity(value: unknown, label: string): bigint {
+  if (typeof value !== "string" || !/^0x(?:0|[1-9a-fA-F][0-9a-fA-F]*)$/.test(value)) {
+    throw new TypeError(`${label} must be a canonical hexadecimal quantity`);
+  }
+  return BigInt(value);
+}
+
+function unixNowSeconds(): bigint {
+  return BigInt(Math.floor(Date.now() / 1_000));
+}
+
 /**
  * Loads the one repository-tracked deployment authority. Caller observations
  * can corroborate this record, but cannot create or widen it. The checked-in
@@ -362,6 +411,181 @@ function selector(signature: string): string {
 }
 
 export const ERC20_APPROVE_SELECTOR = selector("approve(address,uint256)");
+const CONDITIONAL_LOCK_STATE_SELECTOR = selector("state()");
+
+type RpcBlock = Readonly<{
+  number: bigint;
+  hash: Hex32;
+  timestampSeconds: bigint;
+}>;
+
+function rpcBlock(value: unknown, label: string): RpcBlock {
+  const block = record(value, label);
+  return Object.freeze({
+    number: uint256(rpcQuantity(block.number, `${label} number`), `${label} number`, true),
+    hash: nonzeroHex32(requiredString(block.hash, `${label} hash`), `${label} hash`),
+    timestampSeconds: uint64(rpcQuantity(block.timestamp, `${label} timestamp`), `${label} timestamp`, true),
+  });
+}
+
+type ProviderClaimHeadEvidence = Readonly<{
+  chainId: typeof ETHEREUM_MAINNET_CHAIN_HEX;
+  lock: HexAddress;
+  finalizedBlockNumber: bigint;
+  finalizedBlockHash: Hex32;
+  finalizedBlockTimestampSeconds: bigint;
+  latestHead: StablecoinClaimLatestHead;
+  runtimeBytecodeSha256: Hex32;
+  lockState: "funded";
+}>;
+
+function absoluteDifference(left: bigint, right: bigint): bigint {
+  return left >= right ? left - right : right - left;
+}
+
+function assertFreshLatestHead(
+  finalizedBlockNumber: bigint,
+  finalizedBlockTimestampSeconds: bigint,
+  latest: StablecoinClaimLatestHead,
+): void {
+  if (latest.blockNumber < finalizedBlockNumber
+    || latest.blockTimestampSeconds < finalizedBlockTimestampSeconds) {
+    throw new Error("Ethereum finalized head cannot be ahead of the latest head");
+  }
+  if (latest.blockTimestampSeconds > latest.verifiedAtSeconds + 30n) {
+    throw new Error("Ethereum latest head timestamp is too far ahead of the verifier clock");
+  }
+  if (latest.verifiedAtSeconds > latest.blockTimestampSeconds + STABLECOIN_CLAIM_HEAD_MAX_AGE_SECONDS) {
+    throw new Error("Ethereum latest head is stale; claim review is disabled");
+  }
+}
+
+function assertFreshClaimHead(evidence: StablecoinClaimHeadEvidence): void {
+  for (const latest of evidence.latestHeads) {
+    assertFreshLatestHead(
+      evidence.finalizedBlockNumber,
+      evidence.finalizedBlockTimestampSeconds,
+      latest,
+    );
+  }
+  const [left, right] = evidence.latestHeads;
+  if (absoluteDifference(left.blockNumber, right.blockNumber)
+      > STABLECOIN_CLAIM_LATEST_HEAD_MAX_BLOCK_DIVERGENCE
+    || absoluteDifference(left.blockTimestampSeconds, right.blockTimestampSeconds)
+      > STABLECOIN_CLAIM_LATEST_HEAD_MAX_TIME_DIVERGENCE_SECONDS
+    || (left.blockNumber === right.blockNumber && left.blockHash !== right.blockHash)) {
+    throw new Error("Independent Ethereum providers materially disagree on the latest head");
+  }
+}
+
+async function readProviderClaimHead(
+  provider: StablecoinClaimReadProvider,
+  lock: HexAddress,
+): Promise<ProviderClaimHeadEvidence> {
+  if (provider === null || typeof provider !== "object" || typeof provider.request !== "function") {
+    throw new TypeError("Stablecoin claim evidence provider is unavailable");
+  }
+  const initialChain = assertEthereumMainnetChainId(await provider.request({ method: "eth_chainId" }));
+  const finalized = rpcBlock(
+    await provider.request({ method: "eth_getBlockByNumber", params: ["finalized", false] }),
+    "Ethereum finalized block",
+  );
+  const finalizedTag = `0x${finalized.number.toString(16)}`;
+  const code = runtimeBytecode(
+    requiredString(
+      await provider.request({ method: "eth_getCode", params: [lock, finalizedTag] }),
+      "Finalized conditional lock runtime bytecode",
+    ),
+    "Finalized conditional lock runtime bytecode",
+  );
+  const stateResult = requiredString(
+    await provider.request({
+      method: "eth_call",
+      params: [{ to: lock, data: `0x${CONDITIONAL_LOCK_STATE_SELECTOR}` }, finalizedTag],
+    }),
+    "Finalized conditional lock state",
+  );
+  if (!/^0x[0-9a-fA-F]{64}$/.test(stateResult) || BigInt(stateResult) !== 1n) {
+    throw new Error("Conditional lock is not funded at the finalized Ethereum head");
+  }
+  const latest = rpcBlock(
+    await provider.request({ method: "eth_getBlockByNumber", params: ["latest", false] }),
+    "Ethereum latest block",
+  );
+  const finalChain = assertEthereumMainnetChainId(await provider.request({ method: "eth_chainId" }));
+  if (initialChain !== finalChain) throw new Error("Ethereum chain changed while claim evidence was read");
+  const evidence = Object.freeze({
+    chainId: ETHEREUM_MAINNET_CHAIN_HEX,
+    lock,
+    finalizedBlockNumber: finalized.number,
+    finalizedBlockHash: finalized.hash,
+    finalizedBlockTimestampSeconds: finalized.timestampSeconds,
+    latestHead: Object.freeze({
+      blockNumber: latest.number,
+      blockHash: latest.hash,
+      blockTimestampSeconds: latest.timestampSeconds,
+      verifiedAtSeconds: unixNowSeconds(),
+    }),
+    runtimeBytecodeSha256: sha256Hex(code),
+    lockState: "funded" as const,
+  });
+  assertFreshLatestHead(
+    evidence.finalizedBlockNumber,
+    evidence.finalizedBlockTimestampSeconds,
+    evidence.latestHead,
+  );
+  return evidence;
+}
+
+/**
+ * Reads the same finalized lock evidence from exactly two distinct EIP-1193
+ * provider objects. It performs no signing or transaction RPC.
+ */
+export async function observeFinalizedStablecoinClaimHead(
+  providers: StablecoinClaimProviderQuorum,
+  lockValue: string,
+): Promise<StablecoinClaimHeadEvidence> {
+  if (!Array.isArray(providers) || providers.length !== 2) {
+    throw new TypeError("Stablecoin claim evidence requires exactly two providers");
+  }
+  const [leftProvider, rightProvider] = providers;
+  if (leftProvider === rightProvider) {
+    throw new Error("Stablecoin claim evidence providers must be distinct objects");
+  }
+  for (const provider of providers) {
+    if (provider === null || typeof provider !== "object" || typeof provider.request !== "function") {
+      throw new TypeError("Stablecoin claim evidence provider is unavailable");
+    }
+  }
+  const lock = nonzeroAddress(lockValue, "Conditional lock");
+  const [left, right] = await Promise.all([
+    readProviderClaimHead(leftProvider, lock),
+    readProviderClaimHead(rightProvider, lock),
+  ]);
+  if (left.chainId !== right.chainId
+    || left.lock !== right.lock
+    || left.finalizedBlockNumber !== right.finalizedBlockNumber
+    || left.finalizedBlockHash !== right.finalizedBlockHash
+    || left.finalizedBlockTimestampSeconds !== right.finalizedBlockTimestampSeconds
+    || left.runtimeBytecodeSha256 !== right.runtimeBytecodeSha256
+    || left.lockState !== "funded"
+    || right.lockState !== "funded") {
+    throw new Error("Independent Ethereum providers disagree on finalized conditional lock evidence");
+  }
+  const evidence = Object.freeze({
+    providerCount: 2 as const,
+    chainId: ETHEREUM_MAINNET_CHAIN_HEX,
+    lock,
+    finalizedBlockNumber: left.finalizedBlockNumber,
+    finalizedBlockHash: left.finalizedBlockHash,
+    finalizedBlockTimestampSeconds: left.finalizedBlockTimestampSeconds,
+    latestHeads: Object.freeze([left.latestHead, right.latestHead]) as StablecoinClaimHeadEvidence["latestHeads"],
+    runtimeBytecodeSha256: left.runtimeBytecodeSha256,
+    lockState: "funded" as const,
+  });
+  assertFreshClaimHead(evidence);
+  return evidence;
+}
 
 function encodeApprove(spender: HexAddress, amount: bigint): `0x${string}` {
   return `0x${ERC20_APPROVE_SELECTOR}${spender.slice(2).padStart(64, "0")}${amount.toString(16).padStart(64, "0")}`;
@@ -464,16 +688,81 @@ export function planStablecoinFundingActionsWithAuthority(
   return Object.freeze(actions);
 }
 
-export function createStablecoinClaimAction(
+function verifyClaimHead(
+  context: NormalizedContext,
+  evidence: StablecoinClaimHeadEvidence,
+): void {
+  if (evidence.providerCount !== 2
+    || evidence.chainId !== ETHEREUM_MAINNET_CHAIN_HEX
+    || nonzeroAddress(evidence.lock, "Claim evidence lock") !== context.lock
+    || evidence.lockState !== "funded") {
+    throw new Error("Claim evidence must identify a two-provider quorum for the funded conditional lock on Ethereum Mainnet");
+  }
+  if (!Array.isArray(evidence.latestHeads) || evidence.latestHeads.length !== 2) {
+    throw new Error("Claim evidence must contain exactly two independently verified latest heads");
+  }
+  const finalizedBlockNumber = uint256(evidence.finalizedBlockNumber, "Finalized block number", false);
+  const finalizedBlockHash = nonzeroHex32(evidence.finalizedBlockHash, "Finalized block hash");
+  const finalizedBlockTimestamp = uint64(
+    evidence.finalizedBlockTimestampSeconds,
+    "Finalized block timestamp",
+    true,
+  );
+  const latestHeads = evidence.latestHeads.map((head, index) => Object.freeze({
+    blockNumber: uint256(head.blockNumber, `Provider ${index + 1} latest block number`, false),
+    blockHash: nonzeroHex32(head.blockHash, `Provider ${index + 1} latest block hash`),
+    blockTimestampSeconds: uint64(
+      head.blockTimestampSeconds,
+      `Provider ${index + 1} latest block timestamp`,
+      true,
+    ),
+    verifiedAtSeconds: uint64(head.verifiedAtSeconds, `Provider ${index + 1} verification time`, true),
+  })) as unknown as StablecoinClaimHeadEvidence["latestHeads"];
+  const runtimeHash = nonzeroHex32(evidence.runtimeBytecodeSha256, "Finalized runtime bytecode SHA-256");
+  const normalized = Object.freeze({
+    ...evidence,
+    lock: context.lock,
+    finalizedBlockNumber,
+    finalizedBlockHash,
+    finalizedBlockTimestampSeconds: finalizedBlockTimestamp,
+    latestHeads,
+    runtimeBytecodeSha256: runtimeHash,
+  });
+  assertFreshClaimHead(normalized);
+  if (finalizedBlockNumber !== context.observationBlockNumber
+    || finalizedBlockHash !== context.observationBlockHash
+    || finalizedBlockTimestamp !== context.observationBlockTimestampSeconds
+    || runtimeHash !== context.runtimeBytecodeSha256) {
+    throw new Error("Claim evidence must match the finalized block, state, and code used for the lock review");
+  }
+  const claimClock = latestHeads.reduce(
+    (latest, head) => {
+      const providerClock = head.verifiedAtSeconds > head.blockTimestampSeconds
+        ? head.verifiedAtSeconds
+        : head.blockTimestampSeconds;
+      return providerClock > latest ? providerClock : latest;
+    },
+    0n,
+  );
+  if (claimClock + STABLECOIN_CLAIM_SAFETY_WINDOW_SECONDS >= context.claimCutoff) {
+    throw new Error("Conditional lock claim window is too close to safely reveal the preimage");
+  }
+}
+
+export async function createStablecoinClaimAction(
   input: StablecoinLockContext,
   actor: string,
   preimage: string,
-): StablecoinWalletAction {
+  providers: StablecoinClaimProviderQuorum,
+): Promise<StablecoinWalletAction> {
+  const authority = approvedDeploymentManifest();
+  const evidence = await observeFinalizedStablecoinClaimHead(providers, input.lock);
   return createStablecoinClaimActionWithAuthority(
     input,
     actor,
     preimage,
-    approvedDeploymentManifest(),
+    authority,
+    evidence,
   );
 }
 
@@ -483,12 +772,11 @@ export function createStablecoinClaimActionWithAuthority(
   actor: string,
   preimage: string,
   authority: StablecoinLockDeploymentAuthority,
+  evidence: StablecoinClaimHeadEvidence,
 ): StablecoinWalletAction {
   const context = normalizeContext(input, authority);
   requireState(context, "funded");
-  if (context.observationBlockTimestampSeconds > context.claimCutoff) {
-    throw new Error("Conditional lock claim cutoff has passed");
-  }
+  verifyClaimHead(context, evidence);
   const claimant = nonzeroAddress(actor, "Stablecoin claim actor");
   if (claimant !== context.claimRecipient) throw new Error("Stablecoin claim actor is not the immutable recipient");
   const bytes = hexToBytes(preimage);
