@@ -31,9 +31,9 @@ not a production-readiness or value-safety attestation.
 | --- | --- |
 | ESLint | pass, 0 errors and 0 warnings |
 | TypeScript | pass, 0 errors |
-| Node tests | pass, 807 of 807 |
-| Foundry tests | pass, 49 of 49 |
-| Secret scan | pass, 423 files scanned |
+| Node tests | pass, 801 of 801 |
+| Foundry tests | pass, 70 of 70 |
+| Secret scan | pass, 435 files scanned |
 | Production build | pass, 15 routes |
 | Browser acceptance | pass, 231 of 231; rerun required on the exact candidate commit |
 

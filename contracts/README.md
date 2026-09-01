@@ -10,7 +10,7 @@ No-value Arbitrum Sepolia sources. They are not deployed from this tree, not aud
 | `Factory` | Creates only `tZEC/tUSDC` and `tZEC/tUSDT`. |
 | `Pair` | Fixed 30 bps constant product with locked minimum liquidity. LP symbol `tLP`. No callbacks. |
 | `Router` | Stateless add/remove/swap with liquidity slippage bounds. Reverts if it retains tokens. |
-| `ConditionalLock` | EVM half of a native-ZEC atomic swap. One stablecoin deposit per lock, SHA-256 preimage release, depositor-only refund after a chain-local deadline. Non-upgradeable, no admin transfer, no fee. See [ADR 0003](../docs/adr/0003-evm-conditional-lock.md). |
+| `ConditionalLock` | EVM half of one native ZEC atomic-swap fill. One immutable exact-token amount, SHA-256 claim, original-funder refund, three ordered deadlines, no admin, and no fee. See [ADR 0003](../docs/adr/0003-evm-conditional-lock.md). |
 
 Core contracts are non-upgradeable. There is no seizure path, arbitrary pair creation, flash callback, or fee switch.
 
@@ -58,30 +58,23 @@ node scripts/record-sepolia-deploy.mjs --mark-deployed
 
 Do not run `--mark-deployed` from CI or Vercel. Do not point this script at mainnet.
 
-## ConditionalLock local deploy
+## ConditionalLock local verification
 
-The EVM half of the native-ZEC atomic swap is independent of the tZEC CLOB deploy. It needs only the two approved stablecoin addresses, a pauser, and a governor. The constructor reverts if any role is zero, if the two stablecoins are equal, or if either stablecoin address has no deployed code.
+The exact-token lock is independent of the undeployed tZEC CLOB stack. This tree contains no `ConditionalLock` deployment or broadcast script. It does not select a chain, token address, wallet, or constructor packet.
 
-```bash
-export PHLEBAS_USDC=...
-export PHLEBAS_USDT0=...
-export PHLEBAS_PAUSER=...
-export PHLEBAS_GOVERNOR=...
-```
-
-Dry run, no state change:
+Build and test without network access:
 
 ```bash
-forge script script/DeployConditionalLock.s.sol:DeployConditionalLock --root contracts --rpc-url $ARBITRUM_SEPOLIA_RPC
+npm ci --ignore-scripts
+forge fmt --root contracts --check
+forge build src/swap/ConditionalLock.sol --root contracts --offline --force --sizes
+forge test --root contracts --offline -vvv
+forge test --root contracts --offline --match-contract ConditionalLock --gas-report
+node scripts/validate-conditional-lock-manifest.mjs contracts/manifests/conditional-lock.not-deployed.json
+node --test scripts/validate-conditional-lock-manifest.test.mjs
 ```
 
-Broadcast (creates a real Sepolia tx):
-
-```bash
-forge script script/DeployConditionalLock.s.sol:DeployConditionalLock --root contracts --rpc-url $ARBITRUM_SEPOLIA_RPC --broadcast --private-key $PHLEBAS_DEPLOYER_KEY
-```
-
-The contract has no custody, fee, or admin-transfer path. The constructor is non-upgradeable. Pause halts new deposits only; every in-flight lock retains a wallet-controlled refund path.
+The checked-in deployment record remains false and disables network action. Null values mean no chain, address, transaction, constructor packet, or deployed bytecode has been recorded. See [the source and bytecode procedure](../docs/EVM_CONDITIONAL_LOCK_VERIFICATION.md) before treating any future deployment as this reviewed contract.
 
 ## Zcash lab
 

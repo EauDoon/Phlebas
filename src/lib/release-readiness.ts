@@ -23,8 +23,11 @@ export type ReleaseVerdict = Readonly<{
 
 export const REQUIRED_RELEASE_GATES = [
   "lint",
+  "contract-format",
   "typecheck",
   "tests",
+  "manifests",
+  "contract-build",
   "secret-scan",
   "build",
   "contracts",

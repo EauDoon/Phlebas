@@ -13,13 +13,14 @@ import type { ZcashEventSource } from "../../src/lib/zcash-observer.ts";
 import type { AtomicSwapObserverServiceConfig } from "./types.ts";
 
 const FILL_A = "0x" + "aa".repeat(32);
+const CONTRACT = "0x" + "11".repeat(20);
 
 const evmSource: EVMEventSource = { fetchLogs: async () => [] };
 const zcashSource: ZcashEventSource = { fetchAddressOutpoints: async () => [], fetchSpend: async () => ({ spent: false, spendTxid: null }) };
 
 function mkConfig(snapshotPath: string): AtomicSwapObserverServiceConfig {
   return {
-    evm: { contractAddress: "0x" + "00".repeat(20), fromBlock: 0n, source: evmSource },
+    evm: { contractAddress: CONTRACT, fromBlock: 0n, source: evmSource },
     zcash: { addresses: ["t1" + "aa".repeat(19)], fromHeight: 0n, source: zcashSource },
     watchtower: { reorgDepth: 10n, deadlineBuffer: 60n },
     fillIdByOutpoint: {},
@@ -80,7 +81,7 @@ test("buildController poll advances the cursor and persists the snapshot", async
   try {
     const path = join(dir, "snap.json");
     const { EVMTOPICS } = await import("../../src/lib/evm-observer.ts");
-    const evm: EVMEventSource = { fetchLogs: async () => [{ blockNumber: 100n, txHash: "0x" + "11".repeat(32), logIndex: 0, topics: [EVMTOPICS.deposited, FILL_A, "0x" + "00".repeat(20), "0x" + "00".repeat(20)], data: "0x" }] };
+    const evm: EVMEventSource = { fetchLogs: async () => [{ address: CONTRACT, blockNumber: 100n, txHash: "0x" + "11".repeat(32), logIndex: 0, topics: [EVMTOPICS.funded, FILL_A, "0x" + "00".repeat(32), "0x" + "00".repeat(32)], data: "0x" }] };
     const cfg = mkConfig(path);
     const evmOriginal = cfg.evm.source;
     // The poller reads cfg.evm.source; replace with the new source.
@@ -106,7 +107,7 @@ test("startService exposes /health, /state, /fills, /alerts, and /fills/:fillId"
   try {
     const path = join(dir, "snap.json");
     const { EVMTOPICS } = await import("../../src/lib/evm-observer.ts");
-    const evm: EVMEventSource = { fetchLogs: async () => [{ blockNumber: 100n, txHash: "0x" + "11".repeat(32), logIndex: 0, topics: [EVMTOPICS.deposited, FILL_A, "0x" + "00".repeat(20), "0x" + "00".repeat(20)], data: "0x" }] };
+    const evm: EVMEventSource = { fetchLogs: async () => [{ address: CONTRACT, blockNumber: 100n, txHash: "0x" + "11".repeat(32), logIndex: 0, topics: [EVMTOPICS.funded, FILL_A, "0x" + "00".repeat(32), "0x" + "00".repeat(32)], data: "0x" }] };
     const cfg = mkConfig(path);
     const cfgWithEvm = { ...cfg, evm: { ...cfg.evm, source: evm } };
     const initial = { state: emptyCoordinator(), bootstrap: "ready" as const, bootstrapError: null };

@@ -338,7 +338,6 @@ test("trade ticket shows parser errors instead of a tick notice", async ({ page 
   await expect(page.getByText("Value must use no more than 8 decimal places").first()).toBeVisible();
   await expect(page.getByText("Price must use 0.01 quote ticks")).toHaveCount(0);
 });
-
 test("gateway preview is not a receivable deposit", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "ZEC gateway" })).toBeVisible();

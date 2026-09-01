@@ -11,7 +11,6 @@ test("320px LP empty shares and toxic-flow risk copy", async ({ page }) => {
   await page.getByRole("button", { name: "Burn session shares" }).click();
   await expect(page.getByText(emptyShareCopy("ZEC/USDT")).first()).toBeVisible();
 });
-
 test("320px LP unavailable feed disables mint and retries", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/liquidity?feed=unavailable", { waitUntil: "networkidle" });

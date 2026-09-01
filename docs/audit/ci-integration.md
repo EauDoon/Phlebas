@@ -21,11 +21,14 @@ The release readiness script runs the following gates:
 | Gate | Command | Pass criteria |
 | --- | --- | --- |
 | lint | `npm run lint` | 0 errors |
+| contract-format | `npm run lint:contracts` | Foundry formatting is exact |
 | typecheck | `npm run typecheck` | 0 errors |
 | tests | `npm test` | all node tests pass |
+| manifests | `npm run test:manifests` | undeployed and deployed evidence fails closed |
+| contract-build | `npm run build:contracts` | exact lock target builds within size limits |
 | secret-scan | `npm run scan:secrets` | no findings |
 | build | `npm run build` | Next.js production build succeeds |
-| contracts | CI runs `forge test` | all Foundry tests pass |
+| contracts | `npm run test:contracts` | all Foundry tests pass |
 | audit-checklist | parses `docs/audit/audit-checklist.md` | all required items `done` |
 
 The current readiness script runs the contract gate locally and in the

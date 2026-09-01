@@ -498,7 +498,7 @@ The committed native-settlement stack is 27 commits beyond its original base, wh
 ## Next
 
 - Bind matcher receipts and complete signed-order witnesses into exact `SwapTermsV1`, swap IDs, terms hashes, integer quote amounts, and the zero-fee invariant.
-- Add `swapId` and `termsHash` to the EVM lock contract and verified event surface, then regenerate ABI tests. USDT remains disabled until one exact network and token contract are approved.
+- Verify the exact-token EVM lock against one separately approved testnet deployment manifest. It now binds `swapId` and `termsHash`; USDT remains disabled until one exact network and token contract are approved.
 - Replace heuristic Zcash spend classification with exact transaction, branch, witness, and preimage decoding. Pin the SHA-256 to HASH160 commitment vector.
 - Replace legacy observer transitions and v1 Fill snapshots with exact evidence adapters and a verified journal/snapshot store.
 - Complete Testnet wallet interoperability, recovery, reorganization, and wrong-network scenarios without embedding keys.

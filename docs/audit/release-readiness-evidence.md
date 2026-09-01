@@ -9,30 +9,37 @@ checklist, deployment evidence, or an exact-commit production approval.
 | Gate | Status | Detail |
 | --- | --- | --- |
 | lint | pass | ESLint completes with 0 errors and 0 warnings |
+| contract-format | pass | Foundry formatting is exact |
 | typecheck | pass | TypeScript completes with 0 errors |
-| tests | pass | 807 Node tests pass |
-| contracts | pass | 49 Foundry tests pass |
-| secret-scan | pass | 423 files scanned with no detected secrets |
+| tests | pass | 801 Node tests pass |
+| manifests | pending exact commit | Working-tree validation passes; deployed-manifest source identity requires the merge commit |
+| contract-build | pass | Exact ConditionalLock target builds at 3,808 runtime bytes |
+| contracts | pass | 70 Foundry tests pass |
+| secret-scan | pass | 435 files scanned with no detected secrets |
 | build | pass | Next.js production build succeeds with 15 routes |
 | browser acceptance | pass | 231 Playwright tests pass against the production build |
-| audit-checklist | fail | 7 of 36 required items remain incomplete |
+| audit-checklist | fail | 16 of 47 required items remain incomplete |
 
 ## Verdict
 
 The current verdict is **not ready**. The incomplete required audit
 items are:
 
-* `contracts-1` and `contracts-2`: deploy the exact reviewed contract
-  bytecode to Arbitrum Sepolia, record it in the manifest, and verify it
-  on the block explorer.
-* `operations-7`: wire and exercise the production alert destination.
-* `operations-8`: wire and exercise the production metrics destination.
-* `docs-6`: publish an evidence pack bound to the exact release commit
-  and deployed artifact.
-* `keys-2`: establish and verify separation between test and production
-  deployment authority.
-* `keys-5`: document and independently review any wallet signing surface
-  before it is enabled.
+* `contracts-10` and `contracts-11`: deploy and verify the exact reviewed
+  contract on the approved test network, then complete independent
+  contract and protocol review.
+* `services-9` to `services-12`: complete strict Zcash and EVM chain
+  evidence, canonical matcher terms, and durable authoritative journals.
+* `operations-7` to `operations-9`: wire production alerting and metrics,
+  then produce complete testnet claim, refund, failure, and recovery
+  evidence.
+* `docs-6` and `docs-7`: publish exact-release evidence and bind a green
+  Vercel preview to the candidate commit.
+* `keys-2`, `keys-5`, and `keys-6`: establish key separation and complete
+  the wallet signing and broadcast design and independent review.
+* `compliance-1` and `compliance-2`: obtain legal approval and implement
+  the resulting jurisdiction, disclosure, privacy, sanctions, and
+  incident controls.
 
 These rows are minimum checklist blockers, not a claim that every other
 production dependency is already satisfied. New audit findings must be

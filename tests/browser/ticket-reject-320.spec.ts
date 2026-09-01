@@ -37,7 +37,6 @@ test("320px FOK miss rejected panel names ZEC-USDT", async ({ page }) => {
   await expect(panel.getByText(`${copy} Retry is safe; nothing was submitted.`, { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
 });
-
 test("320px past unix expiry rejected panel names ZEC-USDT", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade", { waitUntil: "networkidle" });

@@ -12,6 +12,7 @@ import type { ZcashEventSource, ZcashOutpointEvent } from "../../src/lib/zcash-o
 import type { Hex32 } from "../../src/lib/order-domain.ts";
 
 const FILL_A = ("0x" + "aa".repeat(32)) as Hex32;
+const CONTRACT = "0x" + "11".repeat(20);
 
 function mkCfg(
   path: string,
@@ -20,7 +21,7 @@ function mkCfg(
   fillIdByOutpoint: Record<string, `0x${string}`> = {},
 ): AtomicSwapObserverServiceConfig {
   return {
-    evm: { contractAddress: "0x" + "00".repeat(20), fromBlock: 0n, source: evm },
+    evm: { contractAddress: CONTRACT, fromBlock: 0n, source: evm },
     zcash: { addresses: ["t1" + "aa".repeat(19)], fromHeight: 0n, source: zcash },
     watchtower: { reorgDepth: 10n, deadlineBuffer: 60n },
     fillIdByOutpoint: fillIdByOutpoint as Readonly<Record<string, `0x${string}`>>,
@@ -64,14 +65,14 @@ test("pollOnceInto applies EVM transitions and persists the snapshot", async () 
     const path = join(dir, "snap.json");
     const { EVMTOPICS } = await import("../../src/lib/evm-observer.ts");
     const evmEvent: EVMEvent = {
-      kind: "deposited",
+      kind: "funded",
       fillId: FILL_A,
       blockNumber: 100n,
       txHash: "0x" + "11".repeat(32),
       logIndex: 0,
       data: { raw: "0x" },
     };
-    const evm: EVMEventSource = { fetchLogs: async () => [{ blockNumber: 100n, txHash: evmEvent.txHash, logIndex: 0, topics: [EVMTOPICS.deposited, FILL_A, "0x" + "00".repeat(20), "0x" + "00".repeat(20)], data: "0x" }] };
+    const evm: EVMEventSource = { fetchLogs: async () => [{ address: CONTRACT, blockNumber: 100n, txHash: evmEvent.txHash, logIndex: 0, topics: [EVMTOPICS.funded, FILL_A, "0x" + "00".repeat(32), "0x" + "00".repeat(32)], data: "0x" }] };
     const zcash: ZcashEventSource = { fetchAddressOutpoints: async () => [], fetchSpend: async () => ({ spent: false, spendTxid: null }) };
     const cfg = mkCfg(path, evm, zcash);
     const out = await pollOnceInto(emptyCoordinator(), cfg, 100n);
