@@ -1,4 +1,4 @@
-import { sepoliaSubmitEnabled } from "./sepolia-submit.ts";
+import { sepoliaSubmitEnabled, walletConnectEnabled } from "./sepolia-submit.ts";
 import { TESTNET } from "./testnet.ts";
 import { isLoopbackOperatorUrl } from "./operator-url.ts";
 
@@ -18,7 +18,7 @@ export function simulationStatus(env: Record<string, string | undefined> = proce
     custody: "none",
     deposits: "historical-tour-only",
     withdrawals: "historical-tour-only",
-    wallets: "eip-1193-sepolia",
+    wallets: walletConnectEnabled(env) ? "eip-1193-sepolia" : "off",
     sepoliaSubmit: sepoliaSubmitEnabled(env) && TESTNET.deployed ? "testnet-enabled" : "flag-off",
     contracts: TESTNET.deployed ? "sepolia-deployed" : "source-undeployed",
     network: TESTNET.deployed ? "arbitrum-sepolia" : "arbitrum-sepolia-unconfigured",

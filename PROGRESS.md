@@ -4,10 +4,10 @@
 
 ## Current checkpoint
 
-- Active UI branch: `feat/prelaunch-playwright-followup`, cut from `main` after PR #32. Public chrome is a pre-launch venue (warm yellow accent, persistent preview chip, Open terminal). Landing, terminal, settlement fill ticket, and solver quotes. Vercel hosts UI only; no mainnet funds.
-- Ticket complete notices come from the submit result so fill/IOC/FOK copy stays visible. Historical AMM actions use Review/Complete, not simulated labels.
-- Playwright `test:browser` passed twice locally (299/299). `npm run check` passed.
-- Merged: PR #32 pre-launch product site; PR #26 education/skip-link 44px coverage.
+- Active UI branch: `feat/prelaunch-chrome-honesty`, cut from `main` after PR #33. Public chrome is a pre-launch venue (warm yellow accent, persistent preview chip, Open terminal). Landing, terminal, settlement fill ticket, and solver quotes. Vercel hosts UI only; no mainnet funds.
+- Terminal and liquidity primary nav is Markets · Terminal · Liquidity · Docs · Status. SiteFooter carries “Phlebas is not a live exchange and not an offer of financial services.” 24h volume is off the market bar. Connect wallet stays disabled unless optional Sepolia is started. Historical AMM lives under Docs → Historical models only.
+- Playwright `test:browser` passed twice locally (300/300). `npm run check` passed.
+- Merged: PR #33 Playwright follow-up; PR #32 pre-launch product site; PR #26 education/skip-link 44px coverage.
 - Prior integration: custodial gateway runtime removed from `main`.
 - Product boundary: no-value production preview. The public application does not accept deposits, issue a receiver, mint or burn a redeemable asset, sign transactions, broadcast transactions, or move funds.
 - Release boundary: production use with live funds remains blocked. Testnet and mainnet activation require separate evidence, review, and explicit authorization.

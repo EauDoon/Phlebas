@@ -32,7 +32,8 @@
 .operatingShell .topbar,
 .operatingShell .simulationBanner,
 .operatingShell .marketBar,
-.operatingShell .footer {
+.operatingShell .footer,
+.operatingShell .footerSlot {
   flex-shrink: 0;
 }
 

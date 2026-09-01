@@ -12,5 +12,7 @@ test("version 1 fee envelope stays inside the 30 bps cap", () => {
   assert.ok(TAKER_FEE_BPS <= MAX_FEE_BPS);
   assert.ok(AMM_FEE_BPS <= MAX_FEE_BPS);
   assert.match(feeEnvelopeCopy(), /taker 15 bps/);
-  assert.match(feeEnvelopeCopy(), /Not deducted/);
+  assert.match(feeEnvelopeCopy(), /Not deducted in this preview/);
+  assert.match(feeEnvelopeCopy(), /Protocol fee is zero/);
+  assert.doesNotMatch(feeEnvelopeCopy(), /simulation/i);
 });

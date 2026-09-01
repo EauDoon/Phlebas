@@ -12,6 +12,10 @@ export function sepoliaSubmitEnabled(env?: Record<string, string | undefined>): 
     : process.env.NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT === "1";
 }
 
+export function walletConnectEnabled(env?: Record<string, string | undefined>): boolean {
+  return sepoliaSubmitEnabled(env) && TESTNET.deployed;
+}
+
 export function configuredSettlementAddress(): string | null {
   return isOnchainAddress(TESTNET.settlement) ? TESTNET.settlement : null;
 }

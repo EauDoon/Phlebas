@@ -105,9 +105,12 @@ test.describe("desktop operating density", () => {
     await expectIntersectingViewport(pairs, "quote pairs");
     await expectIntersectingViewport(wallet, "wallet connect");
     await expect(page.getByText("Wallet-held inventory")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Historical AMM model" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Review mint" })).toHaveCount(0);
+
+    await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
     await expect(page.getByRole("heading", { name: "Historical AMM model" })).toBeVisible();
     await expect(page.getByText("Retired", { exact: true }).first()).toBeVisible();
-
     const mint = page.getByRole("button", { name: "Review mint" });
     const burn = page.getByRole("button", { name: "Burn session shares" });
     const swap = page.getByRole("button", { name: "Review swap" });
