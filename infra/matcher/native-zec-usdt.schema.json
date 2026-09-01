@@ -1,0 +1,321 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": "1.0.0",
+  "title": "Native ZEC/USDT matcher deployment manifest",
+  "description": "Exact, fail-closed identity and limits for the native ZEC/USDT matcher. The default manifest is disabled and contains no deployment commitment.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "manifestType",
+    "deployed",
+    "submissionEnabled",
+    "orderDomain",
+    "evm",
+    "market",
+    "configurationHash",
+    "settlement",
+    "limits"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "manifestType": {
+      "const": "native-zec-usdt-matcher-deployment"
+    },
+    "deployed": {
+      "type": "boolean"
+    },
+    "submissionEnabled": {
+      "type": "boolean"
+    },
+    "orderDomain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "const": "Phlebas Order Intent"
+        },
+        "version": {
+          "const": "1"
+        }
+      }
+    },
+    "evm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network", "chainId", "verifyingContract"],
+      "properties": {
+        "network": {
+          "const": "eip155:1"
+        },
+        "chainId": {
+          "const": 1
+        },
+        "verifyingContract": {
+          "anyOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/address"}
+          ]
+        }
+      }
+    },
+    "market": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "settlementPair", "base", "quote"],
+      "properties": {
+        "id": {
+          "const": "ZEC/USDT"
+        },
+        "settlementPair": {
+          "const": "ZEC-USDT"
+        },
+        "base": {
+          "$ref": "#/$defs/baseAsset"
+        },
+        "quote": {
+          "$ref": "#/$defs/quoteAsset"
+        }
+      }
+    },
+    "configurationHash": {
+      "anyOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/hex32"}
+      ]
+    },
+    "settlement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "adapterId",
+        "stablecoinRefundDelaySeconds",
+        "zcashRefundSafetyDeltaSeconds",
+        "zcashRequiredConfirmations",
+        "quoteRequiredConfirmations"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "transparent-htlc-v1"
+        },
+        "adapterId": {
+          "const": "0x4a706303b18927143cae2eea9b380287fad8a427661b0c1e89d44d359629127d"
+        },
+        "stablecoinRefundDelaySeconds": {
+          "$ref": "#/$defs/positiveDecimal"
+        },
+        "zcashRefundSafetyDeltaSeconds": {
+          "$ref": "#/$defs/positiveDecimal"
+        },
+        "zcashRequiredConfirmations": {
+          "$ref": "#/$defs/positiveSafeInteger"
+        },
+        "quoteRequiredConfirmations": {
+          "$ref": "#/$defs/positiveSafeInteger"
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimumBaseAmountAtoms",
+        "maximumBaseAmountAtoms",
+        "maximumAcceptedOrders",
+        "maximumOpenOrders",
+        "maximumOpenOrdersPerAccount",
+        "maximumSolverQuotes",
+        "maximumRouteFills",
+        "maximumSolverFills",
+        "maximumOrderLifetimeSeconds",
+        "maximumSolverLifetimeSeconds",
+        "maximumSolverCapacityBaseAtoms",
+        "maximumSolverFeeBps",
+        "maximumSolverSlippageBps"
+      ],
+      "properties": {
+        "minimumBaseAmountAtoms": {
+          "$ref": "#/$defs/positiveDecimal"
+        },
+        "maximumBaseAmountAtoms": {
+          "$ref": "#/$defs/positiveDecimal"
+        },
+        "maximumAcceptedOrders": {
+          "$ref": "#/$defs/positiveSafeInteger"
+        },
+        "maximumOpenOrders": {
+          "$ref": "#/$defs/positiveSafeInteger"
+        },
+        "maximumOpenOrdersPerAccount": {
+          "$ref": "#/$defs/positiveSafeInteger"
+        },
+        "maximumSolverQuotes": {
+          "$ref": "#/$defs/positiveSafeInteger"
+        },
+        "maximumRouteFills": {
+          "$ref": "#/$defs/positiveSafeInteger"
+        },
+        "maximumSolverFills": {
+          "$ref": "#/$defs/positiveSafeInteger"
+        },
+        "maximumOrderLifetimeSeconds": {
+          "$ref": "#/$defs/positiveDecimal"
+        },
+        "maximumSolverLifetimeSeconds": {
+          "$ref": "#/$defs/positiveDecimal"
+        },
+        "maximumSolverCapacityBaseAtoms": {
+          "$ref": "#/$defs/positiveDecimal"
+        },
+        "maximumSolverFeeBps": {
+          "const": "0"
+        },
+        "maximumSolverSlippageBps": {
+          "const": "2000"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "deployed": {"const": false}
+        }
+      },
+      "then": {
+        "properties": {
+          "submissionEnabled": {"const": false}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evm": {
+            "properties": {
+              "verifyingContract": {"type": "null"}
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "configurationHash": {"const": null}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "configurationHash": {"type": "null"}
+        }
+      },
+      "then": {
+        "properties": {
+          "evm": {
+            "properties": {
+              "verifyingContract": {"const": null}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "deployed": {"const": true}
+        }
+      },
+      "then": {
+        "properties": {
+          "evm": {
+            "required": ["verifyingContract"],
+            "properties": {
+              "verifyingContract": {"$ref": "#/$defs/address"}
+            }
+          },
+          "configurationHash": {"$ref": "#/$defs/hex32"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "submissionEnabled": {"const": true}
+        }
+      },
+      "then": {
+        "required": ["deployed"],
+        "properties": {
+          "deployed": {"const": true},
+          "evm": {
+            "properties": {
+              "verifyingContract": {"$ref": "#/$defs/address"}
+            }
+          },
+          "configurationHash": {"$ref": "#/$defs/hex32"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{40}$",
+      "not": {
+        "const": "0x0000000000000000000000000000000000000000"
+      }
+    },
+    "hex32": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$",
+      "not": {
+        "const": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "positiveDecimal": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$"
+    },
+    "positiveSafeInteger": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000
+    },
+    "baseAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network", "asset", "environment", "decimals"],
+      "properties": {
+        "network": {"const": "bip122:00040fe8ec8471911baa1db1266ea15d"},
+        "asset": {"const": "bip122:00040fe8ec8471911baa1db1266ea15d/slip44:133"},
+        "environment": {"const": "mainnet"},
+        "decimals": {"const": 8}
+      }
+    },
+    "quoteAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network", "asset", "environment", "decimals"],
+      "properties": {
+        "network": {"const": "eip155:1"},
+        "asset": {"const": "eip155:1/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7"},
+        "environment": {"const": "mainnet"},
+        "decimals": {"const": 6}
+      }
+    }
+  }
+}
+
+
+
+
