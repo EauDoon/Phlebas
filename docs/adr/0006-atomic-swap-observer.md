@@ -4,6 +4,8 @@ Date: 01-09-2026
 Status: Accepted for key-independent development
 Production status: Not approved
 
+Current Zcash boundary: references below to the ADR 0005 wallet adapter, transaction signing, or a complete offchain Zcash workflow are historical and superseded by `docs/ZCASH_TRANSACTION_LAB.md`. The legacy adapter is display-only. The candidate PCZT boundary is header-only and is not wallet-ready.
+
 ## Context
 
 ADR 0002 defines the production target: one two-chain atomic swap per matched fill, with a transparent Zcash P2SH leg and an EVM conditional-lock leg. ADR 0003 fixes the EVM contract. ADR 0004 fixes the offchain state machine. ADR 0005 fixes the ZEC address encoder, P2SH script builder, and wallet adapter.

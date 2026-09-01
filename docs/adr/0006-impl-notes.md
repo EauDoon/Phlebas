@@ -1,5 +1,7 @@
 # ADR 0006 implementation notes
 
+Current Zcash boundary: wallet-signing references below are historical and superseded by `docs/ZCASH_TRANSACTION_LAB.md`. No signing-capable Zcash adapter exists or is authorized.
+
 This file records the implementation deviations, follow-ups, and
 operational guidance for the atomic-swap observer and watchtower
 surface. The ADR itself is in `0006-atomic-swap-observer.md`; this

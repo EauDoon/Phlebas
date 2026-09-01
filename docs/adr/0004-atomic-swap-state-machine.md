@@ -4,6 +4,8 @@ Date: 01-09-2026
 Status: Accepted for key-independent development
 Production status: Not approved
 
+Current Zcash boundary: references below to a signing-capable Zcash wallet adapter or a next-PR signing surface are historical and superseded by `docs/ZCASH_TRANSACTION_LAB.md`. The present candidate PCZT integration is header-only, handles no key bytes, and blocks wallet readiness while full serialization and relayability remain unresolved.
+
 ## Context
 
 ADR 0002 defines the production target: one two-chain atomic swap per matched fill, with a transparent Zcash P2SH leg and an EVM conditional-lock leg sharing one hash, one preimage, and staggered refund deadlines. ADR 0003 fixes the EVM half of that workflow as the `ConditionalLock` contract.
