@@ -104,9 +104,23 @@ function readStoredMode(): string | null {
 function persistMode(mode: TerminalMode) {
   try {
     window.localStorage.setItem(TERMINAL_MODE_STORAGE_KEY, mode);
+    window.dispatchEvent(new Event("phlebas-terminal-mode"));
   } catch {
     // Private mode still lets the visitor switch.
   }
+}
+
+function subscribeTerminalMode(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("phlebas-terminal-mode", onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("phlebas-terminal-mode", onStoreChange);
+  };
+}
+
+function getStoredTerminalMode() {
+  return resolveTerminalMode(undefined, readStoredMode());
 }
 
 function seedBooks() {
@@ -157,7 +171,12 @@ export function TradingTerminal({
   const [accountEpoch, setAccountEpoch] = useState(0);
   const [priceSelection, setPriceSelection] = useState<{ ticks: bigint; nonce: number } | null>(null);
   const [wallet, setWallet] = useState<WalletState>(disconnectedWallet);
-  const [mode, setMode] = useState<TerminalMode>(initialMode ?? DEFAULT_TERMINAL_MODE);
+  const storedMode = useSyncExternalStore(
+    subscribeTerminalMode,
+    getStoredTerminalMode,
+    () => DEFAULT_TERMINAL_MODE,
+  );
+  const mode = initialMode ?? storedMode;
   const isSimple = mode === "simple";
   const storedIncidentDemo = useSyncExternalStore(
     subscribeIncidentDemo,
@@ -186,16 +205,7 @@ export function TradingTerminal({
     }
   }, [highlightIncidents]);
 
-  useEffect(() => {
-    if (initialMode) {
-      persistMode(initialMode);
-      return;
-    }
-    setMode(resolveTerminalMode(undefined, readStoredMode()));
-  }, [initialMode]);
-
   function selectMode(nextMode: TerminalMode) {
-    setMode(nextMode);
     persistMode(nextMode);
     router.replace(viewUrl(view, marketId, feedStatus, demoQuery, nextMode), { scroll: false });
   }
