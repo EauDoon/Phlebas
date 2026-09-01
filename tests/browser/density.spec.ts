@@ -94,7 +94,7 @@ test.describe("desktop operating density", () => {
     await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   });
 
-  test("liquidity keeps pool stats quote and mint swap burn on one screen", async ({ page }) => {
+  test("liquidity keeps solver quotes, historical controls, and risks on one screen", async ({ page }) => {
     await page.goto("/liquidity", { waitUntil: "networkidle" });
 
     const pools = page.locator("#liquidity-pools");
@@ -113,42 +113,13 @@ test.describe("desktop operating density", () => {
     await expect(page.getByText("Session LP shares", { exact: true })).toBeVisible();
     await expect(page.getByText("Session IL vs hold", { exact: true })).toBeVisible();
     await expect(page.getByText("IL vs hold at 4x ZEC/quote")).toBeVisible();
-
-    const layout = await page.evaluate(() => {
-      const box = (id: string) => {
-        const rect = document.getElementById(id)?.getBoundingClientRect();
-        if (!rect) {
-          throw new Error(`Missing ${id}`);
-        }
-        return { top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left };
-      };
-      const mintButton = Array.from(document.querySelectorAll("button")).find(
-        (button) => button.textContent === "Review simulated mint",
-      );
-      const statsPanel = document.getElementById("pool-stats")?.closest("section");
-      if (!mintButton || !statsPanel) {
-        throw new Error("Missing mint control or stats panel");
-      }
-      const mintBox = mintButton.getBoundingClientRect();
-      const panelBox = statsPanel.getBoundingClientRect();
-      return {
-        pools: box("liquidity-pools"),
-        stats: box("pool-stats"),
-        statsPanel: { top: panelBox.top, right: panelBox.right, bottom: panelBox.bottom, left: panelBox.left },
-        mint: { top: mintBox.top, right: mintBox.right, bottom: mintBox.bottom, left: mintBox.left },
-      };
-    });
-
-    expect(layout.stats.left, "stats sit beside the quote ticket, not under a marketing card").toBeGreaterThan(
-      layout.pools.right - 2,
-    );
-    expect(layout.stats.left, "mint/swap/burn stay in the quote column beside stats").toBeGreaterThan(
-      layout.mint.right - 2,
-    );
-    expect(
-      Math.min(layout.statsPanel.bottom, layout.mint.bottom) - Math.max(layout.statsPanel.top, layout.mint.top),
-      "mint/swap/burn and pool stats share the vertical operating screen",
-    ).toBeGreaterThan(0);
+    const solverQuotes = page.getByRole("region", { name: "Solver quotes" });
+    const historicalAmm = page.getByRole("region", { name: "Historical AMM model" });
+    const risks = page.getByRole("complementary", { name: "Named quote risks" });
+    await expect(solverQuotes).toBeVisible();
+    await expect(historicalAmm).toContainText("Retired constant-product math");
+    await expect(historicalAmm.locator("#pool-stats")).toBeVisible();
+    await expect(risks).toBeVisible();
 
     await page.getByRole("radio", { name: "Loading" }).click();
     await expect(mint).toBeDisabled();
