@@ -24,8 +24,6 @@ export function NativeMatcherOrderAction({
   deployment,
 }: NativeMatcherOrderActionProps) {
   const state = nativeMatcherOrderActionState(marketId, deployment);
-  const reasonId = "native-matcher-order-action-reason";
-
   return (
     <section
       id="native-matcher-order-action"
@@ -40,17 +38,9 @@ export function NativeMatcherOrderAction({
       </div>
       <div className={styles.ticketBlocked} role="status" aria-live="polite">
         <strong>{state.heading}</strong>
-        <p id={reasonId}>{state.message}</p>
+        <p>{state.message}</p>
         <p>{state.sellNotice}</p>
       </div>
-      <button
-        type="button"
-        className={styles.primaryAction}
-        disabled
-        aria-describedby={reasonId}
-      >
-        Native matcher unavailable
-      </button>
     </section>
   );
 }

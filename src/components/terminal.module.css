@@ -535,7 +535,7 @@ a.skipLink:focus-visible {
 .operatingShell .tradeGrid {
   flex: 1 1 auto;
   min-height: 0;
-  grid-template-rows: minmax(180px, 1fr) minmax(0, 168px) minmax(0, 188px);
+  grid-template-rows: minmax(240px, 1fr) minmax(190px, auto) minmax(160px, 188px);
 }
 
 .operatingShell .tradeGrid > section,
@@ -795,6 +795,17 @@ a.skipLink:focus-visible {
 .nativeMatcherPanel {
   grid-area: matcher;
   padding-bottom: 14px;
+}
+
+.nativeMatcherPanel .ticketBlocked {
+  margin-bottom: 0;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.nativeMatcherPanel .ticketBlocked p {
+  margin: 4px 0;
+  line-height: 1.35;
 }
 
 .simpleTradeGrid {
@@ -2392,7 +2403,17 @@ a.skipLink:focus-visible {
   }
 
   .operatingShell .tradeGrid {
-    grid-template-rows: minmax(0, 1.1fr) minmax(0, 120px) minmax(0, 1fr) minmax(0, 180px) minmax(0, 150px);
+    flex: none;
+    height: auto;
+    grid-template-rows: auto auto auto auto auto;
+  }
+
+  .operatingShell .main {
+    overflow-y: auto;
+  }
+
+  .operatingShell .tradeGrid > section {
+    overflow: visible;
   }
 
   .liquidityGrid {
