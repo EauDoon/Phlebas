@@ -1,14 +1,14 @@
 # Phlebas current progress
 
-> Current summary as of 01-09-2026. This document supersedes the earlier cumulative branch diary. It intentionally does not pin a commit SHA, because a progress file that names its own pre-commit head becomes stale as soon as it is committed.
+> Current summary as of 02-09-2026. This document supersedes the earlier cumulative branch diary. It intentionally does not pin a commit SHA, because a progress file that names its own pre-commit head becomes stale as soon as it is committed.
 
 ## Current checkpoint
 
-- Active UI branch: `feat/prelaunch-copy-honesty`, cut from `main` after PR #34. Public chrome is a pre-launch venue (warm yellow accent, persistent preview chip, Open terminal). Landing, terminal, settlement fill ticket, and solver quotes. Vercel hosts UI only; no mainnet funds.
-- Terminal and liquidity primary nav is Markets · Terminal · Liquidity · Docs · Status. SiteFooter carries “Phlebas is not a live exchange and not an offer of financial services.” 24h volume is off the market bar. Connect wallet stays disabled unless optional Sepolia is started. Historical AMM lives under Docs → Historical models only.
+- Active UI branch: `feat/prelaunch-venue-overhaul`, cut from `main` after PR #37. Continues the warm near-black venue chrome with a denser landing, terminal, blotter, and wallet bar. Connect wallet title now names MetaMask or Rabby specifically. Session event log now names side, time in force, and expiry without the order id. Vercel hosts UI only; no mainnet funds.
+- Terminal and liquidity primary nav is Markets · Terminal · Liquidity · Docs · Status. SiteFooter carries “Phlebas is not a live exchange and not an offer of financial services.” 24h volume is off the market bar. Connect wallet stays disabled unless an Ethereum Mainnet provider responds. Historical AMM lives under Docs → Historical models only.
 - Status/Legal/Security drop simulation/no-value labels. Market-state 24h notes drop fixture. Historical AMM volume row removed. Destination field is a check, not inspect.
-- Playwright `test:browser` passed twice locally (301/301). `npm run check` passed.
-- Merged: PR #34 chrome honesty; PR #33 Playwright follow-up; PR #32 pre-launch product site. Leave PR #26 alone.
+- Playwright `test:browser` passes 313 of 314 (one intermittent focused skip-nav assertion under reduced motion at 320px). `npm run check` passes. Secret scan clean. Foundry contract suite green.
+- Merged: PR #37 warm near-black venue chrome and drop simulator labels; PR #34 chrome honesty; PR #33 Playwright follow-up; PR #32 pre-launch product site. Leave PR #26 alone.
 - Prior integration: custodial gateway runtime removed from `main`.
 - Product boundary: no-value production preview. The public application does not accept deposits, issue a receiver, mint or burn a redeemable asset, sign transactions, broadcast transactions, or move funds.
 - Release boundary: production use with live funds remains blocked. Testnet and mainnet activation require separate evidence, review, and explicit authorization.
