@@ -1,6 +1,6 @@
 import type { Hex32 } from "./order-domain.ts";
 import { sha256Hex } from "./sha256.ts";
-import { canonicalArtifactJson, verifyZcashArtifact } from "./zcash-artifact.ts";
+import { canonicalArtifactJson } from "./zcash-artifact.ts";
 import {
   verifyTermsBoundZcashArtifact,
   type TermsBoundZcashArtifact,
@@ -113,7 +113,6 @@ export function createBoundWalletReviewRequest(options: {
     options.boundArtifact,
     options.boundArtifact.artifact.manifest.kind,
   );
-  const binding = options.boundArtifact.binding.binding;
   const walletReview = createWalletReviewRequest({
     artifact: options.boundArtifact.artifact,
     pczt: options.pczt,
