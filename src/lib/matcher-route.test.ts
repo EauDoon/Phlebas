@@ -7,6 +7,7 @@ import {
   matcherOrderProxy,
   type MatcherIngressDeployment,
 } from "./matcher-proxy.ts";
+import { MATCHER_CONFIGURATION_HEADER } from "./matcher-http.ts";
 
 const CONFIGURATION_HASH = `0x${"11".repeat(32)}`;
 const STATE_ROOT = `0x${"22".repeat(32)}`;
@@ -95,23 +96,40 @@ test("matcher POST stays fail-closed before upstream fetch while the deployment 
 test("matcher POST requires the approved runtime configuration before forwarding an order", async () => {
   process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
   const mismatchedHash = `0x${"77".repeat(32)}`;
-  const paths: string[] = [];
-  globalThis.fetch = (async (input) => {
-    paths.push((input as URL).pathname);
-    return new Response(JSON.stringify({
-      ...JSON.parse(healthBody),
-      configurationHash: mismatchedHash,
-      checkpoint: { ...checkpoint, configurationHash: mismatchedHash },
-    }), { status: 200 });
-  }) as typeof fetch;
+  const baseHealth = JSON.parse(healthBody) as Record<string, unknown>;
+  const cases = [
+    {
+      name: "configuration hash",
+      health: {
+        ...baseHealth,
+        configurationHash: mismatchedHash,
+        checkpoint: { ...checkpoint, configurationHash: mismatchedHash },
+      },
+    },
+    {
+      name: "market identity",
+      health: {
+        ...baseHealth,
+        market: { ...market, quote: { ...market.quote, asset: `${market.quote.network}/erc20:0x${"88".repeat(20)}` } },
+      },
+    },
+    { name: "mutation readiness", health: { ...baseHealth, acceptingMutations: false } },
+  ];
 
-  const response = await matcherOrderProxy(new Request("http://localhost/api/matcher", {
-    method: "POST",
-    headers: { "content-type": "application/json", "idempotency-key": "order-one" },
-    body: "{}",
-  }), process.env, enabledDeployment);
-  assert.equal(response.status, 503);
-  assert.deepEqual(paths, ["/health"]);
+  for (const candidate of cases) {
+    const paths: string[] = [];
+    globalThis.fetch = (async (input) => {
+      paths.push((input as URL).pathname);
+      return new Response(JSON.stringify(candidate.health), { status: 200 });
+    }) as typeof fetch;
+    const response = await matcherOrderProxy(new Request("http://localhost/api/matcher", {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      body: "{}",
+    }), process.env, enabledDeployment);
+    assert.equal(response.status, 503, candidate.name);
+    assert.deepEqual(paths, ["/health"], candidate.name);
+  }
 });
 
 test("matcher GET proxies only the loopback health endpoint without caching", async () => {
@@ -275,6 +293,7 @@ test("matcher POST forwards the exact order endpoint, body, and idempotency key"
   assert.equal(init?.body, body);
   assert.equal(new Headers(init?.headers).get("content-type"), "application/json");
   assert.equal(new Headers(init?.headers).get("idempotency-key"), "order-one");
+  assert.equal(new Headers(init?.headers).get(MATCHER_CONFIGURATION_HEADER), CONFIGURATION_HASH);
   assert.equal(new Headers(init?.headers).get("authorization"), null);
   assert.equal(init?.cache, "no-store");
   assert.equal(response.status, 201);
@@ -315,4 +334,24 @@ test("matcher POST maps private rejections and malformed success bodies to fixed
   const malformed = await matcherOrderProxy(request(), process.env, enabledDeployment);
   assert.equal(malformed.status, 503);
   assert.deepEqual(await malformed.json(), { ok: false, reason: "matcher-unavailable", matcher: "in-browser" });
+
+  const staleConfigurationHash = `0x${"99".repeat(32)}`;
+  globalThis.fetch = (async (input) => (input as URL).pathname === "/health"
+    ? new Response(healthBody, { status: 200 })
+    : new Response(JSON.stringify({
+      ok: true,
+      replayed: false,
+      receipt: {
+        version: 1,
+        sequence: "1",
+        requestId: "order-one",
+        kind: "accept-order",
+        status: "open",
+        subjectHash: SUBJECT_HASH,
+        occurredAtSeconds: "1800000000",
+      },
+      checkpoint: { ...checkpoint, configurationHash: staleConfigurationHash },
+    }), { status: 201 })) as typeof fetch;
+  const staleReceipt = await matcherOrderProxy(request(), process.env, enabledDeployment);
+  assert.equal(staleReceipt.status, 503);
 });

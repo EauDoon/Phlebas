@@ -9,6 +9,7 @@ import {
   MAX_FEED_PAGE_SIZE,
 } from "../../src/lib/matcher-feeds.ts";
 import { createEvmEoaSignatureVerifier, type MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
+import { MATCHER_CONFIGURATION_HEADER } from "../../src/lib/matcher-http.ts";
 import {
   findRequestReceipt,
   matcherConfigurationHash,
@@ -742,6 +743,13 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
         pendingMutations += 1;
         try {
           const body = await readJson(request, maximumBodyBytes, bodyReadTimeoutMilliseconds);
+          if (expectedKind === "accept-order") {
+            const expectedConfigurationHash = request.headers[MATCHER_CONFIGURATION_HEADER];
+            const activeConfigurationHash = matcherConfigurationHash(store.state.configuration);
+            if (typeof expectedConfigurationHash !== "string" || expectedConfigurationHash !== activeConfigurationHash) {
+              throw new HttpError(409, "matcher-configuration-does-not-match-request");
+            }
+          }
           const event = deserializePersistentMatcherEvent(store.state.configuration, {
             type: "persistent-matcher-event",
             configurationHash: matcherConfigurationHash(store.state.configuration),

@@ -10,7 +10,8 @@ import test from "node:test";
 import { createOrderDomain, hashOrderDomain, type TypedOrderIntent } from "../../src/lib/eip712-order.ts";
 import { keccak256Text } from "../../src/lib/keccak.ts";
 import type { MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
-import type { PersistentMatcherConfiguration, PersistentMatcherEvent } from "../../src/lib/persistent-matcher.ts";
+import { MATCHER_CONFIGURATION_HEADER } from "../../src/lib/matcher-http.ts";
+import { matcherConfigurationHash, type PersistentMatcherConfiguration, type PersistentMatcherEvent } from "../../src/lib/persistent-matcher.ts";
 import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier } from "../../src/lib/order-domain.ts";
 import { hash160Value, p2shAddress } from "../../src/lib/zcash-address.ts";
 import { VENUE_CLOB } from "../../src/lib/order-policy.ts";
@@ -62,6 +63,14 @@ const configuration: PersistentMatcherConfiguration = {
   },
 };
 const verifier: MatcherSignatureVerifier = { verify() {} };
+
+function mutationHeaders(requestId: string): Record<string, string> {
+  return {
+    "content-type": "application/json",
+    "idempotency-key": requestId,
+    [MATCHER_CONFIGURATION_HEADER]: matcherConfigurationHash(configuration),
+  };
+}
 
 function zcashAccount(name: string): string {
   const address = p2shAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
@@ -176,7 +185,7 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
   try {
     const first = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      headers: mutationHeaders("order-one"),
       body: JSON.stringify(payload(event())),
     });
     assert.equal(first.status, 201);
@@ -185,7 +194,7 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
 
     const replay = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      headers: mutationHeaders("order-one"),
       body: JSON.stringify(payload({ ...event(), occurredAtSeconds: now - 5n })),
     });
     assert.equal(replay.status, 200);
@@ -234,6 +243,43 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
   }
 });
 
+test("rejects an absent or stale matcher configuration header before order persistence", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-configuration-header-"));
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: directory,
+    configuration,
+    verifier,
+    clockSeconds: () => now,
+  });
+  const origin = await listen(server);
+  const request = (headers: Record<string, string>) => fetch(`${origin}/v1/orders`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload(event("configuration-bound"))),
+  });
+  try {
+    const missing = await request({
+      "content-type": "application/json",
+      "idempotency-key": "configuration-bound",
+    });
+    assert.equal(missing.status, 409);
+    assert.equal((await json(missing)).reason, "matcher-configuration-does-not-match-request");
+
+    const stale = await request({
+      ...mutationHeaders("configuration-bound"),
+      [MATCHER_CONFIGURATION_HEADER]: `0x${"99".repeat(32)}`,
+    });
+    assert.equal(stale.status, 409);
+    assert.equal((await json(stale)).reason, "matcher-configuration-does-not-match-request");
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
+  } finally {
+    await close(server);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("rejects a mismatched order market before signature verification or persistence", async () => {
   const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-market-"));
   let verificationCalls = 0;
@@ -265,7 +311,7 @@ test("rejects a mismatched order market before signature verification or persist
   try {
     const response = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "wrong-market" },
+      headers: mutationHeaders("wrong-market"),
       body: JSON.stringify(payload(mismatched)),
     });
     assert.equal(response.status, 422);
@@ -326,7 +372,7 @@ test("rejects sell and delegated buy authority before signature verification or 
   try {
     const sellResponse = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": sell.requestId },
+      headers: mutationHeaders(sell.requestId),
       body: JSON.stringify(payload(sell)),
     });
     assert.equal(sellResponse.status, 422);
@@ -334,7 +380,7 @@ test("rejects sell and delegated buy authority before signature verification or 
 
     const delegatedResponse = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": delegated.requestId },
+      headers: mutationHeaders(delegated.requestId),
       body: JSON.stringify(payload(delegated)),
     });
     assert.equal(delegatedResponse.status, 422);
@@ -361,27 +407,27 @@ test("rejects ambiguous endpoints, idempotency mismatch, media type, and oversiz
   try {
     const wrongKind = await fetch(`${origin}/v1/solver-quotes`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      headers: mutationHeaders("order-one"),
       body: JSON.stringify(payload(event())),
     });
     assert.equal(wrongKind.status, 400);
     const wrongKey = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "different" },
+      headers: mutationHeaders("different"),
       body: JSON.stringify(payload(event())),
     });
     assert.equal(wrongKey.status, 400);
     assert.equal((await fetch(`${origin}/v1/orders`, { method: "POST", body: "{}" })).status, 415);
     const duplicate = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "duplicate" },
+      headers: mutationHeaders("duplicate"),
       body: '{"kind":"accept-order","kind":"cancel-order"}',
     });
     assert.equal(duplicate.status, 400);
     assert.match(String((await json(duplicate)).reason), /invalid-json/);
     const oversized = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "large" },
+      headers: mutationHeaders("large"),
       body: JSON.stringify({ value: "x".repeat(3_000) }),
     });
     assert.equal(oversized.status, 413);
@@ -429,7 +475,7 @@ test("times out and destroys partial mutation bodies without consuming the pendi
 
     const recovered = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "after-slowloris" },
+      headers: mutationHeaders("after-slowloris"),
       body: JSON.stringify(payload(event("after-slowloris"))),
     });
     assert.equal(recovered.status, 201);
@@ -530,7 +576,7 @@ test("rejects mutation events outside the trusted server clock skew", async () =
   try {
     const response = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "future-server" },
+      headers: mutationHeaders("future-server"),
       body: JSON.stringify(payload({ ...event("future-server"), occurredAtSeconds: now + 31n })),
     });
     assert.equal(response.status, 400);
@@ -555,7 +601,7 @@ test("stamps accepted mutation time instead of trusting a backdated client times
   try {
     const response = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "backdated-server" },
+      headers: mutationHeaders("backdated-server"),
       body: JSON.stringify(payload({ ...event("backdated-server"), occurredAtSeconds: now - 5n })),
     });
     assert.equal(response.status, 201);
@@ -584,7 +630,7 @@ test("does not let an initially backdated client event revive an expired order",
     const candidate = event("initial-backdate-server");
     const response = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "initial-backdate-server" },
+      headers: mutationHeaders("initial-backdate-server"),
       body: JSON.stringify(payload({
         ...candidate,
         occurredAtSeconds: 0n,
@@ -618,12 +664,12 @@ test("reports a faulted store as unavailable and rejects future mutations", asyn
   try {
     assert.equal((await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "fault-one" },
+      headers: mutationHeaders("fault-one"),
       body: JSON.stringify(payload(event("fault-one"))),
     })).status, 201);
     const failed = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "fault-two" },
+      headers: mutationHeaders("fault-two"),
       body: JSON.stringify(payload(event("fault-two", 2n))),
     });
     assert.equal(failed.status, 503);
@@ -737,7 +783,7 @@ test("enforces mutation rate and queue admission before sequencing", async () =>
   try {
     const requests = Array.from({ length: 8 }, () => fetch(`${queueOrigin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      headers: mutationHeaders("order-one"),
       body: JSON.stringify(payload(event())),
     }));
     const responses = await Promise.all(requests);

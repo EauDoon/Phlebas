@@ -1,5 +1,6 @@
 import { fetchLoopbackOperator, isLoopbackOperatorUrl, operatorUnavailable } from "./operator-url.ts";
 import { NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT } from "./native-zec-usdc-matcher-manifest.ts";
+import { MATCHER_CONFIGURATION_HEADER } from "./matcher-http.ts";
 
 const REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const HEX32 = /^0x[0-9a-f]{64}$/;
@@ -269,7 +270,11 @@ export async function matcherOrderProxy(
   if (!await approvedMutationRuntime(baseUrl, deployment)) return unavailable();
   const response = await fetchLoopbackOperator(new URL("/v1/orders", baseUrl), {
     method: "POST",
-    headers: { "content-type": "application/json", "idempotency-key": requestId },
+    headers: {
+      "content-type": "application/json",
+      "idempotency-key": requestId,
+      [MATCHER_CONFIGURATION_HEADER]: deployment.expectedMatcher.configurationHash,
+    },
     body,
   });
   if (!response) return unavailable();
@@ -288,7 +293,8 @@ export async function matcherOrderProxy(
     || typeof receipt.status !== "string" || !ORDER_RECEIPT_STATUSES.has(receipt.status)
     || typeof receipt.subjectHash !== "string" || !HEX32.test(receipt.subjectHash)
     || typeof receipt.occurredAtSeconds !== "string" || !DECIMAL.test(receipt.occurredAtSeconds)
-    || checkpoint.sequence !== receipt.sequence) {
+    || checkpoint.sequence !== receipt.sequence
+    || checkpoint.configurationHash !== deployment.expectedMatcher.configurationHash) {
     return unavailable();
   }
   return noStoreJson({
