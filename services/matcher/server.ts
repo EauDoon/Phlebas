@@ -34,7 +34,8 @@ import {
   sendRateLimitHeaders,
   type RateLimitMiddleware,
 } from "../../src/lib/rate-limit-http.ts";
-import { UINT64_MAX } from "../../src/lib/order-domain.ts";
+import { UINT64_MAX, assetIdentifier, chainIdentifier, normalizeHex32 } from "../../src/lib/order-domain.ts";
+import type { TypedOrderIntent } from "../../src/lib/eip712-order.ts";
 import { listenHost } from "../../src/lib/operator-url.ts";
 import type { JournalValue } from "./journal.ts";
 import {
@@ -67,6 +68,11 @@ const MUTATION_KINDS = new Map<string, PersistentMatcherEvent["kind"]>([
 ]);
 
 type RateWindow = { startedAt: number; count: number };
+
+type MatcherMarketIdentity = Readonly<{
+  base: Readonly<{ network: string; asset: string; environment: string; decimals: number }>;
+  quote: Readonly<{ network: string; asset: string; environment: string; decimals: number }>;
+}>;
 
 export type MatcherServerOptions = Readonly<{
   host?: string;
@@ -243,6 +249,50 @@ function persistenceOptions(options: MatcherServerOptions): PersistentMatcherSto
     maximumFutureEventSeconds: options.maximumFutureEventSeconds,
     clockSeconds: options.clockSeconds,
   };
+}
+
+function marketIdentity(configuration: PersistentMatcherConfiguration): MatcherMarketIdentity {
+  const pair = configuration.atomicSwapPolicy.pair;
+  return {
+    base: {
+      network: pair.base.network,
+      asset: pair.base.asset,
+      environment: pair.base.environment,
+      decimals: pair.base.decimals,
+    },
+    quote: {
+      network: pair.quote.network,
+      asset: pair.quote.asset,
+      environment: pair.quote.environment,
+      decimals: pair.quote.decimals,
+    },
+  };
+}
+
+function assertOrderMatchesConfiguredMarket(
+  order: TypedOrderIntent,
+  configuration: PersistentMatcherConfiguration,
+): void {
+  const pair = configuration.atomicSwapPolicy.pair;
+  const expected = {
+    baseChainId: chainIdentifier(pair.base.network),
+    baseAssetId: assetIdentifier(pair.base.asset),
+    quoteChainId: chainIdentifier(pair.quote.network),
+    quoteAssetId: assetIdentifier(pair.quote.asset),
+  };
+  if (normalizeHex32(order.baseChainId, "Order base chain ID") !== expected.baseChainId
+    || normalizeHex32(order.baseAssetId, "Order base asset ID") !== expected.baseAssetId
+    || normalizeHex32(order.quoteChainId, "Order quote chain ID") !== expected.quoteChainId
+    || normalizeHex32(order.quoteAssetId, "Order quote asset ID") !== expected.quoteAssetId) {
+    throw new HttpError(422, "order-market-does-not-match-matcher");
+  }
+}
+
+function assertOrderMatchesConfiguredMarketBeforeMutation(
+  event: Extract<PersistentMatcherEvent, { kind: "accept-order" }>,
+  configuration: PersistentMatcherConfiguration,
+): void {
+  assertOrderMatchesConfiguredMarket(event.submission.order, configuration);
 }
 
 function remoteKey(request: IncomingMessage): string {
@@ -468,6 +518,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
             acceptingMutations: false,
             mode: "no-value",
             custody: false,
+            market: null,
             reason: "matcher-configuration-unavailable",
             startedAt,
           });
@@ -480,6 +531,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
             matcher: "persistent-native-v1",
             configured: true,
             acceptingMutations: false,
+            market: marketIdentity(configured.configuration),
             reason: errorReason(storeError),
           });
           return;
@@ -490,6 +542,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
             matcher: "persistent-native-v1",
             configured: true,
             acceptingMutations: false,
+            market: marketIdentity(store.state.configuration),
             reason: store.faultReason ?? "matcher-store-closed",
             sequence: store.state.sequence,
             stateRoot: matcherStateRoot(store.state),
@@ -506,6 +559,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
           acceptingMutations: true,
           mode: "no-value",
           custody: false,
+          market: marketIdentity(store.state.configuration),
           sequence: store.state.sequence,
           stateRoot: matcherStateRoot(store.state),
           configurationHash: matcherConfigurationHash(store.state.configuration),
@@ -557,11 +611,14 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
           return;
         }
         if (url.pathname === "/markets") {
-          const pair = state?.configuration.atomicSwapPolicy.pair;
+          const pair = state.configuration.atomicSwapPolicy.pair;
+          const market = marketIdentity(state.configuration);
           const last = publicTrades(state, requestNow, 1).trades[0]?.priceTicks ?? "0";
           send(response, 200, {
-            baseAsset: pair?.base.asset ?? null,
-            quoteAssets: pair ? [pair.quote.asset] : [],
+            baseAsset: pair.base.asset,
+            quoteAsset: pair.quote.asset,
+            quoteAssets: [pair.quote.asset],
+            market,
             lastTicks: last,
             sequence: state ? Number(state.sequence) : 0,
             configured: state !== null,
@@ -660,6 +717,10 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
           const idempotencyKey = request.headers["idempotency-key"];
           if (typeof idempotencyKey !== "string" || idempotencyKey !== event.requestId) {
             throw new HttpError(400, "idempotency-key-must-match-request-id");
+          }
+          if (event.kind === "accept-order") {
+            if (!configured) throw new HttpError(503, "matcher-configuration-unavailable");
+            assertOrderMatchesConfiguredMarketBeforeMutation(event, configured.configuration);
           }
           assertMatcherEventTime(event, requestNow, options.maximumFutureEventSeconds ?? 30n);
           const result = await store.mutate(event);

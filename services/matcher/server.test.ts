@@ -146,6 +146,7 @@ test("starts loopback-only in an honest unconfigured no-value mode", async () =>
     assert.equal(body.acceptingMutations, false);
     assert.equal(body.mode, "no-value");
     assert.equal(body.custody, false);
+    assert.equal(body.market, null);
     assert.equal((await fetch(`${origin}/v1/sequence`)).status, 503);
     assert.equal((await fetch(`${origin}/v1/orders`, { method: "POST" })).status, 503);
     for (const path of [
@@ -191,6 +192,15 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
     const health = await json(await fetch(`${origin}/health`));
     assert.equal(health.sequence, "1");
     assert.match(String(health.stateRoot), /^0x[0-9a-f]{64}$/);
+    assert.deepEqual(health.market, {
+      base: { network: baseNetwork, asset: baseAsset, environment: "mainnet", decimals: 8 },
+      quote: { network: quoteNetwork, asset: quoteAsset, environment: "mainnet", decimals: 6 },
+    });
+    const markets = await json(await fetch(`${origin}/markets`));
+    assert.equal(markets.baseAsset, baseAsset);
+    assert.equal(markets.quoteAsset, quoteAsset);
+    assert.deepEqual(markets.quoteAssets, [quoteAsset]);
+    assert.deepEqual(markets.market, health.market);
     const sequence = await json(await fetch(`${origin}/v1/sequence?after=0&limit=1`));
     assert.equal(sequence.nextAfter, "1");
     assert.equal(sequence.hasMore, false);
@@ -208,6 +218,50 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
     assert.equal((await json(await fetch(`${origin}/health`))).sequence, "1");
   } finally {
     if (server.listening) await close(server);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects a mismatched order market before signature verification or persistence", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-market-"));
+  let verificationCalls = 0;
+  const checkedVerifier: MatcherSignatureVerifier = {
+    verify() {
+      verificationCalls += 1;
+    },
+  };
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: directory,
+    configuration,
+    verifier: checkedVerifier,
+    clockSeconds: () => now,
+  });
+  const origin = await listen(server);
+  const candidate = event("wrong-market");
+  const mismatched = {
+    ...candidate,
+    submission: {
+      ...candidate.submission,
+      order: {
+        ...candidate.submission.order,
+        quoteAssetId: assetIdentifier(`${quoteNetwork}/erc20:0x0000000000000000000000000000000000000003`),
+      },
+    },
+  };
+  try {
+    const response = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "wrong-market" },
+      body: JSON.stringify(payload(mismatched)),
+    });
+    assert.equal(response.status, 422);
+    assert.equal((await json(response)).reason, "order-market-does-not-match-matcher");
+    assert.equal(verificationCalls, 0);
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
+  } finally {
+    await close(server);
     await rm(directory, { recursive: true, force: true });
   }
 });
