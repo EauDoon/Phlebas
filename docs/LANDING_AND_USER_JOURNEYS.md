@@ -1,10 +1,10 @@
 # Phlebas Landing and User Journeys
 
-Status: the landing page, terminal shell, first-session education, country-blocked demonstration, local matcher, LP preview with review-and-confirm, non-payable ZIP 321 format preview, deposit and withdrawal state tours, destination inspector, labeled incident demonstrations, `/legal`, `/security`, and architecture explanation are implemented locally as no-value fixtures. The matcher is the only loopback service in the current Compose workflow. Atomic-swap observer code remains a separate no-value reference component, not an operator service. Wallet signing stays disabled while the verified testnet deployment manifest is undeployed. The public app remains a no-value simulation.
+Status: the landing page, terminal shell, first-session education, country-blocked demonstration, isolated local matchers, solver-liquidity preview, non-payable ZIP 321 format preview, historical state tours, destination inspector, labeled incident demonstrations, `/legal`, `/security`, and architecture explanation are implemented as no-value fixtures. The matchers are the only loopback services in the current Compose workflow. Atomic-swap observer code remains a separate no-value reference component, not an operator service. MetaMask and Rabby may connect for Ethereum Mainnet identity only. Signing, submission, and value movement stay disabled while the exact matcher and ConditionalLock manifests are undeployed. The public app remains a no-value simulation.
 
 The pZEC, gateway, deposit, withdrawal, and passive LP surfaces are legacy simulation interfaces. The native-ZEC target and its replacement journey are governed by the architecture, product specification, and delivery plan.
 
-Phlebas currently has no live market data, deployed contract, real deposit, withdrawal, order, stablecoin, pZEC, custody, identity, or authoritative matching service. Every value and state in the public interface is illustrative. Wallet signing stays disabled while the verified testnet deployment manifest is undeployed. This specification does not authorize mainnet, custody, publication, or financial services.
+Phlebas currently has no live market data, deployed contract, real deposit, withdrawal, order, settlement, custody, or authoritative matching service. Every value and state in the public interface is illustrative. An Ethereum Mainnet wallet may establish a session identity, but the public app cannot ask it to sign or submit a value-moving transaction. This specification does not authorize custody or financial services.
 
 The user-facing market aliases are `ZEC / USDC` and `ZEC / USDT`, matching the requested markets. Every market ticket, review, and history surface must also state the exact settlement pair, `ZEC-USDC` or `ZEC-USDT`. Those pairs are native ZEC against native USDC or native USDT. Pool labels use the same assets. USDT0 is abandoned. This remains a no-value simulation and must not claim live native-ZEC execution.
 
@@ -65,7 +65,7 @@ The banner is the first focusable content after the skip link and remains visibl
 
 Exact copy:
 
-> Simulation only. No-value simulation. Optional Sepolia wallet and local testnet services stay off until started. No mainnet funds.
+> Public preview. Ethereum Mainnet wallet connection is available. Signing, submission, and value movement are disabled. Contracts are not deployed. This is not a live exchange.
 
 The banner uses `role="status"` on initial load. It must not repeatedly announce on routine navigation. It cannot be dismissed.
 
@@ -76,7 +76,7 @@ Desktop order:
 1. Phlebas mark and wordmark, linked to `/`.
 2. Navigation: `Markets`, `Liquidity`, `Historical state tour`, `Architecture`.
 3. Status control: `No-value preview`.
-4. Primary action: `Enter simulation` on the landing page, or `Connect wallet` for optional Arbitrum Sepolia signing.
+4. Primary action: `Open terminal` on the landing page, or `Connect wallet` for Ethereum Mainnet identity in the terminal. Connection does not enable signing or submission.
 
 Landing navigation targets:
 
@@ -258,23 +258,23 @@ Heading:
 
 Body:
 
-> The simulation now labels settlement as ZEC-USDC and ZEC-USDT. Native labels are simulation names, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview. The undeployed 8-decimal receipt symbol is `tZEC`. ADR 0001 historically named that custody-backed claim `pZEC`; that name is not the current listed form.
+> The public preview labels settlement as ZEC-USDC and ZEC-USDT. Native labels describe the target assets, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview. No wrapped or custody-backed ZEC receipt is part of the target product.
 
 Flow labels:
 
 ```text
 Transparent native ZEC
         >
-Planned custody and screening
+One wallet-controlled Zcash conditional lock
         >
-Planned tZEC mint on Arbitrum
+One exact-token Ethereum Mainnet conditional lock
         >
-Order book or fixed LP pool
+Mutually exclusive wallet claim or refund
 ```
 
 Boundary disclosure:
 
-> No shielded deposit or withdrawal is planned for v1. Transparent Zcash and tZEC activity may be publicly linkable.
+> No shielded settlement is planned for v1. Transparent Zcash and Ethereum activity may be publicly linkable.
 
 Source link:
 

@@ -3,7 +3,7 @@
 Status: no-value integration target
 Updated: 01-09-2026
 
-The public app includes an in-browser matcher, integer seed books, legacy AMM previews, split-route comparison, LP share previews, feed-state ticket gates, SHA-256 session digests, keccak EIP-712 typed data, an optional Arbitrum Sepolia wallet connection, a local matcher operator, `/status`, and branded error surfaces. The current integration target is a signed USDC buy-side order submitted to an accepting no-value matcher. ZEC sell-side submission remains disabled until a Zcash-wallet authorization format is integrated. No local TEX issuance or custody gateway exists in the current runtime. The in-repository Sepolia contracts remain undeployed, and the missing live-value gates keep chain actions disabled.
+The public app includes integer seed books, legacy AMM previews, solver-route comparison, feed-state ticket gates, Ethereum Mainnet MetaMask and Rabby identity connection, exact ZEC/USDC and ZEC/USDT matcher workflows, `/status`, and branded error surfaces. Both tracked matcher manifests remain disabled, so browser signing and submission are unavailable. ZEC sell-side submission remains disabled until a qualified Zcash-wallet authorization format is integrated. No local TEX issuance or custody gateway exists in the current runtime. Retired Sepolia sources remain quarantined as historical contract-development records, and the missing audited deployments and wallet qualifications keep every value-moving action disabled.
 
 ## Objective
 

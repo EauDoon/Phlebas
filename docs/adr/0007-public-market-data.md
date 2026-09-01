@@ -61,8 +61,8 @@ state. The endpoints never sign a transaction.
 The pure functions live in `src/lib/market-data.ts` alongside the
 existing paper-trading fixtures. The fixtures are a no-value
 simulation; the new pure functions operate on the live operator
-state. The two surfaces never share data; the fixtures stay
-frozen until a real Sepolia deployment is recorded. The formatters
+state. The two surfaces never share data; the fixtures remain
+frozen and labeled illustrative until signed public feeds pass the release gate. The formatters
 in `src/lib/market-data-format.ts` convert the tick-and-atom
 representation into human-readable strings. The combined snapshot
 in `src/lib/market-data-snapshot.ts` joins the three per-endpoint
