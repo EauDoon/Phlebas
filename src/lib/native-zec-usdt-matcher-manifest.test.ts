@@ -218,6 +218,3 @@ test("only a complete exact identity with a matching configuration hash can enab
   forgedHash.configurationHash = `0x${"12".repeat(32)}`;
   assert.throws(() => parseNativeZecUsdtMatcherManifest(forgedHash), /configuration hash/);
 });
-
-
-
