@@ -523,7 +523,7 @@ a.skipLink:focus-visible {
   display: grid;
   grid-template-areas:
     "chart book ticket"
-    "trades book ticket"
+    "trades book matcher"
     "blotter blotter blotter";
   grid-template-columns: minmax(430px, 1fr) 285px 345px;
   grid-template-rows: minmax(320px, 1fr) auto auto;
@@ -662,7 +662,7 @@ a.skipLink:focus-visible {
   background: var(--accent-soft);
 }
 
-.tradeGrid > section:nth-of-type(2) {
+.tradeGrid > :global(#order-book) {
   grid-area: book;
 }
 
@@ -792,10 +792,15 @@ a.skipLink:focus-visible {
   padding-bottom: 14px;
 }
 
+.nativeMatcherPanel {
+  grid-area: matcher;
+  padding-bottom: 14px;
+}
+
 .simpleTradeGrid {
   grid-template-areas:
     "chart ticket"
-    "trades ticket"
+    "trades matcher"
     "blotter blotter";
   grid-template-columns: minmax(430px, 1fr) 345px;
 }
@@ -2365,9 +2370,10 @@ a.skipLink:focus-visible {
       "chart book"
       "trades book"
       "ticket ticket"
+      "matcher matcher"
       "blotter blotter";
     grid-template-columns: minmax(430px, 1fr) 300px;
-    grid-template-rows: auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto;
   }
 
   .simpleTradeGrid {
@@ -2375,6 +2381,7 @@ a.skipLink:focus-visible {
       "chart"
       "trades"
       "ticket"
+      "matcher"
       "blotter";
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2385,7 +2392,7 @@ a.skipLink:focus-visible {
   }
 
   .operatingShell .tradeGrid {
-    grid-template-rows: minmax(0, 1.1fr) minmax(0, 140px) minmax(0, 1fr) minmax(0, 160px);
+    grid-template-rows: minmax(0, 1.1fr) minmax(0, 120px) minmax(0, 1fr) minmax(0, 180px) minmax(0, 150px);
   }
 
   .liquidityGrid {
@@ -2549,6 +2556,7 @@ a.skipLink:focus-visible {
     grid-template-areas:
       "chart"
       "ticket"
+      "matcher"
       "book"
       "trades"
       "blotter";
@@ -2559,6 +2567,7 @@ a.skipLink:focus-visible {
     grid-template-areas:
       "chart"
       "ticket"
+      "matcher"
       "trades"
       "blotter";
     grid-template-columns: 1fr;

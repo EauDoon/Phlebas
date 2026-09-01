@@ -1,8 +1,9 @@
 import { blotterEmptyOrdersCopy } from "../../src/lib/blotter-copy.ts";
 import { DEPOSIT_TOUR } from "../../src/lib/deposit-tour.ts";
-import { missingProviderCopy, walletSigningDisabledCopy } from "../../src/lib/evm-wallet.ts";
+import { missingProviderCopy } from "../../src/lib/evm-wallet.ts";
 import { markets } from "../../src/lib/market-data.ts";
 import { submitOrder } from "../../src/lib/matcher.ts";
+import { NATIVE_MATCHER_DISABLED_COPY } from "../../src/lib/native-matcher-order-action.ts";
 import { payoutClaimForTourStep } from "../../src/lib/payout.ts";
 import { isEducationLastStep, PREVIEW_EDUCATION_STEPS } from "../../src/lib/preview-education.ts";
 import { describeSubmit, seedBook, ticketRejectCopy } from "../../src/lib/session.ts";
@@ -84,17 +85,18 @@ test("withdrawal tour reaches unresolved and sends nothing", async ({ page }) =>
   expect(claim.state).toEqual("unresolved");
 });
 
-test("wallet connect without a provider names the rejection and keeps signing disabled", async ({ page }) => {
+test("wallet connect without a provider names the rejection while the native matcher stays disabled", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const signing = page.getByRole("status", { name: "Wallet signing disabled" });
-  await expect(signing).toHaveText(walletSigningDisabledCopy());
+  const nativeMatcher = page.locator("#native-matcher-order-action");
+  await expect(nativeMatcher).toContainText(NATIVE_MATCHER_DISABLED_COPY);
+  await expect(nativeMatcher.getByRole("button", { name: "Native matcher unavailable" })).toBeDisabled();
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
   await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(
     missingProviderCopy(markets["ZEC/USDC"].settlementPair),
   );
   await expect(page.getByText(/seed phrase|spending key|spend key|viewing key/i)).toHaveCount(0);
   await expect(page.locator("input[type=password]")).toHaveCount(0);
-  await expect(signing).toHaveText(walletSigningDisabledCopy());
+  await expect(nativeMatcher).toContainText(NATIVE_MATCHER_DISABLED_COPY);
 });
 
 test("status, missing route, and render-failure retry change visible state", async ({ page }) => {

@@ -28,6 +28,7 @@ import {
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
 import { MARKET_ID_LABELS, MARKET_IDS, nextMarketId } from "@/lib/market-ids";
+import { NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT } from "@/lib/native-zec-usdc-matcher-manifest";
 import {
   FEED_STATUS_LABELS,
   FEED_STATUSES,
@@ -77,6 +78,7 @@ import { ArchitecturePanel } from "./architecture-panel";
 import { BridgePanel } from "./bridge-panel";
 import { CountryBlock } from "./country-block";
 import { LiquidityPanel } from "./liquidity-panel";
+import { NativeMatcherOrderAction } from "./native-matcher-order-action";
 import { NativeSwapPanel } from "./native-swap-panel";
 import { OrderBlotter } from "./order-blotter";
 import { OrderBook } from "./order-book";
@@ -475,6 +477,7 @@ export function TradingTerminal({
         {initialAccess === "open" && view === "trade" ? (
           <>
             <a className={styles.skipLink} href="#order-ticket" onClick={activateSkipLink}>Skip to order ticket</a>
+            <a className={styles.skipLink} href="#native-matcher-order-action" onClick={activateSkipLink}>Skip to native matcher status</a>
             <a className={styles.skipLink} href="#price-chart" onClick={activateSkipLink}>Skip to price chart</a>
             {isSimple ? null : (
               <a className={styles.skipLink} href="#order-book" onClick={activateSkipLink}>Skip to order book</a>
@@ -705,6 +708,11 @@ export function TradingTerminal({
                 variant={mode}
                 onRetryFeed={() => selectFeed("illustrative")}
                 onSubmit={submitUserOrder}
+              />
+
+              <NativeMatcherOrderAction
+                marketId={marketId}
+                deployment={NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT}
               />
 
               <section id="recent-trades" tabIndex={-1} className={`${styles.panel} ${styles.tradesPanel}`} aria-labelledby="recent-trades-title">

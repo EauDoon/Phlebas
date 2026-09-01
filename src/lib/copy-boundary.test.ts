@@ -38,6 +38,7 @@ function withoutHonestBridgeNegation(copy: string) {
 
 function withoutHonestCopyNegation(copy: string) {
   return withoutHonestBridgeNegation(copy)
+    .replace(/from\s+["'][^"']+["'];?/g, "")
     .replace(/\bnot trustless\b/gi, "")
     .replace(/\bdoes not provide shielded(?: deposits)?\b/gi, "")
     .replace(/\bNo shielded deposit or withdrawal is planned for v1\b/gi, "")

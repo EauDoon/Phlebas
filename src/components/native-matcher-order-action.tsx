@@ -30,7 +30,7 @@ export function NativeMatcherOrderAction({
     <section
       id="native-matcher-order-action"
       tabIndex={-1}
-      className={`${styles.panel} ${styles.ticket}`}
+      className={`${styles.panel} ${styles.nativeMatcherPanel}`}
       aria-labelledby="native-matcher-order-action-title"
       data-native-matcher-state={state.kind}
     >
