@@ -3,9 +3,7 @@
   overflow: clip;
   overflow-clip-margin: 8px;
   color: var(--text);
-  background:
-    radial-gradient(circle at 15% 12%, rgba(45, 212, 191, 0.07), transparent 31rem),
-    var(--background);
+  background: var(--background);
 }
 
 .skipNav {
@@ -96,9 +94,9 @@ a.skipLink:focus-visible {
   justify-content: center;
   gap: 10px;
   padding: 6px 20px;
-  border-bottom: 1px solid rgba(45, 212, 191, 0.27);
+  border-bottom: 1px solid rgba(240, 193, 75, 0.27);
   color: var(--text);
-  background: rgba(45, 212, 191, 0.065);
+  background: var(--accent-soft);
   font-size: 12px;
 }
 
@@ -143,7 +141,6 @@ a.skipLink:focus-visible {
   border-radius: 7px 2px 7px 2px;
   color: var(--accent-fg);
   background: var(--accent);
-  box-shadow: 0 0 24px rgba(45, 212, 191, 0.15);
   font-family: var(--font-geist-mono);
   font-weight: 800;
 }
@@ -189,7 +186,6 @@ a.skipLink:focus-visible {
   height: 6px;
   border-radius: 50%;
   background: var(--info);
-  box-shadow: 0 0 9px rgba(123, 184, 255, 0.65);
 }
 
 .headerCta,
@@ -206,7 +202,7 @@ a.skipLink:focus-visible {
 
 .headerCta,
 .primaryCta {
-  border: 1px solid rgba(45, 212, 191, 0.45);
+  border: 1px solid rgba(240, 193, 75, 0.45);
   color: var(--accent-fg);
   background: var(--accent);
 }
@@ -310,7 +306,7 @@ a.skipLink:focus-visible {
   align-items: flex-start;
   justify-content: center;
   flex-direction: column;
-  padding: clamp(72px, 9vw, 134px) clamp(24px, 7vw, 108px);
+  padding: clamp(88px, 10vw, 152px) clamp(28px, 8vw, 120px);
   border-right: 1px solid var(--border);
 }
 
@@ -325,7 +321,7 @@ a.skipLink:focus-visible {
 
 .heroStatement > p {
   max-width: 650px;
-  margin-top: 32px;
+  margin-top: 40px;
   color: var(--text-secondary);
   font-size: clamp(15px, 1.5vw, 19px);
   line-height: 1.58;
@@ -338,7 +334,7 @@ a.skipLink:focus-visible {
   flex-wrap: wrap;
   gap: 10px;
   margin: 0;
-  padding: 0 clamp(24px, 7vw, 108px) clamp(72px, 9vw, 134px);
+  padding: 0 clamp(28px, 8vw, 120px) clamp(88px, 10vw, 152px);
   border-right: 1px solid var(--border);
 }
 
@@ -386,10 +382,8 @@ a.skipLink:focus-visible {
   grid-row: 1 / span 2;
   justify-content: center;
   flex-direction: column;
-  padding: clamp(32px, 5vw, 76px);
-  background:
-    linear-gradient(180deg, rgba(45, 212, 191, 0.045), transparent 52%),
-    var(--surface);
+  padding: clamp(40px, 6vw, 88px);
+  background: var(--surface);
 }
 
 .ledgerHeader {
@@ -397,7 +391,7 @@ a.skipLink:focus-visible {
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
-  padding-bottom: 24px;
+  padding-bottom: 32px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -412,7 +406,7 @@ a.skipLink:focus-visible {
 .designPill {
   padding: 5px 8px;
   border: 1px solid rgba(123, 184, 255, 0.25);
-  border-radius: 999px;
+  border-radius: 4px;
   color: var(--info);
   background: rgba(123, 184, 255, 0.08);
   font-size: 9px;
@@ -459,7 +453,7 @@ a.skipLink:focus-visible {
 .gatesSection,
 .evidenceSection,
 .terminalPreviewSection {
-  padding: clamp(72px, 9vw, 144px) clamp(20px, 5vw, 72px);
+  padding: clamp(96px, 11vw, 176px) clamp(24px, 6vw, 88px);
   border-bottom: 1px solid var(--border);
 }
 
@@ -467,7 +461,7 @@ a.skipLink:focus-visible {
 .journeySection {
   display: grid;
   grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.3fr);
-  gap: clamp(42px, 8vw, 130px);
+  gap: clamp(56px, 9vw, 148px);
 }
 
 .sectionIntro h2,
@@ -484,7 +478,7 @@ a.skipLink:focus-visible {
 
 .sectionIntro > p {
   max-width: 440px;
-  margin-top: 24px;
+  margin-top: 32px;
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.65;
@@ -497,7 +491,7 @@ a.skipLink:focus-visible {
 
 .marketCards article {
   display: grid;
-  min-height: 190px;
+  min-height: 210px;
   grid-template-columns: 50px minmax(0, 1fr) auto;
   align-items: center;
   gap: 22px;
@@ -567,7 +561,7 @@ a.skipLink:focus-visible {
 .pairsSection {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
-  gap: clamp(52px, 10vw, 160px);
+  gap: clamp(64px, 11vw, 176px);
   background: var(--surface);
 }
 
@@ -645,7 +639,7 @@ a.skipLink:focus-visible {
 .evidenceSection {
   display: grid;
   grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.3fr);
-  gap: clamp(42px, 8vw, 130px);
+  gap: clamp(56px, 9vw, 148px);
 }
 
 .evidenceList {
@@ -839,7 +833,7 @@ a.skipLink:focus-visible {
 
 .journeyList article {
   display: grid;
-  min-height: 205px;
+  min-height: 228px;
   grid-template-columns: 45px minmax(200px, 0.8fr) minmax(250px, 1.2fr) auto;
   align-items: center;
   gap: 24px;
@@ -862,10 +856,8 @@ a.skipLink:focus-visible {
 .gatesSection {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.75fr);
-  gap: clamp(52px, 10vw, 160px);
-  background:
-    linear-gradient(110deg, rgba(45, 212, 191, 0.055), transparent 45%),
-    var(--background);
+  gap: clamp(64px, 11vw, 176px);
+  background: var(--background);
 }
 
 .gateCopy > p {
@@ -1080,7 +1072,7 @@ a.skipLink:focus-visible {
   .terminalPreviewSection {
     grid-template-columns: 1fr;
     gap: 50px;
-    padding: 84px 24px;
+    padding: 96px 24px;
   }
 
   .terminalPreviewGrid {
