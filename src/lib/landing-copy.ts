@@ -13,7 +13,7 @@ export const LANDING_HERO = {
 export const LANDING_BANNER = {
   label: "Product disclosure",
   kicker: "Public preview",
-  body: "Ethereum Mainnet wallet connection is sign-only. Contracts are not deployed. This is not a live exchange.",
+  body: "Ethereum Mainnet wallet connection is available. Signing, submission, and value movement are disabled. Contracts are not deployed. This is not a live exchange.",
 } as const;
 
 export const LANDING_HEADER_STATUS = "Public preview";
@@ -33,7 +33,7 @@ export const LANDING_LEDGER_PILL = "Public preview";
 export const LANDING_LEDGER = [
   { label: "Product", value: "Public preview" },
   { label: "Market data", value: "Illustrative" },
-  { label: "Wallet connection", value: "Ethereum Mainnet sign-only" },
+  { label: "Wallet connection", value: "Ethereum Mainnet connection only" },
   { label: "Contracts", value: "Not deployed" },
   { label: "Custody", value: "None" },
   { label: "Mainnet", value: "Not cleared" },

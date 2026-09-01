@@ -80,14 +80,15 @@ test("landing ledger names the public preview bounds", () => {
     [
       ["Product", "Public preview"],
       ["Market data", "Illustrative"],
-      ["Wallet connection", "Ethereum Mainnet sign-only"],
+      ["Wallet connection", "Ethereum Mainnet connection only"],
       ["Contracts", "Not deployed"],
       ["Custody", "None"],
       ["Mainnet", "Not cleared"],
       ["Country access", "Deny by default"],
     ],
   );
-  assert.equal(LANDING_LEDGER[2]?.value, "Ethereum Mainnet sign-only");
+  assert.equal(LANDING_LEDGER[2]?.value, "Ethereum Mainnet connection only");
+  assert.match(LANDING_BANNER.body, /Signing, submission, and value movement are disabled/);
   assert.doesNotMatch(corpus(LANDING_LEDGER), /Unavailable|Illustrative fixtures|No-value preview|Sepolia|Arbitrum/i);
 });
 
