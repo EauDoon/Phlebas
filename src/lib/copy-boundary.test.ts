@@ -471,6 +471,18 @@ test("production CSP connect-src is self only", async () => {
   assert.doesNotMatch(withoutConnect, /\bhttp:/);
 });
 
+test("shipped UI CSS does not keep the retired gold accent", async () => {
+  const files = [
+    join(root, "src/app/globals.css"),
+    join(root, "src/components/landing.module.css"),
+    join(root, "src/components/terminal.module.css"),
+    join(root, "src/app/global-error.tsx"),
+  ];
+  const joined = (await Promise.all(files.map((file) => readFile(file, "utf8")))).join("\n");
+  assert.doesNotMatch(joined, /#f4c95d/i);
+  assert.doesNotMatch(joined, /244\s*,\s*201\s*,\s*93/);
+});
+
 test("design docs do not claim the repo has no matcher or wallet stubs", async () => {
   const threat = await readFile(join(root, "docs/THREAT_MODEL.md"), "utf8");
   const architecture = await readFile(join(root, "docs/ARCHITECTURE.md"), "utf8");
