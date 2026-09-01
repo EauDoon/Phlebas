@@ -5,10 +5,8 @@
 
 .operatingShell {
   display: flex;
-  height: 100vh;
-  max-height: 100vh;
+  min-height: 100vh;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .main {
@@ -515,7 +513,7 @@
 .operatingShell .tradeGrid {
   flex: 1 1 auto;
   min-height: 0;
-  grid-template-rows: minmax(0, 1fr) minmax(0, 168px) minmax(0, 188px);
+  grid-template-rows: minmax(180px, 1fr) minmax(0, 168px) minmax(0, 188px);
 }
 
 .operatingShell .tradeGrid > section,
@@ -533,7 +531,7 @@
 
 .operatingShell .chartWrap {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 180px;
 }
 
 .operatingShell .chart {

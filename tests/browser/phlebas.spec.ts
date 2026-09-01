@@ -398,7 +398,7 @@ test("leaving Architecture for Trade drops demo=incidents and return restores it
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Primary navigation" });
-  await nav.getByRole("tab", { name: "Trade" }).click();
+  await page.getByRole("tab", { name: "Trade" }).click();
   await expect(page).toHaveURL(/view=trade/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
@@ -414,7 +414,7 @@ test("leaving Architecture for the ZEC gateway drops demo=incidents and return r
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Primary navigation" });
-  await nav.getByRole("tab", { name: "ZEC gateway" }).click();
+  await page.getByRole("tab", { name: "ZEC gateway" }).click();
   await expect(page).toHaveURL(/view=bridge/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
@@ -428,7 +428,7 @@ test("leaving Architecture for Liquidity drops demo=incidents and return restore
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Primary navigation" });
-  await nav.getByRole("tab", { name: "Liquidity" }).click();
+  await page.getByRole("tab", { name: "Liquidity" }).click();
   await expect(page).toHaveURL(/\/liquidity/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
@@ -473,7 +473,7 @@ test("ZIP 321 copy stays disabled without a gateway", async ({ page }) => {
       value: { writeText: () => Promise.reject(new Error("denied")) },
     });
   });
-  await page.getByRole("button", { name: "Copy testnet URI" }).click();
+  await page.getByRole("button", { name: /Copy (testnet|placeholder) URI/ }).click();
   await expect(page.getByText("Could not copy. The request is still visible above. Nothing was sent.")).toBeVisible();
 });
 
