@@ -2,6 +2,10 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
+function unixNow(): bigint {
+  return BigInt(Math.floor(Date.now() / 1000));
+}
+
 import { custodyRedemptionCopy, publicLinkabilityCopy } from "@/lib/review-copy";
 import { retargetSettlementCopy } from "@/lib/evm-wallet";
 import { parseExpiryUnix } from "@/lib/ticket-expiry";
@@ -447,6 +451,10 @@ export function TradeTicket({
     });
   }
 
+  function startReview() {
+    openReview(unixNow());
+  }
+
   function completeReview() {
     if (!review || !gate.canReview) {
       if (!gate.canReview) {
@@ -469,6 +477,8 @@ export function TradeTicket({
 
   const tokenIn = side === "buy" ? market.quote : "ZEC";
   const tokenOut = side === "buy" ? "ZEC" : market.quote;
+  const simplePayAmount = side === "buy" ? formattedNotional : size;
+  const simpleReceiveAmount = side === "buy" ? size : formattedNotional;
   const availableIn = side === "buy"
     ? `${formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`
     : `${formatAtomicUnits(availableZecAtoms, ZEC_DECIMALS)} ZEC`;
@@ -483,6 +493,40 @@ export function TradeTicket({
       settlementPair: market.settlementPair,
     })
     : [];
+  const reviewAction = review ? (
+    <div className={styles.reviewBlock}>
+      <p className={styles.gateNotice} aria-label="Review custody notice">
+        {ticketReviewNoticeCopy()} {custodyRedemptionCopy()}
+      </p>
+      <dl className={styles.ticketSummary}>
+        {reviewRows.map((row) => (
+          <div key={row.label}>
+            <dt>{row.label}</dt>
+            <dd>{row.label === "Public linkability" ? publicLinkabilityCopy("fill") : row.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <button
+        type="button"
+        className={`${styles.primaryAction} ${review.side === "sell" ? styles.sellAction : ""}`}
+        onClick={completeReview}
+      >
+        {ticketCompleteActionCopy(review.side)}
+      </button>
+      <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
+        Back
+      </button>
+    </div>
+  ) : (
+    <button
+      type="button"
+      className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
+      onClick={startReview}
+      disabled={!gate.canReview}
+    >
+      {ticketReviewActionCopy(side)}
+    </button>
+  );
 
   return (
     <section
@@ -516,6 +560,7 @@ export function TradeTicket({
         <>
           <div className={styles.tokenRow} aria-label="Token in">
             <span>Token in</span>
+            <strong>{simplePayAmount}</strong>
             <strong>{tokenIn}</strong>
             <span>Available {availableIn}</span>
           </div>
@@ -526,9 +571,37 @@ export function TradeTicket({
           </div>
           <div className={styles.tokenRow} aria-label="Token out">
             <span>Token out</span>
+            <strong>{simpleReceiveAmount}</strong>
             <strong>{tokenOut}</strong>
             <span>Available {availableOut}</span>
           </div>
+          <div className={styles.sizeRow}>
+            <label className={styles.inputLabel}>
+              <span>Size</span>
+              <div className={styles.inputShell}>
+                <input
+                  inputMode="decimal"
+                  value={size}
+                  onChange={(event) => setSize(event.target.value)}
+                  aria-label="Order size in ZEC"
+                  aria-invalid={!sizeIsValid || Boolean(sizeError || notionalError)}
+                  aria-errormessage={sizeError ? sizeErrorId : undefined}
+                  aria-describedby={sizeError ? `${sizeErrorId} ${noticeId}` : noticeId}
+                />
+                <span>ZEC</span>
+              </div>
+            </label>
+            <button type="button" className={styles.maxButton} onClick={applyMax}>
+              Max
+            </button>
+          </div>
+          {sizeError ? (
+            <p id={sizeErrorId} className={styles.inlineNotice} role="alert">{sizeError}</p>
+          ) : null}
+          {reviewAction}
+          <p id={shortcutsReasonId} className={styles.inlineNotice}>
+            Max uses session inventory ({formatAtomicUnits(availableZecAtoms, ZEC_DECIMALS)} ZEC, {formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} {market.quote}). Not a wallet.
+          </p>
         </>
       ) : (
         <>
@@ -659,11 +732,11 @@ export function TradeTicket({
         </>
       )}
 
-      {effectiveOrderType === "market" && (
+      {!isSimple && effectiveOrderType === "market" && (
         <p className={styles.inlineNotice}>{marketOrderConstraintCopy()}</p>
       )}
 
-      {effectiveOrderType === "market" && (
+      {!isSimple && effectiveOrderType === "market" && (
         <label className={styles.inputLabel}>
           <span>Maximum slippage</span>
           <div className={styles.inputShell}>
@@ -680,33 +753,30 @@ export function TradeTicket({
           </div>
         </label>
       )}
-      {slippageError ? (
+      {!isSimple && slippageError ? (
         <p id={slippageErrorId} className={styles.inlineNotice} role="alert">{slippageError}</p>
       ) : null}
 
-      <div className={isSimple ? styles.sizeRow : undefined}>
-        <label className={styles.inputLabel}>
-          <span>Size</span>
-          <div className={styles.inputShell}>
-            <input
-              inputMode="decimal"
-              value={size}
-              onChange={(event) => setSize(event.target.value)}
-              aria-label="Order size in ZEC"
-              aria-invalid={!sizeIsValid || Boolean(sizeError || notionalError)}
-              aria-errormessage={sizeError ? sizeErrorId : undefined}
-              aria-describedby={sizeError ? `${sizeErrorId} ${noticeId}` : noticeId}
-            />
-            <span>ZEC</span>
-          </div>
-        </label>
-        {isSimple ? (
-          <button type="button" className={styles.maxButton} onClick={applyMax}>
-            Max
-          </button>
-        ) : null}
-      </div>
-      {sizeError ? (
+      {isSimple ? null : (
+        <div>
+          <label className={styles.inputLabel}>
+            <span>Size</span>
+            <div className={styles.inputShell}>
+              <input
+                inputMode="decimal"
+                value={size}
+                onChange={(event) => setSize(event.target.value)}
+                aria-label="Order size in ZEC"
+                aria-invalid={!sizeIsValid || Boolean(sizeError || notionalError)}
+                aria-errormessage={sizeError ? sizeErrorId : undefined}
+                aria-describedby={sizeError ? `${sizeErrorId} ${noticeId}` : noticeId}
+              />
+              <span>ZEC</span>
+            </div>
+          </label>
+        </div>
+      )}
+      {isSimple ? null : sizeError ? (
         <p id={sizeErrorId} className={styles.inlineNotice} role="alert">{sizeError}</p>
       ) : null}
 
@@ -749,84 +819,45 @@ export function TradeTicket({
           </p>
         </>
       )}
-      {isSimple ? (
-        <p id={shortcutsReasonId} className={styles.inlineNotice}>
-          Max uses session inventory ({formatAtomicUnits(availableZecAtoms, ZEC_DECIMALS)} ZEC, {formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} {market.quote}). Not a wallet.
-        </p>
-      ) : null}
-
-      <dl className={styles.ticketSummary}>
-        <div>
-          <dt>Estimated value</dt>
-          <dd>{formattedNotional} {market.quote}</dd>
-        </div>
-        <div>
-          <dt>Settlement</dt>
-          <dd>{market.settlementPair}</dd>
-        </div>
-        <div>
-          <dt>{effectiveOrderType === "market" ? "Worst price" : "Limit price"}</dt>
-          <dd>{Number.isFinite(worstPrice) ? worstPrice.toFixed(2) : "0.00"} {market.quote}</dd>
-        </div>
-        <div>
-          <dt>Time in force</dt>
-          <dd>{effectiveTif}</dd>
-        </div>
-        <div>
-          <dt>Fee</dt>
-          {/* feeEnvelopeCopy is the proposed CLOB envelope; it is not charged. */}
-          <dd>{ticketReviewFeeCopy()}</dd>
-        </div>
-        <div>
-          <dt>Account epoch</dt>
-          <dd>{accountEpoch}</dd>
-        </div>
-        <div>
-          <dt>Session nonce</dt>
-          <dd>{sessionNonce}</dd>
-        </div>
-        {isSimple ? null : (
+      {isSimple ? null : (
+        <dl className={styles.ticketSummary}>
+          <div>
+            <dt>Estimated value</dt>
+            <dd>{formattedNotional} {market.quote}</dd>
+          </div>
+          <div>
+            <dt>Settlement</dt>
+            <dd>{market.settlementPair}</dd>
+          </div>
+          <div>
+            <dt>{effectiveOrderType === "market" ? "Worst price" : "Limit price"}</dt>
+            <dd>{Number.isFinite(worstPrice) ? worstPrice.toFixed(2) : "0.00"} {market.quote}</dd>
+          </div>
+          <div>
+            <dt>Time in force</dt>
+            <dd>{effectiveTif}</dd>
+          </div>
+          <div>
+            <dt>Fee</dt>
+            {/* feeEnvelopeCopy is the proposed CLOB envelope; it is not charged. */}
+            <dd>{ticketReviewFeeCopy()}</dd>
+          </div>
+          <div>
+            <dt>Account epoch</dt>
+            <dd>{accountEpoch}</dd>
+          </div>
+          <div>
+            <dt>Session nonce</dt>
+            <dd>{sessionNonce}</dd>
+          </div>
           <div>
             <dt>Expiry</dt>
             <dd>{expiry.trim() === "" || expiry.trim() === "0" ? "none" : expiry.trim()}</dd>
           </div>
-        )}
-      </dl>
-
-      {review ? (
-        <div className={styles.reviewBlock}>
-          <p className={styles.gateNotice} aria-label="Review custody notice">
-            {ticketReviewNoticeCopy()} {custodyRedemptionCopy()}
-          </p>
-          <dl className={styles.ticketSummary}>
-            {reviewRows.map((row) => (
-              <div key={row.label}>
-                <dt>{row.label}</dt>
-                <dd>{row.label === "Public linkability" ? publicLinkabilityCopy("fill") : row.value}</dd>
-              </div>
-            ))}
-          </dl>
-          <button
-            type="button"
-            className={`${styles.primaryAction} ${review.side === "sell" ? styles.sellAction : ""}`}
-            onClick={completeReview}
-          >
-            {ticketCompleteActionCopy(review.side)}
-          </button>
-          <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
-            Back
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
-          onClick={() => openReview(BigInt(Math.floor(Date.now() / 1000)))}
-          disabled={!gate.canReview}
-        >
-          {ticketReviewActionCopy(side)}
-        </button>
+        </dl>
       )}
+
+      {isSimple ? null : reviewAction}
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
         {inputError ?? notionalError ?? (isTicketRejectCopy(notice)
           ? retargetSettlementCopy(notice, market.settlementPair)

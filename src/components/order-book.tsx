@@ -33,6 +33,7 @@ export function OrderBook({
     level.totalAtoms > max ? level.totalAtoms : max
   ), 1n);
   const spreadTicks = asks[0] && bids[0] ? asks[0].priceTicks - bids[0].priceTicks : null;
+  const bookEmpty = askRows.length === 0 && bids.length === 0;
 
   return (
     <section id="order-book" tabIndex={-1} className={styles.panel} aria-labelledby="order-book-title">
@@ -52,11 +53,18 @@ export function OrderBook({
           </tr>
         </thead>
         <tbody aria-label="Asks">
-          {askRows.length === 0 && bids.length === 0 && (
+          {bookEmpty && (
             <tr>
               <td colSpan={3}>
-                <p className={styles.emptyState}>
-                  {depthEmptyCopy(market.settlementPair)}
+                <p className={styles.emptyState} role="status">
+                  {feedStatus === "loading" ? (
+                    <>
+                      <strong>{surface.heading}. </strong>
+                      {surface.message}
+                    </>
+                  ) : (
+                    depthEmptyCopy(market.settlementPair)
+                  )}
                 </p>
               </td>
             </tr>
@@ -70,6 +78,8 @@ export function OrderBook({
               onPriceSelect={onPriceSelect}
             />
           ))}
+        </tbody>
+        <tbody>
           <tr className={styles.midPriceRow}>
             <td colSpan={3}>
               <div className={styles.midPrice}>
@@ -114,15 +124,16 @@ function BookRow({
   const depthPercent = Number((level.totalAtoms * 1000n) / maxAtoms) / 10;
   const bookSide = side === "buy" ? "bid" : "ask";
   const priceLabel = formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2);
+  const isBid = side === "buy";
 
   return (
     <tr>
-      <th scope="row" className={side === "buy" ? styles.buyText : styles.sellText}>
+      <th scope="row" className={isBid ? styles.buyText : styles.sellText}>
         <span
           className={styles.depthFill}
           style={{
             width: `${Math.min(100, depthPercent)}%`,
-            background: side === "buy" ? "var(--buy-soft)" : "var(--sell-soft)",
+            background: isBid ? "var(--buy-soft)" : "var(--sell-soft)",
           }}
           aria-hidden="true"
         />
@@ -134,7 +145,9 @@ function BookRow({
           {bookSideControlCopy(bookSide, priceLabel)}
         </button>
       </th>
-      <td>{formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS, 2)}</td>
+      <td className={isBid ? styles.buyText : styles.sellText}>
+        {formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS, 2)}
+      </td>
       <td>{formatAtomicUnits(level.totalAtoms, ZEC_DECIMALS, 2)}</td>
     </tr>
   );

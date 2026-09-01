@@ -212,9 +212,9 @@ export function SettlementTicket({
         <div className={styles.panelHeader}>
           <div>
             <span className={styles.eyebrow}>Fill ticket</span>
-            <h2 id="native-swap-title" ref={phaseHeading} tabIndex={-1}>Fill ticket</h2>
+            <h2 id="native-swap-title" tabIndex={-1}>Fill ticket</h2>
           </div>
-          <span className={styles.warningPill}>USDC first</span>
+          <span className={styles.statusDot}>USDC first</span>
         </div>
 
         <p className={styles.featureLead}>
@@ -249,7 +249,7 @@ export function SettlementTicket({
           </label>
         </div>
 
-        <ol className={styles.settlementSteps} aria-label="Fill ticket progress">
+        <ol className={styles.stepList} aria-label="Fill ticket progress">
           {SETTLEMENT_PROGRESS_STEPS.map(([number, label, detail], index) => (
             <li
               key={number}
@@ -258,8 +258,8 @@ export function SettlementTicket({
             >
               <span aria-hidden="true">{number}</span>
               <div>
-                <strong>{label}</strong>
-                <small>{detail}</small>
+                <h3>{label}</h3>
+                <p>{detail}</p>
               </div>
               {index === phase.stage && <span className={styles.srOnly}>Current step</span>}
             </li>

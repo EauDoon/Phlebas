@@ -14,17 +14,23 @@ import {
   blotterEmptyLogCopy,
   blotterEmptyOrdersCopy,
   blotterLogCaptionCopy,
-  blotterLogEventCopy,
 } from "@/lib/blotter-copy";
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
+import { tapeSideCopy } from "@/lib/market-state";
 import type { RestingOrder } from "@/lib/matcher";
-import type { SessionLogEvent } from "@/lib/replay";
+import { describeSessionLogEvent, type SessionLogEvent } from "@/lib/replay";
 import type { PaperAccount, UserFill } from "@/lib/session";
 import { availableZec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
 import { ZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
+
+function sessionLogDetail(event: SessionLogEvent): string {
+  const line = describeSessionLogEvent(event);
+  if (event.kind === "reset") return line;
+  return `${line}. Settled as ${markets[event.marketId].settlementPair}.`;
+}
 
 export function OrderBlotter({
   marketId,
@@ -57,6 +63,7 @@ export function OrderBlotter({
   const mark = markToMarketQuote(account, lastTicks);
   const start = startingMarkQuote(lastTicks);
   const pnl = mark - start;
+  const pnlAbs = formatAtomicUnits(pnl < 0n ? -pnl : pnl, QUOTE_DECIMALS, 2);
 
   function moveFocus(next: BlotterTab) {
     setFocusId(next);
@@ -150,7 +157,7 @@ export function OrderBlotter({
               {openOrders.map((order) => (
                 <tr key={order.id}>
                   <th scope="row" className={order.side === "buy" ? styles.buyText : styles.sellText}>
-                    {order.side === "buy" ? "Buy" : "Sell"}
+                    {tapeSideCopy(order.side)}
                   </th>
                   <td>{formatAtomicUnits(order.priceTicks, PRICE_DECIMALS, 2)}</td>
                   <td>{formatAtomicUnits(order.remainingAtoms, ZEC_DECIMALS)}</td>
@@ -188,22 +195,20 @@ export function OrderBlotter({
             <caption className={styles.srOnly}>Session fills for {marketId}, settled as {market.settlementPair}</caption>
             <thead>
               <tr>
-                <th scope="col">Time</th>
-                <th scope="col">Side</th>
                 <th scope="col">Price {market.quote}</th>
                 <th scope="col">Size ZEC</th>
+                <th scope="col">Time</th>
                 <th scope="col">Settlement</th>
               </tr>
             </thead>
             <tbody>
               {marketFills.map((fill) => (
                 <tr key={fill.id}>
-                  <th scope="row">{fill.time}</th>
-                  <td className={fill.takerSide === "buy" ? styles.buyText : styles.sellText}>
-                    {fill.takerSide === "buy" ? "Buy" : "Sell"}
-                  </td>
-                  <td>{formatAtomicUnits(fill.priceTicks, PRICE_DECIMALS, 2)}</td>
+                  <th scope="row" className={fill.takerSide === "buy" ? styles.buyText : styles.sellText}>
+                    {tapeSideCopy(fill.takerSide)} {formatAtomicUnits(fill.priceTicks, PRICE_DECIMALS, 2)}
+                  </th>
                   <td>{formatAtomicUnits(fill.sizeAtoms, ZEC_DECIMALS)}</td>
+                  <td>{fill.time}</td>
                   <td>{market.settlementPair}</td>
                 </tr>
               ))}
@@ -216,38 +221,49 @@ export function OrderBlotter({
 
       {tab === "inventory" && (
         <div role="tabpanel" id="blotter-panel-inventory" aria-labelledby="blotter-tab-inventory">
-        <dl className={styles.statGrid}>
-          <div>
-            <dt>Available ZEC</dt>
-            <dd>{formatAtomicUnits(availableZec(account), ZEC_DECIMALS)}</dd>
-          </div>
-          <div>
-            <dt>Reserved ZEC</dt>
-            <dd>{formatAtomicUnits(account.reservedZecAtoms, ZEC_DECIMALS)}</dd>
-          </div>
-          <div>
-            <dt>Available {market.quote}</dt>
-            <dd>{formatAtomicUnits(availableQuote(account), QUOTE_DECIMALS, 2)}</dd>
-          </div>
-          <div>
-            <dt>Reserved {market.quote}</dt>
-            <dd>{formatAtomicUnits(account.reservedQuoteAtoms, QUOTE_DECIMALS, 2)}</dd>
-          </div>
-          <div>
-            <dt>Mark to market</dt>
-            <dd>{formatAtomicUnits(mark, QUOTE_DECIMALS, 2)} {market.quote}</dd>
-          </div>
-          <div>
-            <dt>Session PnL</dt>
-            <dd className={pnl >= 0n ? styles.buyText : styles.sellText}>
-              {pnl >= 0n ? "+" : "−"}{formatAtomicUnits(pnl < 0n ? -pnl : pnl, QUOTE_DECIMALS, 2)} {market.quote}
-            </dd>
-          </div>
-          <div>
-            <dt>Account epoch</dt>
-            <dd>{accountEpoch}</dd>
-          </div>
-        </dl>
+        <div className={styles.tableScroll}>
+        <table className={styles.dataTable}>
+          <caption className={styles.srOnly}>Session inventory for {marketId}, settled as {market.settlementPair}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Account</th>
+              <th scope="col">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Available ZEC</th>
+              <td>{formatAtomicUnits(availableZec(account), ZEC_DECIMALS)}</td>
+            </tr>
+            <tr>
+              <th scope="row">Reserved ZEC</th>
+              <td>{formatAtomicUnits(account.reservedZecAtoms, ZEC_DECIMALS)}</td>
+            </tr>
+            <tr>
+              <th scope="row">Available {market.quote}</th>
+              <td>{formatAtomicUnits(availableQuote(account), QUOTE_DECIMALS, 2)}</td>
+            </tr>
+            <tr>
+              <th scope="row">Reserved {market.quote}</th>
+              <td>{formatAtomicUnits(account.reservedQuoteAtoms, QUOTE_DECIMALS, 2)}</td>
+            </tr>
+            <tr>
+              <th scope="row">Mark to market</th>
+              <td>{formatAtomicUnits(mark, QUOTE_DECIMALS, 2)} {market.quote}</td>
+            </tr>
+            <tr>
+              <th scope="row">Session PnL</th>
+              <td className={pnl >= 0n ? styles.buyText : styles.sellText}>
+                {pnl >= 0n ? "+" : "−"}{pnlAbs} {market.quote}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Account epoch</th>
+              <td>{accountEpoch}</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
         <p className={styles.inlineNotice}>
           {blotterCancelRefundCopy()}
         </p>
@@ -259,6 +275,7 @@ export function OrderBlotter({
         {events.length === 0 ? (
           <p className={styles.emptyState}>{blotterEmptyLogCopy(market.settlementPair)}</p>
         ) : (
+          <div className={styles.tableScroll}>
           <table className={styles.dataTable}>
             <caption className={styles.srOnly}>{blotterLogCaptionCopy(market.settlementPair)}</caption>
             <thead>
@@ -273,12 +290,12 @@ export function OrderBlotter({
                 <tr key={`${event.kind}-${index}`}>
                   <th scope="row">{events.length - Math.min(events.length, 20) + index + 1}</th>
                   <td>{event.kind}</td>
-                  {/* The pure blotter copy module keeps describeSessionLogEvent formatting and adds settlement context. */}
-                  <td>{blotterLogEventCopy(event)}</td>
+                  <td>{sessionLogDetail(event)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         )}
         </div>
       )}

@@ -263,11 +263,11 @@ a.skipLink:focus-visible {
   z-index: 10;
   top: 0;
   display: grid;
-  min-height: 64px;
+  min-height: 56px;
   grid-template-columns: 190px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 24px;
-  padding: 8px 28px;
+  gap: 16px;
+  padding: 0 20px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -331,7 +331,7 @@ a.skipLink:focus-visible {
   border: 0;
   color: var(--text-muted);
   background: transparent;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -446,13 +446,19 @@ a.skipLink:focus-visible {
 
 .marketBar {
   display: grid;
-  min-height: 78px;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-  align-items: start;
-  gap: 16px 20px;
-  padding: 12px 28px;
+  min-height: 56px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(160px, 280px);
+  align-items: center;
+  gap: 8px 16px;
+  padding: 6px 16px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
+}
+
+.marketBar > .inlineNotice {
+  min-height: 0;
+  margin: 0;
+  font-size: 11px;
 }
 
 .marketSelectorWrap {
@@ -494,8 +500,13 @@ a.skipLink:focus-visible {
   border: 0;
   color: var(--text);
   background: transparent;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 690;
+}
+
+.marketSelectorWrap > div:first-of-type .selectorTabs button {
+  font-size: 18px;
+  font-weight: 650;
 }
 
 .selectorTabs {
@@ -524,6 +535,27 @@ a.skipLink:focus-visible {
   background: var(--surface-raised);
 }
 
+.headerActions .selectorTabs {
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--background);
+}
+
+.headerActions .selectorTabs button {
+  padding: 0 12px;
+  border: 0;
+  border-radius: 2px;
+  font-size: 13px;
+}
+
+.headerActions .selectorTabs .selectorActive {
+  color: var(--accent-fg);
+  border-color: transparent;
+  background: var(--accent);
+}
+
 .settlementBadge {
   padding: 5px 8px;
   border: 1px solid var(--border);
@@ -547,14 +579,20 @@ a.skipLink:focus-visible {
 
 .marketStats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(86px, 1fr));
-  gap: 8px;
+  grid-template-columns: auto repeat(3, minmax(72px, 1fr));
+  align-items: center;
+  gap: 8px 16px;
 }
 
 .marketStats > div {
   min-width: 0;
   padding-left: 14px;
   border-left: 1px solid var(--border);
+}
+
+.marketStats .priceStat {
+  padding-left: 0;
+  border-left: 0;
 }
 
 .marketStats dd {
@@ -565,8 +603,10 @@ a.skipLink:focus-visible {
 }
 
 .marketStats .priceStat dd {
-  color: var(--accent);
-  font-size: 19px;
+  color: var(--text);
+  font-size: 30px;
+  font-weight: 650;
+  line-height: 1.1;
 }
 
 .tradeGrid {
@@ -574,9 +614,10 @@ a.skipLink:focus-visible {
   grid-template-areas:
     "chart book ticket"
     "trades book matcher"
-    "blotter blotter settlement";
+    "blotter blotter blotter"
+    "settlement settlement settlement";
   grid-template-columns: minmax(430px, 1fr) 285px 345px;
-  grid-template-rows: minmax(320px, 1fr) auto auto;
+  grid-template-rows: minmax(320px, 1fr) auto auto auto;
   gap: 8px;
   padding: 8px 12px 12px;
   background: var(--background);
@@ -585,7 +626,7 @@ a.skipLink:focus-visible {
 .operatingShell .tradeGrid {
   flex: 1 1 auto;
   min-height: 0;
-  grid-template-rows: minmax(240px, 1fr) minmax(190px, auto) minmax(160px, 188px);
+  grid-template-rows: minmax(240px, 1fr) minmax(190px, auto) minmax(140px, 160px) minmax(72px, 100px);
 }
 
 .operatingShell .tradeGrid > section,
@@ -608,6 +649,19 @@ a.skipLink:focus-visible {
 
 .operatingShell .chart {
   height: 100%;
+}
+
+.operatingShell .simpleTradeGrid {
+  grid-template-rows: auto;
+  align-content: start;
+  overflow: auto;
+}
+
+.operatingShell .simpleTradeGrid > section,
+.operatingShell .simpleTradeGrid .ticket,
+.operatingShell .simpleTradeGrid .blotter {
+  min-height: min-content;
+  overflow: visible;
 }
 
 .panel {
@@ -820,7 +874,7 @@ a.skipLink:focus-visible {
 }
 
 .midPrice strong {
-  color: var(--accent);
+  color: var(--text);
   font-family: var(--font-geist-mono), monospace;
   font-size: 17px;
 }
@@ -868,10 +922,104 @@ a.skipLink:focus-visible {
 
 .simpleTradeGrid {
   grid-template-areas:
-    "chart ticket"
-    "trades matcher"
-    "blotter settlement";
-  grid-template-columns: minmax(430px, 1fr) 345px;
+    "ticket"
+    "chart"
+    "trades"
+    "blotter"
+    "matcher"
+    "settlement";
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto;
+  justify-items: stretch;
+}
+
+.simpleTicket {
+  display: flex;
+  width: 100%;
+  max-width: 480px;
+  min-width: 0;
+  flex-direction: column;
+  justify-self: center;
+  overflow: visible;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface-raised);
+}
+
+.simpleTicket .panelHeader {
+  padding: 0 0 12px;
+  border-bottom: 0;
+}
+
+.simpleTicket .panelHeader h2 {
+  margin-top: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.simpleTicket .statusDot {
+  padding: 0;
+  border: 0;
+  color: var(--text-muted);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.simpleTicket .tokenRow,
+.simpleTicket .switchRow,
+.simpleTicket .sizeRow,
+.simpleTicket .inputLabel,
+.simpleTicket .ticketSummary,
+.simpleTicket .inlineNotice,
+.simpleTicket .ticketBlocked,
+.simpleTicket .reviewBlock,
+.simpleTicket .shortcutRegion {
+  margin-right: 0;
+  margin-left: 0;
+}
+
+.simpleTicket .primaryAction {
+  width: 100%;
+  min-height: 48px;
+  margin: 16px 0 0;
+  border: 0;
+  color: var(--accent-fg);
+  background: var(--accent);
+}
+
+.simpleTicket .sellAction {
+  color: var(--accent-fg);
+  background: var(--accent);
+}
+
+.simpleTicket .sizeRow {
+  align-items: stretch;
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+.simpleTicket .sizeRow .inputLabel {
+  margin: 0;
+}
+
+.simpleTicket .sizeRow .inputShell {
+  min-height: 48px;
+}
+
+.simpleTicket .sizeRow .inputShell input {
+  font-size: 28px;
+  font-weight: 650;
+}
+
+.simpleTicket .sizeRow .maxButton {
+  align-self: end;
+  margin-bottom: 0;
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
 }
 
 .tokenRow {
@@ -898,10 +1046,43 @@ a.skipLink:focus-visible {
   font-weight: 680;
 }
 
+.simpleTicket .tokenRow {
+  min-height: 96px;
+  margin: 0;
+  padding: 16px;
+  align-content: center;
+}
+
+.simpleTicket .tokenRow > span:first-child {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.simpleTicket .tokenRow strong {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.simpleTicket .tokenRow > span:last-child {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .switchRow {
   display: flex;
   justify-content: center;
   margin: 0 14px;
+}
+
+.simpleTicket .switchRow {
+  position: relative;
+  z-index: 1;
+  height: 44px;
+  margin: -22px 0;
 }
 
 .switchRow button,
@@ -915,6 +1096,13 @@ a.skipLink:focus-visible {
   background: var(--surface-raised);
   font-size: 12px;
   font-weight: 680;
+}
+
+.simpleTicket .switchRow button {
+  width: 44px;
+  padding: 0;
+  color: var(--text);
+  background: var(--surface);
 }
 
 .sizeRow {
@@ -2545,18 +2733,32 @@ a.skipLink:focus-visible {
 
   .simpleTradeGrid {
     grid-template-areas:
+      "ticket"
       "chart"
       "trades"
-      "ticket"
-      "matcher"
       "blotter"
+      "matcher"
       "settlement";
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
   }
 
-  .ticket.simpleTicket {
+  .ticket.simpleTicket,
+  .simpleTicket {
     display: flex;
+    width: 100%;
+    max-width: 480px;
     flex-direction: column;
+    justify-self: center;
+  }
+
+  .simpleTicket .primaryAction,
+  .ticket.simpleTicket .primaryAction {
+    width: 100%;
+    min-height: 48px;
+    margin-left: 0;
+    margin-right: 0;
+    align-self: stretch;
   }
 
   .operatingShell .tradeGrid {
@@ -2746,13 +2948,32 @@ a.skipLink:focus-visible {
 
   .simpleTradeGrid {
     grid-template-areas:
-      "chart"
       "ticket"
+      "chart"
       "trades"
-      "settlement"
+      "blotter"
       "matcher"
-      "blotter";
+      "settlement";
     grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .simpleTicket,
+  .ticket.simpleTicket {
+    display: flex;
+    width: 100%;
+    max-width: 480px;
+    flex-direction: column;
+    justify-self: center;
+    padding: 20px;
+  }
+
+  .simpleTicket .primaryAction,
+  .ticket.simpleTicket .primaryAction {
+    width: 100%;
+    min-height: 48px;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .switchRow button,

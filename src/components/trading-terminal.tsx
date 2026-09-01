@@ -449,6 +449,24 @@ export function TradingTerminal({
 
   const sessionTape = fills.filter((fill) => fill.marketId === marketId).slice(0, 6);
   const publicTape = feed.showFixtures ? recentTrades[marketId] : [];
+  const orderTicket = (
+    <TradeTicket
+      key={feedStatus}
+      market={market}
+      book={displayedBook}
+      lastTicks={book.lastTicks}
+      priceSelection={priceSelection}
+      availableZecAtoms={availableZec(account)}
+      availableQuoteAtoms={availableQuote(account)}
+      reserveZecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
+      reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
+      accountEpoch={accountEpoch}
+      feedStatus={feedStatus}
+      variant={mode}
+      onRetryFeed={() => selectFeed("illustrative")}
+      onSubmit={submitUserOrder}
+    />
+  );
 
   const operatingView = initialAccess === "open" && (view === "trade" || view === "liquidity");
 
@@ -601,6 +619,22 @@ export function TradingTerminal({
                   </div>
                 </div>
                 <span className={styles.settlementBadge}>settles {market.settlementPair}</span>
+              </div>
+              <dl className={styles.marketStats} aria-label="Market statistics">
+                <div className={styles.priceStat}>
+                  <dt>{sessionLastStatLabel(market.settlementPair, statsSurface.showFixtures)}</dt>
+                  <dd>{statsSurface.showFixtures ? formatAtomicUnits(book.lastTicks, PRICE_DECIMALS, 2) : "—"}</dd>
+                </div>
+                <div>
+                  <dt>24h change</dt>
+                  <dd className={feed.showFixtures ? (market.changeBps >= 0 ? styles.buyText : styles.sellText) : undefined}>
+                    {feed.showFixtures ? formatSignedChange(market.changeBps) : "—"}
+                  </dd>
+                </div>
+                <div><dt>24h high</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
+                <div><dt>24h low</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
+              </dl>
+              <div className={styles.marketSelectorWrap}>
                 <div>
                   <span>Market data</span>
                   <div className={styles.selectorTabs} role="radiogroup" aria-label="Market data state">
@@ -624,24 +658,12 @@ export function TradingTerminal({
                   </div>
                 </div>
               </div>
-              <dl className={styles.marketStats} aria-label="Market statistics">
-                <div className={styles.priceStat}>
-                  <dt>{sessionLastStatLabel(market.settlementPair, statsSurface.showFixtures)}</dt>
-                  <dd>{statsSurface.showFixtures ? formatAtomicUnits(book.lastTicks, PRICE_DECIMALS, 2) : "—"}</dd>
-                </div>
-                <div>
-                  <dt>24h change</dt>
-                  <dd className={feed.showFixtures ? (market.changeBps >= 0 ? styles.buyText : styles.sellText) : undefined}>
-                    {feed.showFixtures ? formatSignedChange(market.changeBps) : "—"}
-                  </dd>
-                </div>
-                <div><dt>24h high</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
-                <div><dt>24h low</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
-              </dl>
               <p className={styles.inlineNotice}>{feed.statsNote}</p>
             </section>
 
             <div className={isSimple ? `${styles.tradeGrid} ${styles.simpleTradeGrid}` : styles.tradeGrid}>
+              {isSimple ? orderTicket : null}
+
               <section id="price-chart" tabIndex={-1} className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
                 <div className={styles.panelHeader}>
                   <div>
@@ -683,22 +705,8 @@ export function TradingTerminal({
                   }}
                 />
               )}
-              <TradeTicket
-                key={feedStatus}
-                market={market}
-                book={displayedBook}
-                lastTicks={book.lastTicks}
-                priceSelection={priceSelection}
-                availableZecAtoms={availableZec(account)}
-                availableQuoteAtoms={availableQuote(account)}
-                reserveZecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
-                reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
-                accountEpoch={accountEpoch}
-                feedStatus={feedStatus}
-                variant={mode}
-                onRetryFeed={() => selectFeed("illustrative")}
-                onSubmit={submitUserOrder}
-              />
+
+              {isSimple ? null : orderTicket}
 
               <NativeMatcherOrderAction
                 marketId={marketId}
