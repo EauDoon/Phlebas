@@ -8,9 +8,11 @@ import {
   MATCHER_CONTROL_DOMAIN_NAME,
   createEvmEoaSignatureVerifier,
   evmAuthorizedSignerId,
+  hashLegacyMatcherControlForReplay,
   hashMatcherControl,
   hashMatcherControlStruct,
   typedMatcherControlData,
+  verifyLegacyMatcherControlForReplay,
   verifyMatcherControl,
   verifySignedOrderIntent,
   type MatcherSignatureVerifier,
@@ -19,7 +21,7 @@ import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier,
 
 const CHAIN_ID = 421614n;
 const MAKER = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
-const FROZEN_DIGEST = "0x23cf06d636047955c46b031bd1e5e788d74321da1c19d01ee562b2e194cdc4e9" satisfies Hex32;
+const FROZEN_DIGEST: Hex32 = "0x23cf06d636047955c46b031bd1e5e788d74321da1c19d01ee562b2e194cdc4e9";
 const FROZEN_SIGNATURE = "0x25dda9696a4eed8b907e5b9fcb79f39169284f1c544f992627af993faa4a61e63c69c69b68a6306e970377cdcb9af0bb1dac6cd4f223f2fbba034c06682651091b";
 const domain = createOrderDomain(CHAIN_ID, "0x1111111111111111111111111111111111111111");
 
@@ -159,6 +161,39 @@ test("verifies the exact typed-control digest through a pluggable authenticator"
   const digest = verifyMatcherControl(verifier, domain, authorization, "fixture-signature");
   assert.equal(digest, hashMatcherControl(domain, authorization));
   assert.equal(observed, `${digest}:fixture-signature:${value.authorizedSignerId}`);
+});
+
+test("keeps the pre-EIP-712 user-control digest bounded to compatibility replay", () => {
+  const value = order();
+  const authorization = {
+    kind: "cancel-order" as const,
+    orderHash: FROZEN_DIGEST,
+    makerAccountId: value.makerAccountId,
+    accountEpoch: value.accountEpoch,
+    nonce: value.nonce,
+    authorizedSignerId: value.authorizedSignerId,
+  };
+  const legacyDigest = hashLegacyMatcherControlForReplay(domain, authorization);
+  assert.equal(legacyDigest, "0x78f35c2ede22497c1d76115820d02f2ea450ede313245f4038166d55ccee95ca");
+  assert.notEqual(legacyDigest, hashMatcherControl(domain, authorization));
+  assert.equal(hashLegacyMatcherControlForReplay(domain, {
+    kind: "advance-epoch",
+    makerAccountId: value.makerAccountId,
+    currentEpoch: 0n,
+    nextEpoch: 1n,
+    authorizedSignerId: value.authorizedSignerId,
+  }), "0xe6bee9c6ff6b2c06271c5fb8131d238aacca117570d1b7bfa834cc5288db21e9");
+  let observed = "";
+  const verifier: MatcherSignatureVerifier = {
+    verify(digest, signature, signerId) {
+      observed = `${digest}:${signature}:${signerId}`;
+    },
+  };
+  assert.equal(
+    verifyLegacyMatcherControlForReplay(verifier, domain, authorization, "legacy-signature"),
+    legacyDigest,
+  );
+  assert.equal(observed, `${legacyDigest}:legacy-signature:${value.authorizedSignerId}`);
 });
 
 test("rejects malformed signatures without any signing capability", () => {

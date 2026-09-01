@@ -32,7 +32,12 @@ import {
   type MatcherOrderPayload,
   type MatcherOrderSubmissionInput,
 } from "./matcher-client.ts";
-import { matcherConfigurationHash, type PersistentMatcherConfiguration, type PersistentMatcherEvent } from "./persistent-matcher.ts";
+import {
+  EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME,
+  matcherConfigurationHash,
+  type PersistentMatcherConfiguration,
+  type PersistentMatcherEvent,
+} from "./persistent-matcher.ts";
 import {
   UINT64_MAX,
   accountIdentifier,
@@ -287,6 +292,7 @@ test("builds exact signed order-cancellation bytes that round-trip through the n
     kind: "cancel-order",
     orderHash: control.orderHash,
     signature: value.signature,
+    controlAuthorizationScheme: EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME,
   };
 
   assert.equal(request.path, MATCHER_API_PATH);
@@ -296,7 +302,10 @@ test("builds exact signed order-cancellation bytes that round-trip through the n
     "content-type": "application/json",
     [MATCHER_IDEMPOTENCY_HEADER]: value.requestId,
   });
-  assert.deepEqual(payload, serializePersistentMatcherEvent(configuration, event).payload);
+  const persisted = serializePersistentMatcherEvent(configuration, event).payload as Record<string, unknown>;
+  const { controlAuthorizationScheme, ...ingressPayload } = persisted;
+  assert.equal(controlAuthorizationScheme, EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME);
+  assert.deepEqual(payload, ingressPayload);
   assert.equal(request.body, serializeMatcherOrderCancellation(value));
   assert.equal(request.body, serializeMatcherControlSubmission(value));
   assert.equal(buildMatcherControlRequest(value).body, request.body);
@@ -320,12 +329,16 @@ test("builds exact signed account-epoch bytes that round-trip through the native
     nextEpoch: control.nextEpoch,
     authorizedSignerId: control.authorizedSignerId,
     signature: value.signature,
+    controlAuthorizationScheme: EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME,
   };
 
   assert.equal(request.path, MATCHER_API_PATH);
   assert.equal(request.operation, MATCHER_ACCOUNT_EPOCH_OPERATION);
   assert.equal(request.controlHash, hashMatcherControl(domain, control));
-  assert.deepEqual(payload, serializePersistentMatcherEvent(configuration, event).payload);
+  const persisted = serializePersistentMatcherEvent(configuration, event).payload as Record<string, unknown>;
+  const { controlAuthorizationScheme, ...ingressPayload } = persisted;
+  assert.equal(controlAuthorizationScheme, EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME);
+  assert.deepEqual(payload, ingressPayload);
   assert.equal(request.body, serializeMatcherAccountEpochAdvance(value));
   assert.equal(request.body, serializeMatcherControlSubmission(value));
   assert.equal(Object.isFrozen(request.identity), true);
@@ -657,6 +670,13 @@ test("binds a matcher receipt to the reviewed request, signed order, and configu
       subjectHash,
       occurredAtSeconds: NOW.toString(),
     },
+    receiptCheckpoint: {
+      version: 1,
+      sequence: "8",
+      recordHash: `0x${"cd".repeat(32)}`,
+      stateRoot: `0x${"ef".repeat(32)}`,
+      configurationHash: expectedMatcher.configurationHash,
+    },
     checkpoint: {
       version: 1,
       sequence: "8",
@@ -674,9 +694,11 @@ test("binds a matcher receipt to the reviewed request, signed order, and configu
   assert.equal(verified.receipt.sequence, 8n);
   assert.equal(verified.receipt.status, "open");
   assert.equal(verified.receipt.occurredAtSeconds, NOW);
+  assert.equal(verified.receiptCheckpoint.sequence, 8n);
   assert.equal(verified.checkpoint.configurationHash, expectedMatcher.configurationHash);
   assert.equal(Object.isFrozen(verified), true);
   assert.equal(Object.isFrozen(verified.receipt), true);
+  assert.equal(Object.isFrozen(verified.receiptCheckpoint), true);
   assert.equal(Object.isFrozen(verified.checkpoint), true);
 });
 
@@ -693,6 +715,13 @@ test("rejects matcher receipts that do not bind the reviewed no-value order", ()
       status: "open",
       subjectHash,
       occurredAtSeconds: NOW.toString(),
+    },
+    receiptCheckpoint: {
+      version: 1,
+      sequence: "8",
+      recordHash: `0x${"cd".repeat(32)}`,
+      stateRoot: `0x${"ef".repeat(32)}`,
+      configurationHash: expectedMatcher.configurationHash,
     },
     checkpoint: {
       version: 1,
@@ -725,9 +754,23 @@ test("rejects matcher receipts that do not bind the reviewed no-value order", ()
     () => assertMatcherOrderReceipt({ ...base, receipt: { ...base.receipt, status: "cancelled" } }, expectation),
     /status is unsupported/,
   );
+  const replayAtNewerHead = assertMatcherOrderReceipt({
+    ...base,
+    replayed: true,
+    checkpoint: { ...base.checkpoint, sequence: "9", recordHash: `0x${"de".repeat(32)}` },
+  }, expectation);
+  assert.equal(replayAtNewerHead.receiptCheckpoint.sequence, 8n);
+  assert.equal(replayAtNewerHead.checkpoint.sequence, 9n);
   assert.throws(
-    () => assertMatcherOrderReceipt({ ...base, checkpoint: { ...base.checkpoint, sequence: "9" } }, expectation),
+    () => assertMatcherOrderReceipt({ ...base, receiptCheckpoint: { ...base.receiptCheckpoint, sequence: "9" } }, expectation),
     /does not bind/,
+  );
+  assert.throws(
+    () => assertMatcherOrderReceipt({
+      ...base,
+      checkpoint: { ...base.checkpoint, stateRoot: `0x${"11".repeat(32)}` },
+    }, expectation),
+    /conflict at the same sequence/,
   );
   assert.throws(
     () => assertMatcherOrderReceipt({
@@ -757,6 +800,13 @@ test("binds cancellation and epoch receipts to their signed controls and approve
       subjectHash: control.kind === "cancel-order" ? control.orderHash : control.makerAccountId,
       occurredAtSeconds: NOW.toString(),
     },
+    receiptCheckpoint: {
+      version: 1,
+      sequence,
+      recordHash: `0x${"cd".repeat(32)}`,
+      stateRoot: `0x${"ef".repeat(32)}`,
+      configurationHash: expectedMatcher.configurationHash,
+    },
     checkpoint: {
       version: 1,
       sequence,
@@ -784,6 +834,7 @@ test("binds cancellation and epoch receipts to their signed controls and approve
   assert.equal(epochReceipt.receipt.status, "epoch-advanced");
   assert.equal(epochReceipt.receipt.subjectHash, epoch.makerAccountId);
   assert.equal(Object.isFrozen(epochReceipt), true);
+  assert.equal(Object.isFrozen(epochReceipt.receiptCheckpoint), true);
   assert.equal(Object.isFrozen(epochReceipt.checkpoint), true);
 });
 
@@ -800,6 +851,13 @@ test("rejects control receipts with drifted request, control, status, or checkpo
       status: "cancelled",
       subjectHash: control.orderHash,
       occurredAtSeconds: NOW.toString(),
+    },
+    receiptCheckpoint: {
+      version: 1,
+      sequence: "8",
+      recordHash: `0x${"cd".repeat(32)}`,
+      stateRoot: `0x${"ef".repeat(32)}`,
+      configurationHash: expectedMatcher.configurationHash,
     },
     checkpoint: {
       version: 1,
@@ -823,9 +881,22 @@ test("rejects control receipts with drifted request, control, status, or checkpo
     () => assertMatcherControlReceipt({ ...base, receipt: { ...base.receipt, subjectHash: `0x${"11".repeat(32)}` } }, expectation),
     /signed control/,
   );
+  const replayAtNewerHead = assertMatcherControlReceipt({
+    ...base,
+    checkpoint: { ...base.checkpoint, sequence: "9", recordHash: `0x${"de".repeat(32)}` },
+  }, expectation);
+  assert.equal(replayAtNewerHead.receiptCheckpoint.sequence, 8n);
+  assert.equal(replayAtNewerHead.checkpoint.sequence, 9n);
   assert.throws(
-    () => assertMatcherControlReceipt({ ...base, checkpoint: { ...base.checkpoint, sequence: "9" } }, expectation),
+    () => assertMatcherControlReceipt({ ...base, receiptCheckpoint: { ...base.receiptCheckpoint, sequence: "9" } }, expectation),
     /does not bind/,
+  );
+  assert.throws(
+    () => assertMatcherControlReceipt({
+      ...base,
+      checkpoint: { ...base.checkpoint, recordHash: `0x${"11".repeat(32)}` },
+    }, expectation),
+    /conflict at the same sequence/,
   );
   assert.throws(
     () => assertMatcherControlReceipt({ ...base, checkpoint: { ...base.checkpoint, configurationHash: `0x${"22".repeat(32)}` } }, expectation),

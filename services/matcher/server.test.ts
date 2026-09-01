@@ -191,6 +191,7 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
     assert.equal(first.status, 201);
     const firstBody = await json(first);
     assert.equal(firstBody.replayed, false);
+    assert.deepEqual(firstBody.receiptCheckpoint, firstBody.checkpoint);
 
     const replay = await fetch(`${origin}/v1/orders`, {
       method: "POST",
@@ -201,7 +202,7 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
     assert.equal((await json(replay)).replayed, true);
 
     const health = await json(await fetch(`${origin}/health`));
-    assert.equal(health.sequence, "1");
+    assert.equal(health.sequence, "2");
     assert.match(String(health.stateRoot), /^0x[0-9a-f]{64}$/);
     assert.deepEqual(health.market, {
       base: { network: baseNetwork, asset: baseAsset, environment: "mainnet", decimals: 8 },
@@ -212,12 +213,15 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
     assert.equal(markets.quoteAsset, quoteAsset);
     assert.deepEqual(markets.quoteAssets, [quoteAsset]);
     assert.deepEqual(markets.market, health.market);
-    const sequence = await json(await fetch(`${origin}/v1/sequence?after=0&limit=1`));
-    assert.equal(sequence.nextAfter, "1");
+    const sequence = await json(await fetch(`${origin}/v1/sequence?after=1&limit=1`));
+    assert.equal(sequence.nextAfter, "2");
     assert.equal(sequence.hasMore, false);
     assert.equal((sequence.receipts as unknown[]).length, 1);
     const receipt = await fetch(`${origin}/v1/requests/order-one`);
     assert.equal(receipt.status, 200);
+    const receiptBody = await json(receipt);
+    assert.equal((receiptBody.receiptCheckpoint as { sequence: string }).sequence, "2");
+    assert.equal((receiptBody.checkpoint as { sequence: string }).sequence, "2");
     const makerAccountId = event().submission.order.makerAccountId;
     const account = await json(await fetch(`${origin}/v1/accounts/${makerAccountId}`));
     assert.deepEqual(account, {
@@ -225,18 +229,18 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
       makerAccountId,
       configurationHash: health.configurationHash,
       accountEpoch: "0",
-      sequence: "1",
+      sequence: "2",
       checkpoint: health.checkpoint,
     });
     const book = await json(await fetch(`${origin}/v1/market/book`));
     assert.equal(((book.book as { bids: unknown[] }).bids).length, 1);
     assert.equal((await fetch(`${origin}/v1/checkpoint`)).status, 200);
-    assert.equal((await fetch(`${origin}/v1/executions?after=1`)).status, 200);
+    assert.equal((await fetch(`${origin}/v1/executions?after=2`)).status, 200);
     await close(server);
 
     server = startMatcher({ host: "127.0.0.1", port: 0, dataDirectory: directory, configuration, verifier, clockSeconds: () => now });
     origin = await listen(server);
-    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "1");
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "2");
   } finally {
     if (server.listening) await close(server);
     await rm(directory, { recursive: true, force: true });
@@ -281,7 +285,78 @@ test("rejects an absent or stale matcher configuration header before any mutatio
       assert.equal(stale.status, 409, path);
       assert.equal((await json(stale)).reason, "matcher-configuration-does-not-match-request", path);
     }
-    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "1");
+  } finally {
+    await close(server);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects every caller-supplied control authorization scheme before verification", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-control-scheme-"));
+  let verificationCalls = 0;
+  const checkedVerifier: MatcherSignatureVerifier = {
+    verify() {
+      verificationCalls += 1;
+    },
+  };
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: directory,
+    configuration,
+    verifier: checkedVerifier,
+    clockSeconds: () => now,
+  });
+  const origin = await listen(server);
+  const controls = [
+    {
+      path: "/v1/order-cancellations",
+      payload: {
+        version: 1,
+        occurredAtSeconds: now.toString(),
+        kind: "cancel-order",
+        orderHash: keccak256Text("scheme-cancel-order"),
+        signature: "scheme-cancel-signature",
+      },
+    },
+    {
+      path: "/v1/account-epochs",
+      payload: {
+        version: 1,
+        occurredAtSeconds: now.toString(),
+        kind: "advance-epoch",
+        makerAccountId: keccak256Text("scheme-maker"),
+        nextEpoch: "1",
+        authorizedSignerId: keccak256Text("scheme-signer"),
+        signature: "scheme-epoch-signature",
+      },
+    },
+  ];
+  const injectedFields: ReadonlyArray<readonly [string, unknown]> = [
+    ["controlAuthorizationScheme", "eip712-v1"],
+    ["controlAuthorizationScheme", "legacy-raw-v1"],
+    ["controlAuthorizationScheme", "unknown"],
+    ["controlAuthorizationScheme", null],
+    ["authorizationScheme", "eip712-v1"],
+    ["scheme", "eip712-v1"],
+  ];
+  try {
+    let index = 0;
+    for (const control of controls) {
+      for (const [field, value] of injectedFields) {
+        index += 1;
+        const requestId = `scheme-rejected-${index}`;
+        const response = await fetch(`${origin}${control.path}`, {
+          method: "POST",
+          headers: mutationHeaders(requestId),
+          body: JSON.stringify({ ...control.payload, requestId, [field]: value }),
+        });
+        assert.equal(response.status, 400, `${control.path}:${field}:${String(value)}`);
+      }
+    }
+    assert.equal(verificationCalls, 0);
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "1");
   } finally {
     await close(server);
     await rm(directory, { recursive: true, force: true });
@@ -325,7 +400,7 @@ test("rejects a mismatched order market before signature verification or persist
     assert.equal(response.status, 422);
     assert.equal((await json(response)).reason, "order-market-does-not-match-matcher");
     assert.equal(verificationCalls, 0);
-    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "1");
   } finally {
     await close(server);
     await rm(directory, { recursive: true, force: true });
@@ -394,7 +469,7 @@ test("rejects sell and delegated buy authority before signature verification or 
     assert.equal(delegatedResponse.status, 422);
     assert.equal((await json(delegatedResponse)).reason, "buy-source-account-must-match-authorized-signer");
     assert.equal(verificationCalls, 0);
-    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "1");
   } finally {
     await close(server);
     await rm(directory, { recursive: true, force: true });
@@ -650,7 +725,7 @@ test("does not let an initially backdated client event revive an expired order",
     });
     assert.equal(response.status, 400);
     assert.match(String((await json(response)).reason), /future/);
-    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "1");
   } finally {
     await close(server);
     await rm(directory, { recursive: true, force: true });
@@ -714,7 +789,7 @@ test("reports a faulted store as unavailable and rejects future mutations", asyn
       clockSeconds: () => now,
     });
     origin = await listen(server);
-    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "1");
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "2");
   } finally {
     if (server.listening) await close(server);
     await rm(directory, { recursive: true, force: true });
@@ -797,7 +872,7 @@ test("enforces mutation rate and queue admission before sequencing", async () =>
     const responses = await Promise.all(requests);
     assert.equal(responses.some((response) => response.status === 201), true);
     assert.equal(responses.some((response) => response.status === 503), true);
-    assert.equal((await json(await fetch(`${queueOrigin}/health`))).sequence, "1");
+    assert.equal((await json(await fetch(`${queueOrigin}/health`))).sequence, "2");
   } finally {
     await close(queueServer);
     await rm(queueDirectory, { recursive: true, force: true });

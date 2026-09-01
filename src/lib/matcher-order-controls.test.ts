@@ -174,6 +174,13 @@ async function confirmedOrder(
           subjectHash: orderHash,
           occurredAtSeconds: order.draft.occurredAt.toString(),
         },
+        receiptCheckpoint: {
+          version: 1,
+          sequence: "10",
+          recordHash: `0x${"aa".repeat(32)}`,
+          stateRoot: `0x${"bb".repeat(32)}`,
+          configurationHash: order.deployment.configurationHash,
+        },
         checkpoint: {
           version: 1,
           sequence: "10",
@@ -201,7 +208,12 @@ async function confirmedOrder(
   return result as ConfirmedMatcherOrderArtifact;
 }
 
-function controlReceipt(review: ReviewedMatcherOrderControl, sequence = "11", replayed = false) {
+function controlReceipt(
+  review: ReviewedMatcherOrderControl,
+  sequence = "11",
+  replayed = false,
+  currentSequence = sequence,
+) {
   const cancellation = review.control.kind === "cancel-order";
   return {
     ok: true,
@@ -215,11 +227,18 @@ function controlReceipt(review: ReviewedMatcherOrderControl, sequence = "11", re
       subjectHash: cancellation ? review.control.orderHash : review.control.makerAccountId,
       occurredAtSeconds: review.occurredAt.toString(),
     },
-    checkpoint: {
+    receiptCheckpoint: {
       version: 1,
       sequence,
       recordHash: `0x${"77".repeat(32)}`,
       stateRoot: `0x${"88".repeat(32)}`,
+      configurationHash: review.deployment.configurationHash,
+    },
+    checkpoint: {
+      version: 1,
+      sequence: currentSequence,
+      recordHash: `0x${(currentSequence === sequence ? "77" : "99").repeat(32)}`,
+      stateRoot: `0x${(currentSequence === sequence ? "88" : "aa").repeat(32)}`,
       configurationHash: review.deployment.configurationHash,
     },
   };
@@ -416,7 +435,7 @@ test("rejections and uncertain receipts preserve exact signed retry bytes after 
       idempotencyKeys.push(new Headers(init.headers).get("idempotency-key"));
       if (postAttempt === 1) return json({ ok: false, reason: "matcher-rejected-control" }, 422);
       if (postAttempt === 2) throw new Error("lost response");
-      return json(controlReceipt(review!, "11", true));
+      return json(controlReceipt(review!, "11", true, "12"));
     }
     throw new Error(String(path));
   };
@@ -437,6 +456,8 @@ test("rejections and uncertain receipts preserve exact signed retry bytes after 
   const confirmed = await retryMatcherOrderControl(unknown, fetcher);
   assert.equal(confirmed.kind, "confirmed");
   assert.equal(confirmed.receipt.replayed, true);
+  assert.equal(confirmed.receipt.receiptCheckpoint.sequence, 11n);
+  assert.equal(confirmed.receipt.checkpoint.sequence, 12n);
   assert.deepEqual(postPaths, ["/api/matcher", "/api/matcher", "/api/matcher"]);
   assert.deepEqual(bodies, [bodies[0], bodies[0], bodies[0]]);
   assert.deepEqual(idempotencyKeys, [review.requestId, review.requestId, review.requestId]);

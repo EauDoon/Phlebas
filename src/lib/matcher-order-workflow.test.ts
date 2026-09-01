@@ -130,7 +130,11 @@ function provider(calls: string[], review: () => ReviewedMatcherBuyOrder | null)
   };
 }
 
-function receipt(review: ReviewedMatcherBuyOrder, occurredAtSeconds = review.draft.occurredAt) {
+function receipt(
+  review: ReviewedMatcherBuyOrder,
+  occurredAtSeconds = review.draft.occurredAt,
+  currentSequence = "10",
+) {
   const subjectHash = hashTypedOrder(review.deployment.orderDomain!, review.draft.order);
   return {
     ok: true,
@@ -144,11 +148,18 @@ function receipt(review: ReviewedMatcherBuyOrder, occurredAtSeconds = review.dra
       subjectHash,
       occurredAtSeconds: occurredAtSeconds.toString(),
     },
-    checkpoint: {
+    receiptCheckpoint: {
       version: 1,
       sequence: "10",
       recordHash: `0x${"77".repeat(32)}`,
       stateRoot: `0x${"88".repeat(32)}`,
+      configurationHash: review.deployment.configurationHash,
+    },
+    checkpoint: {
+      version: 1,
+      sequence: currentSequence,
+      recordHash: `0x${(currentSequence === "10" ? "77" : "99").repeat(32)}`,
+      stateRoot: `0x${(currentSequence === "10" ? "88" : "aa").repeat(32)}`,
       configurationHash: review.deployment.configurationHash,
     },
   };
@@ -268,7 +279,7 @@ test("definite POST rejection and unknown signed receipt retain a safe exact ret
       postBodies.push(init.body as string);
       if (postAttempt === 1) return json({ ok: false, reason: "matcher-rejected-order" }, 422);
       if (postAttempt === 2) throw new Error("response lost after signed POST");
-      return json(receipt(reviewed!));
+      return json(receipt(reviewed!, reviewed!.draft.occurredAt, "12"));
     }
     throw new Error(String(path));
   };
@@ -294,6 +305,8 @@ test("definite POST rejection and unknown signed receipt retain a safe exact ret
   );
   const retried = await retryMatcherBuyOrder(unknown, fetcher);
   assert.equal(retried.kind, "confirmed");
+  assert.equal(retried.receipt.receiptCheckpoint.sequence, 10n);
+  assert.equal(retried.receipt.checkpoint.sequence, 12n);
   assert.equal(postBodies[0], postBodies[1]);
   assert.equal(postBodies[1], postBodies[2]);
   assert.equal(providerCalls.filter((call) => call === "eth_signTypedData_v4").length, 1);

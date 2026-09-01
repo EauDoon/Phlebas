@@ -370,6 +370,7 @@ test("matcher POST forwards the exact order endpoint, body, and idempotency key"
         remainingBaseAtoms: "100000000",
         swapPlanIds: [],
       },
+      receiptCheckpoint: checkpoint,
       checkpoint,
       privateMatcherDetail: "must-not-cross-the-proxy",
     }), { status: 201 });
@@ -407,6 +408,7 @@ test("matcher POST forwards the exact order endpoint, body, and idempotency key"
       subjectHash: SUBJECT_HASH,
       occurredAtSeconds: "1800000000",
     },
+    receiptCheckpoint: checkpoint,
     checkpoint,
   });
 });
@@ -451,6 +453,7 @@ test("matcher control actions forward only their exact endpoint and bind the ret
           occurredAtSeconds: "1800000003",
           privateMatcherDetail: "must-not-cross-the-proxy",
         },
+        receiptCheckpoint: { ...checkpoint, sequence: "2" },
         checkpoint: { ...checkpoint, sequence: "2" },
       }), { status: 201 });
     }) as typeof fetch;
@@ -484,9 +487,60 @@ test("matcher control actions forward only their exact endpoint and bind the ret
         subjectHash: candidate.subjectHash,
         occurredAtSeconds: "1800000003",
       },
+      receiptCheckpoint: { ...checkpoint, sequence: "2" },
       checkpoint: { ...checkpoint, sequence: "2" },
     }, candidate.action);
   }
+});
+
+test("matcher proxy preserves an accepted receipt checkpoint when an idempotent replay observes a newer head", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://localhost:8788";
+  const currentCheckpoint = {
+    ...checkpoint,
+    sequence: "3",
+    recordHash: `0x${"77".repeat(32)}`,
+    stateRoot: `0x${"88".repeat(32)}`,
+  };
+  globalThis.fetch = (async (input) => (input as URL).pathname === "/health"
+    ? new Response(healthBody, { status: 200 })
+    : new Response(JSON.stringify({
+      ok: true,
+      replayed: true,
+      receipt: {
+        version: 1,
+        sequence: "1",
+        requestId: "order-one",
+        kind: "accept-order",
+        status: "open",
+        subjectHash: SUBJECT_HASH,
+        occurredAtSeconds: "1800000000",
+      },
+      receiptCheckpoint: checkpoint,
+      checkpoint: currentCheckpoint,
+    }), { status: 200 })) as typeof fetch;
+
+  const response = await matcherOrderProxy(new Request("http://localhost/api/matcher", {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+    body: orderBody,
+  }), process.env, enabledDeployment);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    replayed: true,
+    receipt: {
+      version: 1,
+      sequence: "1",
+      requestId: "order-one",
+      kind: "accept-order",
+      status: "open",
+      subjectHash: SUBJECT_HASH,
+      occurredAtSeconds: "1800000000",
+    },
+    receiptCheckpoint: checkpoint,
+    checkpoint: currentCheckpoint,
+  });
 });
 
 test("matcher control proxy rejects a receipt for a different signed subject", async () => {
@@ -509,6 +563,7 @@ test("matcher control proxy rejects a receipt for a different signed subject", a
           subjectHash: `0x${"99".repeat(32)}`,
           occurredAtSeconds: "1800000003",
         },
+        receiptCheckpoint: { ...checkpoint, sequence: "2" },
         checkpoint: { ...checkpoint, sequence: "2" },
       }), { status: 201 })) as typeof fetch;
 
@@ -557,8 +612,29 @@ test("matcher POST maps private rejections and malformed success bodies to fixed
         subjectHash: SUBJECT_HASH,
         occurredAtSeconds: "1800000000",
       },
+      receiptCheckpoint: checkpoint,
       checkpoint: { ...checkpoint, configurationHash: staleConfigurationHash },
     }), { status: 201 })) as typeof fetch;
   const staleReceipt = await matcherOrderProxy(request(), process.env, enabledDeployment);
   assert.equal(staleReceipt.status, 503);
+
+  globalThis.fetch = (async (input) => (input as URL).pathname === "/health"
+    ? new Response(healthBody, { status: 200 })
+    : new Response(JSON.stringify({
+      ok: true,
+      replayed: true,
+      receipt: {
+        version: 1,
+        sequence: "1",
+        requestId: "order-one",
+        kind: "accept-order",
+        status: "open",
+        subjectHash: SUBJECT_HASH,
+        occurredAtSeconds: "1800000000",
+      },
+      receiptCheckpoint: checkpoint,
+      checkpoint: { ...checkpoint, stateRoot: `0x${"11".repeat(32)}` },
+    }), { status: 200 })) as typeof fetch;
+  const conflictingCheckpoint = await matcherOrderProxy(request(), process.env, enabledDeployment);
+  assert.equal(conflictingCheckpoint.status, 503);
 });

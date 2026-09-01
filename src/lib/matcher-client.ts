@@ -206,6 +206,14 @@ export type MatcherControlRequest = Readonly<{
   body: string;
 }>;
 
+export type VerifiedMatcherCheckpoint = Readonly<{
+  version: 1;
+  sequence: bigint;
+  recordHash: Hex32;
+  stateRoot: Hex32;
+  configurationHash: Hex32;
+}>;
+
 export type VerifiedMatcherOrderReceipt = Readonly<{
   replayed: boolean;
   receipt: Readonly<{
@@ -217,13 +225,10 @@ export type VerifiedMatcherOrderReceipt = Readonly<{
     subjectHash: Hex32;
     occurredAtSeconds: bigint;
   }>;
-  checkpoint: Readonly<{
-    version: 1;
-    sequence: bigint;
-    recordHash: Hex32;
-    stateRoot: Hex32;
-    configurationHash: Hex32;
-  }>;
+  /** The journal prefix that accepted this receipt. */
+  receiptCheckpoint: VerifiedMatcherCheckpoint;
+  /** The matcher head observed while returning this response. */
+  checkpoint: VerifiedMatcherCheckpoint;
 }>;
 
 export type MatcherOrderReceiptExpectation = Readonly<{
@@ -260,13 +265,10 @@ export type VerifiedMatcherControlReceipt = Readonly<{
       occurredAtSeconds: bigint;
     }>
   );
-  checkpoint: Readonly<{
-    version: 1;
-    sequence: bigint;
-    recordHash: Hex32;
-    stateRoot: Hex32;
-    configurationHash: Hex32;
-  }>;
+  /** The journal prefix that accepted this receipt. */
+  receiptCheckpoint: VerifiedMatcherCheckpoint;
+  /** The matcher head observed while returning this response. */
+  checkpoint: VerifiedMatcherCheckpoint;
 }>;
 
 type PreparedSubmission = Readonly<{
@@ -437,6 +439,31 @@ function canonicalDecimalUint64(value: unknown, label: string): bigint {
   const parsed = BigInt(value);
   if (parsed > UINT64_MAX) throw new RangeError(`${label} must fit uint64`);
   return parsed;
+}
+
+function canonicalReceiptCheckpoint(
+  value: unknown,
+  label: string,
+  expectedConfigurationHash: Hex32,
+): VerifiedMatcherCheckpoint {
+  const checkpoint = objectValue(value, label);
+  assertExactKeys(
+    checkpoint,
+    ["version", "sequence", "recordHash", "stateRoot", "configurationHash"],
+    label,
+  );
+  if (checkpoint.version !== 1) throw new Error(`${label} version is unsupported`);
+  const configurationHash = canonicalHex32(checkpoint.configurationHash, `${label} configuration hash`);
+  if (configurationHash !== expectedConfigurationHash) {
+    throw new Error(`${label} does not match the approved matcher`);
+  }
+  return deepFreeze({
+    version: 1,
+    sequence: canonicalDecimalUint64(checkpoint.sequence, `${label} sequence`),
+    recordHash: canonicalHex32(checkpoint.recordHash, `${label} record hash`),
+    stateRoot: canonicalHex32(checkpoint.stateRoot, `${label} state root`),
+    configurationHash,
+  });
 }
 
 export function assertMatcherAccountIdentity(
@@ -849,7 +876,7 @@ export function assertMatcherOrderReceipt(
   const expectedRequestId = canonicalRequestId(expectation.requestId);
   const expectedSubjectHash = normalizeHex32(expectation.subjectHash, "Expected order hash");
   const result = objectValue(value, "Matcher order response");
-  assertExactKeys(result, ["ok", "replayed", "receipt", "checkpoint"], "Matcher order response");
+  assertExactKeys(result, ["ok", "replayed", "receipt", "receiptCheckpoint", "checkpoint"], "Matcher order response");
   if (result.ok !== true || typeof result.replayed !== "boolean") {
     throw new Error("Matcher order response is not an accepted receipt");
   }
@@ -873,19 +900,24 @@ export function assertMatcherOrderReceipt(
     throw new Error("Matcher order receipt status is unsupported");
   }
 
-  const checkpoint = objectValue(result.checkpoint, "Matcher order checkpoint");
-  assertExactKeys(
-    checkpoint,
-    ["version", "sequence", "recordHash", "stateRoot", "configurationHash"],
-    "Matcher order checkpoint",
-  );
-  if (checkpoint.version !== 1) throw new Error("Matcher order checkpoint version is unsupported");
   const sequence = canonicalDecimalUint64(receipt.sequence, "Matcher receipt sequence");
-  const checkpointSequence = canonicalDecimalUint64(checkpoint.sequence, "Matcher checkpoint sequence");
-  if (checkpointSequence !== sequence) throw new Error("Matcher checkpoint does not bind the order receipt");
-  const configurationHash = canonicalHex32(checkpoint.configurationHash, "Matcher checkpoint configuration hash");
-  if (configurationHash !== expectedIdentity.configurationHash) {
-    throw new Error("Matcher receipt checkpoint does not match the approved matcher");
+  const receiptCheckpoint = canonicalReceiptCheckpoint(
+    result.receiptCheckpoint,
+    "Matcher order receipt checkpoint",
+    expectedIdentity.configurationHash,
+  );
+  if (receiptCheckpoint.sequence !== sequence) throw new Error("Matcher receipt checkpoint does not bind the order receipt");
+  const checkpoint = canonicalReceiptCheckpoint(
+    result.checkpoint,
+    "Matcher order current checkpoint",
+    expectedIdentity.configurationHash,
+  );
+  if (checkpoint.sequence < receiptCheckpoint.sequence) {
+    throw new Error("Matcher order current checkpoint precedes the receipt checkpoint");
+  }
+  if (checkpoint.sequence === receiptCheckpoint.sequence
+    && (checkpoint.recordHash !== receiptCheckpoint.recordHash || checkpoint.stateRoot !== receiptCheckpoint.stateRoot)) {
+    throw new Error("Matcher order checkpoints conflict at the same sequence");
   }
 
   return deepFreeze({
@@ -899,13 +931,8 @@ export function assertMatcherOrderReceipt(
       subjectHash,
       occurredAtSeconds,
     },
-    checkpoint: {
-      version: 1,
-      sequence: checkpointSequence,
-      recordHash: canonicalHex32(checkpoint.recordHash, "Matcher checkpoint record hash"),
-      stateRoot: canonicalHex32(checkpoint.stateRoot, "Matcher checkpoint state root"),
-      configurationHash,
-    },
+    receiptCheckpoint,
+    checkpoint,
   });
 }
 
@@ -921,7 +948,7 @@ export function assertMatcherControlReceipt(
     : control.makerAccountId;
   const expectedStatus = control.kind === "cancel-order" ? "cancelled" : "epoch-advanced";
   const result = objectValue(value, "Matcher control response");
-  assertExactKeys(result, ["ok", "replayed", "receipt", "checkpoint"], "Matcher control response");
+  assertExactKeys(result, ["ok", "replayed", "receipt", "receiptCheckpoint", "checkpoint"], "Matcher control response");
   if (result.ok !== true || typeof result.replayed !== "boolean") {
     throw new Error("Matcher control response is not an accepted receipt");
   }
@@ -941,19 +968,24 @@ export function assertMatcherControlReceipt(
   if (subjectHash !== expectedSubjectHash) throw new Error("Matcher control receipt does not match the signed control");
   const occurredAtSeconds = canonicalDecimalUint64(receipt.occurredAtSeconds, "Matcher control receipt event time");
 
-  const checkpoint = objectValue(result.checkpoint, "Matcher control checkpoint");
-  assertExactKeys(
-    checkpoint,
-    ["version", "sequence", "recordHash", "stateRoot", "configurationHash"],
-    "Matcher control checkpoint",
-  );
-  if (checkpoint.version !== 1) throw new Error("Matcher control checkpoint version is unsupported");
   const sequence = canonicalDecimalUint64(receipt.sequence, "Matcher control receipt sequence");
-  const checkpointSequence = canonicalDecimalUint64(checkpoint.sequence, "Matcher control checkpoint sequence");
-  if (checkpointSequence !== sequence) throw new Error("Matcher control checkpoint does not bind the receipt");
-  const configurationHash = canonicalHex32(checkpoint.configurationHash, "Matcher control checkpoint configuration hash");
-  if (configurationHash !== expectedIdentity.configurationHash) {
-    throw new Error("Matcher control receipt checkpoint does not match the approved matcher");
+  const receiptCheckpoint = canonicalReceiptCheckpoint(
+    result.receiptCheckpoint,
+    "Matcher control receipt checkpoint",
+    expectedIdentity.configurationHash,
+  );
+  if (receiptCheckpoint.sequence !== sequence) throw new Error("Matcher control receipt checkpoint does not bind the receipt");
+  const checkpoint = canonicalReceiptCheckpoint(
+    result.checkpoint,
+    "Matcher control current checkpoint",
+    expectedIdentity.configurationHash,
+  );
+  if (checkpoint.sequence < receiptCheckpoint.sequence) {
+    throw new Error("Matcher control current checkpoint precedes the receipt checkpoint");
+  }
+  if (checkpoint.sequence === receiptCheckpoint.sequence
+    && (checkpoint.recordHash !== receiptCheckpoint.recordHash || checkpoint.stateRoot !== receiptCheckpoint.stateRoot)) {
+    throw new Error("Matcher control checkpoints conflict at the same sequence");
   }
 
   const verifiedReceipt = control.kind === "cancel-order"
@@ -978,13 +1010,8 @@ export function assertMatcherControlReceipt(
   return deepFreeze({
     replayed: result.replayed,
     receipt: verifiedReceipt,
-    checkpoint: {
-      version: 1,
-      sequence: checkpointSequence,
-      recordHash: canonicalHex32(checkpoint.recordHash, "Matcher control checkpoint record hash"),
-      stateRoot: canonicalHex32(checkpoint.stateRoot, "Matcher control checkpoint state root"),
-      configurationHash,
-    },
+    receiptCheckpoint,
+    checkpoint,
   });
 }
 

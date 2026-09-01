@@ -54,6 +54,11 @@ export type MatcherControlAuthorization =
     authorizedSignerId: Hex32;
   }>;
 
+export type ReplayOnlyLegacyMatcherControlAuthorization = Exclude<
+  MatcherControlAuthorization,
+  { kind: "cancel-solver-quote" }
+>;
+
 export function evmAuthorizedSignerId(chainId: bigint, address: string): Hex32 {
   assertUint(chainId, 256, "Signer chain ID");
   if (chainId === 0n) throw new RangeError("Signer chain ID must be positive");
@@ -171,6 +176,17 @@ export function hashMatcherControl(
   )));
 }
 
+/**
+ * Compatibility-only digest for user controls written before the EIP-712
+ * cutover. New commands must never use this digest.
+ */
+export function hashLegacyMatcherControlForReplay(
+  domain: OrderDomain,
+  authorization: ReplayOnlyLegacyMatcherControlAuthorization,
+): Hex32 {
+  return legacyMatcherControlHash(domain, authorization);
+}
+
 export function typedMatcherControlData(
   domain: OrderDomain,
   authorization: Exclude<MatcherControlAuthorization, { kind: "cancel-solver-quote" }>,
@@ -215,7 +231,7 @@ export function typedMatcherControlData(
  */
 function legacyMatcherControlHash(
   domain: OrderDomain,
-  authorization: Extract<MatcherControlAuthorization, { kind: "cancel-solver-quote" }>,
+  authorization: MatcherControlAuthorization,
 ): Hex32 {
   const lines = [
     "PhlebasMatcherControl",
@@ -223,11 +239,31 @@ function legacyMatcherControlHash(
     `domain=${hashOrderDomain(domain)}`,
     `kind=${authorization.kind}`,
   ];
-  lines.push(
-    `quoteHash=${normalizeHex32(authorization.quoteHash, "Solver quote hash")}`,
-    `solverAccountId=${normalizeHex32(authorization.solverAccountId, "Solver account ID")}`,
-    `authorizedSignerId=${normalizeHex32(authorization.authorizedSignerId, "Authorized signer ID")}`,
-  );
+  if (authorization.kind === "cancel-order") {
+    lines.push(
+      `orderHash=${normalizeHex32(authorization.orderHash, "Cancelled order hash")}`,
+      `makerAccountId=${normalizeHex32(authorization.makerAccountId, "Maker account ID")}`,
+      `accountEpoch=${uint64(authorization.accountEpoch, "Account epoch")}`,
+      `nonce=${uint64(authorization.nonce, "Order nonce")}`,
+      `authorizedSignerId=${normalizeHex32(authorization.authorizedSignerId, "Authorized signer ID")}`,
+    );
+  } else if (authorization.kind === "advance-epoch") {
+    const currentEpoch = uint64(authorization.currentEpoch, "Current account epoch");
+    const nextEpoch = uint64(authorization.nextEpoch, "Next account epoch");
+    if (authorization.nextEpoch <= authorization.currentEpoch) throw new RangeError("Next account epoch must increase");
+    lines.push(
+      `makerAccountId=${normalizeHex32(authorization.makerAccountId, "Maker account ID")}`,
+      `currentEpoch=${currentEpoch}`,
+      `nextEpoch=${nextEpoch}`,
+      `authorizedSignerId=${normalizeHex32(authorization.authorizedSignerId, "Authorized signer ID")}`,
+    );
+  } else {
+    lines.push(
+      `quoteHash=${normalizeHex32(authorization.quoteHash, "Solver quote hash")}`,
+      `solverAccountId=${normalizeHex32(authorization.solverAccountId, "Solver account ID")}`,
+      `authorizedSignerId=${normalizeHex32(authorization.authorizedSignerId, "Authorized signer ID")}`,
+    );
+  }
   return keccak256Text(lines.join("\n"));
 }
 
@@ -238,6 +274,18 @@ export function verifyMatcherControl(
   signature: string,
 ): Hex32 {
   const digest = hashMatcherControl(domain, authorization);
+  verifier.verify(digest, signature, normalizeHex32(authorization.authorizedSignerId, "Authorized signer ID"));
+  return digest;
+}
+
+/** Compatibility-only verifier for legacy journal replay. */
+export function verifyLegacyMatcherControlForReplay(
+  verifier: MatcherSignatureVerifier,
+  domain: OrderDomain,
+  authorization: ReplayOnlyLegacyMatcherControlAuthorization,
+  signature: string,
+): Hex32 {
+  const digest = hashLegacyMatcherControlForReplay(domain, authorization);
   verifier.verify(digest, signature, normalizeHex32(authorization.authorizedSignerId, "Authorized signer ID"));
   return digest;
 }

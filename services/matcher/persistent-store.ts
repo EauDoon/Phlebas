@@ -7,20 +7,32 @@ import {
   applyPersistentMatcherEvent,
   createPersistentMatcher,
   findRequestReceipt,
+  matcherControlAuthorizationCutoverRequestId,
   matcherCommandHash,
   matcherConfigurationHash,
   matcherStateRoot,
+  EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME,
+  LEGACY_RAW_MATCHER_CONTROL_AUTHORIZATION_SCHEME,
+  MATCHER_SYSTEM_REQUEST_ID_PREFIX,
   type MatcherMutationReceipt,
+  type MatcherControlAuthorizationScheme,
   type PersistentMatcherConfiguration,
   type PersistentMatcherEvent,
   type PersistentMatcherState,
 } from "../../src/lib/persistent-matcher.ts";
-import type { MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
+import {
+  hashLegacyMatcherControlForReplay,
+  type MatcherSignatureVerifier,
+  type ReplayOnlyLegacyMatcherControlAuthorization,
+} from "../../src/lib/matcher-auth.ts";
 import { normalizeHex32, UINT64_MAX, type Hex32 } from "../../src/lib/order-domain.ts";
+import { activeAccountEpoch } from "../../src/lib/order-lifecycle.ts";
 import type { SolverPricePolicy, SolverQuote } from "../../src/lib/solver-quotes.ts";
 import { atomicWriteFile } from "../durable-file.ts";
 import {
   JOURNAL_GENESIS_HASH,
+  DEFAULT_MAX_JOURNAL_LINE_BYTES,
+  DEFAULT_MAX_JOURNAL_RECORDS,
   DEFAULT_MAX_JOURNAL_BYTES,
   JOURNAL_VERSION,
   appendJournal,
@@ -35,6 +47,26 @@ import {
 } from "./journal.ts";
 
 type SerializedObject = { [key: string]: JournalValue };
+export type PersistentMatcherEventContext =
+  | Readonly<{ source: "ingress" }>
+  | Readonly<{
+    source: "journal";
+    sequence: bigint;
+    legacyControlCutoverSequence: bigint;
+  }>;
+
+const CURRENT_INITIALIZATION_MARKER_VERSION = 2;
+const INITIALIZING_MARKER_VERSION = 2;
+
+type InitializationMarker = Readonly<{
+  version: typeof CURRENT_INITIALIZATION_MARKER_VERSION;
+  configurationHash: Hex32;
+  legacyControlCutover: Readonly<{
+    sequence: bigint;
+    recordHash: Hex32;
+    stateRoot: Hex32;
+  }>;
+}>;
 
 export type PersistentMatcherStoreOptions = Readonly<{
   journalPath: string;
@@ -53,6 +85,7 @@ export type PersistentMatcherStoreOptions = Readonly<{
 export type PersistentMutationResult = Readonly<{
   receipt: MatcherMutationReceipt;
   replayed: boolean;
+  receiptCheckpoint: JournalCheckpoint;
   checkpoint: JournalCheckpoint;
 }>;
 
@@ -191,19 +224,33 @@ export function serializePersistentMatcherEvent(
       },
     };
   } else if (event.kind === "cancel-order") {
+    if (event.controlAuthorizationScheme !== undefined
+      && event.controlAuthorizationScheme !== EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME) {
+      throw new Error("Only EIP-712 matcher controls may be persisted");
+    }
     payload.orderHash = event.orderHash;
     payload.signature = event.signature;
+    payload.controlAuthorizationScheme = EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME;
   } else if (event.kind === "advance-epoch") {
+    if (event.controlAuthorizationScheme !== undefined
+      && event.controlAuthorizationScheme !== EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME) {
+      throw new Error("Only EIP-712 matcher controls may be persisted");
+    }
     payload.makerAccountId = event.makerAccountId;
     payload.nextEpoch = event.nextEpoch.toString();
     payload.authorizedSignerId = event.authorizedSignerId;
     payload.signature = event.signature;
+    payload.controlAuthorizationScheme = EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME;
   } else if (event.kind === "accept-solver-quote") {
     payload.quote = serializedQuote(event.quote);
     payload.signature = event.signature;
-  } else {
+  } else if (event.kind === "cancel-solver-quote") {
     payload.quoteHash = event.quoteHash;
     payload.signature = event.signature;
+  } else {
+    payload.legacyThroughSequence = event.legacyThroughSequence.toString();
+    payload.legacyThroughRecordHash = event.legacyThroughRecordHash;
+    payload.legacyThroughStateRoot = event.legacyThroughStateRoot;
   }
   return {
     type: "persistent-matcher-event",
@@ -340,6 +387,7 @@ function deserializeQuote(value: JournalValue | undefined): SolverQuote {
 export function deserializePersistentMatcherEvent(
   configuration: PersistentMatcherConfiguration,
   value: Readonly<Record<string, JournalValue>>,
+  context: PersistentMatcherEventContext,
 ): PersistentMatcherEvent {
   assertExactKeys(value as SerializedObject, ["type", "configurationHash", "payload"], "Persisted matcher event");
   if (stringValue(value.type, "Journal event type") !== "persistent-matcher-event") throw new Error("Journal event type is unsupported");
@@ -375,11 +423,27 @@ export function deserializePersistentMatcherEvent(
     };
   }
   if (kind === "cancel-order") {
-    assertExactKeys(payload, ["version", "requestId", "occurredAtSeconds", "kind", "orderHash", "signature"], "Cancellation event payload");
-    return { ...common, kind, orderHash: hex32Value(payload.orderHash, "Cancelled order hash"), signature: stringValue(payload.signature, "Cancellation signature") };
+    const controlAuthorizationScheme = deserializeControlAuthorizationScheme(
+      payload,
+      ["version", "requestId", "occurredAtSeconds", "kind", "orderHash", "signature"],
+      "Cancellation event payload",
+      context,
+    );
+    return {
+      ...common,
+      kind,
+      orderHash: hex32Value(payload.orderHash, "Cancelled order hash"),
+      signature: stringValue(payload.signature, "Cancellation signature"),
+      controlAuthorizationScheme,
+    };
   }
   if (kind === "advance-epoch") {
-    assertExactKeys(payload, ["version", "requestId", "occurredAtSeconds", "kind", "makerAccountId", "nextEpoch", "authorizedSignerId", "signature"], "Epoch event payload");
+    const controlAuthorizationScheme = deserializeControlAuthorizationScheme(
+      payload,
+      ["version", "requestId", "occurredAtSeconds", "kind", "makerAccountId", "nextEpoch", "authorizedSignerId", "signature"],
+      "Epoch event payload",
+      context,
+    );
     return {
       ...common,
       kind,
@@ -387,6 +451,7 @@ export function deserializePersistentMatcherEvent(
       nextEpoch: bigintValue(payload.nextEpoch, "Next account epoch"),
       authorizedSignerId: hex32Value(payload.authorizedSignerId, "Authorized signer ID"),
       signature: stringValue(payload.signature, "Epoch signature"),
+      controlAuthorizationScheme,
     };
   }
   if (kind === "accept-solver-quote") {
@@ -397,7 +462,309 @@ export function deserializePersistentMatcherEvent(
     assertExactKeys(payload, ["version", "requestId", "occurredAtSeconds", "kind", "quoteHash", "signature"], "Solver cancellation event payload");
     return { ...common, kind, quoteHash: hex32Value(payload.quoteHash, "Solver quote hash"), signature: stringValue(payload.signature, "Solver quote cancellation signature") };
   }
+  if (kind === "control-authorization-cutover") {
+    assertExactKeys(payload, [
+      "version", "requestId", "occurredAtSeconds", "kind", "legacyThroughSequence",
+      "legacyThroughRecordHash", "legacyThroughStateRoot",
+    ], "Matcher control authorization cutover payload");
+    return {
+      ...common,
+      kind,
+      legacyThroughSequence: bigintValue(payload.legacyThroughSequence, "Legacy control cutover sequence"),
+      legacyThroughRecordHash: hex32Value(payload.legacyThroughRecordHash, "Legacy control cutover record hash"),
+      legacyThroughStateRoot: hex32Value(payload.legacyThroughStateRoot, "Legacy control cutover state root"),
+    };
+  }
   throw new Error("Matcher event kind is unsupported");
+}
+
+function deserializeControlAuthorizationScheme(
+  payload: SerializedObject,
+  fields: readonly string[],
+  label: string,
+  context: PersistentMatcherEventContext,
+): MatcherControlAuthorizationScheme {
+  if (context.source === "ingress") {
+    assertExactKeys(payload, fields, label);
+    return EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME;
+  }
+  const hasMarker = Object.hasOwn(payload, "controlAuthorizationScheme");
+  assertExactKeys(payload, hasMarker ? [...fields, "controlAuthorizationScheme"] : fields, label);
+  if (!hasMarker) {
+    if (context.sequence > context.legacyControlCutoverSequence) {
+      throw new Error("Unmarked legacy matcher control is beyond the authorization cutover");
+    }
+    return LEGACY_RAW_MATCHER_CONTROL_AUTHORIZATION_SCHEME;
+  }
+  const scheme = stringValue(payload.controlAuthorizationScheme, "Matcher control authorization scheme");
+  if (scheme !== EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME) {
+    throw new Error("Matcher control authorization scheme is unsupported");
+  }
+  return scheme;
+}
+
+function legacyInitializationMarker(configurationHash: Hex32): string {
+  return `persistent-matcher-v1:${configurationHash}\n`;
+}
+
+function initializingMarker(configurationHash: Hex32): string {
+  return `persistent-matcher-initializing-v${INITIALIZING_MARKER_VERSION}:${configurationHash}\n`;
+}
+
+function initializationMarkerBytes(marker: InitializationMarker): string {
+  return `${canonicalJournalJson({
+    version: marker.version,
+    configurationHash: marker.configurationHash,
+    legacyControlCutover: {
+      sequence: marker.legacyControlCutover.sequence.toString(),
+      recordHash: marker.legacyControlCutover.recordHash,
+      stateRoot: marker.legacyControlCutover.stateRoot,
+    },
+  })}\n`;
+}
+
+function parseInitializationMarker(
+  bytes: string,
+  configurationHash: Hex32,
+): InitializationMarker | "legacy-v1" | "initializing-v2" {
+  if (bytes === legacyInitializationMarker(configurationHash)) return "legacy-v1";
+  if (bytes === initializingMarker(configurationHash)) return "initializing-v2";
+  if (!bytes.endsWith("\n")) throw new Error("Matcher initialization marker is not newline terminated");
+  let parsed: JournalValue;
+  try {
+    parsed = JSON.parse(bytes) as JournalValue;
+  } catch {
+    throw new Error("Matcher initialization marker is not valid JSON");
+  }
+  const marker = objectValue(parsed, "Matcher initialization marker");
+  assertExactKeys(marker, ["version", "configurationHash", "legacyControlCutover"], "Matcher initialization marker");
+  if (integerValue(marker.version, "Matcher initialization marker version") !== CURRENT_INITIALIZATION_MARKER_VERSION) {
+    throw new Error("Matcher initialization marker version is unsupported");
+  }
+  if (hex32Value(marker.configurationHash, "Matcher initialization configuration hash") !== configurationHash) {
+    throw new Error("Matcher initialization marker does not match its configuration");
+  }
+  const cutover = objectValue(marker.legacyControlCutover, "Matcher legacy control cutover");
+  assertExactKeys(cutover, ["sequence", "recordHash", "stateRoot"], "Matcher legacy control cutover");
+  const parsedMarker: InitializationMarker = {
+    version: CURRENT_INITIALIZATION_MARKER_VERSION,
+    configurationHash,
+    legacyControlCutover: {
+      sequence: bigintValue(cutover.sequence, "Matcher legacy control cutover sequence"),
+      recordHash: hex32Value(cutover.recordHash, "Matcher legacy control cutover record hash"),
+      stateRoot: hex32Value(cutover.stateRoot, "Matcher legacy control cutover state root"),
+    },
+  };
+  if (bytes !== initializationMarkerBytes(parsedMarker)) throw new Error("Matcher initialization marker is not canonical");
+  return parsedMarker;
+}
+
+function assertInitializationMarkerInJournal(marker: InitializationMarker, journal: JournalState): void {
+  const { sequence, recordHash } = marker.legacyControlCutover;
+  if (sequence > journal.sequence) throw new Error("Matcher legacy control cutover is ahead of the journal");
+  const expectedHash = sequence === 0n
+    ? JOURNAL_GENESIS_HASH
+    : journal.records[Number(sequence - 1n)]?.recordHash;
+  if (!expectedHash || expectedHash !== recordHash) {
+    throw new Error("Matcher legacy control cutover does not bind the corresponding journal record");
+  }
+}
+
+type JournalControlAuthorizationCutover = Readonly<{
+  record: JournalState["records"][number];
+  event: Extract<PersistentMatcherEvent, { kind: "control-authorization-cutover" }>;
+}>;
+
+function findJournalControlAuthorizationCutover(
+  configuration: PersistentMatcherConfiguration,
+  journal: JournalState,
+): JournalControlAuthorizationCutover | null {
+  let found: JournalControlAuthorizationCutover | null = null;
+  for (const record of journal.records) {
+    const envelope = objectValue(record.event as SerializedObject, "Persisted matcher event");
+    const payload = objectValue(envelope.payload, "Matcher event payload");
+    if (payload.kind !== "control-authorization-cutover") continue;
+    if (found) throw new Error("Matcher journal contains multiple control authorization cutovers");
+    const sequence = BigInt(record.sequence);
+    const event = deserializePersistentMatcherEvent(configuration, record.event, {
+      source: "journal",
+      sequence,
+      legacyControlCutoverSequence: sequence - 1n,
+    });
+    if (event.kind !== "control-authorization-cutover") throw new Error("Matcher control authorization cutover kind is invalid");
+    if (event.legacyThroughSequence !== sequence - 1n
+      || event.legacyThroughRecordHash !== record.previousRecordHash) {
+      throw new Error("Matcher control authorization cutover does not bind its prior journal prefix");
+    }
+    found = { record, event };
+  }
+  return found;
+}
+
+function journalRecordBytes(record: JournalState["records"][number]): number {
+  return Buffer.byteLength(`${canonicalJournalJson(record)}\n`, "utf8");
+}
+
+function checkedCapacityAddition(value: number, reserve: number, label: string): number {
+  const total = value + reserve;
+  if (!Number.isSafeInteger(value) || value <= 0
+    || !Number.isSafeInteger(reserve) || reserve <= 0
+    || !Number.isSafeInteger(total)) {
+    throw new RangeError(`${label} plus the system cutover reserve must be a positive safe integer`);
+  }
+  return total;
+}
+
+function assertUserJournalCapacity(
+  journal: JournalState,
+  cutover: JournalControlAuthorizationCutover | null,
+  maximumRecords: number,
+  maximumBytes: number,
+): void {
+  const cutoverBytes = cutover ? journalRecordBytes(cutover.record) : 0;
+  const userRecords = journal.records.length - (cutover ? 1 : 0);
+  const userBytes = journal.byteLength - cutoverBytes;
+  if (userRecords > maximumRecords) throw new RangeError("Matcher user journal record limit exceeded");
+  if (userBytes > maximumBytes) throw new RangeError("Matcher user journal byte limit exceeded");
+}
+
+function checkpointBytes(checkpoint: JournalCheckpoint): string {
+  return `${canonicalJournalJson(checkpoint)}\n`;
+}
+
+async function assertExactInitializingPersistence(
+  options: PersistentMatcherStoreOptions,
+  journal: JournalState,
+  checkpoint: JournalCheckpoint,
+  cutover: JournalControlAuthorizationCutover | null,
+  initial: PersistentMatcherState,
+): Promise<void> {
+  const journalBytes = await readFile(options.journalPath, "utf8");
+  const observedCheckpointBytes = await readFile(options.checkpointPath, "utf8");
+  const configurationHash = matcherConfigurationHash(options.configuration);
+  const genesisCheckpoint: JournalCheckpoint = {
+    version: JOURNAL_VERSION,
+    sequence: "0",
+    recordHash: JOURNAL_GENESIS_HASH,
+    stateRoot: matcherStateRoot(initial),
+    configurationHash,
+  };
+  if (journal.sequence === 0n) {
+    if (journalBytes !== "" || observedCheckpointBytes !== checkpointBytes(genesisCheckpoint)) {
+      throw new Error("Initializing matcher genesis persistence is not canonical");
+    }
+    return;
+  }
+  if (journal.sequence !== 1n || journal.records.length !== 1 || !cutover) {
+    throw new Error("Initializing matcher journal contains unsupported records");
+  }
+  const expectedEvent: Extract<PersistentMatcherEvent, { kind: "control-authorization-cutover" }> = {
+    version: 1,
+    requestId: matcherControlAuthorizationCutoverRequestId(initial, JOURNAL_GENESIS_HASH),
+    occurredAtSeconds: 0n,
+    kind: "control-authorization-cutover",
+    legacyThroughSequence: 0n,
+    legacyThroughRecordHash: JOURNAL_GENESIS_HASH,
+    legacyThroughStateRoot: matcherStateRoot(initial),
+  };
+  const record = journal.records[0];
+  if (!record
+    || journalBytes !== `${canonicalJournalJson(record)}\n`
+    || canonicalJournalJson(record.event) !== canonicalJournalJson(serializePersistentMatcherEvent(options.configuration, expectedEvent))) {
+    throw new Error("Initializing matcher cutover journal is not canonical");
+  }
+  const cutoverState = applyPersistentMatcherEvent(initial, expectedEvent, 1n, options.verifier).state;
+  const cutoverCheckpoint: JournalCheckpoint = {
+    version: JOURNAL_VERSION,
+    sequence: "1",
+    recordHash: record.recordHash,
+    stateRoot: matcherStateRoot(cutoverState),
+    configurationHash,
+  };
+  if (observedCheckpointBytes !== checkpointBytes(genesisCheckpoint)
+    && observedCheckpointBytes !== checkpointBytes(cutoverCheckpoint)) {
+    throw new Error("Initializing matcher cutover checkpoint is not canonical");
+  }
+  if (canonicalJournalJson(checkpoint) !== canonicalJournalJson(genesisCheckpoint)
+    && canonicalJournalJson(checkpoint) !== canonicalJournalJson(cutoverCheckpoint)) {
+    throw new Error("Initializing matcher cutover checkpoint is unsupported");
+  }
+}
+
+function legacyJournalAuthorization(
+  state: PersistentMatcherState,
+  event: Extract<PersistentMatcherEvent, { kind: "cancel-order" | "advance-epoch" }>,
+): ReplayOnlyLegacyMatcherControlAuthorization {
+  if (event.kind === "cancel-order") {
+    const orderHash = normalizeHex32(event.orderHash, "Cancelled order hash");
+    const accepted = state.orderReference.acceptedOrders[orderHash];
+    if (!accepted) throw new Error("Cancelled order is unknown");
+    return {
+      kind: "cancel-order",
+      orderHash,
+      makerAccountId: accepted.order.makerAccountId,
+      accountEpoch: accepted.order.accountEpoch,
+      nonce: accepted.order.nonce,
+      authorizedSignerId: accepted.order.authorizedSignerId,
+    };
+  }
+  const makerAccountId = normalizeHex32(event.makerAccountId, "Maker account ID");
+  return {
+    kind: "advance-epoch",
+    makerAccountId,
+    currentEpoch: activeAccountEpoch(state.orderReference.lifecycle, makerAccountId),
+    nextEpoch: event.nextEpoch,
+    authorizedSignerId: normalizeHex32(event.authorizedSignerId, "Authorized signer ID"),
+  };
+}
+
+function applyPersistentMatcherJournalEvent(
+  state: PersistentMatcherState,
+  event: PersistentMatcherEvent,
+  sequence: bigint,
+  verifier: MatcherSignatureVerifier,
+  legacyControlCutoverSequence: bigint,
+): { state: PersistentMatcherState; receipt: MatcherMutationReceipt } {
+  if ((event.kind !== "cancel-order" && event.kind !== "advance-epoch")
+    || event.controlAuthorizationScheme !== LEGACY_RAW_MATCHER_CONTROL_AUTHORIZATION_SCHEME) {
+    return applyPersistentMatcherEvent(state, event, sequence, verifier);
+  }
+  if (sequence > legacyControlCutoverSequence) {
+    throw new Error("Legacy matcher control authorization is beyond the journal cutover");
+  }
+  const legacyDigest = hashLegacyMatcherControlForReplay(
+    state.configuration.domain,
+    legacyJournalAuthorization(state, event),
+  );
+  const replayVerifier: MatcherSignatureVerifier = {
+    verify(_digest, signature, authorizedSignerId) {
+      verifier.verify(legacyDigest, signature, authorizedSignerId);
+    },
+  };
+  return applyPersistentMatcherEvent(state, {
+    ...event,
+    controlAuthorizationScheme: EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME,
+  }, sequence, replayVerifier);
+}
+
+function markerForJournalCutover(
+  configurationHash: Hex32,
+  cutover: JournalControlAuthorizationCutover,
+  receiptCheckpoint: JournalCheckpoint,
+): InitializationMarker {
+  if (receiptCheckpoint.sequence !== cutover.record.sequence
+    || receiptCheckpoint.recordHash !== cutover.record.recordHash) {
+    throw new Error("Matcher control authorization cutover receipt checkpoint is invalid");
+  }
+  return {
+    version: CURRENT_INITIALIZATION_MARKER_VERSION,
+    configurationHash,
+    legacyControlCutover: {
+      sequence: BigInt(cutover.record.sequence),
+      recordHash: cutover.record.recordHash,
+      stateRoot: receiptCheckpoint.stateRoot,
+    },
+  };
 }
 
 async function pathExists(path: string): Promise<boolean> {
@@ -459,23 +826,32 @@ export class PersistentMatcherStore {
   #journal: JournalState;
   #state: PersistentMatcherState;
   #checkpoint: JournalCheckpoint;
+  #receiptCheckpoints: ReadonlyMap<string, JournalCheckpoint>;
   #queue = Promise.resolve();
   #closed = false;
   #fault: MatcherPersistenceUnavailableError | null = null;
   #lockOwnership: WriterLockOwnership;
+  #maximumPhysicalRecords: number;
+  #maximumPhysicalBytes: number;
 
   private constructor(
     options: PersistentMatcherStoreOptions,
     journal: JournalState,
     state: PersistentMatcherState,
     checkpoint: JournalCheckpoint,
+    receiptCheckpoints: ReadonlyMap<string, JournalCheckpoint>,
     lockOwnership: WriterLockOwnership,
+    maximumPhysicalRecords: number,
+    maximumPhysicalBytes: number,
   ) {
     this.#options = options;
     this.#journal = journal;
     this.#state = state;
     this.#checkpoint = checkpoint;
+    this.#receiptCheckpoints = receiptCheckpoints;
     this.#lockOwnership = lockOwnership;
+    this.#maximumPhysicalRecords = maximumPhysicalRecords;
+    this.#maximumPhysicalBytes = maximumPhysicalBytes;
   }
 
   static async open(options: PersistentMatcherStoreOptions): Promise<PersistentMatcherStore> {
@@ -483,60 +859,179 @@ export class PersistentMatcherStore {
       ...options,
       markerPath: options.markerPath ?? `${options.journalPath}.initialized`,
       lockPath: options.lockPath ?? `${options.journalPath}.lock`,
+      maximumJournalRecords: options.maximumJournalRecords ?? DEFAULT_MAX_JOURNAL_RECORDS,
+      maximumJournalLineBytes: options.maximumJournalLineBytes ?? DEFAULT_MAX_JOURNAL_LINE_BYTES,
       maximumJournalBytes: options.maximumJournalBytes ?? DEFAULT_MAX_JOURNAL_BYTES,
       clockSeconds: options.clockSeconds ?? defaultClockSeconds,
       maximumFutureEventSeconds: options.maximumFutureEventSeconds ?? DEFAULT_MAXIMUM_FUTURE_EVENT_SECONDS,
     };
     const markerPath = normalizedOptions.markerPath as string;
     const lockPath = normalizedOptions.lockPath as string;
+    const maximumUserRecords = normalizedOptions.maximumJournalRecords as number;
+    const maximumLineBytes = normalizedOptions.maximumJournalLineBytes as number;
+    const maximumUserBytes = normalizedOptions.maximumJournalBytes as number;
+    const maximumPhysicalRecords = checkedCapacityAddition(maximumUserRecords, 1, "Maximum matcher journal records");
+    const maximumPhysicalReadBytes = checkedCapacityAddition(maximumUserBytes, maximumLineBytes, "Maximum matcher journal bytes");
     const configurationHash = matcherConfigurationHash(normalizedOptions.configuration);
     const lockOwnership = await acquireWriterLock(lockPath, configurationHash);
     try {
       const markerExists = await pathExists(markerPath);
-      const journalExists = await pathExists(normalizedOptions.journalPath);
-      const checkpointExists = await pathExists(normalizedOptions.checkpointPath);
+      let journalExists = await pathExists(normalizedOptions.journalPath);
+      let checkpointExists = await pathExists(normalizedOptions.checkpointPath);
       const initial = createPersistentMatcher(normalizedOptions.configuration);
+      const genesisCheckpoint: JournalCheckpoint = {
+        version: JOURNAL_VERSION,
+        sequence: "0",
+        recordHash: JOURNAL_GENESIS_HASH,
+        stateRoot: matcherStateRoot(initial),
+        configurationHash,
+      };
+      let initializationMarker: InitializationMarker | "legacy-v1" | "initializing-v2";
       if (!markerExists) {
         if (journalExists || checkpointExists) throw new Error("Uninitialized matcher has pre-existing persistence files");
-        await atomicWriteFile(normalizedOptions.journalPath, "");
-        const genesisCheckpoint: JournalCheckpoint = {
-          version: JOURNAL_VERSION,
-          sequence: "0",
-          recordHash: JOURNAL_GENESIS_HASH,
-          stateRoot: matcherStateRoot(initial),
-          configurationHash,
-        };
-        await writeJournalCheckpoint(normalizedOptions.checkpointPath, genesisCheckpoint);
-        await atomicWriteFile(markerPath, `persistent-matcher-v1:${configurationHash}\n`);
+        await atomicWriteFile(markerPath, initializingMarker(configurationHash));
+        initializationMarker = "initializing-v2";
       } else {
-        const marker = await readFile(markerPath, "utf8");
-        if (marker !== `persistent-matcher-v1:${configurationHash}\n`) throw new Error("Matcher initialization marker does not match its configuration");
-        if (!journalExists || !checkpointExists) throw new Error("Initialized matcher persistence is missing");
+        initializationMarker = parseInitializationMarker(await readFile(markerPath, "utf8"), configurationHash);
       }
 
-      const journal = await readJournal(normalizedOptions.journalPath, {
-        maxRecords: normalizedOptions.maximumJournalRecords,
-        maxLineBytes: normalizedOptions.maximumJournalLineBytes,
-        maxBytes: normalizedOptions.maximumJournalBytes,
+      if (initializationMarker === "initializing-v2") {
+        if (!journalExists && checkpointExists) {
+          throw new Error("Initializing matcher checkpoint exists without its journal");
+        }
+        if (!journalExists) {
+          await atomicWriteFile(normalizedOptions.journalPath, "");
+          journalExists = true;
+        }
+        if (!checkpointExists) {
+          const initializingJournal = await readJournal(normalizedOptions.journalPath, {
+            maxRecords: maximumPhysicalRecords,
+            maxLineBytes: maximumLineBytes,
+            maxBytes: maximumPhysicalReadBytes,
+          });
+          if (initializingJournal.sequence !== 0n || initializingJournal.byteLength !== 0) {
+            throw new Error("Initializing matcher journal is not empty before genesis checkpoint creation");
+          }
+          await writeJournalCheckpoint(normalizedOptions.checkpointPath, genesisCheckpoint);
+          checkpointExists = true;
+        }
+      } else if (!journalExists || !checkpointExists) {
+        throw new Error("Initialized matcher persistence is missing");
+      }
+
+      let journal = await readJournal(normalizedOptions.journalPath, {
+        maxRecords: maximumPhysicalRecords,
+        maxLineBytes: maximumLineBytes,
+        maxBytes: maximumPhysicalReadBytes,
       });
       const checkpoint = await readJournalCheckpoint(normalizedOptions.checkpointPath);
       if (!checkpoint) throw new Error("Initialized matcher checkpoint is missing");
       if (checkpoint.configurationHash !== configurationHash) throw new Error("Matcher checkpoint configuration does not match");
       assertCheckpointInJournal(checkpoint, journal);
+      let journalCutover = findJournalControlAuthorizationCutover(normalizedOptions.configuration, journal);
+      assertUserJournalCapacity(journal, journalCutover, maximumUserRecords, maximumUserBytes);
+      if (initializationMarker === "initializing-v2") {
+        await assertExactInitializingPersistence(
+          normalizedOptions,
+          journal,
+          checkpoint,
+          journalCutover,
+          initial,
+        );
+      }
+      if (typeof initializationMarker !== "string") {
+        assertInitializationMarkerInJournal(initializationMarker, journal);
+        if (!journalCutover
+          || initializationMarker.legacyControlCutover.sequence !== BigInt(journalCutover.record.sequence)
+          || initializationMarker.legacyControlCutover.recordHash !== journalCutover.record.recordHash) {
+          throw new Error("Matcher initialization marker does not bind the journal control authorization cutover");
+        }
+      }
+      const legacyControlCutoverSequence = journalCutover?.event.legacyThroughSequence ?? journal.sequence;
       const checkpointSequence = BigInt(checkpoint.sequence);
       let state = initial;
+      const receiptCheckpoints = new Map<string, JournalCheckpoint>();
       if (checkpointSequence === 0n && matcherStateRoot(state) !== checkpoint.stateRoot) {
         throw new Error("Matcher genesis checkpoint state root does not match replay");
       }
       const replayNow = trustedClock(normalizedOptions);
       const maximumFutureSeconds = maximumFutureEventSeconds(normalizedOptions);
+      if (typeof initializationMarker !== "string"
+        && initializationMarker.legacyControlCutover.sequence === 0n
+        && matcherStateRoot(state) !== initializationMarker.legacyControlCutover.stateRoot) {
+        throw new Error("Matcher legacy control cutover state root does not match replay");
+      }
       for (const record of journal.records) {
-        const event = deserializePersistentMatcherEvent(normalizedOptions.configuration, record.event);
+        const sequence = BigInt(record.sequence);
+        const event = deserializePersistentMatcherEvent(normalizedOptions.configuration, record.event, {
+          source: "journal",
+          sequence,
+          legacyControlCutoverSequence,
+        });
         assertMatcherEventTime(event, replayNow, maximumFutureSeconds);
-        state = applyPersistentMatcherEvent(state, event, BigInt(record.sequence), normalizedOptions.verifier).state;
-        if (BigInt(record.sequence) === checkpointSequence && matcherStateRoot(state) !== checkpoint.stateRoot) {
+        state = applyPersistentMatcherJournalEvent(
+          state,
+          event,
+          sequence,
+          normalizedOptions.verifier,
+          legacyControlCutoverSequence,
+        ).state;
+        const receipt = state.receipts.at(-1);
+        if (!receipt || receipt.sequence !== sequence) throw new Error("Matcher replay did not produce a contiguous receipt");
+        receiptCheckpoints.set(receipt.requestId, {
+          version: JOURNAL_VERSION,
+          sequence: record.sequence,
+          recordHash: record.recordHash,
+          stateRoot: matcherStateRoot(state),
+          configurationHash,
+        });
+        if (sequence === checkpointSequence && matcherStateRoot(state) !== checkpoint.stateRoot) {
           throw new Error("Matcher checkpoint state root does not match replay");
         }
+        if (typeof initializationMarker !== "string"
+          && sequence === initializationMarker.legacyControlCutover.sequence
+          && matcherStateRoot(state) !== initializationMarker.legacyControlCutover.stateRoot) {
+          throw new Error("Matcher legacy control cutover state root does not match replay");
+        }
+      }
+      if (!journalCutover) {
+        const cutoverEvent: Extract<PersistentMatcherEvent, { kind: "control-authorization-cutover" }> = {
+          version: 1,
+          requestId: matcherControlAuthorizationCutoverRequestId(state, journal.head),
+          occurredAtSeconds: state.lastEventAtSeconds,
+          kind: "control-authorization-cutover",
+          legacyThroughSequence: journal.sequence,
+          legacyThroughRecordHash: journal.head,
+          legacyThroughStateRoot: matcherStateRoot(state),
+        };
+        const sequence = journal.sequence + 1n;
+        const candidate = applyPersistentMatcherEvent(state, cutoverEvent, sequence, normalizedOptions.verifier);
+        const record = await appendJournal(
+          normalizedOptions.journalPath,
+          journal,
+          serializePersistentMatcherEvent(normalizedOptions.configuration, cutoverEvent),
+          {
+            maxRecords: maximumPhysicalRecords,
+            maxLineBytes: maximumLineBytes,
+            maxBytes: maximumPhysicalReadBytes,
+          },
+        );
+        state = candidate.state;
+        journal = {
+          records: [...journal.records, record],
+          sequence,
+          head: record.recordHash,
+          byteLength: journal.byteLength + Buffer.byteLength(`${canonicalJournalJson(record)}\n`, "utf8"),
+        };
+        const receiptCheckpoint: JournalCheckpoint = {
+          version: JOURNAL_VERSION,
+          sequence: record.sequence,
+          recordHash: record.recordHash,
+          stateRoot: matcherStateRoot(state),
+          configurationHash,
+        };
+        receiptCheckpoints.set(cutoverEvent.requestId, receiptCheckpoint);
+        journalCutover = { record, event: cutoverEvent };
       }
       const currentCheckpoint: JournalCheckpoint = {
         version: JOURNAL_VERSION,
@@ -548,7 +1043,29 @@ export class PersistentMatcherStore {
       if (canonicalJournalJson(checkpoint) !== canonicalJournalJson(currentCheckpoint)) {
         await writeJournalCheckpoint(normalizedOptions.checkpointPath, currentCheckpoint);
       }
-      return new PersistentMatcherStore(normalizedOptions, journal, state, currentCheckpoint, lockOwnership);
+      const cutoverCheckpoint = receiptCheckpoints.get(journalCutover.event.requestId);
+      if (!cutoverCheckpoint) throw new Error("Matcher control authorization cutover checkpoint is unavailable");
+      const expectedMarker = markerForJournalCutover(configurationHash, journalCutover, cutoverCheckpoint);
+      if (typeof initializationMarker === "string") {
+        await atomicWriteFile(markerPath, initializationMarkerBytes(expectedMarker));
+      } else if (initializationMarkerBytes(initializationMarker) !== initializationMarkerBytes(expectedMarker)) {
+        throw new Error("Matcher initialization marker does not match the journal control authorization cutover");
+      }
+      const maximumPhysicalBytes = checkedCapacityAddition(
+        maximumUserBytes,
+        journalRecordBytes(journalCutover.record),
+        "Maximum matcher journal bytes",
+      );
+      return new PersistentMatcherStore(
+        normalizedOptions,
+        journal,
+        state,
+        currentCheckpoint,
+        receiptCheckpoints,
+        lockOwnership,
+        maximumPhysicalRecords,
+        maximumPhysicalBytes,
+      );
     } catch (error) {
       await releaseWriterLock(lockPath, lockOwnership).catch(() => undefined);
       throw error;
@@ -565,6 +1082,10 @@ export class PersistentMatcherStore {
 
   get checkpoint(): JournalCheckpoint {
     return this.#checkpoint;
+  }
+
+  receiptCheckpoint(requestId: string): JournalCheckpoint | null {
+    return this.#receiptCheckpoints.get(requestId) ?? null;
   }
 
   get acceptingMutations(): boolean {
@@ -589,6 +1110,16 @@ export class PersistentMatcherStore {
 
   async #mutate(event: PersistentMatcherEvent): Promise<PersistentMutationResult> {
     if (this.#fault) throw this.#fault;
+    if (event.kind === "control-authorization-cutover") {
+      throw new Error("Matcher control authorization cutover is system-managed");
+    }
+    if (
+      (event.kind === "cancel-order" || event.kind === "advance-epoch")
+      && event.controlAuthorizationScheme !== undefined
+      && event.controlAuthorizationScheme !== EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME
+    ) {
+      throw new Error("Legacy matcher control authorization is replay-only");
+    }
     const nowSeconds = trustedClock(this.#options);
     const maximumFutureSeconds = maximumFutureEventSeconds(this.#options);
     assertMatcherEventTime(event, nowSeconds, maximumFutureSeconds);
@@ -597,6 +1128,9 @@ export class PersistentMatcherStore {
     // existing request reuses its receipt timestamp so retries retain the
     // original command hash and deterministic replay bytes.
     const priorRequest = findRequestReceipt(this.#state, event.requestId);
+    if (!priorRequest && event.requestId.startsWith(MATCHER_SYSTEM_REQUEST_ID_PREFIX)) {
+      throw new Error("Matcher request ID uses a reserved system prefix");
+    }
     const effectiveEvent: PersistentMatcherEvent = priorRequest
       ? { ...event, occurredAtSeconds: priorRequest.occurredAtSeconds }
       : { ...event, occurredAtSeconds: nowSeconds };
@@ -608,7 +1142,9 @@ export class PersistentMatcherStore {
       } catch (error: unknown) {
         throw this.#markFault("checkpoint", error);
       }
-      return { receipt: prior, replayed: true, checkpoint: this.#checkpoint };
+      const receiptCheckpoint = this.#receiptCheckpoints.get(prior.requestId);
+      if (!receiptCheckpoint) throw this.#markFault("receipt-checkpoint", new Error("Accepted matcher receipt checkpoint is unavailable"));
+      return { receipt: prior, replayed: true, receiptCheckpoint, checkpoint: this.#checkpoint };
     }
     const sequence = this.#state.sequence + 1n;
     const candidate = applyPersistentMatcherEvent(this.#state, effectiveEvent, sequence, this.#options.verifier);
@@ -619,9 +1155,9 @@ export class PersistentMatcherStore {
         this.#journal,
         serializePersistentMatcherEvent(this.#options.configuration, effectiveEvent),
         {
-          maxRecords: this.#options.maximumJournalRecords,
+          maxRecords: this.#maximumPhysicalRecords,
           maxLineBytes: this.#options.maximumJournalLineBytes,
-          maxBytes: this.#options.maximumJournalBytes,
+          maxBytes: this.#maximumPhysicalBytes,
         },
       );
       if (BigInt(record.sequence) !== sequence) throw new Error("Persisted journal sequence differs from the prepared matcher event");
@@ -640,7 +1176,9 @@ export class PersistentMatcherStore {
     } catch (error: unknown) {
       throw this.#markFault("checkpoint", error);
     }
-    return { receipt: candidate.receipt, replayed: false, checkpoint: this.#checkpoint };
+    const receiptCheckpoint = this.#checkpoint;
+    this.#receiptCheckpoints = new Map(this.#receiptCheckpoints).set(candidate.receipt.requestId, receiptCheckpoint);
+    return { receipt: candidate.receipt, replayed: false, receiptCheckpoint, checkpoint: this.#checkpoint };
   }
 
   #markFault(operation: string, error: unknown): MatcherPersistenceUnavailableError {

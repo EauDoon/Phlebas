@@ -487,8 +487,9 @@ export async function matcherMutationProxy(
   }
   const result = parsedRecord(response.body);
   const receipt = record(result?.receipt);
+  const receiptCheckpoint = safeCheckpoint(result?.receiptCheckpoint);
   const checkpoint = safeCheckpoint(result?.checkpoint);
-  if (!result || result.ok !== true || typeof result.replayed !== "boolean" || !receipt || !checkpoint
+  if (!result || result.ok !== true || typeof result.replayed !== "boolean" || !receipt || !receiptCheckpoint || !checkpoint
     || receipt.version !== 1
     || typeof receipt.sequence !== "string" || !DECIMAL.test(receipt.sequence)
     || receipt.requestId !== requestId
@@ -497,8 +498,12 @@ export async function matcherMutationProxy(
     || typeof receipt.subjectHash !== "string" || !HEX32.test(receipt.subjectHash)
     || (mutationBody.expectedSubjectHash !== null && receipt.subjectHash !== mutationBody.expectedSubjectHash)
     || typeof receipt.occurredAtSeconds !== "string" || !DECIMAL.test(receipt.occurredAtSeconds)
-    || checkpoint.sequence !== receipt.sequence
-    || checkpoint.configurationHash !== deployment.expectedMatcher.configurationHash) {
+    || receiptCheckpoint.sequence !== receipt.sequence
+    || receiptCheckpoint.configurationHash !== deployment.expectedMatcher.configurationHash
+    || checkpoint.configurationHash !== deployment.expectedMatcher.configurationHash
+    || BigInt(checkpoint.sequence as string) < BigInt(receiptCheckpoint.sequence as string)
+    || (checkpoint.sequence === receiptCheckpoint.sequence
+      && (checkpoint.recordHash !== receiptCheckpoint.recordHash || checkpoint.stateRoot !== receiptCheckpoint.stateRoot))) {
     return unavailable();
   }
   return noStoreJson({
@@ -513,6 +518,7 @@ export async function matcherMutationProxy(
       subjectHash: receipt.subjectHash,
       occurredAtSeconds: receipt.occurredAtSeconds,
     },
+    receiptCheckpoint,
     checkpoint,
   }, response.status);
 }

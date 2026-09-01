@@ -247,7 +247,7 @@ function orderArtifactReview(
     || confirmed.receipt.receipt.requestId !== requestId
     || !["open", "filled", "partially-filled", "ioc-remainder-cancelled", "fok-rejected", "unfilled"].includes(status)
     || confirmed.receipt.receipt.subjectHash !== orderHash
-    || confirmed.receipt.checkpoint.configurationHash !== expectedMatcher.configurationHash) {
+    || confirmed.receipt.receiptCheckpoint.configurationHash !== expectedMatcher.configurationHash) {
     throw new Error("Confirmed matcher order artifact does not bind the reviewed order");
   }
   if (requireCancellable && status !== "open" && status !== "partially-filled") {
