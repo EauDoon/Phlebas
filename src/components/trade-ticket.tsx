@@ -11,6 +11,7 @@ import {
   missingProviderCopy,
   retargetSettlementCopy,
   signTypedData,
+  walletSigningDisabledCopy,
 } from "@/lib/evm-wallet";
 import { planTestnetSubmit, sendSettlement, sepoliaSubmitEnabled } from "@/lib/sepolia-submit";
 import { TESTNET } from "@/lib/testnet";
@@ -511,7 +512,7 @@ export function TradeTicket({
       return;
     }
     if (!TESTNET.deployed) {
-      setNotice("Settlement contract is undeployed. Testnet signing is disabled.");
+      setNotice(walletSigningDisabledCopy());
       return;
     }
     try {
@@ -925,6 +926,11 @@ export function TradeTicket({
           Review simulated {side}
         </button>
       )}
+      {!TESTNET.deployed ? (
+        <p className={styles.inlineNotice} role="status" aria-label="Wallet signing disabled">
+          {walletSigningDisabledCopy()}
+        </p>
+      ) : null}
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
         {inputError ?? notionalError ?? (isTicketRejectCopy(notice)
           ? retargetSettlementCopy(notice, market.settlementPair)
