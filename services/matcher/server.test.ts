@@ -243,7 +243,7 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
   }
 });
 
-test("rejects an absent or stale matcher configuration header before order persistence", async () => {
+test("rejects an absent or stale matcher configuration header before any mutation", async () => {
   const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-configuration-header-"));
   const server = startMatcher({
     host: "127.0.0.1",
@@ -254,25 +254,33 @@ test("rejects an absent or stale matcher configuration header before order persi
     clockSeconds: () => now,
   });
   const origin = await listen(server);
-  const request = (headers: Record<string, string>) => fetch(`${origin}/v1/orders`, {
+  const request = (path: string, headers: Record<string, string>) => fetch(`${origin}${path}`, {
     method: "POST",
     headers,
     body: JSON.stringify(payload(event("configuration-bound"))),
   });
   try {
-    const missing = await request({
-      "content-type": "application/json",
-      "idempotency-key": "configuration-bound",
-    });
-    assert.equal(missing.status, 409);
-    assert.equal((await json(missing)).reason, "matcher-configuration-does-not-match-request");
+    for (const path of [
+      "/v1/orders",
+      "/v1/order-cancellations",
+      "/v1/account-epochs",
+      "/v1/solver-quotes",
+      "/v1/solver-quote-cancellations",
+    ]) {
+      const missing = await request(path, {
+        "content-type": "application/json",
+        "idempotency-key": "configuration-bound",
+      });
+      assert.equal(missing.status, 409, path);
+      assert.equal((await json(missing)).reason, "matcher-configuration-does-not-match-request", path);
 
-    const stale = await request({
-      ...mutationHeaders("configuration-bound"),
-      [MATCHER_CONFIGURATION_HEADER]: `0x${"99".repeat(32)}`,
-    });
-    assert.equal(stale.status, 409);
-    assert.equal((await json(stale)).reason, "matcher-configuration-does-not-match-request");
+      const stale = await request(path, {
+        ...mutationHeaders("configuration-bound"),
+        [MATCHER_CONFIGURATION_HEADER]: `0x${"99".repeat(32)}`,
+      });
+      assert.equal(stale.status, 409, path);
+      assert.equal((await json(stale)).reason, "matcher-configuration-does-not-match-request", path);
+    }
     assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
   } finally {
     await close(server);
