@@ -9,6 +9,7 @@ import {
   PREVIEW_EDUCATION_STORAGE_KEY,
   PREVIEW_EDUCATION_VERSION,
 } from "../../src/lib/preview-education.ts";
+import { TERMINAL_MODE_STORAGE_KEY } from "../../src/lib/terminal-mode.ts";
 
 const host = "127.0.0.1";
 
@@ -74,10 +75,15 @@ export const test = base.extend<object, WorkerFixtures>({
       headless: true,
     });
     await context.addInitScript(
-      ({ key, version }) => {
-        window.localStorage.setItem(key, version);
+      ({ educationKey, educationVersion, modeKey }) => {
+        window.localStorage.setItem(educationKey, educationVersion);
+        window.localStorage.setItem(modeKey, "advanced");
       },
-      { key: PREVIEW_EDUCATION_STORAGE_KEY, version: PREVIEW_EDUCATION_VERSION },
+      {
+        educationKey: PREVIEW_EDUCATION_STORAGE_KEY,
+        educationVersion: PREVIEW_EDUCATION_VERSION,
+        modeKey: TERMINAL_MODE_STORAGE_KEY,
+      },
     );
     for (const page of context.pages()) {
       await page.close();

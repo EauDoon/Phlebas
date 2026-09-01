@@ -16,7 +16,13 @@ import {
 } from "@/lib/gateway-incidents";
 import { activateSkipLink } from "@/lib/skip-link";
 import { terminalUrl } from "@/lib/terminal-url";
-import type { TerminalMode } from "@/lib/terminal-mode";
+import {
+  DEFAULT_TERMINAL_MODE,
+  resolveTerminalMode,
+  TERMINAL_MODE_STORAGE_KEY,
+  TERMINAL_MODES,
+  type TerminalMode,
+} from "@/lib/terminal-mode";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
@@ -77,8 +83,30 @@ import { TradeTicket } from "./trade-ticket";
 import { WalletBar } from "./wallet-bar";
 import styles from "./terminal.module.css";
 
-function viewUrl(view: TerminalView, market: MarketId, feed: FeedStatus, demo?: string) {
-  return terminalUrl({ view, market, feed, demo });
+function viewUrl(
+  view: TerminalView,
+  market: MarketId,
+  feed: FeedStatus,
+  demo?: string,
+  mode?: TerminalMode,
+) {
+  return terminalUrl({ view, market, feed, demo, mode });
+}
+
+function readStoredMode(): string | null {
+  try {
+    return window.localStorage.getItem(TERMINAL_MODE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function persistMode(mode: TerminalMode) {
+  try {
+    window.localStorage.setItem(TERMINAL_MODE_STORAGE_KEY, mode);
+  } catch {
+    // Private mode still lets the visitor switch.
+  }
 }
 
 function seedBooks() {
@@ -103,7 +131,7 @@ export function TradingTerminal({
   initialAccess = "open",
   forceEducation = false,
   highlightIncidents = false,
-  initialMode = "advanced",
+  initialMode,
 }: {
   initialView?: TerminalView;
   initialMarket?: MarketId;
@@ -129,7 +157,7 @@ export function TradingTerminal({
   const [accountEpoch, setAccountEpoch] = useState(0);
   const [priceSelection, setPriceSelection] = useState<{ ticks: bigint; nonce: number } | null>(null);
   const [wallet, setWallet] = useState<WalletState>(disconnectedWallet);
-  const [mode] = useState<TerminalMode>(initialMode);
+  const [mode, setMode] = useState<TerminalMode>(initialMode ?? DEFAULT_TERMINAL_MODE);
   const isSimple = mode === "simple";
   const storedIncidentDemo = useSyncExternalStore(
     subscribeIncidentDemo,
@@ -158,10 +186,24 @@ export function TradingTerminal({
     }
   }, [highlightIncidents]);
 
+  useEffect(() => {
+    if (initialMode) {
+      persistMode(initialMode);
+      return;
+    }
+    setMode(resolveTerminalMode(undefined, readStoredMode()));
+  }, [initialMode]);
+
+  function selectMode(nextMode: TerminalMode) {
+    setMode(nextMode);
+    persistMode(nextMode);
+    router.replace(viewUrl(view, marketId, feedStatus, demoQuery, nextMode), { scroll: false });
+  }
+
   function selectView(nextView: TerminalView) {
     setView(nextView);
     setViewFocusId(nextView);
-    router.replace(viewUrl(nextView, marketId, feedStatus, demoQuery), { scroll: false });
+    router.replace(viewUrl(nextView, marketId, feedStatus, demoQuery, mode), { scroll: false });
   }
 
   function moveViewFocus(next: TerminalView) {
@@ -199,13 +241,13 @@ export function TradingTerminal({
   function selectMarket(nextMarket: MarketId) {
     setMarketId(nextMarket);
     setMarketFocusId(nextMarket);
-    router.replace(viewUrl(view, nextMarket, feedStatus, demoQuery), { scroll: false });
+    router.replace(viewUrl(view, nextMarket, feedStatus, demoQuery, mode), { scroll: false });
   }
 
   function selectFeed(nextFeed: FeedStatus) {
     setFeedStatus(nextFeed);
     setFeedFocusId(nextFeed);
-    router.replace(viewUrl(view, marketId, nextFeed, demoQuery), { scroll: false });
+    router.replace(viewUrl(view, marketId, nextFeed, demoQuery, mode), { scroll: false });
   }
 
   function moveMarketFocus(next: MarketId) {
@@ -484,7 +526,24 @@ export function TradingTerminal({
             </button>
           ))}
         </nav>
-        <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
+        <div className={styles.headerActions}>
+          <div className={styles.selectorTabs} role="radiogroup" aria-label="Terminal mode">
+            {TERMINAL_MODES.map((id) => (
+              <button
+                type="button"
+                key={id}
+                role="radio"
+                aria-checked={mode === id}
+                className={mode === id ? styles.selectorActive : undefined}
+                onClick={() => selectMode(id)}
+              >
+                {id === "simple" ? "Simple" : "Advanced"}
+              </button>
+            ))}
+          </div>
+          <span className={styles.network}>No TEX issued</span>
+          <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
+        </div>
       </header>
 
       <PreviewEducation force={forceEducation} />

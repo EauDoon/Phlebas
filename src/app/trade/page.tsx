@@ -63,7 +63,7 @@ export default async function TradePage({
       initialAccess={parseAccessDemo(access)}
       forceEducation={isEducationForceQuery(education)}
       highlightIncidents={isIncidentDemoQuery(demo)}
-      initialMode={parseTerminalModeQuery(mode) ?? "advanced"}
+      initialMode={parseTerminalModeQuery(mode) ?? undefined}
     />
   );
 }

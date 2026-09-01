@@ -32,7 +32,7 @@ test.describe("desktop operating density", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test("trade keeps chart book ticket tape blotter on one screen", async ({ page }) => {
-    await page.goto("/trade", { waitUntil: "networkidle" });
+    await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
 
     const chart = page.locator("#price-chart");
     const book = page.locator("#order-book");
@@ -159,7 +159,7 @@ test.describe("stacked viewports stay inside the page", () => {
   for (const width of [320, 390, 768, 1440] as const) {
     test(`${width}px trade and liquidity have no horizontal overflow`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto("/trade", { waitUntil: "networkidle" });
+      await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
       await expectNoHorizontalOverflow(page);
       await page.goto("/liquidity", { waitUntil: "networkidle" });
       await expectNoHorizontalOverflow(page);

@@ -5,6 +5,7 @@ import { parseAccessDemo } from "@/lib/access-demo";
 import type { MarketId } from "@/lib/market-data";
 import { isFeedStatus } from "@/lib/market-state";
 import { isEducationForceQuery } from "@/lib/preview-education";
+import { parseTerminalModeQuery } from "@/lib/terminal-mode";
 
 export const metadata: Metadata = {
   title: "Liquidity simulation",
@@ -23,6 +24,7 @@ export default async function LiquidityPage({
     feed?: string | string[];
     access?: string | string[];
     education?: string | string[];
+    mode?: string | string[];
   }>;
 }) {
   const params = await searchParams;
@@ -30,6 +32,7 @@ export default async function LiquidityPage({
   const feed = Array.isArray(params.feed) ? params.feed[0] : params.feed;
   const access = Array.isArray(params.access) ? params.access[0] : params.access;
   const education = Array.isArray(params.education) ? params.education[0] : params.education;
+  const mode = Array.isArray(params.mode) ? params.mode[0] : params.mode;
 
   return (
     <TradingTerminal
@@ -38,6 +41,7 @@ export default async function LiquidityPage({
       initialFeed={isFeedStatus(feed) ? feed : "illustrative"}
       initialAccess={parseAccessDemo(access)}
       forceEducation={isEducationForceQuery(education)}
+      initialMode={parseTerminalModeQuery(mode) ?? undefined}
     />
   );
 }
