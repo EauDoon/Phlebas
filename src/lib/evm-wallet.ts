@@ -98,10 +98,6 @@ export function walletDisconnectLabel(
   return `Disconnect ${address.slice(0, 6)}…${address.slice(-4)}. Settled as ${settlementPair}.`;
 }
 
-export function walletOffTitle(settlementPair: Market["settlementPair"]): string {
-  return `Wallets are off. Optional Sepolia connect is not started. Settled as ${settlementPair}.`;
-}
-
 export function walletConnectIdleTitle(settlementPair: Market["settlementPair"]): string {
   return `Connect MetaMask or Rabby on Ethereum Mainnet. Settled as ${settlementPair}.`;
 }

@@ -203,8 +203,11 @@ test("shipped modules carry the pre-launch product vocabulary", async () => {
   assert.match(liquidity, /historical-amm/);
   assert.match(await readFile(join(root, "src/lib/fees.ts"), "utf8"), /Not deducted in this preview/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/fees.ts"), "utf8"), /simulation/);
-  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletOffTitle/);
-  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletConnectEnabled/);
+  const walletBar = await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8");
+  assert.match(walletBar, /discoverEip6963Providers/);
+  assert.match(walletBar, /connectMainnetWallet/);
+  assert.match(walletBar, /Ethereum Mainnet/);
+  assert.doesNotMatch(walletBar, /walletOffTitle|walletConnectEnabled|Sepolia/);
   assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Phlebas is not a live exchange and not an offer of financial services/);
 });
 
@@ -798,7 +801,7 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(education, /does not sign or submit a transaction/);
   assert.match(education, /Pairs are native ZEC against USDC and USDT/);
   assert.match(education, /not live settlement/i);
-  assert.match(education, /Value-moving actions stay disabled/);
+  assert.match(education, /Actions stay in this browser/);
   assert.match(education, /Contracts are not deployed/);
   assert.match(education, /no signing, submission, or asset movement is enabled/);
   assert.doesNotMatch(education, /pZEC would depend on custody/);

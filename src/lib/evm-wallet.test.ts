@@ -18,7 +18,6 @@ import {
   walletConnectIdleTitle,
   walletConnectTitle,
   walletDisconnectLabel,
-  walletOffTitle,
   walletStateWithSettlement,
   type Eip1193Provider,
 } from "./evm-wallet.ts";
@@ -168,18 +167,6 @@ test("disconnect label names the settlement pair from a connected address", () =
     "Disconnect 0xf39f…2266. Settled as ZEC-USDT.",
   );
   assert.doesNotMatch(walletDisconnectLabel(address, "ZEC-USDC"), /native ZEC/);
-});
-
-test("wallet-off title names the settlement pair", () => {
-  assert.equal(
-    walletOffTitle(markets["ZEC/USDC"].settlementPair),
-    "Wallets are off. Optional Sepolia connect is not started. Settled as ZEC-USDC.",
-  );
-  assert.equal(
-    walletOffTitle(markets["ZEC/USDT"].settlementPair),
-    "Wallets are off. Optional Sepolia connect is not started. Settled as ZEC-USDT.",
-  );
-  assert.doesNotMatch(walletOffTitle("ZEC-USDC"), /simulation/i);
 });
 
 test("idle connect title names the settlement pair", () => {
