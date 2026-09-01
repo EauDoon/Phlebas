@@ -43,6 +43,5 @@ export function defaultRoutingTable(): AlertRoutingTable {
   t = addRoute(t, "observer", "warning", "slack", "#phlebas-alerts");
   t = addRoute(t, "matcher", "critical", "pagerduty", "phlebas-matcher-critical");
   t = addRoute(t, "matcher", "warning", "slack", "#phlebas-alerts");
-  t = addRoute(t, "gateway", "critical", "pagerduty", "phlebas-gateway-critical");
   return t;
 }

@@ -1,53 +1,53 @@
 export const GATEWAY_INCIDENTS = [
   {
     id: "country-blocked",
-    title: "Phlebas is not available in this location.",
-    body: "This preview is limited to approved locations. Trading, liquidity, deposit, and withdrawal controls are unavailable.",
+    title: "Historical location-block state.",
+    body: "This copy-only fixture illustrates how a removed custody flow would have stopped. No account, trade, deposit, or withdrawal is available here.",
   },
   {
     id: "eligibility-review",
-    title: "This request needs review.",
-    body: "No asset action will continue while the review is open. Completion is not guaranteed.",
+    title: "Historical review state.",
+    body: "This copy-only fixture illustrates a former review hold. No asset action can start or continue in this application.",
   },
   {
     id: "deposit-review",
-    title: "Deposit credit is paused for review.",
-    body: "The observed transaction has not been approved for minting. Do not send another deposit to the same intent.",
+    title: "Historical deposit-review state.",
+    body: "This copy-only fixture preserves a former unapproved-observation state. No receiver, deposit intent, or minting path exists in this application.",
   },
   {
     id: "withdrawal-review-before-burn",
-    title: "Withdrawal review is open.",
-    body: "Nothing has been burned. The request can still be edited or cancelled in a production gateway.",
+    title: "Historical pre-payout review state.",
+    body: "This copy-only fixture preserves a former review before an external payout. No burn, payout request, or production gateway exists here.",
   },
   {
     id: "withdrawal-review-after-burn",
-    title: "Payout review is open.",
-    body: "Your payout claim remains recorded while processing is paused. A finalized burn is not silently discarded.",
+    title: "Historical post-burn review state.",
+    body: "This copy-only fixture preserves a former pending-claim record. It has no payout authority and no customer claim is recorded by this application.",
   },
   {
     id: "observer-disagreement",
-    title: "Observers disagree.",
-    body: "Independent Zebra observers do not agree on the observed state. Minting is paused until observers agree.",
+    title: "Historical observer-disagreement state.",
+    body: "This copy-only fixture preserves the evidence that would have blocked a former mint decision. The retained atomic-swap observer is read-only and cannot move value.",
   },
   {
     id: "reorg-before-mint",
-    title: "Zcash confirmations changed.",
-    body: "The deposit is provisional again because its prior block is no longer in the accepted chain. Nothing will be minted until the deposit is included and reaches the required confirmation threshold.",
+    title: "Historical confirmation-change state.",
+    body: "This copy-only fixture preserves a former chain-reorganization example. It cannot generate a receiver, credit a deposit, or mint any token.",
   },
   {
     id: "reorg-after-mint",
-    title: "Gateway incident controls are active.",
-    body: "A previously credited Zcash deposit changed after a chain reorganization. New mints and native ZEC withdrawals are paused while reserves and liabilities are reconciled.",
+    title: "Historical reconciliation state.",
+    body: "This copy-only fixture preserves a former reconciliation example after a chain reorganization. There are no reserves, liabilities, mints, or native ZEC withdrawals in this application.",
   },
   {
     id: "planned-maintenance",
-    title: "Gateway maintenance is scheduled.",
-    body: "New deposit intents and withdrawal requests will be unavailable from 2026-09-01 02:00 UTC to 2026-09-01 04:00 UTC. Existing requests keep their last confirmed status.",
+    title: "Historical maintenance state.",
+    body: "This copy-only fixture shows a former maintenance notice. The time window is illustrative, and this application has no deposit intents or withdrawal requests.",
   },
   {
     id: "unplanned-maintenance",
-    title: "This service is temporarily unavailable.",
-    body: "No new action can start. Existing orders, balances, deposits, and withdrawal claims have not been inferred from this outage message.",
+    title: "Historical service-unavailable state.",
+    body: "This copy-only fixture shows a former unavailable-service message. It does not infer any order, balance, deposit, or withdrawal claim.",
   },
 ] as const;
 

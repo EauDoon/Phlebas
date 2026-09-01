@@ -10,7 +10,7 @@ This ADR is retained as historical design context only. Its HASH160 digest is no
 
 ADR 0002 defines the production target: one two-chain atomic swap per matched fill, with a transparent Zcash P2SH leg and an EVM conditional-lock leg sharing one hash, one preimage, and staggered refund deadlines. ADR 0003 fixes the EVM half. ADR 0004 fixes the offchain state machine and the read-only `/swap` view. The ZEC half is the only remaining leg without a documented surface.
 
-The current repository has the Zcash transparent address inspection (`inspectTransparentDestination`), the in-browser matcher, the keccak and SHA-256 primitives, the secp256k1 recovery primitive, the ZIP 321 placeholder, the local TEX gateway, and the EVM conditional lock. It does not have a Zcash address encoder, a P2SH script builder, a transparent transaction template, or a wallet adapter.
+The current repository has the Zcash transparent address inspection (`inspectTransparentDestination`), the in-browser matcher, the keccak and SHA-256 primitives, the secp256k1 recovery primitive, a non-payable ZIP 321 placeholder, and the EVM conditional lock. It does not have a Zcash address encoder, a P2SH script builder, a transparent transaction template, a wallet adapter, or a TEX receiver generator.
 
 The historical proposal used a transparent P2SH output that held ZEC until either the buyer revealed a preimage on the Zcash claim path or the seller refunded after the lock time. Its HASH160 digest did not equal the EVM SHA-256 digest.
 

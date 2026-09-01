@@ -14,7 +14,6 @@ metrics and SLO endpoints exposed by every service.
 | matcher | latency p99 | 200 ms | 30 days | [market-data-slo.md](market-data-slo.md) |
 | observer | availability | 99.5% | 30 days | [observer-slo.md](observer-slo.md) |
 | observer | fill freshness | 1 poll interval | rolling | [observer-slo.md](observer-slo.md) |
-| gateway | availability | 99.5% | 30 days | implicit; not yet tracked |
 
 ## Per-service operations endpoints
 
@@ -22,7 +21,6 @@ metrics and SLO endpoints exposed by every service.
 | --- | --- | --- | --- | --- |
 | matcher | yes | no (see /markets) | yes | yes |
 | observer | yes | yes | yes | yes |
-| gateway | yes | no | not yet | not yet |
 
 ## Watchtower alert classes
 
@@ -37,7 +35,6 @@ metrics and SLO endpoints exposed by every service.
 | /trades-503 | matcher | warning | slack | public market data |
 | /depth-503 | matcher | warning | slack | public market data |
 | /markets-503 | matcher | warning | slack | public market data |
-| /attest-503 | gateway | critical | pagerduty | mint attestation |
 
 ## Alert routing
 
@@ -48,7 +45,6 @@ The alert routing table is defined in
 * `observer:warning` → slack → `#phlebas-alerts`
 * `matcher:critical` → pagerduty → `phlebas-matcher-critical`
 * `matcher:warning` → slack → `#phlebas-alerts`
-* `gateway:critical` → pagerduty → `phlebas-gateway-critical`
 
 A custom table can be loaded from the environment at deploy time.
 The default table is the canonical record for the testnet.

@@ -32,12 +32,12 @@ test("direct processes refuse 0.0.0.0 unless Compose allows it", async () => {
 
 test("operator unavailable helper is a 503 with no-store", async () => {
   const { operatorUnavailable } = await import("./operator-url.ts");
-  const response = operatorUnavailable("gateway-unavailable");
+  const response = operatorUnavailable("matcher-unavailable");
   assert.equal(response.status, 503);
   assert.equal(response.headers.get("Cache-Control"), "no-store");
   const body = await response.json() as { ok: boolean; reason: string };
   assert.equal(body.ok, false);
-  assert.equal(body.reason, "gateway-unavailable");
+  assert.equal(body.reason, "matcher-unavailable");
 });
 
 test("loopback operator fetches preserve bounded responses and hide transport failures", async () => {

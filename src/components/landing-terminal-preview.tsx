@@ -17,7 +17,7 @@ export function LandingTerminalPreview() {
         <span className={styles.eyebrow}>Interface preview</span>
         <h2 id="terminal-preview-title">Inspect the market model without connecting a wallet.</h2>
         <p>
-          Change a fixture, preview an order, inspect pool math, and walk through gateway states.
+          Change a fixture, preview an order, inspect pool math, and walk through historical custody states.
           Values are illustrative and actions remain inside the browser.
         </p>
       </div>

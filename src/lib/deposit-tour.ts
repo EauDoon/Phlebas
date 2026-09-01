@@ -2,12 +2,12 @@ export const DEPOSIT_TOUR = [
   {
     id: "eligibility",
     title: "Eligibility",
-    body: "A production gateway would accept eligible transparent native ZEC. This preview never requests location, identity, or account information and does not mint.",
+    body: "A historical custody gateway would accept eligible transparent native ZEC. This keyless tour never requests location, identity, account information, or assets.",
   },
   {
     id: "address-request",
     title: "Address request",
-    body: "No address generated in simulation. A production intent would issue one fresh ZIP 320 TEX address and never reassign it.",
+    body: "No address is generated. The ZIP 320 shape is a non-payable format example, never a wallet handoff.",
   },
   {
     id: "observed",
@@ -32,7 +32,7 @@ export const DEPOSIT_TOUR = [
   {
     id: "confirming",
     title: "Confirming",
-    body: "A production mint waits for the confirmation floor. The local observer stub uses 10 confirmations on textest only.",
+    body: "A historical mint would wait for the confirmation floor. This keyless tour does not issue an address, observe a chain, attest a mint, or change a balance.",
   },
   {
     id: "stale",

@@ -16,10 +16,10 @@ The public Vercel app is a no-value interface. Local optional stubs exist and ar
 - In-browser session matcher, plus a loopback matcher operator that is never hosted on Vercel.
 - Undeployed Arbitrum Sepolia contract sources. The manifest stays `deployed: false` until a real Sepolia transaction is recorded.
 - Optional EIP-1193 wallet connection on Arbitrum Sepolia only. Signing stays disabled until the manifest is backed by a successful Sepolia receipt and verified deployed bytecode.
-- Local `textest` gateway and observer stubs on `127.0.0.1`. No Zebra RPC, no mainnet TEX.
+- Keyless TEX parsing and historical state tours only. No address generator, mint-attestation runtime, Zebra RPC, or mainnet TEX.
 - No custody, attester, governance, deployer, or treasury keys in Vercel or git.
 
-Do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL` on Vercel. Public API routes refuse any operator URL that is not loopback HTTP.
+Do not set `PHLEBAS_MATCHER_URL` on Vercel. Public API routes refuse any operator URL that is not loopback HTTP.
 
 Do not send ZEC, pZEC, USDC, USDT0, or any other asset to an address presented by an unverified Phlebas build.
 

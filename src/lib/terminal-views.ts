@@ -6,7 +6,7 @@ export const TERMINAL_VIEW_LABELS: Record<TerminalView, string> = {
   trade: "Trade",
   settlement: "Settlement",
   liquidity: "Liquidity",
-  bridge: "ZEC gateway",
+  bridge: "Historical state tour",
   architecture: "Architecture",
 };
 
