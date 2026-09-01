@@ -10,7 +10,10 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, "..");
-const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const bundledNpmCli = resolve(dirname(process.execPath), "node_modules/npm/bin/npm-cli.js");
+const npmCli = process.env.npm_execpath || (existsSync(bundledNpmCli) ? bundledNpmCli : null);
+const npmCommand = npmCli ? process.execPath : "npm";
+const npmPrefix = npmCli ? [npmCli] : [];
 
 function runGate(name, command, args) {
   const result = spawnSync(command, args, {
@@ -22,19 +25,20 @@ function runGate(name, command, args) {
   if (result.status === 0) {
     return { name, status: "pass", detail: "ok" };
   }
-  return { name, status: "fail", detail: (result.stderr || result.stdout || "").slice(0, 500) };
+  const detail = result.error?.message || result.stderr || result.stdout || `process exited with status ${result.status}`;
+  return { name, status: "fail", detail: detail.slice(0, 500) };
 }
 
 const gates = [];
-gates.push(runGate("lint", npmCommand, ["run", "lint"]));
-gates.push(runGate("contract-format", npmCommand, ["run", "lint:contracts"]));
-gates.push(runGate("typecheck", npmCommand, ["run", "typecheck"]));
-gates.push(runGate("tests", npmCommand, ["test"]));
-gates.push(runGate("manifests", npmCommand, ["run", "test:manifests"]));
-gates.push(runGate("contract-build", npmCommand, ["run", "build:contracts"]));
-gates.push(runGate("contracts", npmCommand, ["run", "test:contracts"]));
-gates.push(runGate("secret-scan", npmCommand, ["run", "scan:secrets"]));
-gates.push(runGate("build", npmCommand, ["run", "build"]));
+gates.push(runGate("lint", npmCommand, [...npmPrefix, "run", "lint"]));
+gates.push(runGate("contract-format", npmCommand, [...npmPrefix, "run", "lint:contracts"]));
+gates.push(runGate("typecheck", npmCommand, [...npmPrefix, "run", "typecheck"]));
+gates.push(runGate("tests", npmCommand, [...npmPrefix, "test"]));
+gates.push(runGate("manifests", npmCommand, [...npmPrefix, "run", "test:manifests"]));
+gates.push(runGate("contract-build", npmCommand, [...npmPrefix, "run", "build:contracts"]));
+gates.push(runGate("contracts", npmCommand, [...npmPrefix, "run", "test:contracts"]));
+gates.push(runGate("secret-scan", npmCommand, [...npmPrefix, "run", "scan:secrets"]));
+gates.push(runGate("build", npmCommand, [...npmPrefix, "run", "build"]));
 gates.push(readAuditChecklistGate());
 
 function readAuditChecklistGate() {
