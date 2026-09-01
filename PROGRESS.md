@@ -264,7 +264,7 @@ Last updated: 01-09-2026. `feat/simulation-hardening` has teal Simple/Advanced r
 
 ## Next
 
-- Push the slice PR on `feat/simulation-hardening` (not #26); GitHub→Vercel for https://phlebas.vercel.app
+- Slice PR: https://github.com/EauDoon/Phlebas/pull/28. GitHub→Vercel for https://phlebas.vercel.app (stateless UI only; no operator URLs)
 - Record a real Arbitrum Sepolia broadcast in the manifest (skipped: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
 - Redeploy the public Vercel UI after this PR merges (skipped if no deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
