@@ -53,10 +53,10 @@
       "required": ["network", "chainId", "verifyingContract"],
       "properties": {
         "network": {
-          "const": "eip155:42161"
+          "const": "eip155:1"
         },
         "chainId": {
-          "const": 42161
+          "const": 1
         },
         "verifyingContract": {
           "anyOf": [
@@ -307,8 +307,8 @@
       "additionalProperties": false,
       "required": ["network", "asset", "environment", "decimals"],
       "properties": {
-        "network": {"const": "eip155:42161"},
-        "asset": {"const": "eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831"},
+        "network": {"const": "eip155:1"},
+        "asset": {"const": "eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"},
         "environment": {"const": "mainnet"},
         "decimals": {"const": 6}
       }

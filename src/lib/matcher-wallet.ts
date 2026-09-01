@@ -1,14 +1,15 @@
 import type { Eip1193Provider } from "./evm-wallet.ts";
 import {
-  ARBITRUM_ONE_CHAIN_ID,
   type NativeZecUsdcMatcherDeploymentState,
 } from "./native-zec-usdc-matcher-manifest.ts";
-
-export const ARBITRUM_ONE_HEX = `0x${ARBITRUM_ONE_CHAIN_ID.toString(16)}` as const;
+import {
+  ETHEREUM_MAINNET_CHAIN_HEX,
+  ETHEREUM_MAINNET_CHAIN_ID,
+} from "./mainnet-assets.ts";
 
 export type MatcherWalletConnection = Readonly<{
   address: string;
-  chainId: typeof ARBITRUM_ONE_HEX;
+  chainId: typeof ETHEREUM_MAINNET_CHAIN_HEX;
 }>;
 
 function providerErrorCode(error: unknown): unknown {
@@ -34,8 +35,8 @@ function assertEnabledMatcher(deployment: NativeZecUsdcMatcherDeploymentState): 
   if (!deployment.enabled || deployment.expectedMatcher === null || deployment.orderDomain === null) {
     throw new Error("Native matcher wallet connection is disabled by the deployment manifest");
   }
-  if (deployment.orderDomain.chainId !== BigInt(ARBITRUM_ONE_CHAIN_ID)
-    || deployment.expectedMatcher.orderDomain.chainId !== BigInt(ARBITRUM_ONE_CHAIN_ID)) {
+  if (deployment.orderDomain.chainId !== ETHEREUM_MAINNET_CHAIN_ID
+    || deployment.expectedMatcher.orderDomain.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
     throw new Error("Native matcher wallet network does not match the approved deployment manifest");
   }
 }
@@ -48,10 +49,10 @@ async function activeAccount(provider: Eip1193Provider, method: "eth_requestAcco
   return canonicalAddress(accounts[0], "Wallet account");
 }
 
-async function switchToArbitrumOne(provider: Eip1193Provider): Promise<void> {
+async function switchToEthereumMainnet(provider: Eip1193Provider): Promise<void> {
   await provider.request({
     method: "wallet_switchEthereumChain",
-    params: [{ chainId: ARBITRUM_ONE_HEX }],
+    params: [{ chainId: ETHEREUM_MAINNET_CHAIN_HEX }],
   });
 }
 
@@ -62,17 +63,17 @@ export async function connectMatcherWallet(
   assertEnabledMatcher(deployment);
   const requestedAccount = await activeAccount(provider, "eth_requestAccounts");
   const initialChainId = canonicalChainId(await provider.request({ method: "eth_chainId" }));
-  if (initialChainId !== ARBITRUM_ONE_HEX) await switchToArbitrumOne(provider);
+  if (initialChainId !== ETHEREUM_MAINNET_CHAIN_HEX) await switchToEthereumMainnet(provider);
 
   const chainId = canonicalChainId(await provider.request({ method: "eth_chainId" }));
-  if (chainId !== ARBITRUM_ONE_HEX) {
-    throw new Error("Switch to Arbitrum One before reviewing a native matcher order");
+  if (chainId !== ETHEREUM_MAINNET_CHAIN_HEX) {
+    throw new Error("Switch to Ethereum Mainnet before reviewing a native matcher order");
   }
   const currentAccount = await activeAccount(provider, "eth_accounts");
   if (currentAccount !== requestedAccount) {
     throw new Error("Wallet account changed while connecting to the native matcher");
   }
-  return Object.freeze({ address: currentAccount, chainId: ARBITRUM_ONE_HEX });
+  return Object.freeze({ address: currentAccount, chainId: ETHEREUM_MAINNET_CHAIN_HEX });
 }
 
 export function publicMatcherWalletError(error: unknown): string {
@@ -84,7 +85,7 @@ export function publicMatcherWalletError(error: unknown): string {
   if (code === 4200 || code === "4200") return "The connected wallet does not support this request.";
   if (error instanceof Error && (
     error.message === "Native matcher wallet connection is disabled by the deployment manifest"
-    || error.message === "Switch to Arbitrum One before reviewing a native matcher order"
+    || error.message === "Switch to Ethereum Mainnet before reviewing a native matcher order"
     || error.message === "Wallet account changed while connecting to the native matcher"
   )) return error.message;
   return "Native matcher wallet connection failed.";

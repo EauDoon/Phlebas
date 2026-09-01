@@ -11,6 +11,13 @@ import {
 } from "./eip712-order.ts";
 import { keccak256Text } from "./keccak.ts";
 import {
+  ETHEREUM_MAINNET_CHAIN_ID,
+  ETHEREUM_MAINNET_NETWORK,
+  ETHEREUM_MAINNET_USDC_ASSET,
+  NATIVE_ZEC_ASSET as MAINNET_ZEC_ASSET,
+  ZCASH_MAINNET_NETWORK,
+} from "./mainnet-assets.ts";
+import {
   UINT64_MAX,
   UINT256_MAX,
   adapterIdentifier,
@@ -25,11 +32,9 @@ export const NATIVE_ZEC_USDC_MATCHER_SCHEMA_VERSION = "1.0.0" as const;
 export const NATIVE_ZEC_USDC_MATCHER_MANIFEST_TYPE = "native-zec-usdc-matcher-deployment" as const;
 export const NATIVE_ZEC_USDC_MATCHER_SCHEMA_URL = "https://json-schema.org/draft/2020-12/schema" as const;
 
-export const NATIVE_ZEC_NETWORK = "bip122:00040fe8ec8471911baa1db1266ea15d" as const;
-export const NATIVE_ZEC_ASSET = `${NATIVE_ZEC_NETWORK}/slip44:133` as const;
-export const ARBITRUM_ONE_NETWORK = "eip155:42161" as const;
-export const ARBITRUM_ONE_CHAIN_ID = 42161 as const;
-export const NATIVE_USDC_ASSET = `${ARBITRUM_ONE_NETWORK}/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831` as const;
+export const NATIVE_ZEC_NETWORK = ZCASH_MAINNET_NETWORK;
+export const NATIVE_ZEC_ASSET = MAINNET_ZEC_ASSET;
+export const NATIVE_USDC_ASSET = ETHEREUM_MAINNET_USDC_ASSET;
 export const NATIVE_ZEC_USDC_MARKET_ID = "ZEC/USDC" as const;
 export const NATIVE_ZEC_USDC_SETTLEMENT_PAIR = "ZEC-USDC" as const;
 export const NATIVE_ZEC_USDC_PROTOCOL_VERSION = "transparent-htlc-v1" as const;
@@ -61,8 +66,8 @@ export type NativeZecUsdcMatcherManifest = Readonly<{
     version: "1";
   }>;
   evm: Readonly<{
-    network: typeof ARBITRUM_ONE_NETWORK;
-    chainId: typeof ARBITRUM_ONE_CHAIN_ID;
+    network: typeof ETHEREUM_MAINNET_NETWORK;
+    chainId: 1;
     verifyingContract: string | null;
   }>;
   market: Readonly<{
@@ -256,8 +261,10 @@ function parseManifest(value: unknown): NativeZecUsdcMatcherManifest {
 
   const evm = objectValue(manifest.evm, "Manifest EVM identity");
   assertExactKeys(evm, ["network", "chainId", "verifyingContract"], "Manifest EVM identity");
-  exactString(evm.network, ARBITRUM_ONE_NETWORK, "Manifest EVM network");
-  if (evm.chainId !== ARBITRUM_ONE_CHAIN_ID) throw new Error("Manifest EVM chain ID does not match Arbitrum One");
+  exactString(evm.network, ETHEREUM_MAINNET_NETWORK, "Manifest EVM network");
+  if (evm.chainId !== Number(ETHEREUM_MAINNET_CHAIN_ID)) {
+    throw new Error("Manifest EVM chain ID does not match Ethereum Mainnet");
+  }
   const verifyingContract = canonicalAddress(evm.verifyingContract, "Manifest verifying contract");
 
   const market = objectValue(manifest.market, "Manifest market");
@@ -271,7 +278,7 @@ function parseManifest(value: unknown): NativeZecUsdcMatcherManifest {
     decimals: 8,
   };
   const expectedQuote: ManifestAsset = {
-    network: ARBITRUM_ONE_NETWORK,
+    network: ETHEREUM_MAINNET_NETWORK,
     asset: NATIVE_USDC_ASSET,
     environment: "mainnet",
     decimals: 6,
@@ -346,7 +353,7 @@ function parseManifest(value: unknown): NativeZecUsdcMatcherManifest {
     deployed,
     submissionEnabled,
     orderDomain: { name: "Phlebas Order Intent", version: "1" },
-    evm: { network: ARBITRUM_ONE_NETWORK, chainId: ARBITRUM_ONE_CHAIN_ID, verifyingContract },
+    evm: { network: ETHEREUM_MAINNET_NETWORK, chainId: 1, verifyingContract },
     market: {
       id: NATIVE_ZEC_USDC_MARKET_ID,
       settlementPair: NATIVE_ZEC_USDC_SETTLEMENT_PAIR,
@@ -380,7 +387,7 @@ function parseManifest(value: unknown): NativeZecUsdcMatcherManifest {
   };
 
   if (verifyingContract !== null && configurationHash !== null) {
-    const orderDomain = createOrderDomain(BigInt(ARBITRUM_ONE_CHAIN_ID), verifyingContract);
+    const orderDomain = createOrderDomain(ETHEREUM_MAINNET_CHAIN_ID, verifyingContract);
     const expectedHash = configurationHashForCanonicalManifest(canonical, orderDomain);
     if (configurationHash !== expectedHash) throw new Error("Manifest configuration hash does not match its exact fields");
   }
