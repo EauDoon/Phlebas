@@ -334,9 +334,9 @@ test("historical custody tour is not a receivable deposit", async ({ page }) => 
   await expect(page.getByText("Historical withdrawal states only. Nothing is sent.")).toBeVisible();
   await page.getByRole("button", { name: "Next state" }).click();
   await expect(page.getByText("Screened", { exact: true })).toBeVisible();
-  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("zs1notreal");
+  await page.getByRole("textbox", { name: "Transparent destination to check" }).fill("zs1notreal");
   await expect(page.getByText("Shielded and unified addresses are out of scope.")).toBeVisible();
-  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
+  await page.getByRole("textbox", { name: "Transparent destination to check" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
   await expect(page.getByText("Payout stub would accept this destination shape. Nothing is sent.")).toBeVisible();
 });
 
@@ -371,7 +371,7 @@ test("price improvement cannot create a free ZEC atom", async ({ page }) => {
 test("status and missing routes stay labeled as simulation", async ({ page }) => {
   const status = await page.goto("/status", { waitUntil: "load" });
   expect(status?.ok(), "/status response").toBe(true);
-  await expect(page.getByRole("heading", { name: "Simulation status" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Status", exact: true })).toBeVisible();
   await expect(page.getByText("in-browser", { exact: true })).toBeVisible();
   await expect(page.getByText("live funds", { exact: false })).toBeVisible();
   await expect(page.getByText("deny-default", { exact: true })).toBeVisible();
@@ -685,7 +685,7 @@ test("withdrawal tour drives a stub claim without changing tour copy", async ({ 
   await page.getByRole("button", { name: "Historical withdrawal states" }).click();
   await expect(page.getByText("Amount, transparent destination, network fee, service fee, and net output would be reviewed before any burn.")).toBeVisible();
   const dest = "t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc";
-  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill(dest);
+  await page.getByRole("textbox", { name: "Transparent destination to check" }).fill(dest);
   await expect(page.getByText(payoutClaimStubCopy(payoutClaimForTourStep("requested", dest)))).toBeVisible();
   await page.getByRole("button", { name: "Next state" }).click();
   await expect(page.getByText("Screened", { exact: true })).toBeVisible();
@@ -1539,10 +1539,10 @@ test("blotter arrows move focus and Enter selects", async ({ page }) => {
 test("chart and 24h stats name stale and unavailable feeds", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByText("Illustrative market data · ZEC-USDC", { exact: true })).toBeVisible();
-  await expect(page.getByText("24h figures are repository fixtures. Not a live, delayed, or production feed.")).toBeVisible();
+  await expect(page.getByText("24h figures are illustrative. Not a live, delayed, or production feed.")).toBeVisible();
   await page.getByRole("radio", { name: "Stale" }).click();
   await expect(page.getByText("Market data stale", { exact: true })).toHaveCount(1);
-  await expect(page.getByText("24h figures stay fixture labels while market data is stale as of 2026-08-30T16:32:08Z.")).toBeVisible();
+  await expect(page.getByText("24h figures stay illustrative labels while market data is stale as of 2026-08-30T16:32:08Z.")).toBeVisible();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
   await page.getByRole("radio", { name: "Unavailable" }).click();
   await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
@@ -1741,7 +1741,10 @@ test("24h volume is not a live counter and historical pool size stays archived",
   await expect(page.getByText("24h volume")).toHaveCount(0);
   await expect(page.getByText("$1.84M", { exact: true })).toHaveCount(0);
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
-  await expect(page.getByText("$842,410", { exact: true })).toBeVisible();
+  const stats = page.getByRole("group", { name: "Historical AMM pool stats" });
+  await expect(stats.getByText("Historical pool size")).toBeVisible();
+  await expect(stats.getByText("$842,410", { exact: true })).toBeVisible();
+  await expect(page.getByText("Historical pool volume")).toHaveCount(0);
   await expect(page.getByText("Fixture $842,410")).toHaveCount(0);
 });
 
@@ -1757,7 +1760,7 @@ test("ticket keyboard is a named 44px region", async ({ page }) => {
 test("withdrawal tour demonstrates unresolved without inventing a payout", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Historical withdrawal states" }).click();
-  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
+  await page.getByRole("textbox", { name: "Transparent destination to check" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
   const next = page.getByRole("button", { name: "Next state" });
   const unresolvedIndex = WITHDRAWAL_TOUR.findIndex((step) => step.id === "unresolved");
   for (let index = 0; index < unresolvedIndex; index += 1) {
@@ -2009,7 +2012,7 @@ test("bridge skip link reaches the destination inspector", async ({ page }) => {
   await expect(skipInspector).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#destination-inspector")).toBeFocused();
-  await expect(page.getByRole("textbox", { name: "Transparent destination to inspect" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Transparent destination to check" })).toBeVisible();
 });
 
 test("error skip link reaches the retry copy", async ({ page }) => {
@@ -2351,7 +2354,7 @@ test("simulation-frame and terminal footer links stay 44px on desktop", async ({
 test("status legal and security ledgers are named lists", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/status", { waitUntil: "networkidle" });
-  const status = page.getByRole("list", { name: "Simulation status ledger" }).getByRole("listitem").first();
+  const status = page.getByRole("list", { name: "Status ledger" }).getByRole("listitem").first();
   await expect(status).toBeVisible();
   expect((await status.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 

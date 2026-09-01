@@ -34,6 +34,11 @@ test("illustrative data with a book can move from preview to confirm", () => {
   const gate = ticketGate("illustrative", false);
   assert.equal(gate.canReview, true);
   assert.equal(gate.status, "illustrative");
+  assert.equal(gate.heading, "Illustrative");
+  assert.equal(gate.message, "Illustrative. Not a live, delayed, or production feed.");
+  assert.match(gate.message, /Not a live, delayed, or production feed/);
+  assert.doesNotMatch(gate.message, /fixture/i);
+  assert.doesNotMatch(gate.message, /simulation/i);
 });
 
 test("an empty book disables preview-to-sign and names the settlement pair", () => {
@@ -86,13 +91,29 @@ test("loading stale and unavailable ticket gates name the settlement pair", () =
 
 test("chart and 24h stats reuse ticket-gate names", () => {
   assert.equal(feedSurfaceCopy("illustrative").eyebrow, "Illustrative market data");
+  assert.equal(
+    feedSurfaceCopy("illustrative").statsNote,
+    "24h figures are illustrative. Not a live, delayed, or production feed.",
+  );
   assert.match(feedSurfaceCopy("illustrative").statsNote, /Not a live/);
+  assert.doesNotMatch(feedSurfaceCopy("illustrative").statsNote, /fixture/i);
+  assert.doesNotMatch(feedSurfaceCopy("illustrative").statsNote, /simulation/i);
   assert.equal(feedSurfaceCopy("stale").eyebrow, "Market data stale");
+  assert.equal(
+    feedSurfaceCopy("stale").statsNote,
+    "24h figures stay illustrative labels while market data is stale as of 2026-08-30T16:32:08Z.",
+  );
   assert.match(feedSurfaceCopy("stale").statsNote, /2026-08-30T16:32:08Z/);
   assert.equal(feedSurfaceCopy("unavailable").eyebrow, "Market data unavailable");
   assert.equal(feedSurfaceCopy("empty").eyebrow, "Order book empty");
   assert.equal(feedSurfaceCopy("loading").eyebrow, "Loading market data");
   assert.doesNotMatch(feedSurfaceCopy("stale").statsNote, /\blive feed\b/i);
+  assert.doesNotMatch(feedSurfaceCopy("stale").statsNote, /fixture/i);
+  assert.doesNotMatch(feedSurfaceCopy("stale").statsNote, /simulation/i);
+  assert.equal(feedSurface("illustrative").heading, "Illustrative");
+  assert.equal(feedSurface("stale").heading, "Market data stale");
+  assert.equal(feedSurface("unavailable").heading, "Market data unavailable");
+  assert.equal(feedSurface("illustrative").message, "Illustrative. Not a live, delayed, or production feed.");
 });
 
 test("empty loading and unavailable feeds withhold fixture series", () => {
@@ -152,6 +173,11 @@ test("depth and tape empty copy names the settlement pair", () => {
   assert.match(feedWithheldCopy("unavailable", "ZEC-USDC"), /ZEC-USDC/);
   assert.match(feedWithheldCopy("unavailable", "ZEC-USDT"), /ZEC-USDT/);
   assert.match(feedWithheldCopy("empty", "ZEC-USDC"), /No 24h stats or chart series/);
+  assert.equal(
+    feedWithheldCopy("illustrative", "ZEC-USDC"),
+    "Illustrative. Preview figures are visible. Settled as ZEC-USDC.",
+  );
+  assert.doesNotMatch(feedWithheldCopy("illustrative", "ZEC-USDC"), /fixture/i);
   assert.match(orderBookCaptionCopy("ZEC/USDC"), /settled as ZEC-USDC/);
   assert.match(orderBookCaptionCopy("ZEC/USDT"), /settled as ZEC-USDT/);
   assert.match(orderBookCaptionCopy("ZEC/USDC"), /cumulative ZEC depth/);

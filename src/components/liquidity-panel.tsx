@@ -638,7 +638,6 @@ export function LiquidityPanel({
         >
           <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
           <div><dt>Historical pool size</dt><dd>{selectedPool.tvl}</dd></div>
-          <div><dt>Historical pool volume</dt><dd>{selectedPool.volume}</dd></div>
           <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveZecAtoms, ZEC_DECIMALS, 2)}</dd></div>
           <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
           <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>

@@ -1,4 +1,4 @@
-export const PREVIEW_EDUCATION_VERSION = "2026-09-01-2";
+export const PREVIEW_EDUCATION_VERSION = "2026-09-01-3";
 export const PREVIEW_EDUCATION_STORAGE_KEY = "phlebas.previewEducationVersion";
 
 export const PREVIEW_EDUCATION_STEPS = [
@@ -12,7 +12,7 @@ export const PREVIEW_EDUCATION_STEPS = [
   },
   {
     title: "Actions stay in this browser.",
-    body: "Until wallets and contracts are enabled, preview actions stay in this browser.",
+    body: "Until wallets and contracts are enabled.",
   },
 ] as const;
 

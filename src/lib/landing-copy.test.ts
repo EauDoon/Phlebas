@@ -154,7 +154,11 @@ test("paths intro names Trade, Provide quotes, and Read settlement", () => {
 });
 
 test("shipped landing copy fails closed on live-funds and banned product claims", () => {
-  assert.match(LANDING_FOOTER, /not a live exchange/);
+  assert.equal(
+    LANDING_FOOTER,
+    "Phlebas is not a live exchange and not an offer of financial services.",
+  );
+  assert.doesNotMatch(LANDING_FOOTER, /protocol preview/i);
   assert.doesNotMatch(shipped, /\btrustless\b/i);
   assert.doesNotMatch(shipped, /\bis audited\b/i);
   assert.doesNotMatch(shipped, /\bpayable\b/i);

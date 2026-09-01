@@ -6,7 +6,7 @@ import { simulationStatus } from "@/lib/status";
 
 export const metadata: Metadata = {
   title: "Status",
-  description: "Phlebas simulation status. No live funds or custody. Matcher defaults to in-browser.",
+  description: "Phlebas status. No live funds or custody. Matcher defaults to in-browser.",
 };
 
 export default function StatusPage() {
@@ -14,11 +14,11 @@ export default function StatusPage() {
 
   return (
     <SimulationFrame
-      title="Simulation status"
+      title="Status"
       skipTo={{ href: "#status-ledger", label: "Skip to status ledger" }}
     >
-      <p>This deployment is a no-value interface. It does not accept funds.</p>
-      <dl id="status-ledger" tabIndex={-1} role="list" aria-label="Simulation status ledger">
+      <p>This preview does not accept funds. No mainnet funds.</p>
+      <dl id="status-ledger" tabIndex={-1} role="list" aria-label="Status ledger">
         <div role="listitem"><dt>Mode</dt><dd>{status.mode}</dd></div>
         <div role="listitem"><dt>Live funds</dt><dd>{status.liveFunds ? "yes" : "no"}</dd></div>
         <div role="listitem"><dt>Matcher</dt><dd>{status.matcher}</dd></div>
