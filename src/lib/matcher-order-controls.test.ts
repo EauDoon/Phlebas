@@ -160,6 +160,12 @@ async function confirmedOrder(
 ): Promise<ConfirmedMatcherOrderArtifact> {
   const orderHash = hashTypedOrder(order.deployment.orderDomain!, order.draft.order);
   const maker = order.makerAccountId;
+  const routed = status === "filled" || status === "partially-filled" || status === "ioc-remainder-cancelled";
+  const remainingBaseAtoms = status === "filled"
+    ? 0n
+    : routed
+      ? order.draft.order.baseAmountAtoms / 2n
+      : order.draft.order.baseAmountAtoms;
   const fetcher: MatcherOrderFetch = async (path, init) => {
     if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "GET") return json(health(order.deployment));
     if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(order.deployment));
@@ -171,10 +177,13 @@ async function confirmedOrder(
           version: 1,
           sequence: "10",
           requestId: order.draft.requestId,
+          commandHash: `0x${"a9".repeat(32)}`,
           kind: "accept-order",
           status,
           subjectHash: orderHash,
           occurredAtSeconds: order.draft.occurredAt.toString(),
+          ...(routed ? { routeKind: "order-book", swapPlanIds: [`0x${"c9".repeat(32)}`] } : { swapPlanIds: [] }),
+          remainingBaseAtoms: remainingBaseAtoms.toString(),
         },
         receiptCheckpoint: {
           version: 1,

@@ -161,10 +161,13 @@ function receipt(
       version: 1,
       sequence: "10",
       requestId: review.draft.requestId,
+      commandHash: `0x${"76".repeat(32)}`,
       kind: "accept-order",
       status: "open",
       subjectHash,
       occurredAtSeconds: occurredAtSeconds.toString(),
+      remainingBaseAtoms: review.draft.order.baseAmountAtoms.toString(),
+      swapPlanIds: [],
     },
     receiptCheckpoint: {
       version: 1,
