@@ -5,14 +5,14 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { simulationStatus } from "./status.ts";
+import { previewStatus } from "./status.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 test("status payload never claims live funds or custody", async () => {
   const statusRoute = await readFile(join(root, "src/app/api/status/route.ts"), "utf8");
-  assert.match(statusRoute, /Response\.json\(simulationStatus\(\)/);
-  const status = simulationStatus();
+  assert.match(statusRoute, /Response\.json\(previewStatus\(\)/);
+  const status = previewStatus();
   assert.equal(status.liveFunds, false);
   assert.equal(status.custody, "none");
   assert.equal(status.deposits, "disabled-fill-specific-wallet-locks");
@@ -46,19 +46,19 @@ test("vercel.json does not assign operator URLs", async () => {
 });
 
 test("status exposes matcher fields only for loopback operator URLs", () => {
-  const remote = simulationStatus({
+  const remote = previewStatus({
     PHLEBAS_MATCHER_URL: "https://example.com",
   });
   assert.equal(remote.sequenceRoot, null);
   assert.equal(remote.matcherService, "off");
 
-  const loopback = simulationStatus({
+  const loopback = previewStatus({
     PHLEBAS_MATCHER_URL: "http://127.0.0.1:8788",
   });
   assert.equal(loopback.sequenceRoot, null);
   assert.equal(loopback.matcherService, "persistent-native-v1-loopback-usdc");
 
-  const both = simulationStatus({
+  const both = previewStatus({
     PHLEBAS_MATCHER_USDC_URL: "http://127.0.0.1:8788",
     PHLEBAS_MATCHER_USDT_URL: "http://127.0.0.1:8789",
   });

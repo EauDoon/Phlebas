@@ -21,7 +21,7 @@ export function LandingTerminalPreview() {
         <p>{LANDING_TERMINAL_PREVIEW.supporting}</p>
       </div>
 
-      <div className={styles.terminalPreviewFrame}>
+      <article className={styles.terminalPreviewFrame}>
         <div className={styles.terminalPreviewHeader}>
           <span className={styles.designPill}>{LANDING_TERMINAL_PREVIEW.chip}</span>
           <p>ZEC / USDC · settles {market.settlementPair.replace("-", " / ")}</p>
@@ -38,41 +38,39 @@ export function LandingTerminalPreview() {
           </div>
         </dl>
 
-        <div className={styles.terminalPreviewGrid}>
-          <table className={styles.terminalPreviewBook}>
-            <caption>{market.id} depth. {LANDING_TERMINAL_PREVIEW.bound}</caption>
-            <thead>
-              <tr>
-                <th scope="col">Side</th>
-                <th scope="col">Price {market.quote}</th>
-                <th scope="col">Size ZEC</th>
+        <table className={styles.terminalPreviewBook}>
+          <caption>{market.id} depth. {LANDING_TERMINAL_PREVIEW.bound}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Side</th>
+              <th scope="col">Price {market.quote}</th>
+              <th scope="col">Size ZEC</th>
+            </tr>
+          </thead>
+          <tbody>
+            {asks.map((level) => (
+              <tr key={`ask-${level.priceTicks}`}>
+                <th scope="row">Ask</th>
+                <td>{formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}</td>
+                <td>{formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS)}</td>
               </tr>
-            </thead>
-            <tbody>
-              {asks.map((level) => (
-                <tr key={`ask-${level.priceTicks}`}>
-                  <th scope="row">Ask</th>
-                  <td>{formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}</td>
-                  <td>{formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS)}</td>
-                </tr>
-              ))}
-              {bids.map((level) => (
-                <tr key={`bid-${level.priceTicks}`}>
-                  <th scope="row">Bid</th>
-                  <td>{formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}</td>
-                  <td>{formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+            {bids.map((level) => (
+              <tr key={`bid-${level.priceTicks}`}>
+                <th scope="row">Bid</th>
+                <td>{formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}</td>
+                <td>{formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-          <div className={styles.terminalPreviewTicket}>
-            <span className={styles.eyebrow}>{LANDING_TERMINAL_PREVIEW.ticketEyebrow}</span>
-            <p>{LANDING_TERMINAL_PREVIEW.ticketSummary}</p>
-            <p>{LANDING_TERMINAL_PREVIEW.bound}</p>
-          </div>
-        </div>
-      </div>
+        <aside className={styles.terminalPreviewTicket}>
+          <span className={styles.eyebrow}>{LANDING_TERMINAL_PREVIEW.ticketEyebrow}</span>
+          <p>{LANDING_TERMINAL_PREVIEW.ticketSummary}</p>
+          <p>{LANDING_TERMINAL_PREVIEW.bound}</p>
+        </aside>
+      </article>
 
       <Link href={LANDING_TERMINAL_PREVIEW.href} className={styles.primaryCta}>{LANDING_TERMINAL_PREVIEW.cta} <span>↗</span></Link>
     </section>

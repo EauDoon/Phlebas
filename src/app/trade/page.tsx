@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { SimulationLoading } from "@/components/simulation-loading";
+import { TerminalLoading } from "@/components/terminal-loading";
 import { TradingTerminal } from "@/components/trading-terminal";
 import { parseAccessDemo } from "@/lib/access-demo";
 import { isLoadingForceQuery } from "@/lib/loading-demo";
@@ -54,7 +54,7 @@ export default async function TradePage({
     throw new Error(RENDER_FAILURE_MESSAGE);
   }
   if (isLoadingForceQuery(loading)) {
-    return <SimulationLoading />;
+    return <TerminalLoading />;
   }
   return (
     <TradingTerminal

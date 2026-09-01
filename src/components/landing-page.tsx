@@ -48,19 +48,24 @@ export function LandingPage() {
       <main id="main-content" tabIndex={-1}>
         <section className={styles.hero} aria-labelledby="hero-title">
           <div className={styles.heroStatement}>
-            <span className={styles.eyebrow}>{LANDING_HERO.eyebrow}</span>
-            <h1 id="hero-title">{LANDING_HERO.heading}</h1>
+            <div>
+              <span className={styles.eyebrow}>{LANDING_HERO.eyebrow}</span>
+              <h1 id="hero-title">{LANDING_HERO.heading}</h1>
+            </div>
             <p>{LANDING_HERO.supporting}</p>
           </div>
 
           <aside className={styles.systemLedger} aria-labelledby="system-ledger-title">
             <div className={styles.ledgerHeader}>
-              <div><h2 id="system-ledger-title">{LANDING_LEDGER_HEADING}</h2></div>
+              <h2 id="system-ledger-title">{LANDING_LEDGER_HEADING}</h2>
               <span className={styles.designPill}>{LANDING_LEDGER_PILL}</span>
             </div>
             <dl role="list" aria-label={LANDING_LEDGER_HEADING}>
               {LANDING_LEDGER.map((row) => (
-                <div key={row.label} role="listitem"><dt>{row.label}</dt><dd>{row.value}</dd></div>
+                <div key={row.label} role="listitem">
+                  <dt>{row.label}</dt>
+                  <dd>{row.value}</dd>
+                </div>
               ))}
             </dl>
             <p>{LANDING_LEDGER_NOTE}</p>
@@ -96,7 +101,7 @@ export function LandingPage() {
         </section>
 
         <section className={styles.pairsSection} id="settlement-how" tabIndex={-1} aria-labelledby="settlement-how-title">
-          <div className={styles.pairsCopy}>
+          <div className={`${styles.pairsCopy} ${styles.sectionIntro}`}>
             <span className={styles.eyebrow}>{LANDING_SETTLEMENT_INTRO.eyebrow}</span>
             <h2 id="settlement-how-title">{LANDING_SETTLEMENT_INTRO.heading}</h2>
             <p>{LANDING_SETTLEMENT_INTRO.supporting}</p>
@@ -105,7 +110,10 @@ export function LandingPage() {
             {LANDING_SETTLEMENT_STEPS.map((step, index) => (
               <li key={step.title}>
                 <span>{String(index + 1).padStart(2, "0")}</span>
-                <div><strong>{step.title}</strong><small>{step.detail}</small></div>
+                <div>
+                  <strong>{step.title}</strong>
+                  <small>{step.detail}</small>
+                </div>
               </li>
             ))}
           </ol>
@@ -141,7 +149,7 @@ export function LandingPage() {
         </section>
 
         <section className={styles.gatesSection} id="launch-gates" tabIndex={-1} aria-labelledby="gates-title">
-          <div>
+          <div className={styles.sectionIntro}>
             <span className={styles.eyebrow}>{LANDING_GATES_INTRO.eyebrow}</span>
             <h2 id="gates-title">{LANDING_GATES_INTRO.heading}</h2>
           </div>

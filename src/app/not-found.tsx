@@ -1,10 +1,10 @@
 import Link from "next/link";
 
-import { SimulationFrame } from "@/components/simulation-frame";
+import { SiteChrome } from "@/components/site-chrome";
 
 export default function NotFound() {
   return (
-    <SimulationFrame
+    <SiteChrome
       title="Page not found"
       skipTo={{ href: "#missing-route", label: "Skip to missing-route copy" }}
     >
@@ -16,6 +16,6 @@ export default function NotFound() {
           <Link href="/trade?view=trade">Open the trading terminal</Link>
         </p>
       </article>
-    </SimulationFrame>
+    </SiteChrome>
   );
 }

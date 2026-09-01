@@ -8,7 +8,7 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, background: "#070b0c", color: "#e7eef0", fontFamily: "Segoe UI, sans-serif" }}>
+      <body style={{ margin: 0, background: "#0a0908", color: "#f3efe6", fontFamily: "Segoe UI, sans-serif" }}>
         <style>{`
           nav[aria-label="Skip links"] {
             display: flex;
@@ -33,7 +33,7 @@ export default function GlobalError({
             flex-shrink: 0;
           }
           nav[aria-label="Skip links"] a:focus-visible {
-            outline: 2px solid #042f2e;
+            outline: 2px solid #161204;
             outline-offset: 2px;
           }
         `}</style>
@@ -46,7 +46,7 @@ export default function GlobalError({
               minHeight: 44,
               alignItems: "center",
               padding: "9px 12px",
-              color: "#042f2e",
+              color: "#161204",
               background: "#f0c14b",
               fontSize: 12,
               fontWeight: 700,
@@ -62,7 +62,7 @@ export default function GlobalError({
               minHeight: 44,
               alignItems: "center",
               padding: "9px 12px",
-              color: "#042f2e",
+              color: "#161204",
               background: "#f0c14b",
               fontSize: 12,
               fontWeight: 700,

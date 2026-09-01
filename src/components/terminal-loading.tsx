@@ -5,7 +5,7 @@ import { activateSkipLink } from "@/lib/skip-link";
 import { PreviewChip } from "./preview-chip";
 import styles from "./terminal.module.css";
 
-export function SimulationLoading() {
+export function TerminalLoading() {
   return (
     <div className={styles.shell}>
       <nav className={styles.skipNav} aria-label="Skip links">

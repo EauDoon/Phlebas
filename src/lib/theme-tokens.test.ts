@@ -22,11 +22,11 @@ test("shipped accent is warm yellow and not retired gold", async () => {
   assert.match(globals, /--accent-dim:\s*#a67c1a;/i);
   assert.match(globals, /--accent-fg:\s*#161204;/i);
   assert.match(globals, /--accent-soft:\s*rgba\(240,\s*193,\s*75,\s*0\.14\)/i);
-  assert.match(globals, /--background:\s*#070b0c;/);
-  assert.match(globals, /--surface:\s*#0b1214;/);
-  assert.match(globals, /--info:\s*#7bb8ff;/);
-  assert.match(globals, /--buy:\s*#34d399;/);
-  assert.match(globals, /--sell:\s*#fb7185;/);
+  assert.match(globals, /--background:\s*#0a0908;/);
+  assert.match(globals, /--surface:\s*#141210;/);
+  assert.match(globals, /--info:\s*#7eb6ff;/);
+  assert.match(globals, /--buy:\s*#3dcc8a;/);
+  assert.match(globals, /--sell:\s*#f07178;/);
 });
 
 test("owned UI CSS does not ship leftover teal or retired gold", async () => {

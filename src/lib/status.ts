@@ -1,6 +1,6 @@
 import { isLoopbackOperatorUrl } from "./operator-url.ts";
 
-export function simulationStatus(env: Record<string, string | undefined> = process.env) {
+export function previewStatus(env: Record<string, string | undefined> = process.env) {
   const usdcMatcherLoopback = isLoopbackOperatorUrl(env.PHLEBAS_MATCHER_USDC_URL ?? env.PHLEBAS_MATCHER_URL);
   const usdtMatcherLoopback = isLoopbackOperatorUrl(env.PHLEBAS_MATCHER_USDT_URL);
   const matcherService = usdcMatcherLoopback && usdtMatcherLoopback

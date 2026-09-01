@@ -153,7 +153,7 @@ export function WalletBar({
   if (wallet.address && !wallet.error) {
     return (
       <div className={styles.headerActions}>
-        <span className={styles.network}><i />Ethereum Mainnet</span>
+        <span className={styles.network}>Ethereum Mainnet</span>
         <button
           type="button"
           className={styles.connectButton}
@@ -171,7 +171,7 @@ export function WalletBar({
 
   return (
     <div className={styles.headerActions}>
-      <span className={styles.network}><i />Ethereum Mainnet</span>
+      <span className={styles.network}>Ethereum Mainnet</span>
       {providers.length > 1 ? (
         <select
           aria-label="EVM wallet provider"

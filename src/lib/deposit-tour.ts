@@ -42,7 +42,7 @@ export const DEPOSIT_TOUR = [
   {
     id: "mint-queued",
     title: "Mint queued",
-    body: "One outpoint would authorize at most one 8-decimal receipt. Nothing is minted in this simulation.",
+    body: "One outpoint would authorize at most one 8-decimal receipt. Nothing is minted.",
   },
   {
     id: "complete",

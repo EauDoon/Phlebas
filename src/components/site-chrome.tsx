@@ -10,7 +10,7 @@ import { PreviewChip } from "./preview-chip";
 import { SiteFooter } from "./site-footer";
 import styles from "./terminal.module.css";
 
-export function SimulationFrame({
+export function SiteChrome({
   title,
   children,
   skipTo,

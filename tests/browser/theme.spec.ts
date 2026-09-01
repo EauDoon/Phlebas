@@ -1,6 +1,7 @@
 import { expect, PREVIEW_CHIP, test } from "./fixtures";
 
 const ACCENT = "rgb(240, 193, 75)";
+const BACKGROUND = "rgb(10, 9, 8)";
 const RETIRED_GOLD = "rgb(244, 201, 93)";
 const RETIRED_TEAL = "rgb(45, 212, 191)";
 
@@ -10,6 +11,11 @@ const routes = [
   { path: "/liquidity", name: "liquidity" },
   { path: "/status", name: "status" },
   { path: "/missing-theme-route", name: "404" },
+] as const;
+
+const backgroundRoutes = [
+  { path: "/", name: "landing" },
+  { path: "/trade", name: "trade" },
 ] as const;
 
 for (const route of routes) {
@@ -32,5 +38,13 @@ for (const route of routes) {
     const skipBackground = await skip.evaluate((element) => getComputedStyle(element).backgroundColor);
     expect(skipBackground, `${route.name} skip-link background`).toBe(ACCENT);
     expect(skipBackground.toLowerCase(), `${route.name} skip-link is not retired gold`).not.toBe(RETIRED_GOLD);
+  });
+}
+
+for (const route of backgroundRoutes) {
+  test(`${route.name} body background is warm near-black`, async ({ page }) => {
+    await page.goto(route.path, { waitUntil: "networkidle" });
+    const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(background, `${route.name} body background`).toBe(BACKGROUND);
   });
 }

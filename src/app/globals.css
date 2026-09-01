@@ -1,29 +1,29 @@
 :root {
   --font-geist-sans: "Segoe UI", Inter, Arial, Helvetica, sans-serif;
   --font-geist-mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
-  --background: #070b0c;
-  --surface: #0b1214;
-  --surface-raised: #111a1d;
-  --surface-soft: #111a1d;
-  --elevated: #111a1d;
-  --border: #1f2a2e;
-  --border-strong: #1f2a2e;
-  --line: #1f2a2e;
-  --text: #e7eef0;
-  --text-secondary: #8aa0a6;
-  --text-muted: #8aa0a6;
-  --muted: #8aa0a6;
+  --background: #0a0908;
+  --surface: #141210;
+  --surface-raised: #1b1814;
+  --surface-soft: #1b1814;
+  --elevated: #1b1814;
+  --border: #2c2820;
+  --border-strong: #2c2820;
+  --line: #2c2820;
+  --text: #f3efe6;
+  --text-secondary: #9a9284;
+  --text-muted: #9a9284;
+  --muted: #9a9284;
   --accent: #f0c14b;
   --accent-dim: #a67c1a;
   --accent-fg: #161204;
   --accent-soft: rgba(240, 193, 75, 0.14);
-  --buy: #34d399;
-  --buy-soft: rgba(52, 211, 153, 0.1);
-  --bid: #34d399;
-  --sell: #fb7185;
-  --sell-soft: rgba(251, 113, 133, 0.1);
-  --ask: #fb7185;
-  --info: #7bb8ff;
+  --buy: #3dcc8a;
+  --buy-soft: rgba(61, 204, 138, 0.12);
+  --bid: #3dcc8a;
+  --sell: #f07178;
+  --sell-soft: rgba(240, 113, 120, 0.12);
+  --ask: #f07178;
+  --info: #7eb6ff;
 }
 
 * {

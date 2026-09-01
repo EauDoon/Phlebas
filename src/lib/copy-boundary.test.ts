@@ -8,7 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { simulationStatus } from "./status.ts";
+import { previewStatus } from "./status.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const execFileAsync = promisify(execFile);
@@ -165,7 +165,7 @@ test("shipped modules carry the pre-launch product vocabulary", async () => {
   const landingCopy = await readFile(join(root, "src/lib/landing-copy.ts"), "utf8");
   const landing = await readFile(join(root, "src/components/landing-page.tsx"), "utf8");
   const header = await readFile(join(root, "src/components/landing-header.tsx"), "utf8");
-  const frame = await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8");
+  const frame = await readFile(join(root, "src/components/site-chrome.tsx"), "utf8");
   const terminal = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");
   const ticket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
   const session = await readFile(join(root, "src/lib/session.ts"), "utf8");
@@ -213,8 +213,8 @@ test("shipped modules carry the pre-launch product vocabulary", async () => {
 
 test("status payload cannot be read as live funds or custody", async () => {
   const statusRoute = await readFile(join(root, "src/app/api/status/route.ts"), "utf8");
-  assert.match(statusRoute, /Response\.json\(simulationStatus\(\)/);
-  const status = simulationStatus();
+  assert.match(statusRoute, /Response\.json\(previewStatus\(\)/);
+  const status = previewStatus();
   assert.equal(status.liveFunds, false);
   assert.equal(status.mode, "preview");
   assert.equal(status.custody, "none");
@@ -257,10 +257,10 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(landing, /id="settlement-how"/);
   assert.match(landing, /id="why-not-wrapped"/);
   assert.match(landing, /id="paths"/);
-  assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /PreviewChip/);
-  assert.doesNotMatch(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Simulation disclosure/);
-  assert.match(await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8"), /PreviewChip/);
-  assert.doesNotMatch(await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8"), /Simulation disclosure/);
+  assert.match(await readFile(join(root, "src/components/site-chrome.tsx"), "utf8"), /PreviewChip/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/site-chrome.tsx"), "utf8"), /Simulation disclosure/);
+  assert.match(await readFile(join(root, "src/components/terminal-loading.tsx"), "utf8"), /PreviewChip/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/terminal-loading.tsx"), "utf8"), /Simulation disclosure/);
   assert.match(chip, /no mainnet funds/);
   assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Phlebas is not a live exchange and not an offer of financial services/);
   assert.doesNotMatch(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /GitHub/);
@@ -439,7 +439,7 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(await readFile(join(root, "src/components/order-book.tsx"), "utf8"), /id="order-book"/);
   assert.match(terminal, /id="recent-trades"/);
   assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Launch gates/);
-  assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /SiteFooter/);
+  assert.match(await readFile(join(root, "src/components/site-chrome.tsx"), "utf8"), /SiteFooter/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /Skip to status ledger/);
   const terminalCss = await readFile(join(root, "src/components/terminal.module.css"), "utf8");
   assert.match(terminalCss, /:global\(#main-content\)/);
@@ -774,8 +774,8 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(await readFile(join(root, "src/app/trade/page.tsx"), "utf8"), /isRenderFailureQuery/);
   assert.match(await readFile(join(root, "src/app/trade/page.tsx"), "utf8"), /RENDER_FAILURE_MESSAGE/);
   assert.match(await readFile(join(root, "src/app/trade/page.tsx"), "utf8"), /isLoadingForceQuery/);
-  assert.match(await readFile(join(root, "src/app/trade/page.tsx"), "utf8"), /SimulationLoading/);
-  assert.match(await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8"), /aria-label="Withheld-price notice"/);
+  assert.match(await readFile(join(root, "src/app/trade/page.tsx"), "utf8"), /TerminalLoading/);
+  assert.match(await readFile(join(root, "src/components/terminal-loading.tsx"), "utf8"), /aria-label="Withheld-price notice"/);
   assert.match(await readFile(join(root, "src/app/error.tsx"), "utf8"), /Skip to retry copy/);
   assert.match(await readFile(join(root, "src/app/error.tsx"), "utf8"), /id="retry-copy"/);
   assert.match(await readFile(join(root, "src/app/error.tsx"), "utf8"), /Nothing was submitted/);
@@ -790,7 +790,7 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(globalError, /flex-wrap: wrap/);
   assert.match(globalError, /width: 100%/);
   assert.match(globalError, /flex: 1 1 calc\(50% - 4px\)/);
-  assert.match(globalError, /outline: 2px solid #042f2e/);
+  assert.match(globalError, /outline: 2px solid #161204/);
   assert.match(globalError, /a:last-child/);
   assert.match(globalError, /flex-shrink: 0/);
   assert.doesNotMatch(globalError, /is a live exchange/);
@@ -913,14 +913,14 @@ test("Open Graph and Twitter cards stay labeled as a public preview", async () =
 });
 
 test("route loading copy withholds prices and does not claim a live market", async () => {
-  const loading = await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8");
+  const loading = await readFile(join(root, "src/components/terminal-loading.tsx"), "utf8");
   assert.match(loading, /id="withheld-price"/);
   assert.match(loading, /Skip to withheld-price notice/);
   assert.match(loading, /No market data is live/);
   assert.match(loading, /Nothing was submitted/);
   assert.doesNotMatch(loading, /APY|wallet balance|tex1/i);
-  assert.match(await readFile(join(root, "src/app/trade/loading.tsx"), "utf8"), /SimulationLoading/);
-  assert.match(await readFile(join(root, "src/app/liquidity/loading.tsx"), "utf8"), /SimulationLoading/);
+  assert.match(await readFile(join(root, "src/app/trade/loading.tsx"), "utf8"), /TerminalLoading/);
+  assert.match(await readFile(join(root, "src/app/liquidity/loading.tsx"), "utf8"), /TerminalLoading/);
   assert.equal(existsSync(join(root, "src/app/loading.tsx")), false);
 });
 

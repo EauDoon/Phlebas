@@ -33,7 +33,7 @@ export function LandingHeader() {
   return (
     <header className={styles.header}>
       <Link href="/" className={styles.brand} aria-label="Phlebas home">
-        <span className={styles.brandMark}>P</span>
+        <span className={styles.brandMark} aria-hidden="true">P</span>
         <span>PHLEBAS</span>
       </Link>
 
@@ -48,10 +48,18 @@ export function LandingHeader() {
       <div className={styles.headerActions}>
         <Link href={LANDING_HERO.secondaryHref} className={styles.headerSecondary}>{LANDING_HERO.secondaryAction}</Link>
         <Link href={LANDING_HERO.primaryHref} className={styles.headerCta}>{LANDING_HERO.primaryAction}</Link>
-        <button type="button" className={styles.menuButton} onClick={openMenu}>Menu</button>
+        <button
+          type="button"
+          className={styles.menuButton}
+          aria-haspopup="dialog"
+          aria-controls="landing-menu"
+          onClick={openMenu}
+        >
+          Menu
+        </button>
       </div>
 
-      <dialog ref={dialogRef} className={styles.menuDialog} aria-labelledby="menu-title">
+      <dialog ref={dialogRef} id="landing-menu" className={styles.menuDialog} aria-labelledby="menu-title">
         <div className={styles.menuDialogHeader}>
           <strong id="menu-title">Navigate Phlebas</strong>
           <button type="button" onClick={closeMenu} aria-label="Close menu">Close</button>

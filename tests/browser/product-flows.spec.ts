@@ -7,7 +7,7 @@ import { NATIVE_MATCHER_DISABLED_COPY } from "../../src/lib/native-matcher-order
 import { payoutClaimForTourStep } from "../../src/lib/payout.ts";
 import { isEducationLastStep, PREVIEW_EDUCATION_STEPS } from "../../src/lib/preview-education.ts";
 import { describeSubmit, seedBook, ticketRejectCopy } from "../../src/lib/session.ts";
-import { simulationStatus } from "../../src/lib/status.ts";
+import { previewStatus } from "../../src/lib/status.ts";
 import { parseAtomicUnits, PRICE_DECIMALS, worstPriceTicks, ZEC_DECIMALS } from "../../src/lib/units.ts";
 import { unresolvedWithdrawalTourIndex, WITHDRAWAL_TOUR } from "../../src/lib/withdrawal-tour.ts";
 
@@ -100,7 +100,7 @@ test("wallet connect without a provider names the rejection while the native mat
 });
 
 test("status, missing route, and render-failure retry change visible state", async ({ page }) => {
-  const status = simulationStatus();
+  const status = previewStatus();
   await page.goto("/status", { waitUntil: "networkidle" });
   const ledger = page.getByRole("list", { name: "Status ledger" });
   await expect(ledger).toBeVisible();

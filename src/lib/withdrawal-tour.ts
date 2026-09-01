@@ -2,7 +2,7 @@ export const WITHDRAWAL_TOUR = [
   { id: "requested", title: "Requested", body: "Amount, transparent destination, network fee, service fee, and net output would be reviewed before any burn." },
   { id: "screened", title: "Screened", body: "Eligibility and destination checks run here. Signing the burn is the last action of this state." },
   { id: "rejected", title: "Rejected", body: "Destination or eligibility failed before burn. Nothing was burned. Nothing is sent." },
-  { id: "burn submitted", title: "Burn submitted", body: "A legacy EVM burn is unfinalized. The simulation does not submit a transaction." },
+  { id: "burn submitted", title: "Burn submitted", body: "A legacy EVM burn is unfinalized. This tour does not submit a transaction." },
   { id: "expired", title: "Expired evidence", body: "Burn evidence expired or was reorganized. Closed without a finalized burn. Nothing is sent. This is not live settlement." },
   { id: "burn finalized", title: "Burn finalized", body: "After legacy EVM finality the burn is consumed once and a native payout claim exists." },
   { id: "payable", title: "Payable", body: "The ledger owes transparent ZEC. No Zcash transaction has been signed." },

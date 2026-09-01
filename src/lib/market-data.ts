@@ -182,7 +182,7 @@ export function formatSignedChange(changeBps: number): string {
 // PR 5: public market data over the matcher's live operator state.
 //
 // The exports above (markets, books, recentTrades, pools) are the
-// no-value paper-trading fixtures consumed by the frontend simulation.
+// illustrative paper-trading books consumed by the frontend preview.
 // The exports below are pure functions over the matcher's live
 // MatcherOperator, exposed by the /ticker, /trades, /depth, and
 // /markets HTTP endpoints. The two surfaces never share state; the
