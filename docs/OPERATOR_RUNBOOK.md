@@ -56,7 +56,15 @@ A configured service exposes:
 | `GET /v1/executions?after=N&limit=L` | Return fills and blocked no-value swap plans |
 | `GET /v1/requests/{requestId}` | Resolve an idempotency receipt |
 
-Every mutation requires JSON, an `Idempotency-Key` header equal to the payload `requestId`, and the exact event kind for the route. The service rejects unknown, missing, duplicate, prototype-sensitive, oversized, excessive-depth, and excessive-node input. Default limits are 64 KiB per body, 64 admitted mutations, 120 mutations per remote address per minute, and 100 feed records per page.
+Every mutation requires JSON, an `Idempotency-Key` header equal to the payload `requestId`, the exact event kind for the route, and `x-phlebas-matcher-configuration` equal to the active configuration hash. A missing or stale configuration header fails closed. The service rejects unknown, missing, duplicate, prototype-sensitive, oversized, excessive-depth, and excessive-node input. Default limits are 64 KiB per body, 64 admitted mutations, 120 mutations per remote address per minute, and 100 feed records per page.
+
+### User-owned controls
+
+`cancel-order` and `advance-epoch` are EIP-712 typed controls in the distinct `Phlebas Matcher Control` domain. A cancellation is verified against the accepted order's signer, account epoch, and nonce. An epoch advance is verified for the account signer and invalidates that account's open orders. They cannot authorize transaction construction, signing, broadcast, custody, or asset movement.
+
+One request ID cannot be reused for a different matcher command. A matching replay returns its existing receipt, which can be looked up through `GET /v1/requests/{requestId}`. The browser order flow preserves immutable signed order bytes for retry and reports `receipt-unknown` after an uncertain result. Browser control retry and control `receipt-unknown` handling are planned, not implemented.
+
+The tracked native matcher manifest remains disabled and no-value. This runbook does not authorize activation, a hosted production matcher, wallet execution, contract deployment, chain access, or live funds.
 
 See [ADR 0003](adr/0003-persistent-native-matcher.md) for exact semantics and unresolved production gates.
 

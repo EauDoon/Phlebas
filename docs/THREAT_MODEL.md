@@ -157,6 +157,12 @@ Phlebas depends on the following trusted or governed parties:
 
 ### Persistent matcher threat delta
 
+`cancel-order` and `advance-epoch` are user-owned EIP-712 typed controls in the separate `Phlebas Matcher Control` domain. They are not order-intent signatures. Cancellation verification binds the accepted order's signer, account epoch, and nonce. A valid epoch advance invalidates that account's open orders.
+
+Every matcher mutation requires the exact active `x-phlebas-matcher-configuration` header, an idempotency key equal to the request ID, and the event kind assigned to its endpoint. The loopback proxy checks the manifest-enabled matcher identity before forwarding and binds accepted responses to the submitted action, request ID, and checkpoint. Absent configuration, stale configuration, wrong action, malformed body, unavailable operator, or malformed receipt fails closed.
+
+The browser order flow preserves immutable signed bytes and the idempotency key when a response is uncertain. It reports `receipt-unknown` and retries only that artifact. Browser retry and `receipt-unknown` handling for cancellation and epoch controls are planned, not implemented. The tracked deployment manifest remains disabled and no-value, so these controls do not activate production matching or any asset-moving path.
+
 | Threat | Current control | Residual risk |
 | --- | --- | --- |
 | Journal mutation, truncation, gaps, or configuration drift | Hash-chained records, checkpoint and state-root verification, immutable configuration hash, and fail-closed replay | Pre-acceptance omission and delayed publication remain possible |

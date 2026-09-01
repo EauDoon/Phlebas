@@ -85,6 +85,18 @@ The active settlement architecture is recorded in [ADR 0002](docs/adr/0002-nativ
 
 The current public app simulates this journey. Asset-moving wallet signing and chain broadcast stay disabled until the exact wallet, Testnet, contract, observer, legal, and release gates pass.
 
+## Matcher user controls
+
+`cancel-order` and `advance-epoch` are user-owned EIP-712 typed controls in the distinct `Phlebas Matcher Control` domain. They do not reuse the order-intent authorization.
+
+A cancellation is verified against the accepted order's authorized signer, account epoch, and nonce. An epoch advance is verified for its account signer and invalidates that account's open orders. Neither control signs, constructs, broadcasts, or moves an asset transaction.
+
+Every matcher mutation requires JSON, an `Idempotency-Key` equal to the payload `requestId`, and the exact active `x-phlebas-matcher-configuration` value. The matcher rejects a missing or stale configuration binding, an action sent to the wrong endpoint, or a receipt that does not bind the submitted request and checkpoint.
+
+The browser request and receipt paths fail closed. The browser order path preserves immutable signed bytes and its idempotency key when a result is uncertain. It reports `receipt-unknown` for a lost, failed, or malformed result, then retries only those same bytes. Control-specific browser retry and `receipt-unknown` handling is planned, not implemented.
+
+The tracked native matcher deployment manifest remains disabled and no-value. These controls do not activate a production matcher or enable a wallet, contract, chain, or asset-moving path.
+
 ## Repository map
 
 | Path | Purpose |
