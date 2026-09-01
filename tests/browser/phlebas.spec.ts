@@ -5315,3 +5315,75 @@ test("liquidity architecture leftover at 1440 legal status leftover at 768 and 4
   await leftover("/status", 768, 1024, 2);
   await leftover("/this-route-is-not-part-of-the-simulation", 390, 844, 2);
 });
+
+test("trading-terminal skip-nav sets data-skip-nav-state to hidden-after-activation after a skip link is clicked", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "hidden");
+  await page.keyboard.press("Tab");
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "visible");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await skip.click();
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "hidden-after-activation");
+});
+
+test("trading-terminal skip-nav stays hidden-after-activation on re-tab until a non-Escape key lands", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await skip.click();
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "hidden-after-activation");
+  // tab into the next skip link inside the same nav: focusin must return the state to visible
+  const secondSkip = nav.getByRole("link").nth(1);
+  await secondSkip.focus();
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "visible");
+});
+
+test("trading-terminal skip-nav sets data-skip-nav-state to hidden-after-activation on Escape after activation", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  await page.keyboard.press("Tab");
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "visible");
+  await page.keyboard.press("Escape");
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "hidden-after-activation");
+});
+
+test("simulation-frame skip-nav sets data-skip-nav-state to hidden-after-activation after a skip link is clicked", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/status", { waitUntil: "networkidle" });
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "hidden");
+  await page.keyboard.press("Tab");
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "visible");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await skip.click();
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "hidden-after-activation");
+});
+
+test("simulation-frame skip-nav returns data-skip-nav-state to visible when a child skip link is refocused after activation", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/status", { waitUntil: "networkidle" });
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await skip.click();
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "hidden-after-activation");
+  // focus any link inside the nav so the focusin handler fires (focusin bubbles)
+  const secondLink = nav.getByRole("link").nth(1);
+  await secondLink.focus();
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "visible");
+});
+
+test("simulation-frame skip-nav sets data-skip-nav-state to hidden-after-activation on Escape after activation", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/status", { waitUntil: "networkidle" });
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  await page.keyboard.press("Tab");
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "visible");
+  await page.keyboard.press("Escape");
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "hidden-after-activation");
+});
