@@ -61,3 +61,42 @@ can merge.
 If the suite fails in CI and the fix is not obvious, revert the
 PR and open a follow-up. The accessibility surface is not
 reverted individually.
+
+## Skip-nav controller contract
+
+The simulation frame's skip-nav is a React component that wires a
+pure state machine to a DOM <nav> element. The state machine
+(src/lib/skip-nav-state.ts) is the source of truth. The DOM
+element carries a data-skip-nav-state attribute that mirrors the
+state. The CSS rule
+src/components/terminal.module.css
+applies the 	ransform: translateY(-220%); min-height: 0;
+pointer-events: none; rules when the attribute is
+hidden-after-activation.
+
+### State values
+
+| State | Trigger | DOM attribute | CSS effect |
+| --- | --- | --- | --- |
+| hidden | initial render | data-skip-nav-state="hidden" | off-screen via the default 	ransform: translateY(-220%) |
+| isible | focusin on the nav or a child link | data-skip-nav-state="visible" | in flow via the :focus-within rule |
+| hidden-after-activation | click on a skip link, or Escape after activation | data-skip-nav-state="hidden-after-activation" | off-screen and non-interactive even when focused |
+
+### Controller wiring
+
+The controller lives in the useEffect in
+src/components/simulation-frame.tsx. It registers three
+listeners on the nav:
+
+* click calls 
+extSkipNavState(state, { kind: "click" })
+* ocusin calls 
+extSkipNavState(state, { kind: "focusin" })
+* keydown calls 
+extSkipNavState(state, { kind: "keydown", key }) for Escape
+
+The controller is a thin DOM adapter. It never reaches out to the
+network and never signs a transaction. The state machine is the
+only place that decides the next state. To change the behavior,
+edit the state machine and the CSS rule. The Playwright tests
+assert the attribute transitions on click, focusin, and Escape.
