@@ -69,17 +69,18 @@ function zcashAccount(name: string): string {
 
 function event(requestId = "order-one", nonce = 1n): Extract<PersistentMatcherEvent, { kind: "accept-order" }> {
   const suffix = nonce.toString();
-  const sourceAccount = zcashAccount(`maker:${suffix}`);
-  const recipientAccount = `${quoteNetwork}:0x1111111111111111111111111111111111111111`;
+  const sourceAccount = `${quoteNetwork}:0x${suffix.padStart(40, "0")}`;
+  const recipientAccount = zcashAccount(`recipient:${suffix}`);
+  const sourceAccountId = accountIdentifier(sourceAccount);
   const order: TypedOrderIntent = {
-    makerAccountId: accountIdentifier(sourceAccount),
-    authorizedSignerId: accountIdentifier(`${quoteNetwork}:signer-${suffix}`),
+    makerAccountId: sourceAccountId,
+    authorizedSignerId: sourceAccountId,
     recipientAccountId: accountIdentifier(recipientAccount),
     baseChainId: chainIdentifier(baseNetwork),
     baseAssetId: assetIdentifier(baseAsset),
     quoteChainId: chainIdentifier(quoteNetwork),
     quoteAssetId: assetIdentifier(quoteAsset),
-    side: 1,
+    side: 0,
     baseAmountAtoms: 100_000_000n,
     limitPriceTicks: 5_000n,
     nonce,
@@ -208,7 +209,7 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
     const receipt = await fetch(`${origin}/v1/requests/order-one`);
     assert.equal(receipt.status, 200);
     const book = await json(await fetch(`${origin}/v1/market/book`));
-    assert.equal(((book.book as { asks: unknown[] }).asks).length, 1);
+    assert.equal(((book.book as { bids: unknown[] }).bids).length, 1);
     assert.equal((await fetch(`${origin}/v1/checkpoint`)).status, 200);
     assert.equal((await fetch(`${origin}/v1/executions?after=1`)).status, 200);
     await close(server);
@@ -258,6 +259,75 @@ test("rejects a mismatched order market before signature verification or persist
     });
     assert.equal(response.status, 422);
     assert.equal((await json(response)).reason, "order-market-does-not-match-matcher");
+    assert.equal(verificationCalls, 0);
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
+  } finally {
+    await close(server);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects sell and delegated buy authority before signature verification or persistence", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-authority-"));
+  let verificationCalls = 0;
+  const checkedVerifier: MatcherSignatureVerifier = {
+    verify() {
+      verificationCalls += 1;
+    },
+  };
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: directory,
+    configuration,
+    verifier: checkedVerifier,
+    clockSeconds: () => now,
+  });
+  const origin = await listen(server);
+  const buy = event("buy-authority");
+  const sellSource = zcashAccount("sell-authority");
+  const sellRecipient = `${quoteNetwork}:0x1111111111111111111111111111111111111111`;
+  const sell = {
+    ...buy,
+    requestId: "sell-authority",
+    submission: {
+      ...buy.submission,
+      order: {
+        ...buy.submission.order,
+        side: 1 as const,
+        makerAccountId: accountIdentifier(sellSource),
+        recipientAccountId: accountIdentifier(sellRecipient),
+      },
+      accounts: { sourceAccount: sellSource, recipientAccount: sellRecipient },
+    },
+  };
+  const delegated = {
+    ...buy,
+    requestId: "delegated-buy",
+    submission: {
+      ...buy.submission,
+      order: {
+        ...buy.submission.order,
+        authorizedSignerId: accountIdentifier(`${quoteNetwork}:0x2222222222222222222222222222222222222222`),
+      },
+    },
+  };
+  try {
+    const sellResponse = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": sell.requestId },
+      body: JSON.stringify(payload(sell)),
+    });
+    assert.equal(sellResponse.status, 422);
+    assert.equal((await json(sellResponse)).reason, "zcash-wallet-order-authorization-not-implemented");
+
+    const delegatedResponse = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": delegated.requestId },
+      body: JSON.stringify(payload(delegated)),
+    });
+    assert.equal(delegatedResponse.status, 422);
+    assert.equal((await json(delegatedResponse)).reason, "buy-source-account-must-match-authorized-signer");
     assert.equal(verificationCalls, 0);
     assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
   } finally {

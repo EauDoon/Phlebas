@@ -292,7 +292,15 @@ function assertOrderMatchesConfiguredMarketBeforeMutation(
   event: Extract<PersistentMatcherEvent, { kind: "accept-order" }>,
   configuration: PersistentMatcherConfiguration,
 ): void {
-  assertOrderMatchesConfiguredMarket(event.submission.order, configuration);
+  const order = event.submission.order;
+  assertOrderMatchesConfiguredMarket(order, configuration);
+  if (order.side !== 0) {
+    throw new HttpError(422, "zcash-wallet-order-authorization-not-implemented");
+  }
+  if (normalizeHex32(order.makerAccountId, "Maker account ID")
+    !== normalizeHex32(order.authorizedSignerId, "Authorized signer ID")) {
+    throw new HttpError(422, "buy-source-account-must-match-authorized-signer");
+  }
 }
 
 function remoteKey(request: IncomingMessage): string {
