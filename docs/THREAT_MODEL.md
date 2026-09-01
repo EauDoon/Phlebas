@@ -1,4 +1,4 @@
-﻿# Phlebas Threat Model
+# Phlebas Threat Model
 
 Status: native atomic-settlement threat model, no-value implementation
 
