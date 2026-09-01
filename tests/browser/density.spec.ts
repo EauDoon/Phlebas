@@ -78,8 +78,8 @@ test.describe("desktop operating density", () => {
     await page.getByRole("button", { name: "Ask 52.91" }).click();
     await expect(page.getByRole("textbox", { name: "Price in USDC" })).toHaveValue("52.91");
 
-    await page.getByRole("button", { name: "Review simulated buy" }).click();
-    await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+    await page.getByRole("button", { name: "Review buy" }).click();
+    await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
     await expect(page.getByRole("button", { name: "GTC" })).toBeVisible();
     await expect(page.getByRole("button", { name: "IOC" })).toBeVisible();
     await expect(page.getByRole("button", { name: "FOK" })).toBeVisible();
@@ -87,11 +87,11 @@ test.describe("desktop operating density", () => {
 
     await page.getByRole("radio", { name: "Empty" }).click();
     await expect(page.getByText("No resting depth. The local book is empty.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
 
     await page.getByRole("radio", { name: "Loading" }).click();
     await expect(page.getByText("Loading market data", { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   });
 
   test("liquidity keeps pool stats quote and mint swap burn on one screen", async ({ page }) => {

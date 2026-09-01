@@ -3,16 +3,16 @@ export const PREVIEW_EDUCATION_STORAGE_KEY = "phlebas.previewEducationVersion";
 
 export const PREVIEW_EDUCATION_STEPS = [
   {
-    title: "This is a no-value simulation.",
-    body: "Prices, orders, pools, balances, and historical state-tour events are illustrative. Optional Ethereum Mainnet wallet connection is read-and-sign only in this preview and cannot submit a transaction.",
+    title: "This public preview uses illustrative data.",
+    body: "No chain is connected.",
   },
   {
     title: "Pairs are native ZEC against USDC and USDT.",
-    body: "This preview labels ZEC-USDC and ZEC-USDT. It is not live settlement, not shielded ZEC, and not a trustless bridge. USDT0 is abandoned. No mainnet funds move here.",
+    body: "Not live settlement, not shielded, not a trustless bridge. USDT0 is abandoned.",
   },
   {
-    title: "Preview actions stay in this browser.",
-    body: "You can inspect order entry, pool math, and historical custody states. Session fills stay in this browser. Optional Ethereum Mainnet signing cannot move funds and is not a financial record.",
+    title: "Actions stay in this browser.",
+    body: "Until wallets and contracts are enabled, preview actions stay in this browser.",
   },
 ] as const;
 

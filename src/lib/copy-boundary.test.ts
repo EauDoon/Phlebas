@@ -33,10 +33,19 @@ async function scanSecrets(cwd: string) {
 }
 
 function withoutHonestBridgeNegation(copy: string) {
-  return copy.replace(/not (?:native ZEC, shielded ZEC, or )?a trustless bridge asset/gi, "");
+  return copy.replace(/not (?:native ZEC, shielded ZEC, or )?a trustless bridge(?: asset)?/gi, "");
 }
 
-function withoutHonestCopyNegation(copy: string) {
+function withoutArchitectureFooterSentences(copy: string) {
+  return copy
+    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+    .replace(/Phlebas is a protocol preview, not a live exchange or an offer of financial services\./gi, "")
+    .replace(/The matcher is not trustless[^.]*\./gi, "")
+    .replace(/Simulation only\./gi, "")
+    .replace(/Native settlement target:[^.]*(?:\.|$)/gi, "");
+}
+
+function withoutHonestNegation(copy: string) {
   return withoutHonestBridgeNegation(copy)
     .replace(/from\s+["'][^"']+["'];?/g, "")
     .replace(/\bnot trustless\b/gi, "")
@@ -52,7 +61,15 @@ function withoutHonestCopyNegation(copy: string) {
     .replace(/\bNot payable\b/gi, "")
     .replace(/\bnon-payable\b/gi, "")
     .replace(/\bNative settlement target:[^.]*(?:\.|$)/gi, "")
-    .replace(/\bnot the native-settlement target\b/gi, "");
+    .replace(/\bnot the native-settlement target\b/gi, "")
+    .replace(/\bnot live settlement\b/gi, "")
+    .replace(/\bnot shielded\b/gi, "")
+    .replace(/\bnot a trustless bridge\b/gi, "")
+    .replace(/\bUSDT0 is abandoned\b/gi, "");
+}
+
+function withoutHonestCopyNegation(copy: string) {
+  return withoutHonestNegation(copy);
 }
 
 async function shippedUiFiles() {
@@ -80,6 +97,19 @@ async function shippedUiFiles() {
   return files;
 }
 
+function isHonestLegalPage(file: string) {
+  const normalized = file.replace(/\\/g, "/");
+  return /\/app\/(legal|security|status)\/page\.tsx$/.test(normalized)
+    || /\/components\/architecture-panel\.tsx$/.test(normalized)
+    || /\/components\/bridge-panel\.tsx$/.test(normalized)
+    || /\/components\/native-swap-fixtures\.ts$/.test(normalized)
+    || /\/app\/(zcash|swap)\/page\.tsx$/.test(normalized);
+}
+
+async function operationalUiFiles() {
+  return (await shippedUiFiles()).filter((file) => !isHonestLegalPage(file));
+}
+
 test("shipped UI copy does not claim live trustless, shielded, or native-ZEC settlement", async () => {
   const files = await shippedUiFiles();
   assert.ok(files.some((file) => file.endsWith("architecture-panel.tsx")));
@@ -89,6 +119,7 @@ test("shipped UI copy does not claim live trustless, shielded, or native-ZEC set
   );
   assert.doesNotMatch(joined, /\btrustless\b/i);
   assert.doesNotMatch(joined, /\bshielded\b/i);
+  assert.doesNotMatch(joined, /\bshielded-market\b/i);
   assert.doesNotMatch(joined, /native-ZEC/i);
   assert.doesNotMatch(joined, /wallet-signed native[- ]ZEC/i);
   assert.doesNotMatch(joined, /native ZEC atomic settlement/i);
@@ -96,12 +127,76 @@ test("shipped UI copy does not claim live trustless, shielded, or native-ZEC set
   assert.doesNotMatch(joined, /\baccepts live funds\b/i);
   assert.doesNotMatch(joined, /\bhas live funds\b/i);
   assert.doesNotMatch(joined, /\bpayable\b/i);
+  assert.doesNotMatch(joined, /pZEC is (?:native ZEC|live|a live)/i);
+  assert.doesNotMatch(joined, /lists USDT0/i);
+  assert.doesNotMatch(joined, /USDT0 is (?:listed|live)/i);
   const architecture = await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8");
   assert.match(architecture, /Native settlement target/);
   assert.match(architecture, /The matcher is not trustless/);
-  assert.match(architecture, /Simulation only/);
   assert.doesNotMatch(architecture, /wallet-signed native-ZEC atomic settlement/);
   assert.doesNotMatch(architecture, /Onchain atomic settlement/);
+});
+
+test("operational UI does not use simulation, fixture, or walkthrough vocabulary", async () => {
+  const files = await operationalUiFiles();
+  assert.ok(files.some((file) => file.endsWith("landing-copy.ts")));
+  assert.ok(files.some((file) => file.endsWith("preview-education.tsx")));
+  assert.equal(files.some((file) => /legal[\\/]page\.tsx$/.test(file)), false);
+  assert.equal(files.some((file) => /security[\\/]page\.tsx$/.test(file)), false);
+  assert.equal(files.some((file) => /status[\\/]page\.tsx$/.test(file)), false);
+  assert.equal(files.some((file) => file.endsWith("architecture-panel.tsx")), false);
+  const source = withoutArchitectureFooterSentences(
+    withoutHonestNegation(
+      (await Promise.all(files.map((file) => readFile(file, "utf8")))).join("\n"),
+    ),
+  );
+  const joined = [...source.matchAll(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g)].map((match) => match[0]).join("\n");
+  assert.doesNotMatch(joined, /\bsimulation\b/i);
+  assert.doesNotMatch(joined, /\bsimulator\b/i);
+  assert.doesNotMatch(joined, /\bfixture\b/i);
+  assert.doesNotMatch(joined, /\bno-value\b/i);
+  assert.doesNotMatch(joined, /\binspect\b/i);
+  assert.doesNotMatch(joined, /\bwalkthrough\b/i);
+  assert.doesNotMatch(joined, /\bpreview-only\b/i);
+  assert.doesNotMatch(joined, /\billustrative fixture\b/i);
+});
+
+test("shipped modules carry the pre-launch product vocabulary", async () => {
+  const landingCopy = await readFile(join(root, "src/lib/landing-copy.ts"), "utf8");
+  const landing = await readFile(join(root, "src/components/landing-page.tsx"), "utf8");
+  const header = await readFile(join(root, "src/components/landing-header.tsx"), "utf8");
+  const frame = await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8");
+  const terminal = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");
+  const ticket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
+  const session = await readFile(join(root, "src/lib/session.ts"), "utf8");
+  const review = await readFile(join(root, "src/lib/review-copy.ts"), "utf8");
+  const liquidity = await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8");
+  const chip = await readFile(join(root, "src/lib/preview-chip.ts"), "utf8");
+  const reviewComplete = await readFile(join(root, "src/lib/ticket-review-copy.ts"), "utf8");
+  const settlementCopy = await readFile(join(root, "src/lib/settlement-ticket-copy.ts"), "utf8");
+  const solverQuotes = await readFile(join(root, "src/lib/solver-quotes.ts"), "utf8");
+  const product = [
+    landingCopy,
+    landing,
+    header,
+    frame,
+    terminal,
+    ticket,
+    session,
+    review,
+    liquidity,
+    chip,
+    reviewComplete,
+    settlementCopy,
+    solverQuotes,
+  ].join("\n");
+  assert.match(product, /Native ZEC\. Native stables\. No platform balance\./);
+  assert.match(product, /Public preview · illustrative data · no mainnet funds/);
+  assert.match(product, /Open terminal/);
+  assert.match(product, /Nothing was signed or submitted\./);
+  assert.match(product, /solver quote/i);
+  assert.match(product, /risk/i);
+  assert.doesNotMatch(product, /Enter simulation/);
 });
 
 test("status payload cannot be read as live funds or custody", async () => {
@@ -109,7 +204,7 @@ test("status payload cannot be read as live funds or custody", async () => {
   assert.match(statusRoute, /Response\.json\(simulationStatus\(\)/);
   const status = simulationStatus();
   assert.equal(status.liveFunds, false);
-  assert.equal(status.mode, "simulation");
+  assert.equal(status.mode, "preview");
   assert.equal(status.custody, "none");
   assert.equal(status.contracts, "conditional-lock-undeployed");
   assert.equal(status.marketData, "illustrative");
@@ -129,24 +224,31 @@ test("status page links to legal and security without a live-funds claim", async
   assert.doesNotMatch(statusPage, /is audited/);
 });
 
-test("landing and terminal banners stay simulation-only", async () => {
+test("landing and terminal banners stay a public preview", async () => {
   const landing = await readFile(join(root, "src/components/landing-page.tsx"), "utf8");
   const terminal = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");
-  assert.match(landing, /Simulation only/);
-  assert.match(landing, /Simulation disclosure/);
-  assert.match(terminal, /Simulation disclosure/);
-  assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Simulation disclosure/);
-  assert.match(await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8"), /Simulation disclosure/);
-  assert.match(landing, /cannot submit a transaction/);
-  assert.match(landing, /Deny by default/);
-  assert.match(landing, /no-value simulation/);
-  assert.match(landing, /not a live exchange and not a shielded market/);
-  assert.match(landing, /does not list USDT0/);
-  assert.match(landing, /native ZEC against native USDC/);
-  assert.match(landing, /USDT0 is abandoned/);
-  assert.match(landing, /Native labels are simulation names, not live settlement/);
-  assert.match(landing, /Understand native pairs/);
-  assert.match(landing, /href="#pairs"/);
+  const chip = await readFile(join(root, "src/lib/preview-chip.ts"), "utf8");
+  const hero = await readFile(join(root, "src/lib/landing-copy.ts"), "utf8");
+  assert.match(chip, /Public preview · illustrative data · no mainnet funds/);
+  assert.match(hero, /Native ZEC\. Native stables\. No platform balance\./);
+  assert.match(hero, /Open terminal/);
+  assert.match(landing, /PreviewChip/);
+  assert.match(landing, /LANDING_HERO/);
+  assert.doesNotMatch(landing, /Simulation only/);
+  assert.doesNotMatch(landing, /Simulation disclosure/);
+  assert.doesNotMatch(landing, /Enter simulation/);
+  assert.match(landing, /id="settlement-how"/);
+  assert.match(landing, /id="why-not-wrapped"/);
+  assert.match(landing, /id="paths"/);
+  assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /PreviewChip/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Simulation disclosure/);
+  assert.match(await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8"), /PreviewChip/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8"), /Simulation disclosure/);
+  assert.match(chip, /no mainnet funds/);
+  assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Phlebas is not a live exchange and not an offer of financial services/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /GitHub/);
+  assert.doesNotMatch(await readFile(join(root, "src/app/trade/page.tsx"), "utf8"), /Trading simulation/);
+  assert.doesNotMatch(await readFile(join(root, "src/app/liquidity/page.tsx"), "utf8"), /Liquidity simulation/);
   assert.doesNotMatch(landing, /Understand pZEC/);
   assert.doesNotMatch(landing, /wrap ZEC as pZEC/);
   assert.match(landing, /pairsSection/);
@@ -202,7 +304,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /ZEC to pZEC/);
   assert.doesNotMatch(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /pZEC/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /pZEC/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /It is not live settlement/);
+  assert.match(await readFile(join(root, "src/lib/ticket-review-copy.ts"), "utf8"), /It is not live settlement/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /ticketReviewNoticeCopy/);
   assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /It is not live settlement/);
   assert.doesNotMatch(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /pZEC is a custody receipt/);
   assert.match(await readFile(join(root, "contracts/src/amm/Factory.sol"), "utf8"), /address public immutable usdt;/);
@@ -218,35 +321,45 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /LANDING_LEDGER/);
   assert.match(landing, /LANDING_HERO/);
   assert.match(landing, /LANDING_SKIP_LINKS/);
-  assert.match(
-    await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"),
-    /wallet-held solver liquidity/,
-  );
   const skipCopy = await readFile(join(root, "src/lib/landing-copy.ts"), "utf8");
+  assert.match(skipCopy, /Native ZEC\. Native stables\. No platform balance\./);
+  assert.match(skipCopy, /matcher never holds the assets/);
+  assert.match(skipCopy, /Open terminal/);
+  assert.match(skipCopy, /How settlement works/);
+  assert.match(skipCopy, /Nothing here can be bought, sold, deposited, withdrawn, or redeemed/);
+  assert.match(skipCopy, /USDT0 is abandoned/);
+  assert.match(skipCopy, /No pZEC/);
   assert.match(skipCopy, /Skip to markets/);
-  assert.match(skipCopy, /Skip to evidence/);
-  assert.match(skipCopy, /Skip to native pairs/);
+  assert.match(skipCopy, /Skip to settlement/);
+  assert.match(skipCopy, /Skip to why not wrapped/);
   assert.doesNotMatch(skipCopy, /Skip to pZEC/);
+  assert.doesNotMatch(skipCopy, /Skip to evidence/);
+  assert.doesNotMatch(skipCopy, /Skip to native pairs/);
   assert.match(skipCopy, /Skip to terminal preview/);
-  assert.match(skipCopy, /Skip to journeys/);
-  assert.match(skipCopy, /Skip to launch gates/);
-  assert.match(landing, /No shielded deposit or withdrawal is planned for v1/);
-  assert.match(landing, /zips\.z\.cash\/zip-0320/);
+  assert.match(skipCopy, /Skip to paths/);
+  assert.doesNotMatch(skipCopy, /Skip to journeys/);
+  assert.doesNotMatch(skipCopy, /Skip to launch gates/);
+  assert.doesNotMatch(landing, /zips\.z\.cash\/zip-0320/);
   assert.doesNotMatch(landing, /pZEC (?:is|equals|represents) native ZEC/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(terminal), /trustless bridge/i);
-  assert.match(terminal, /Fixture \$\{market\.volume\}/);
-  assert.match(terminal, /cannot submit a transaction/);
-  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /Wallet connection rejection/);
-  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /connectMainnetWallet/);
-  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /Ethereum Mainnet/);
-  assert.match(terminal, /not trustless/);
+  assert.match(chip, /no mainnet funds/);
+  const walletBar = await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8");
+  assert.match(walletBar, /Wallet connection rejection/);
+  assert.match(walletBar, /discoverEip6963Providers/);
+  assert.match(walletBar, /connectMainnetWallet/);
+  assert.match(walletBar, /Ethereum Mainnet/);
+  assert.match(await readFile(join(root, "src/lib/settlement-ticket-copy.ts"), "utf8"), /not trustless/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /custodyRedemptionCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicLinkabilityCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /marketOrderConstraintCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicLinkabilityCopy\("fill"\)/);
+  assert.match(await readFile(join(root, "src/lib/ticket-review-copy.ts"), "utf8"), /publicLinkabilityCopy\("fill"\)/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /Review custody notice/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /feeEnvelopeCopy/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /ticketReviewRows/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /ticketReviewCompleteCopy/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /ticketReviewFeeCopy/);
   assert.match(await readFile(join(root, "src/lib/order.ts"), "utf8"), /no unbounded market instruction/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/order.ts"), "utf8"), /pZEC/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /parseExpiryUnix/);
@@ -255,6 +368,9 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /id="honesty-bar"/);
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /id="architecture-layers"/);
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /The matcher is not trustless/);
+  assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /How settlement works/);
+  assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /href="\/#launch-gates"/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /LANDING_MAINNET_GATES/);
   assert.match(await readFile(join(root, "src/components/country-block.tsx"), "utf8"), /id="country-block"/);
   assert.match(await readFile(join(root, "src/components/country-block.tsx"), "utf8"), /shareable preview of a blocked location/);
   assert.match(await readFile(join(root, "src/components/incident-demo.tsx"), "utf8"), /Selected incident demonstration/);
@@ -306,7 +422,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/order-book.tsx"), "utf8"), /id="order-book"/);
   assert.match(terminal, /id="recent-trades"/);
   assert.match(terminal, /Launch gates/);
-  assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Launch gates/);
+  assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Launch gates/);
+  assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /SiteFooter/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /Skip to status ledger/);
   const terminalCss = await readFile(join(root, "src/components/terminal.module.css"), "utf8");
   assert.match(terminalCss, /:global\(#main-content\)/);
@@ -462,8 +579,6 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /aria-errormessage/);
   assert.match(liquidity, /amountErrorId/);
   assert.match(liquidity, /id="pool-stats"/);
-  assert.match(liquidity, /Fixture \{selectedPool\.tvl\}/);
-  assert.match(liquidity, /Fixture \{selectedPool\.volume\}/);
   assert.match(liquidity, /Retry illustrative feed/);
   assert.match(liquidity, /emptyShareCopy\(selectedPool\.id\)/);
   assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /No session LP shares/);
@@ -484,43 +599,53 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /id="liquidity-pools"/);
   assert.match(
     await readFile(join(root, "src/lib/preview-education.ts"), "utf8"),
-    /not live settlement, not shielded ZEC, and not a trustless bridge/,
+    /not live settlement, not shielded, not a trustless bridge/i,
   );
   assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education copy/);
   assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education, not consent/);
-  assert.match(landing, /Open status details/);
-  assert.match(landing, /aria-label="Current system"/);
-  assert.match(landing, /Legal and compliance/);
-  assert.match(landing, /Choose what to inspect/);
-  assert.match(landing, /A working preview, bounded on purpose/);
-  assert.match(landing, /What exists today/);
-  assert.match(landing, /Focused markets/);
+  assert.match(landing, /LANDING_STATUS_DETAILS/);
+  assert.match(landing, /LANDING_LEDGER_HEADING/);
+  assert.match(landing, /SiteFooter/);
+  assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /label: "Legal"/);
+  assert.match(landing, /LANDING_PATHS_INTRO/);
   assert.match(landing, /role="listitem"/);
-  assert.match(landing, /Not cleared for real assets/);
-  assert.match(landing, /Mainnet launch gates/);
+  assert.match(landing, /LANDING_GATES_INTRO/);
+  assert.match(landing, /LANDING_GATES_SUMMARY/);
   assert.match(
     await readFile(join(root, "src/components/landing-journeys.tsx"), "utf8"),
-    /styles.journeyList\} role="list" aria-label="Preview journeys"/,
+    /styles.journeyList\} role="list" aria-label=\{LANDING_PATHS_INTRO.eyebrow\}/,
   );
   assert.doesNotMatch(landing, /github.com/);
   const journeys = await readFile(join(root, "src/lib/landing-journeys.ts"), "utf8");
-  assert.match(journeys, /Preview trading/);
-  assert.match(journeys, /Preview liquidity/);
-  assert.match(journeys, /Preview deposit states/);
-  assert.match(journeys, /Preview withdrawal states/);
+  assert.match(journeys, /tab: "Trade"/);
+  assert.match(journeys, /tab: "Provide quotes"/);
+  assert.match(journeys, /tab: "Read settlement"/);
+  assert.match(journeys, /href: "\/trade\?view=trade"/);
+  assert.match(journeys, /href: "\/liquidity"/);
+  assert.match(journeys, /href: "\/trade\?view=settlement"/);
+  assert.doesNotMatch(journeys, /id: "deposit"/);
+  assert.doesNotMatch(journeys, /id: "withdrawal"/);
+  assert.doesNotMatch(journeys, /href: "\/trade\?view=bridge"/);
   assert.doesNotMatch(journeys, /^Deposit ZEC$/m);
   const evidence = await readFile(join(root, "src/lib/landing-evidence.ts"), "utf8");
-  assert.match(evidence, /no return projection/);
-  assert.match(evidence, /no address generation/);
+  assert.match(evidence, /No pZEC/);
+  assert.match(evidence, /No mint/);
+  assert.match(evidence, /No omnibus/);
+  assert.match(evidence, /No shared LP token/);
+  assert.match(evidence, /Solvers keep inventory in their own wallets/);
   const gates = await readFile(join(root, "src/lib/landing-gates.ts"), "utf8");
   assert.match(gates, /Not cleared/);
+  assert.match(gates, /USDT0 is abandoned/);
   assert.doesNotMatch(gates, /waitlist/i);
+  assert.doesNotMatch(gates, /separate later gate/i);
   const preview = await readFile(join(root, "src/components/landing-terminal-preview.tsx"), "utf8");
-  assert.match(preview, />Simulation</);
-  assert.match(preview, /cannot submit, sign, or fill/);
-  assert.match(preview, /Fixture \{formatAtomicUnits\(market\.lastTicks/);
-  assert.match(preview, /Fixture price/);
-  assert.match(preview, /Fixture size ZEC/);
+  assert.match(preview, /LANDING_TERMINAL_PREVIEW.chip/);
+  assert.match(preview, /LANDING_TERMINAL_PREVIEW.bound/);
+  assert.match(preview, /formatAtomicUnits\(market\.lastTicks/);
+  assert.doesNotMatch(preview, /Fixture \{formatAtomicUnits/);
+  assert.doesNotMatch(preview, /Fixture price/);
+  assert.doesNotMatch(preview, /Fixture size ZEC/);
+  assert.doesNotMatch(preview, />Simulation</);
   assert.doesNotMatch(preview, /tex1/);
   assert.doesNotMatch(preview, /wallet balance/i);
   assert.doesNotMatch(preview, /APY|profit/i);
@@ -651,11 +776,16 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(globalError, /is a live exchange/);
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
   const education = await readFile(join(root, "src/lib/preview-education.ts"), "utf8");
-  assert.match(education, /Education, not consent|not a financial record/);
+  assert.match(education, /This public preview uses illustrative data/);
+  assert.match(education, /No chain is connected/);
   assert.match(education, /Pairs are native ZEC against USDC and USDT/);
-  assert.match(education, /not live settlement/);
+  assert.match(education, /not live settlement/i);
+  assert.match(education, /Actions stay in this browser/);
+  assert.match(education, /wallets and contracts are enabled/);
   assert.doesNotMatch(education, /pZEC would depend on custody/);
   assert.doesNotMatch(education, /I agree/);
+  assert.doesNotMatch(education, /Enter simulation/);
+  assert.doesNotMatch(education, /\bsimulation\b/i);
   assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education, not consent/);
   assert.match(await readFile(join(root, "src/lib/access-demo.ts"), "utf8"), /State demonstration/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/access-demo.ts"), "utf8"), /geolocat/i);
@@ -747,18 +877,21 @@ test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", asy
   }
 });
 
-test("Open Graph and Twitter cards stay labeled as a simulation", async () => {
+test("Open Graph and Twitter cards stay labeled as a public preview", async () => {
   const layout = await readFile(join(root, "src/app/layout.tsx"), "utf8");
-  assert.match(layout, /No-value simulation and non-custodial protocol plan/);
+  assert.match(layout, /Public preview of a non-custodial protocol plan/);
+  assert.match(layout, /Illustrative data/);
+  assert.match(layout, /No mainnet funds/);
   assert.match(layout, /openGraph:/);
   assert.match(layout, /twitter:/);
+  assert.match(layout, /index: false/);
   assert.doesNotMatch(layout, /is a live exchange/);
+  assert.doesNotMatch(layout, /is audited/);
   assert.doesNotMatch(layout, /payable|shielded|native-ZEC/);
 });
 
-test("route loading copy names a simulation and withholds prices", async () => {
+test("route loading copy withholds prices and does not claim a live market", async () => {
   const loading = await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8");
-  assert.match(loading, /Loading the simulation/);
   assert.match(loading, /id="withheld-price"/);
   assert.match(loading, /Skip to withheld-price notice/);
   assert.match(loading, /No market data is live/);
@@ -955,6 +1088,7 @@ test("canonical settlement and wallet modules cannot import the diagnostic proje
     "src/lib/sepolia-submit.ts",
     "src/components/trade-ticket.tsx",
     "src/components/native-swap-panel.tsx",
+    "src/components/settlement-ticket.tsx",
     "src/app/api/matcher/route.ts",
   ];
   for (const path of restrictedConsumers) {

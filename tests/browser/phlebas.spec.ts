@@ -4,40 +4,47 @@ import { ETHEREUM_MAINNET_CHAIN_HEX } from "../../src/lib/mainnet-assets.ts";
 import { DEPOSIT_TOUR } from "../../src/lib/deposit-tour.ts";
 import { payoutClaimForTourStep, payoutClaimStubCopy } from "../../src/lib/payout.ts";
 import { WITHDRAWAL_TOUR } from "../../src/lib/withdrawal-tour.ts";
-import { expect, test } from "./fixtures";
+import {
+  expect,
+  LANDING_HERO_HEADING,
+  OPEN_TERMINAL_CTA,
+  PREVIEW_CHIP,
+  test,
+} from "./fixtures";
 import { LANDING_MAINNET_GATES } from "../../src/lib/landing-gates.ts";
+import { PREVIEW_EDUCATION_STEPS } from "../../src/lib/preview-education.ts";
 
 const viewports = [320, 390, 768, 1440] as const;
 
 const routes = [
   {
     path: "/",
-    disclosure: "Simulation only",
-    marker: "The custody line, drawn in public.",
+    disclosure: PREVIEW_CHIP,
+    marker: LANDING_HERO_HEADING,
   },
   {
     path: "/trade",
-    disclosure: "Protocol preview",
+    disclosure: PREVIEW_CHIP,
     marker: "settles ZEC-USDC",
   },
   {
     path: "/trade?view=settlement&market=ZEC/USDC",
-    disclosure: "No-value walkthrough",
-    marker: "Native ZEC atomic swap",
+    disclosure: PREVIEW_CHIP,
+    marker: "Matched fill",
   },
   {
     path: "/liquidity",
-    disclosure: "Protocol preview",
+    disclosure: PREVIEW_CHIP,
     marker: "Provide liquidity",
   },
   {
     path: "/legal",
-    disclosure: "Simulation only",
+    disclosure: PREVIEW_CHIP,
     marker: "product copy, not legal advice",
   },
   {
     path: "/security",
-    disclosure: "Simulation only",
+    disclosure: PREVIEW_CHIP,
     marker: "no production support commitment",
   },
 ] as const;
@@ -135,13 +142,13 @@ async function runNativeFixtureActions(page: Page, labels: readonly string[]) {
 }
 
 const fundedNativeFixtureActions = [
-  "Accept exact fixture terms",
-  "Prepare fixture ZEC lock",
-  "Record fixture ZEC funding",
-  "Confirm fixture ZEC evidence",
-  "Prepare fixture USDC lock",
-  "Record fixture USDC funding",
-  "Confirm fixture USDC evidence",
+  "Accept exact terms",
+  "Prepare ZEC P2SH lock",
+  "Record ZEC funding",
+  "Confirm ZEC evidence",
+  "Prepare Exact-token EVM lock",
+  "Record USDC funding",
+  "Confirm USDC evidence",
 ] as const;
 
 for (const width of viewports) {
@@ -165,32 +172,21 @@ for (const width of viewports) {
             return Boolean(header && (banner.compareDocumentPosition(header) & Node.DOCUMENT_POSITION_FOLLOWING));
           });
           expect(bannerBeforeHeader).toBe(true);
+          await expect(page.getByRole("heading", { name: LANDING_HERO_HEADING })).toBeVisible();
           await expect(page.getByRole("heading", { name: "Current system" })).toBeVisible();
-          await expect(page.getByText("Wallet connection", { exact: true })).toBeVisible();
-          await expect(page.getByLabel("Current system").getByText("Not deployed", { exact: true })).toBeVisible();
-          await expect(page.getByText(
-            "The simulation now labels settlement as ZEC-USDC and ZEC-USDT. Native labels are simulation names, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.",
-            { exact: true },
-          )).toBeVisible();
-          await expect(page.getByText("USDT0 is abandoned. It is not a listed settlement asset.", { exact: true })).toBeVisible();
+          await expect(page.locator("main > section")).toHaveCount(4);
+          await expect(page.getByRole("tab", { name: "Deposit" })).toHaveCount(0);
+          await expect(page.getByRole("tab", { name: "Withdrawal" })).toHaveCount(0);
+          await expect(page.getByRole("link", { name: /Preview deposit|Preview withdrawal/i })).toHaveCount(0);
+          await expect(page.getByText("USDT0 is abandoned", { exact: false })).toBeVisible();
           await expect(page.getByText("Later listing gate")).toHaveCount(0);
-          await expect(page.getByText("Deny by default", { exact: true })).toBeVisible();
-          await expect(page.getByLabel("Current system").getByText("No-value preview", { exact: true })).toBeVisible();
-          await expect(page.getByRole("link", { name: "Open status details" })).toBeVisible();
           await expect(page.getByRole("contentinfo").getByRole("link", { name: "Legal and compliance" })).toBeVisible();
-          await expect(page.getByRole("heading", { name: "Choose what to inspect." })).toBeVisible();
-          await expect(page.getByRole("tab", { name: "Trader" })).toBeVisible();
-          await expect(page.getByRole("tab", { name: "Withdrawal" })).toBeVisible();
-          await expect(page.getByRole("heading", { name: "A working preview, bounded on purpose." })).toBeVisible();
-          await expect(page.getByRole("heading", { name: "Order book preview" })).toBeVisible();
-          await expect(page.getByRole("heading", { name: "Inspect the market model without connecting a wallet." })).toBeVisible();
-          await expect(page.getByText("Simulation", { exact: true })).toBeVisible();
-          await expect(page.getByRole("link", { name: "Open full simulation" })).toBeVisible();
-          await expect(page.getByText("Not a live book.")).toBeVisible();
+          await expect(page.getByRole("link", { name: OPEN_TERMINAL_CTA }).first()).toBeVisible();
+          await expect(page.getByText("Simulation", { exact: true })).toHaveCount(0);
+          await expect(page.getByRole("link", { name: OPEN_TERMINAL_CTA })).toHaveCount(0);
           await expect(page.locator("#launch-gates").getByText("Not cleared", { exact: true })).toHaveCount(
             LANDING_MAINNET_GATES.length + 3,
           );
-          await expect(page.getByRole("link", { name: "Read the launch gates" })).toBeVisible();
         }
       }
 
@@ -201,24 +197,12 @@ for (const width of viewports) {
       const runtimeErrors = captureRuntimeErrors(page);
       await page.goto("/", { waitUntil: "networkidle" });
 
-      const enterSimulation = page.locator("main").getByRole("link", { name: "Enter simulation" });
+      const enterSimulation = page.locator("main").getByRole("link", { name: OPEN_TERMINAL_CTA });
       await tabTo(page, enterSimulation);
       await expectVisibleFocus(enterSimulation);
       await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(/\/trade\?view=trade$/);
-      await expect(page.getByRole("radio", { name: "ZEC / USDC" })).toHaveAttribute("aria-checked", "true");
-      await expect(page.getByText("settles ZEC-USDC", { exact: true })).toBeVisible();
-
-      await page.goto("/", { waitUntil: "networkidle" });
-      const understandPairs = page.getByRole("link", { name: "Understand native pairs" });
-      await tabTo(page, understandPairs);
-      await expectVisibleFocus(understandPairs);
-      await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(/\/#pairs$/);
-      await expect(page.getByText(
-        "The simulation now labels settlement as ZEC-USDC and ZEC-USDT. Native labels are simulation names, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.",
-        { exact: true },
-      )).toBeVisible();
+      await expect(page).toHaveURL(/\/trade/);
+      await expect(page.getByText(PREVIEW_CHIP, { exact: true })).toBeVisible();
 
       await page.goto("/", { waitUntil: "networkidle" });
       const traderTab = page.getByRole("tab", { name: "Trader" });
@@ -235,7 +219,7 @@ for (const width of viewports) {
       await expect(page).toHaveURL(/\/liquidity$/);
       await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
 
-      await page.goto("/trade?view=liquidity", { waitUntil: "networkidle" });
+      await page.goto("/liquidity", { waitUntil: "networkidle" });
       await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
 
       await page.goto("/trade", { waitUntil: "networkidle" });
@@ -246,9 +230,10 @@ for (const width of viewports) {
       const settlementNavigation = page.getByRole("tab", { name: "Settlement" });
       await expectVisibleFocus(settlementNavigation);
       await page.keyboard.press("ArrowRight");
-      const liquidityNavigation = page.getByRole("tab", { name: "Liquidity" });
-      await expectVisibleFocus(liquidityNavigation);
-      await page.keyboard.press("Enter");
+      const architectureNavigation = page.getByRole("tab", { name: "Architecture" });
+      await expectVisibleFocus(architectureNavigation);
+      await expect(page.getByRole("tablist", { name: "Primary navigation" }).getByRole("tab", { name: "Liquidity" })).toHaveCount(0);
+      await page.goto("/liquidity?market=ZEC%2FUSDC&mode=advanced", { waitUntil: "networkidle" });
       await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDC&mode=advanced$/);
       await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
 
@@ -319,11 +304,11 @@ for (const width of viewports) {
         await expect(menu).toBeFocused();
       } else {
         await expect(menu).toBeHidden();
-        const enter = page.locator("header").getByRole("link", { name: "Enter simulation" });
+        const enter = page.locator("header").getByRole("link", { name: OPEN_TERMINAL_CTA });
         await tabTo(page, enter);
         await expectVisibleFocus(enter);
         await page.keyboard.press("Enter");
-        await expect(page).toHaveURL(/\/trade\?view=trade$/);
+        await expect(page).toHaveURL(/\/trade/);
       }
 
       expect(runtimeErrors).toEqual([]);
@@ -361,9 +346,9 @@ test("local matcher fills a buy against the fixture ask", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Ask 52.91" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("This preview labels native ZEC. It is not live settlement.")).toBeVisible();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(/Filled against the local ZEC\/USDC book/)).toBeVisible();
   await expect(page.getByText("Nothing was signed or submitted to a chain.")).toBeVisible();
   await expect(page.getByRole("tab", { name: "Fills" })).toBeVisible();
@@ -375,8 +360,8 @@ test("price improvement cannot create a free ZEC atom", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("100");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("0.00000001");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(/Dust-blocked crossed remainder was cancelled/)).toBeVisible();
 
   await page.getByRole("tab", { name: "Inventory" }).click();
@@ -403,7 +388,7 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   const missing = await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "load" });
   expect(missing?.status(), "404 status").toBe(404);
   await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
-  await expect(page.getByText("Simulation only", { exact: true })).toBeVisible();
+  await expect(page.getByText(PREVIEW_CHIP, { exact: true })).toBeVisible();
 });
 
 test("/api/status publishes incidents as architecture-demonstration", async ({ page }) => {
@@ -412,7 +397,7 @@ test("/api/status publishes incidents as architecture-demonstration", async ({ p
   const body = await response.json() as { incidents?: string; liveFunds?: boolean; mode?: string };
   expect(body.incidents).toBe("architecture-demonstration");
   expect(body.liveFunds).toBe(false);
-  expect(body.mode).toBe("simulation");
+  expect(body.mode).toBe("preview");
 });
 
 test("invalid demo query does not highlight incidents", async ({ page }) => {
@@ -441,7 +426,7 @@ test("leaving Architecture for Trade drops demo=incidents and return restores it
   await nav.getByRole("tab", { name: "Trade" }).click();
   await expect(page).toHaveURL(/view=trade/);
   await expect(page).not.toHaveURL(/demo=incidents/);
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
   await expect(page.getByText("Status field architecture-demonstration.")).toHaveCount(0);
   await nav.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
@@ -450,32 +435,29 @@ test("leaving Architecture for Trade drops demo=incidents and return restores it
   await expect(page.getByText("Labeled demonstration, not a live outage.")).toBeVisible();
 });
 
-test("leaving Architecture for the historical state tour drops demo=incidents and return restores it", async ({ page }) => {
+test("leaving Architecture for Settlement drops demo=incidents and return restores it", async ({ page }) => {
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
   const nav = page.getByRole("tablist", { name: "Primary navigation" });
-  await nav.getByRole("tab", { name: "Historical state tour" }).click();
-  await expect(page).toHaveURL(/view=bridge/);
+  await nav.getByRole("tab", { name: "Settlement" }).click();
+  await expect(page).toHaveURL(/view=settlement/);
   await expect(page).not.toHaveURL(/demo=incidents/);
-  await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Fill ticket", exact: true }).first()).toBeVisible();
   await nav.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
 });
 
-test("leaving Architecture for Liquidity drops demo=incidents and return restores it", async ({ page }) => {
+test("liquidity stays on its own route and is not a primary terminal tab", async ({ page }) => {
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
-  await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
   const nav = page.getByRole("tablist", { name: "Primary navigation" });
-  await nav.getByRole("tab", { name: "Liquidity" }).click();
+  await expect(nav.getByRole("tab", { name: "Liquidity" })).toHaveCount(0);
+  await expect(nav.getByRole("tab", { name: "Historical state tour" })).toHaveCount(0);
+  await page.goto("/liquidity?market=ZEC%2FUSDC", { waitUntil: "networkidle" });
   await expect(page).toHaveURL(/\/liquidity/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
-  await nav.getByRole("tab", { name: "Architecture" }).click();
-  await expect(page).toHaveURL(/view=architecture/);
-  await expect(page).toHaveURL(/demo=incidents/);
-  await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
 });
 
 test("status Architecture link keeps the demonstration label", async ({ page }) => {
@@ -513,33 +495,33 @@ test("non-payable ZIP 321 format example has no issue or copy action", async ({ 
 test("stale market data disables preview-to-sign and retries to illustrative", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByLabel("Market statistics").getByText("Session last · ZEC-USDC")).toBeVisible();
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await page.getByRole("radio", { name: "Stale" }).click();
   await expect(page.getByText("Market data stale", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("The illustrative feed is marked delayed. Stale data cannot move from preview to confirm. Settled as ZEC-USDC.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeEnabled();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
   await expect(page).toHaveURL(/\/trade/);
 });
 
 test("Escape leaves review without confirming a session order", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
 });
 
 test("review names the cheaper venue before confirm", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Ask 52.91" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("CLOB cheaper for a full fill", { exact: true })).toBeVisible();
   await expect(page.getByText("Confirm submits only the local CLOB")).toBeVisible();
   await expect(page.getByText("Leaves the session")).toBeVisible();
@@ -555,8 +537,8 @@ test("GTC remainder can be cancelled and epoch invalidation is visible", async (
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
   await expect(page.getByRole("table", { name: /Resting session orders on the local ZEC\/USDC book, settled as ZEC-USDC/ })).toBeVisible();
   await page.getByRole("button", { name: "Invalidate older session orders" }).click();
@@ -574,7 +556,7 @@ test("USDT market names USDT settlement and empty feed shows no depth", async ({
   await expect(page.getByText("No resting depth. The local book is empty. Settled as ZEC-USDT.")).toBeVisible();
   await expect(page.getByText("No resting depth. Review is disabled until the local book has size. Settled as ZEC-USDT.")).toBeVisible();
   await expect(page.getByText("session last · ZEC-USDT")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   await page.getByRole("radio", { name: "Loading" }).click();
   await expect(page.getByText("Loading market data", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("The ticket is waiting for a book snapshot. Retry is safe; nothing was submitted. Settled as ZEC-USDT.")).toBeVisible();
@@ -722,15 +704,15 @@ test("IOC cancels an unfilled remainder and FOK rejects a full miss", async ({ p
   await page.getByRole("button", { name: "IOC" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(/Unfilled size was cancelled/)).toBeVisible();
 
   await page.getByRole("button", { name: "FOK" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("52.91");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("100");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText("Rejected. Fill-or-kill could not fill in full. Settled as ZEC-USDC.", { exact: true })).toBeVisible();
 });
 
@@ -739,15 +721,15 @@ test("FOK reject copy names ZEC-USDT if market switches while rejected panel is 
   await page.getByRole("button", { name: "FOK" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("52.91");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("100");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Fill-or-kill could not fill in full. Settled as ZEC-USDC.", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Fill-or-kill could not fill in full. Settled as ZEC-USDT.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
 test("invalidate-epoch control is keyboard focusable", async ({ page }) => {
@@ -768,7 +750,7 @@ test("market orders are IOC with a visible worst price", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Market" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("Worst acceptable price")).toBeVisible();
   await expect(page.getByText("IOC", { exact: true })).toBeVisible();
 });
@@ -783,11 +765,11 @@ test("320px market buy at zero slippage does not fill beyond the signed worst pr
   await expect(page.getByRole("button", { name: "GTC" })).toHaveCount(0);
   await page.getByRole("textbox", { name: "Maximum slippage percent" }).fill("0");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("Worst acceptable price")).toBeVisible();
   await expect(page.getByText("Worst acceptable price").locator("xpath=following-sibling::dd")).toHaveText("52.84 USDC");
   await expect(page.getByText("IOC", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText("Immediate-or-cancel finished with no fills")).toBeVisible();
   await expect(page.getByRole("button", { name: "Ask 52.91" })).toBeVisible();
   await page.getByRole("tab", { name: "Fills" }).click();
@@ -797,9 +779,9 @@ test("320px market buy at zero slippage does not fill beyond the signed worst pr
 test("invalid expiry stays on the ticket and does not open review", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1.5");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("Expiry must be a whole unix time, or 0 for none.").first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
 test("order expiry unix time appears on review", async ({ page }) => {
@@ -808,8 +790,8 @@ test("order expiry unix time appears on review", async ({ page }) => {
   await expect(page.getByRole("textbox", { name: "Order expiry unix time" })).toHaveValue("0");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill(expiry);
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await expect(page.getByText(expiry).first()).toBeVisible();
 });
 
@@ -818,8 +800,8 @@ test("session event log includes expiry after confirm", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill(expiry);
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await page.getByRole("tab", { name: "Event log" }).click();
   await expect(page.getByText(`buy GTC user-1 expiry ${expiry}`)).toBeVisible();
 });
@@ -1027,14 +1009,14 @@ test("ticket signing stays disabled while the settlement contract is undeployed"
   await page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" }).click();
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDC." })).toBeVisible();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
   await expect(page.getByText("Session digest", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
   await expect(page.getByText("Session digest", { exact: true })).toBeVisible();
 });
@@ -1062,11 +1044,11 @@ test("market switching cannot enable undeployed testnet signing", async ({ page 
   await page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" }).click();
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDC." })).toBeVisible();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
   await expect(page.getByText("Session digest", { exact: true })).toBeVisible();
 });
@@ -1114,14 +1096,14 @@ test("wallet disconnect accessible name keeps settlement after switching market"
 test("first-session education can be completed by keyboard", async ({ page }) => {
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeFocused();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[0].title })).toBeFocused();
   await dialog.getByRole("button", { name: "Continue" }).click();
-  await expect(dialog.getByRole("heading", { name: "Pairs are native ZEC against USDC and USDT." })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[1].title })).toBeVisible();
   await dialog.getByRole("button", { name: "Continue" }).click();
-  await expect(dialog.getByRole("heading", { name: "Preview actions stay in this browser." })).toBeVisible();
-  await dialog.getByRole("button", { name: "Enter simulation" }).click();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[2].title })).toBeVisible();
+  await dialog.getByRole("button", { name: "Continue" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Review/i })).toBeVisible();
 });
 
 test("ticket G I F shortcuts set time in force", async ({ page }) => {
@@ -1139,10 +1121,10 @@ test("ticket G I F shortcuts set time in force", async ({ page }) => {
 test("first-session education dismisses on Escape", async ({ page }) => {
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[0].title })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Review/i })).toBeVisible();
 });
 
 test("landing Markets control points at the terminal preview", async ({ page }) => {
@@ -1174,7 +1156,7 @@ test("country-blocked demonstration hides trading controls", async ({ page }) =>
   await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Phlebas is not available in this location." })).toBeVisible();
   await expect(page.getByText("State demonstration")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review buy" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Read the architecture" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Return home" })).toBeVisible();
 });
@@ -1205,9 +1187,9 @@ test("deposit tour never shows a receivable address", async ({ page }) => {
 test("unavailable feed retry returns to illustrative", async ({ page }) => {
   await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeEnabled();
 });
 
 test("architecture incident demonstrations stay labeled", async ({ page }) => {
@@ -1227,26 +1209,17 @@ test("legal and security pages stay simulation-only", async ({ page }) => {
   await expect(page.getByText("Do not send ZEC, USDC, USDT, or any other asset")).toBeVisible();
 });
 
-test("landing without JavaScript still shows four journey descriptions", async ({ browser, serverUrl }) => {
+test("landing without JavaScript still shows the product landing", async ({ browser, serverUrl }) => {
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL: serverUrl });
   const page = await context.newPage();
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Choose what to inspect." })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Preview trading/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Preview liquidity/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Preview deposit states/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Preview withdrawal states/ })).toBeVisible();
-    const journeyCard = page.getByRole("list", { name: "Preview journeys" }).getByRole("listitem").first();
-    await expect(journeyCard).toBeVisible();
-    expect((await journeyCard.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-    const journeyAction = page.getByRole("link", { name: /Preview trading/ });
-    await expect(journeyAction).toBeVisible();
-    expect((await journeyAction.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-    await expect(page.getByText(
-      "This is a no-value simulation. It is not a live exchange and not a shielded market.",
-      { exact: true },
-    )).toBeVisible();
+    await expect(page.getByRole("heading", { name: LANDING_HERO_HEADING })).toBeVisible();
+    await expect(page.getByText(PREVIEW_CHIP, { exact: true })).toBeVisible();
+    await expect(page.locator("main > section")).toHaveCount(4);
+    await expect(page.getByRole("tab", { name: "Deposit" })).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "Withdrawal" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: OPEN_TERMINAL_CTA }).first()).toBeVisible();
   } finally {
     await context.close();
   }
@@ -1256,31 +1229,31 @@ test("past unix expiry rejects before review and names the rejected panel", asyn
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Order expiry has passed. Settled as ZEC-USDC.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
 test("ticket reject copy names ZEC-USDT if market switches while rejected panel is open", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Order expiry has passed. Settled as ZEC-USDC.", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Order expiry has passed. Settled as ZEC-USDT.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
 test("confirmed ticket writes expiry onto the blotter event log", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("4102444800");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await page.getByRole("tab", { name: "Event log" }).click();
   await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText("expiry 4102444800");
   await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText("Settled as ZEC-USDC.");
@@ -1339,7 +1312,7 @@ test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
   await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed.").first()).toBeVisible();
   await expect(page.getByRole("region", { name: "Selected market summary" })).toContainText("settles ZEC-USDC");
   await expect(page.getByText("Integrity checks failed. Preview-to-sign is disabled. Retry is safe; nothing was submitted. Settled as ZEC-USDC.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
@@ -1407,21 +1380,21 @@ test("blotter arrow keys move to the next tabpanel", async ({ page }) => {
 test("first-session education can be completed by keyboard with education copy", async ({ page }) => {
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeFocused();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[0].title })).toBeFocused();
   await expect(dialog.getByText("Education, not consent.")).toBeVisible();
   await dialog.getByRole("button", { name: "Continue" }).click();
-  await expect(dialog.getByRole("heading", { name: "Pairs are native ZEC against USDC and USDT." })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[1].title })).toBeVisible();
   await dialog.getByRole("button", { name: "Continue" }).click();
-  await expect(dialog.getByRole("heading", { name: "Preview actions stay in this browser." })).toBeVisible();
-  await dialog.getByRole("button", { name: "Enter simulation" }).click();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[2].title })).toBeVisible();
+  await dialog.getByRole("button", { name: "Continue" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Review/i })).toBeVisible();
 });
 
 test("first-session education dismisses on Escape from liquidity", async ({ page }) => {
   await page.goto("/liquidity?education=1", { waitUntil: "networkidle" });
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[0].title })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
@@ -1431,7 +1404,7 @@ test("country-blocked demonstration hides trading and liquidity controls", async
   await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Phlebas is not available in this location." })).toBeVisible();
   await expect(page.getByText("State demonstration")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review buy" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Read the architecture" })).toBeVisible();
   await page.goto("/liquidity?access=blocked", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Phlebas is not available in this location." })).toBeVisible();
@@ -1466,11 +1439,11 @@ test("chart range uses a radiogroup and unavailable tape names the feed", async 
 test("ticket G I F shortcuts ignore review until Escape", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await page.keyboard.press("i");
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
   await page.getByRole("heading", { name: "Order entry" }).click();
   await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
 });
@@ -1694,12 +1667,12 @@ test("historical custody tour shows a non-payable placeholder with no clipboard 
 test("G I F do not change time in force while review is open", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await page.keyboard.press("i");
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "IOC" })).toHaveAttribute("aria-pressed", "false");
 });
@@ -1790,17 +1763,17 @@ test("invalid size shows a field error and keeps review closed", async ({ page }
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("abc");
   await expect(page.getByText("Value must use plain decimal notation").first()).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Order size in ZEC" })).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
 test("USDT review does not repeat a later listing gate", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await expect(page.getByText("Later listing gate")).toHaveCount(0);
   await expect(page.getByText("settles ZEC-USDT")).toBeVisible();
 });
@@ -1815,41 +1788,38 @@ test("LP pool arrows move to the USDT pair", async ({ page }) => {
   await expect(page.getByText("Later listing gate")).toHaveCount(0);
 });
 
-test("document metadata names a no-value simulation", async ({ page }) => {
+test("document metadata does not claim a live exchange", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
-  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
-    "content",
-    "No-value simulation and non-custodial protocol plan for native transparent ZEC against USDC and USDT. Legacy pZEC surfaces are simulation only. Not an exchange or an offer of financial services.",
-  );
-  await expect(page.locator('meta[name="twitter:description"]')).toHaveAttribute(
-    "content",
-    "No-value simulation and non-custodial protocol plan for native transparent ZEC against USDC and USDT. Legacy pZEC surfaces are simulation only. Not an exchange or an offer of financial services.",
-  );
+  const og = page.locator('meta[property="og:description"]');
+  const twitter = page.locator('meta[name="twitter:description"]');
+  await expect(og).toHaveAttribute("content", /ZEC/);
+  await expect(twitter).toHaveAttribute("content", /ZEC/);
+  await expect(og).not.toHaveAttribute("content", /is a live exchange|is audited|payable/i);
+  await expect(twitter).not.toHaveAttribute("content", /is a live exchange|is audited|payable/i);
 });
 
 test("terminal view arrows move focus and Enter selects", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   const trade = page.getByRole("tab", { name: "Trade" });
   const settlement = page.getByRole("tab", { name: "Settlement" });
-  const liquidity = page.getByRole("tab", { name: "Liquidity" });
+  const architecture = page.getByRole("tab", { name: "Architecture" });
   await trade.focus();
   await expect(trade).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowRight");
   await expect(settlement).toBeFocused();
   await expect(trade).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowRight");
-  await expect(liquidity).toBeFocused();
+  await expect(architecture).toBeFocused();
   await expect(trade).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("End");
-  await expect(page.getByRole("tab", { name: "Architecture" })).toBeFocused();
+  await expect(architecture).toBeFocused();
   await expect(trade).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Home");
   await expect(trade).toBeFocused();
   await page.keyboard.press("ArrowRight");
-  await page.keyboard.press("ArrowRight");
   await page.keyboard.press("Enter");
-  await expect(liquidity).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
+  await expect(settlement).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: "Fill ticket", exact: true }).first()).toBeVisible();
 });
 
 test("invalid LP amount shows a field error and keeps review closed", async ({ page }) => {
@@ -2004,7 +1974,7 @@ test("feed-state arrows move focus and Enter selects loading", async ({ page }) 
 test("review Back and ticket primary stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const review = page.getByRole("button", { name: "Review simulated buy" });
+  const review = page.getByRole("button", { name: "Review buy" });
   const reviewBox = await review.boundingBox();
   expect(reviewBox?.height ?? 0).toBeGreaterThanOrEqual(44);
   await review.click();
@@ -2012,7 +1982,7 @@ test("review Back and ticket primary stay 44px on desktop", async ({ page }) => 
   await expect(back).toBeVisible();
   const backBox = await back.boundingBox();
   expect(backBox?.height ?? 0).toBeGreaterThanOrEqual(44);
-  const confirm = page.getByRole("button", { name: "Confirm simulated buy" });
+  const confirm = page.getByRole("button", { name: "Complete buy" });
   const confirmBox = await confirm.boundingBox();
   expect(confirmBox?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
@@ -2176,8 +2146,8 @@ test("Reset session Cancel Retry illustrative and tape rows stay 44px on desktop
 
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   const cancel = page.getByRole("button", { name: "Cancel", exact: true });
   await expect(cancel).toBeVisible();
   expect((await cancel.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -2211,8 +2181,8 @@ test("mid-price fills and inventory rows stay 44px on desktop", async ({ page })
 
   await page.getByRole("button", { name: "Ask 52.91" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await page.getByRole("tab", { name: "Fills" }).click();
   const fillRow = page.getByRole("table", { name: /Session fills for ZEC\/USDC/ }).locator("tbody tr").first();
   await expect(fillRow).toBeVisible();
@@ -2243,8 +2213,8 @@ test("event-log LP stats and chart empty stay 44px on desktop", async ({ page })
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await page.getByRole("tab", { name: "Event log" }).click();
   const logRow = page.getByRole("table", { name: /Append-only session event log/ }).locator("tbody tr").first();
   await expect(logRow).toBeVisible();
@@ -2276,7 +2246,7 @@ test("liquidity skip link reaches pool stats", async ({ page }) => {
 test("ticket notice wallet rejection and simulation banner stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const banner = page.getByRole("status", { name: "Simulation disclosure" });
+  const banner = page.getByRole("status", { name: PREVIEW_CHIP });
   await expect(banner).toBeVisible();
   expect((await banner.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
@@ -2291,7 +2261,7 @@ test("ticket notice wallet rejection and simulation banner stay 44px on desktop"
   expect((await rejection.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
   await page.goto("/", { waitUntil: "networkidle" });
-  const landingBanner = page.getByRole("status", { name: "Simulation disclosure" });
+  const landingBanner = page.getByRole("status", { name: PREVIEW_CHIP });
   await expect(landingBanner).toBeVisible();
   expect((await landingBanner.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
@@ -2344,7 +2314,7 @@ test("honesty bar incident copy and review custody stay 44px on desktop", async 
   expect((await incident.locator("p").boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   const custody = page.getByLabel("Review custody notice");
   await expect(custody).toBeVisible();
   expect((await custody.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -2440,7 +2410,7 @@ test("landing mobile menu links stay 44px", async ({ page }) => {
   const markets = dialog.getByRole("link", { name: "Markets" });
   await expect(markets).toBeVisible();
   expect((await markets.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-  const enter = dialog.getByRole("link", { name: "Enter simulation" });
+  const enter = dialog.getByRole("link", { name: OPEN_TERMINAL_CTA });
   await expect(enter).toBeVisible();
   expect((await enter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
@@ -2496,7 +2466,7 @@ test("status legal and security ledgers are named lists", async ({ page }) => {
 test("landing header CTA journey tabs pZEC source and simulation-frame nav stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/", { waitUntil: "networkidle" });
-  const headerCta = page.locator("header").getByRole("link", { name: "Enter simulation" });
+  const headerCta = page.locator("header").getByRole("link", { name: OPEN_TERMINAL_CTA });
   await expect(headerCta).toBeVisible();
   expect((await headerCta.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   const tab = page.getByRole("tab", { name: "Trader" });
@@ -2515,7 +2485,7 @@ test("landing header CTA journey tabs pZEC source and simulation-frame nav stay 
 test("landing hero CTAs Open status details launch gates and brand home stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/", { waitUntil: "networkidle" });
-  const heroCta = page.locator("main").getByRole("link", { name: "Enter simulation" });
+  const heroCta = page.locator("main").getByRole("link", { name: OPEN_TERMINAL_CTA });
   await expect(heroCta).toBeVisible();
   expect((await heroCta.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   const pzec = page.getByRole("link", { name: "Understand native pairs" });
@@ -2609,7 +2579,7 @@ test("terminal skip education Continue and error Retry stay 44px on desktop", as
   expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
-test("404 skip loading skip education Back and Enter simulation stay 44px on desktop", async ({ page }) => {
+test("404 skip loading skip education Back and Continue stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "networkidle" });
   await page.keyboard.press("Tab");
@@ -2639,7 +2609,7 @@ test("404 skip loading skip education Back and Enter simulation stay 44px on des
   await expect(back).toBeEnabled();
   expect((await back.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   await page.getByRole("button", { name: "Continue" }).click();
-  const enter = page.getByRole("dialog").getByRole("button", { name: "Enter simulation" });
+  const enter = page.getByRole("dialog").getByRole("button", { name: "Continue" });
   await expect(enter).toBeVisible();
   expect((await enter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
@@ -2841,7 +2811,7 @@ test("reduced-motion keeps skip-nav in place and skip-nav stacks above the banne
 
   const stacking = await page.evaluate(() => {
     const skipNav = document.querySelector('nav[aria-label="Skip links"]');
-    const banner = document.querySelector('[aria-label="Simulation disclosure"]');
+    const banner = [...document.querySelectorAll('[role="status"]')].find((node) => /Public preview/.test(node.textContent ?? ""));
     const root = skipNav?.parentElement;
     return {
       navZ: Number.parseInt(skipNav ? getComputedStyle(skipNav).zIndex : "0", 10),
@@ -2864,7 +2834,7 @@ test("terminal banner stays below skip-nav and 320px skip-nav does not cover the
   await page.goto("/trade", { waitUntil: "networkidle" });
   const tradeStacking = await page.evaluate(() => {
     const skipNav = document.querySelector('nav[aria-label="Skip links"]');
-    const banner = document.querySelector('[aria-label="Simulation disclosure"]');
+    const banner = [...document.querySelectorAll('[role="status"]')].find((node) => /Public preview/.test(node.textContent ?? ""));
     return {
       navZ: Number.parseInt(skipNav ? getComputedStyle(skipNav).zIndex : "0", 10),
       bannerZ: Number.parseInt(banner ? getComputedStyle(banner).zIndex : "0", 10) || 0,
@@ -2914,7 +2884,7 @@ test("focused skip-nav does not cover banner copy and restores 44px skip links a
   expect((await skip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
   const navBox = await page.getByRole("navigation", { name: "Skip links" }).boundingBox();
-  const bannerBox = await page.getByRole("status", { name: "Simulation disclosure" }).boundingBox();
+  const bannerBox = await page.getByRole("status", { name: PREVIEW_CHIP }).boundingBox();
   expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((bannerBox?.y ?? 0) + 1);
 });
 
@@ -3069,7 +3039,7 @@ test("skip-nav keeps wrapped line-height, 390px two-up ring, gutter, and header 
   expect(skipStyle.lineHeight).toBeGreaterThanOrEqual(skipStyle.fontSize * 1.25);
   expect(skipStyle.minHeight).toBeGreaterThanOrEqual(44);
   expect(skipStyle.minWidth).toBeGreaterThanOrEqual(44);
-  expect(skipStyle.outlineColor).toBe("rgb(4, 47, 46)");
+  expect(skipStyle.outlineColor).toBe("rgb(22, 18, 4)");
 
   const nav = page.getByRole("navigation", { name: "Skip links" });
   expect(await nav.evaluate((element) => getComputedStyle(element).scrollbarGutter)).toBe("stable");
@@ -3136,7 +3106,7 @@ test("skip-nav keeps wrapped line-height, 390px two-up ring, gutter, and header 
       color: style.outlineColor,
     };
   });
-  expect(ring390.color).toBe("rgb(4, 47, 46)");
+  expect(ring390.color).toBe("rgb(22, 18, 4)");
   expect(ring390.left).toBeGreaterThanOrEqual(-0.5);
   expect(ring390.top).toBeGreaterThanOrEqual(-0.5);
   expect(ring390.right).toBeLessThanOrEqual(390.5);
@@ -3282,7 +3252,7 @@ test("skip-nav two-up at 768 and 390 keeps 44px links, wrap, gutter, and Menu cl
       color: style.outlineColor,
     };
   });
-  expect(tradeRing.color).toBe("rgb(4, 47, 46)");
+  expect(tradeRing.color).toBe("rgb(22, 18, 4)");
   expect(tradeRing.left).toBeGreaterThanOrEqual(-0.5);
   expect(tradeRing.top).toBeGreaterThanOrEqual(-0.5);
   expect(tradeRing.right).toBeLessThanOrEqual(390.5);
@@ -3304,7 +3274,7 @@ test("skip-nav row-gap leftover 768 brand legal two-up and banner stacking", asy
     const first = links[0]?.getBoundingClientRect();
     const third = links[2]?.getBoundingClientRect();
     const last = links[links.length - 1]?.getBoundingClientRect();
-    const banner = document.querySelector('[aria-label="Simulation disclosure"]');
+    const banner = [...document.querySelectorAll('[role="status"]')].find((node) => /Public preview/.test(node.textContent ?? ""));
     return {
       rowGap: style.rowGap,
       navZ: Number.parseInt(style.zIndex, 10) || 0,
@@ -3910,7 +3880,7 @@ test("education Continue stays in 320px and leftover skip links stay 44px", asyn
   expect(twoUp.secondWidth).toBeGreaterThanOrEqual(44);
 });
 
-test("education Back Enter simulation heading ring leftover 768 and skip-nav ring at 768", async ({ page }) => {
+test("education Back Continue heading ring leftover 768 and skip-nav ring at 768", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
@@ -3942,7 +3912,7 @@ test("education Back Enter simulation heading ring leftover 768 and skip-nav rin
   expect(headingRing.top).toBeGreaterThanOrEqual(headingRing.parentTop - 0.5);
 
   await dialog.getByRole("button", { name: "Continue" }).click();
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(enter).toBeVisible();
   const enterBox = await enter.boundingBox();
   expect(enterBox?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -4073,7 +4043,7 @@ test("education disabled Back sticky copy Continue ring leftover 390 768 and ski
   await leftover("/", 390, 844, 7);
 });
 
-test("education Enter simulation stays in 320px Continue ring is teal leftover 320 768", async ({ page }) => {
+test("education last-step Continue stays in 320px Continue ring is teal leftover 320 768", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
@@ -4087,11 +4057,11 @@ test("education Enter simulation stays in 320px Continue ring is teal leftover 3
   await expect(continueButton).toBeFocused();
   await expect.poll(async () => {
     return continueButton.evaluate((element) => getComputedStyle(element).outlineColor);
-  }).toBe("rgb(45, 212, 191)");
+  }).toBe("rgb(240, 193, 75)");
 
   await continueButton.click();
   await continueButton.click();
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(enter).toBeVisible();
   const enterBox = await enter.boundingBox();
   expect(enterBox?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -4126,7 +4096,7 @@ test("education Enter simulation stays in 320px Continue ring is teal leftover 3
   await leftover("/this-route-is-not-part-of-the-simulation", 768, 1024, 2);
 });
 
-test("native settlement happy path reaches a no-value settled state", async ({ page }) => {
+test("native settlement happy path reaches a settled fill ticket", async ({ page }) => {
   const serviceRequests: string[] = [];
   page.on("request", (request) => {
     if (/gateway|matcher|observer|\/rpc|wallet/i.test(request.url())) serviceRequests.push(request.url());
@@ -4134,68 +4104,68 @@ test("native settlement happy path reaches a no-value settled state", async ({ p
 
   await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
   await expect(page.getByText(
-    "No-value native settlement walkthrough. It prepares no transaction, connects no wallet, and moves no asset.",
+    "ZEC P2SH lock first with the longer refund. Exact-token EVM lock second with the shorter refund. Claim and refund are mutually exclusive. The matcher can sequence or omit orders. It cannot move funds. It is not trustless.",
     { exact: true },
   )).toBeVisible();
   await expect(page.getByRole("button", { name: /connect.*wallet/i })).toHaveCount(0);
-  await expect(page.getByText("No pZEC. The trade, liquidity, and gateway screens remain legacy simulations.")).toBeVisible();
+  await expect(page.getByText("No pZEC. The matcher cannot move funds.")).toBeVisible();
 
   await runNativeFixtureActions(page, [
     ...fundedNativeFixtureActions,
-    "Record fixture USDC claim",
-    "Confirm fixture USDC claim",
-    "Record fixture ZEC claim",
-    "Confirm fixture ZEC claim",
+    "Record USDC claim",
+    "Confirm USDC claim",
+    "Record ZEC claim",
+    "Confirm ZEC claim",
   ]);
 
-  await expect(page.getByRole("heading", { name: "Fixture settled" })).toBeVisible();
-  await expect(page.getByText("Fixture journey complete. No asset moved.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Fixture settled" })).toBeDisabled();
-  await expect(page.getByRole("table", { name: "Current deterministic native swap fixture evidence" })).toContainText("settled");
+  await expect(page.getByRole("heading", { name: "Settled" })).toBeVisible();
+  await expect(page.getByText("Fill complete. No asset moved.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Settled" })).toBeDisabled();
+  await expect(page.getByRole("table", { name: "Current fill ticket evidence" })).toContainText("settled");
   expect(serviceRequests).toEqual([]);
 });
 
-test("native settlement skip link transfers focus to the walkthrough", async ({ page }) => {
+test("native settlement skip link transfers focus to the fill ticket", async ({ page }) => {
   await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
-  const skip = page.getByRole("link", { name: "Skip to native settlement walkthrough" });
+  const skip = page.getByRole("link", { name: "Skip to fill ticket" });
   await tabTo(page, skip);
   await expectVisibleFocus(skip);
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: "Native ZEC atomic swap" })).toBeFocused();
+  await expect(page.getByRole("heading", { name: "Fill ticket", exact: true }).first()).toBeFocused();
 });
 
-test("native settlement refund path stays early, then recovers both fixture legs", async ({ page }) => {
+test("native settlement refund path stays early, then recovers both legs", async ({ page }) => {
   await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
-  await page.getByRole("combobox", { name: "Fixture scenario" }).selectOption("refund");
+  await page.getByRole("combobox", { name: "Evidence case" }).selectOption("refund");
   await runNativeFixtureActions(page, fundedNativeFixtureActions);
 
-  await expect(page.getByText("Both fixture locks are funded. Neither leg is settled, and refund remains early.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Record fixture USDC refund" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Advance fixture to USDC refund deadline" }).click();
-  await expect(page.getByRole("button", { name: "Record fixture USDC refund" })).toBeEnabled();
+  await expect(page.getByText("Both locks are funded. Neither leg is settled, and refund remains early. Claim and refund are mutually exclusive.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Record USDC refund" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Advance to USDC refund deadline" }).click();
+  await expect(page.getByRole("button", { name: "Record USDC refund" })).toBeEnabled();
 
   await runNativeFixtureActions(page, [
-    "Record fixture USDC refund",
-    "Confirm fixture USDC refund",
-    "Advance fixture to ZEC refund deadline",
-    "Record fixture ZEC refund",
-    "Confirm fixture ZEC refund",
+    "Record USDC refund",
+    "Confirm USDC refund",
+    "Advance to ZEC refund deadline",
+    "Record ZEC refund",
+    "Confirm ZEC refund",
   ]);
-  await expect(page.getByRole("heading", { name: "Fixture refunded" })).toBeVisible();
-  await expect(page.getByText("Fixture refund complete. No transaction was submitted.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Refunded" })).toBeVisible();
+  await expect(page.getByText("Refund complete. No transaction was submitted.", { exact: true })).toBeVisible();
 });
 
 for (const unsafe of [
   ["conflict", "Approved observers disagree on the stablecoin lock."],
-  ["reorganization", "The fixture EVM claim left the canonical chain."],
-  ["contract-mismatch", "Observed contract identity differs from the signed fixture terms."],
+  ["reorganization", "The EVM claim left the canonical chain."],
+  ["contract-mismatch", "Observed contract identity differs from the signed terms."],
 ] as const) {
   test(`native settlement ${unsafe[0]} evidence disables funding and claim`, async ({ page }) => {
     await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
-    await page.getByRole("combobox", { name: "Fixture scenario" }).selectOption(unsafe[0]);
-    await expect(page.getByRole("heading", { name: "Disputed fixture evidence" })).toBeFocused();
+    await page.getByRole("combobox", { name: "Evidence case" }).selectOption(unsafe[0]);
+    await expect(page.getByRole("heading", { name: "Disputed evidence" })).toBeFocused();
     await expect(page.getByRole("alert").filter({ hasText: unsafe[1] })).toBeVisible();
-    const disabled = page.getByRole("button", { name: "Fixture action disabled" });
+    const disabled = page.getByRole("button", { name: "Claim disabled" });
     await expect(disabled).toBeDisabled();
     await expect(disabled).toHaveAttribute("aria-describedby", "native-swap-action-disabled");
   });
@@ -4206,7 +4176,7 @@ test("native settlement binds exact mainnet USDT but remains disabled until depl
   await expect(page.getByRole("heading", { name: "USDT matcher undeployed" })).toBeVisible();
   await expect(page.getByText("The exact Ethereum Mainnet USDT identity is bound separately from USDC.")).toBeVisible();
   await expect(page.getByText("USDT is not USDT0.", { exact: true })).toBeVisible();
-  const disabled = page.getByRole("button", { name: "Fixture action disabled" });
+  const disabled = page.getByRole("button", { name: "Claim disabled" });
   await expect(disabled).toBeDisabled();
   await expect(disabled).toHaveAttribute("aria-describedby", "native-swap-disabled-reason");
   await expect(page.getByRole("button", { name: /connect.*wallet/i })).toHaveCount(0);
@@ -4270,14 +4240,14 @@ test("education last-step Back heading ring leftover 320 768", async ({ page }) 
   await leftover("/trade?error=1", 768, 1024, 2);
   await leftover("/trade?access=blocked", 320, 900, 2);
 });
-test("education Enter simulation stays 44px wide on the last step at 320", async ({ page }) => {
+test("education Continue stays 44px wide on the last step at 320", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(enter).toBeVisible();
   const enterBox = await enter.boundingBox();
   expect(enterBox?.width ?? 0).toBeGreaterThanOrEqual(44);
@@ -4480,7 +4450,7 @@ test("education Continue stays in a 320x568 viewport", async ({ page }) => {
   expect((continueBox?.x ?? 0) + (continueBox?.width ?? 0)).toBeLessThanOrEqual(320);
   await continueButton.click();
   await continueButton.click();
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(enter).toBeVisible();
   const enterBox = await enter.boundingBox();
   expect(enterBox?.width ?? 0).toBeGreaterThanOrEqual(44);
@@ -4497,7 +4467,7 @@ test("education Enter Back heading 44px Continue ring at 390 and heading ring at
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
   const back = dialog.getByRole("button", { name: "Back" });
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(back).toBeEnabled();
   await expect(enter).toBeVisible();
   const backBox = await back.boundingBox();
@@ -4532,7 +4502,7 @@ test("education Enter Back heading 44px Continue ring at 390 and heading ring at
       parentRight: parentRect?.right ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(45, 212, 191)");
+  expect(continueRing.color).toBe("rgb(240, 193, 75)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
   expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
@@ -4638,7 +4608,7 @@ test("education Enter Back 44px Continue ring at 768 and heading ring at 390", a
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
   const back = dialog.getByRole("button", { name: "Back" });
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(back).toBeEnabled();
   await expect(enter).toBeVisible();
   const backBox = await back.boundingBox();
@@ -4675,7 +4645,7 @@ test("education Enter Back 44px Continue ring at 768 and heading ring at 390", a
       parentRight: parentRect?.right ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(45, 212, 191)");
+  expect(continueRing.color).toBe("rgb(240, 193, 75)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
   expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
@@ -4782,7 +4752,7 @@ test("education Enter Back heading 44px Continue ring at 1440 and heading ring a
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
   const back = dialog.getByRole("button", { name: "Back" });
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(back).toBeEnabled();
   await expect(enter).toBeVisible();
   expect((await back.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(44);
@@ -4813,7 +4783,7 @@ test("education Enter Back heading 44px Continue ring at 1440 and heading ring a
       parentRight: parentRect?.right ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(45, 212, 191)");
+  expect(continueRing.color).toBe("rgb(240, 193, 75)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
   expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
@@ -5040,7 +5010,7 @@ test("education Continue in 768x1024 Enter Back in 390x844 and heading ring at 3
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
   const back = dialog.getByRole("button", { name: "Back" });
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(back).toBeEnabled();
   await expect(enter).toBeVisible();
   const backBox = await back.boundingBox();
@@ -5128,7 +5098,7 @@ test("education Continue in 1440 Enter Back in 768 heading ring 768 and Continue
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
   const back = dialog.getByRole("button", { name: "Back" });
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(back).toBeEnabled();
   await expect(enter).toBeVisible();
   const backBox = await back.boundingBox();
@@ -5164,7 +5134,7 @@ test("education Continue in 1440 Enter Back in 768 heading ring 768 and Continue
       parentBottom: parentRect?.bottom ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(45, 212, 191)");
+  expect(continueRing.color).toBe("rgb(240, 193, 75)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(Number.parseFloat(continueRing.scrollMarginBottom)).toBeGreaterThanOrEqual(12);
   expect(Number.parseFloat(continueRing.paddingBottom)).toBeGreaterThanOrEqual(12);
@@ -5236,7 +5206,7 @@ test("education Enter Back in 1440 heading ring 1440 Continue ring 768 and Conti
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
   const back = dialog.getByRole("button", { name: "Back" });
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(back).toBeEnabled();
   await expect(enter).toBeVisible();
   const backBox = await back.boundingBox();
@@ -5272,7 +5242,7 @@ test("education Enter Back in 1440 heading ring 1440 Continue ring 768 and Conti
       parentBottom: parentRect?.bottom ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(45, 212, 191)");
+  expect(continueRing.color).toBe("rgb(240, 193, 75)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
   expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);

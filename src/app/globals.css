@@ -13,10 +13,10 @@
   --text-secondary: #8aa0a6;
   --text-muted: #8aa0a6;
   --muted: #8aa0a6;
-  --accent: #2dd4bf;
-  --accent-dim: #0f766e;
-  --accent-fg: #042f2e;
-  --accent-soft: rgba(45, 212, 191, 0.12);
+  --accent: #f0c14b;
+  --accent-dim: #a67c1a;
+  --accent-fg: #161204;
+  --accent-soft: rgba(240, 193, 75, 0.14);
   --buy: #34d399;
   --buy-soft: rgba(52, 211, 153, 0.1);
   --bid: #34d399;
@@ -80,4 +80,15 @@ a {
 ::selection {
   color: var(--accent-fg);
   background: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

@@ -2,8 +2,6 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
-import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import { custodyRedemptionCopy, publicLinkabilityCopy } from "@/lib/review-copy";
 import { retargetSettlementCopy } from "@/lib/evm-wallet";
 import { parseExpiryUnix } from "@/lib/ticket-expiry";
@@ -26,25 +24,32 @@ import {
 import { maxTicketSizeAtoms } from "@/lib/ticket-size";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
 import { describeSubmit, isTicketRejectCopy } from "@/lib/session";
-import { compareVenues, type RouteComparison } from "@/lib/router";
 import {
-  calculatePreviewNotional,
-  calculateWorstPrice,
-  formatQuotePreviewAmount,
-  marketOrderConstraintCopy,
   parseStrictDecimal,
+  marketOrderConstraintCopy,
   sideControlCopy,
   ZEC_ATOMIC_RULE,
   QUOTE_PRICE_ATOMIC_RULE,
+  calculatePreviewNotional,
+  calculateWorstPrice,
+  formatQuotePreviewAmount,
 } from "@/lib/order";
+import {
+  ticketCompleteActionCopy,
+  ticketIdleNoticeCopy,
+  ticketRetryFeedCopy,
+  ticketReviewActionCopy,
+  ticketReviewCompleteCopy,
+  ticketReviewFeeCopy,
+  ticketReviewNoticeCopy,
+  ticketReviewRows,
+} from "@/lib/ticket-review-copy";
 import {
   ZEC_DECIMALS,
   PRICE_DECIMALS,
   QUOTE_DECIMALS,
   formatAtomicUnits,
   parseAtomicUnits,
-  quoteAtomsForFill,
-  quoteAtomsForFills,
   worstPriceTicks,
 } from "@/lib/units";
 
@@ -86,19 +91,6 @@ function parseSizeAtoms(value: string): { atoms: bigint; error: string | null } 
   }
 }
 
-function describeRoute(comparison: RouteComparison, quote: string): string {
-  if (comparison.better === "split") {
-    return `Split: CLOB ${formatAtomicUnits(comparison.split.clobFilledAtoms, ZEC_DECIMALS)} ZEC and AMM ${formatAtomicUnits(comparison.split.ammFilledAtoms, ZEC_DECIMALS)} ZEC for ${formatAtomicUnits(comparison.split.quoteAtoms, QUOTE_DECIMALS, 2)} ${quote}`;
-  }
-  if (comparison.better === "none") {
-    return "neither venue fills in full inside the signed bound";
-  }
-  if (comparison.better === "tie") {
-    return "CLOB and AMM match on this size";
-  }
-  return `${comparison.better.toUpperCase()} cheaper for a full fill`;
-}
-
 export function TradeTicket({
   market,
   book,
@@ -106,8 +98,6 @@ export function TradeTicket({
   priceSelection,
   availableZecAtoms,
   availableQuoteAtoms,
-  reserveZecAtoms,
-  reserveQuoteAtoms,
   accountEpoch,
   feedStatus,
   variant = "advanced",
@@ -153,7 +143,7 @@ export function TradeTicket({
   const [size, setSize] = useState("10");
   const [slippagePercent, setSlippagePercent] = useState("0.50");
   const [expiry, setExpiry] = useState("0");
-  const [notice, setNotice] = useState("Local matcher only. Session inventory is not a wallet.");
+  const [notice, setNotice] = useState(ticketIdleNoticeCopy());
   const [rejected, setRejected] = useState<string | null>(null);
   const [appliedPriceNonce, setAppliedPriceNonce] = useState(0);
   const [sessionNonce, setSessionNonce] = useState(1);
@@ -163,10 +153,6 @@ export function TradeTicket({
     priceTicks: bigint;
     sizeAtoms: bigint;
     tif: TimeInForce;
-    digest: string;
-    comparison: RouteComparison;
-    clobDebitAtoms: bigint;
-    clobReservationAtoms: bigint;
     expiryUnix: bigint;
   } | null>(null);
   const isSimple = variant === "simple";
@@ -426,7 +412,7 @@ export function TradeTicket({
     };
   }
 
-  async function reviewSimulatedOrder(nowUnix: bigint) {
+  function openReview(nowUnix: bigint) {
     if (!gate.canReview) {
       setNotice(gate.message);
       setReview(null);
@@ -438,14 +424,6 @@ export function TradeTicket({
       return;
     }
 
-    const comparison = compareVenues({
-      book,
-      side,
-      sizeAtoms: prepared.sizeAtoms,
-      limitTicks: prepared.priceTicks,
-      reserveZecAtoms,
-      reserveQuoteAtoms,
-    });
     const clobPreview = submitOrder(book, {
       id: "ticket-review",
       side,
@@ -463,44 +441,14 @@ export function TradeTicket({
       return;
     }
     setRejected(null);
-    const filledZecAtoms = clobPreview.fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
-    const clobDebitAtoms = side === "buy"
-      ? quoteAtomsForFills(clobPreview.fills, "up")
-      : filledZecAtoms;
-    const clobReservationAtoms = clobPreview.status === "open"
-      ? side === "buy"
-        ? quoteAtomsForFill(clobPreview.remainingAtoms, prepared.priceTicks, "up")
-        : clobPreview.remainingAtoms
-      : 0n;
-    const canonical: CanonicalOrder = {
-      maker: "session",
-      side,
-      baseAsset: "ZEC",
-      quoteAsset: market.quote,
-      baseAmountAtoms: prepared.sizeAtoms.toString(),
-      limitPriceTicks: prepared.priceTicks.toString(),
-      nonce: String(sessionNonce),
-      accountEpoch: String(accountEpoch),
-      expiry: prepared.expiryUnix.toString(),
-      salt: prepared.tif,
-      recipient: "session",
-      maximumFeeBps: "30",
-      allowedVenues: "clob",
-      chainId: "1",
-      verifyingContract: "not-deployed",
-    };
     setSessionNonce((current) => current + 1);
     setReview({
       ...prepared,
       side,
-      digest: await digestCanonicalOrder(canonical),
-      comparison,
-      clobDebitAtoms,
-      clobReservationAtoms,
     });
   }
 
-  function confirmSimulatedOrder() {
+  function completeReview() {
     if (!review || !gate.canReview) {
       if (!gate.canReview) {
         setNotice(gate.message);
@@ -516,7 +464,7 @@ export function TradeTicket({
       expiryUnix: review.expiryUnix,
     });
     setRejected(isTicketRejectCopy(result) ? result : null);
-    setNotice(result);
+    setNotice(isTicketRejectCopy(result) ? result : ticketReviewCompleteCopy());
     setReview(null);
   }
 
@@ -528,6 +476,14 @@ export function TradeTicket({
   const availableOut = side === "buy"
     ? `${formatAtomicUnits(availableZecAtoms, ZEC_DECIMALS)} ZEC`
     : `${formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`;
+  const reviewRows = review
+    ? ticketReviewRows({
+      side: review.side,
+      sizeLabel: `${formatAtomicUnits(review.sizeAtoms, ZEC_DECIMALS)} ZEC`,
+      priceLabel: `${formatAtomicUnits(review.priceTicks, PRICE_DECIMALS, 2)} ${market.quote}`,
+      settlementPair: market.settlementPair,
+    })
+    : [];
 
   return (
     <section
@@ -538,7 +494,7 @@ export function TradeTicket({
     >
       <div className={styles.panelHeader}>
         <h2 id="trade-ticket-title">Order entry</h2>
-        <span className={styles.statusDot}>Local matcher</span>
+        <span className={styles.statusDot}>CLOB</span>
       </div>
 
       {!gate.canReview && (
@@ -546,7 +502,7 @@ export function TradeTicket({
           <strong>{gate.heading}</strong>
           <p>{gate.message}{gate.asOf ? ` As of ${gate.asOf}.` : ""}</p>
           <button type="button" className={styles.textButton} onClick={onRetryFeed}>
-            Retry illustrative feed
+            {ticketRetryFeedCopy()}
           </button>
         </div>
       )}
@@ -775,7 +731,7 @@ export function TradeTicket({
           {expiryError ? (
             <p id={expiryErrorId} className={styles.inlineNotice} role="alert">{expiryError}</p>
           ) : null}
-          <p className={styles.inlineNotice}>0 means no expiry. This session never sends a live order.</p>
+          <p className={styles.inlineNotice}>0 means no expiry.</p>
 
           <div
             className={styles.percentRow}
@@ -818,8 +774,9 @@ export function TradeTicket({
           <dd>{effectiveTif}</dd>
         </div>
         <div>
-          <dt>Trading fee</dt>
-          <dd>Proposed {MAKER_FEE_BPS} / {TAKER_FEE_BPS} bps; not deducted here</dd>
+          <dt>Fee</dt>
+          {/* feeEnvelopeCopy is the proposed CLOB envelope; it is not charged. */}
+          <dd>{ticketReviewFeeCopy()}</dd>
         </div>
         <div>
           <dt>Account epoch</dt>
@@ -840,81 +797,22 @@ export function TradeTicket({
       {review ? (
         <div className={styles.reviewBlock}>
           <p className={styles.gateNotice} aria-label="Review custody notice">
-            This preview labels native ZEC. It is not live settlement. This fill is public in the simulation. The matcher is not trustless.
+            {ticketReviewNoticeCopy()} {custodyRedemptionCopy()}
           </p>
           <dl className={styles.ticketSummary}>
-            <div>
-              <dt>Leaves the session</dt>
-              <dd>
-                {review.side === "buy"
-                  ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote} in the simulation session`
-                  : `${formatAtomicUnits(review.clobDebitAtoms, ZEC_DECIMALS)} ZEC in the simulation session`}
-              </dd>
-            </div>
-            <div>
-              <dt>Arrives in the session</dt>
-              <dd>
-                {review.side === "buy"
-                  ? "ZEC in the simulation session"
-                  : `${market.quote} in the simulation session`}
-              </dd>
-            </div>
-            <div>
-              <dt>Immediate CLOB debit</dt>
-              <dd>
-                {review.side === "buy"
-                  ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`
-                  : `${formatAtomicUnits(review.clobDebitAtoms, ZEC_DECIMALS)} ZEC`}
-              </dd>
-            </div>
-            <div>
-              <dt>Resting reservation</dt>
-              <dd>
-                {review.clobReservationAtoms === 0n
-                  ? "none"
-                  : review.side === "buy"
-                    ? `${formatAtomicUnits(review.clobReservationAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`
-                    : `${formatAtomicUnits(review.clobReservationAtoms, ZEC_DECIMALS)} ZEC`}
-              </dd>
-            </div>
-            <div>
-              <dt>Worst acceptable price</dt>
-              <dd>{formatAtomicUnits(review.priceTicks, PRICE_DECIMALS, 2)} {market.quote}</dd>
-            </div>
-            <div>
-              <dt>Expiry</dt>
-              <dd>{review.expiryUnix === 0n ? "none" : review.expiryUnix.toString()}</dd>
-            </div>
-            <div>
-              <dt>Fees</dt>
-              <dd>{feeEnvelopeCopy()}</dd>
-            </div>
-            <div>
-              <dt>Custody and redemption</dt>
-              <dd>{custodyRedemptionCopy()}</dd>
-            </div>
-            <div>
-              <dt>Public linkability</dt>
-              <dd>{publicLinkabilityCopy("fill")}</dd>
-            </div>
-            <div>
-              <dt>CLOB vs AMM</dt>
-              <dd>{describeRoute(review.comparison, market.quote)}</dd>
-            </div>
-            <div>
-              <dt>Session digest</dt>
-              <dd>{review.digest.slice(0, 16)}…</dd>
-            </div>
+            {reviewRows.map((row) => (
+              <div key={row.label}>
+                <dt>{row.label}</dt>
+                <dd>{row.label === "Public linkability" ? publicLinkabilityCopy("fill") : row.value}</dd>
+              </div>
+            ))}
           </dl>
-          <p className={styles.inlineNotice}>
-            Confirm submits only the local CLOB. Split and AMM figures are comparison quotes, not an executed router fill.
-          </p>
           <button
             type="button"
             className={`${styles.primaryAction} ${review.side === "sell" ? styles.sellAction : ""}`}
-            onClick={confirmSimulatedOrder}
+            onClick={completeReview}
           >
-            Confirm simulated {review.side}
+            {ticketCompleteActionCopy(review.side)}
           </button>
           <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
             Back
@@ -924,10 +822,10 @@ export function TradeTicket({
         <button
           type="button"
           className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
-          onClick={() => void reviewSimulatedOrder(BigInt(Math.floor(Date.now() / 1000)))}
+          onClick={() => openReview(BigInt(Math.floor(Date.now() / 1000)))}
           disabled={!gate.canReview}
         >
-          Review simulated {side}
+          {ticketReviewActionCopy(side)}
         </button>
       )}
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
@@ -941,7 +839,7 @@ export function TradeTicket({
             <h3 id="ticket-keyboard-heading">Ticket keyboard</h3>
             <p>B/S side, L/M type, G/I/F time in force, Escape back from review. G/I/F stay idle while review is open.</p>
           </div>
-          <p className={styles.inlineNotice}>Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
+          <p className={styles.inlineNotice}>Click a book price to copy it here.</p>
         </>
       )}
     </section>

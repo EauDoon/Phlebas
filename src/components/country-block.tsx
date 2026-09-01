@@ -20,7 +20,7 @@ export function CountryBlock() {
       </div>
       <p className={styles.featureLead}>{COUNTRY_BLOCKED_COPY.body}</p>
       <p className={styles.inlineNotice}>
-        This is a shareable preview of a blocked location. The simulation does not request location, identity, or account information.
+        This is a shareable preview of a blocked location. This page does not request location, identity, or account information.
       </p>
       <div className={styles.tourNav}>
         <Link href="/trade?view=architecture">{COUNTRY_BLOCKED_COPY.architecture}</Link>

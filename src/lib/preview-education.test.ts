@@ -5,6 +5,7 @@ import {
   isEducationForceQuery,
   isEducationLastStep,
   PREVIEW_EDUCATION_STEPS,
+  PREVIEW_EDUCATION_STORAGE_KEY,
   PREVIEW_EDUCATION_VERSION,
   shouldShowPreviewEducation,
 } from "./preview-education.ts";
@@ -16,24 +17,28 @@ test("education returns when local storage is empty or stale", () => {
   assert.equal(shouldShowPreviewEducation(PREVIEW_EDUCATION_VERSION), false);
 });
 
-test("education copy stays a simulation briefing, not consent", () => {
+test("education copy stays a public-preview briefing, not consent", () => {
   assert.equal(PREVIEW_EDUCATION_STEPS.length, 3);
   for (const step of PREVIEW_EDUCATION_STEPS) {
     assert.doesNotMatch(step.title, /I agree/i);
     assert.doesNotMatch(step.body, /I agree/i);
+    assert.doesNotMatch(step.title, /\bsimulation\b/i);
+    assert.doesNotMatch(step.body, /\bsimulation\b/i);
     assert.doesNotMatch(step.body, /\blive funds\b/i);
     assert.doesNotMatch(step.body, /is trustless/);
   }
+  assert.equal(PREVIEW_EDUCATION_STEPS[0].title, "This public preview uses illustrative data.");
+  assert.equal(PREVIEW_EDUCATION_STEPS[0].body, "No chain is connected.");
   assert.equal(PREVIEW_EDUCATION_STEPS[1].title, "Pairs are native ZEC against USDC and USDT.");
-  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /ZEC-USDC and ZEC-USDT/);
-  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /not live settlement/);
+  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /not live settlement/i);
+  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /not shielded/i);
+  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /not a trustless bridge/i);
   assert.match(PREVIEW_EDUCATION_STEPS[1].body, /USDT0 is abandoned/);
   assert.doesNotMatch(PREVIEW_EDUCATION_STEPS[1].body, /pZEC is the planned settlement receipt/);
-  assert.match(PREVIEW_EDUCATION_STEPS[0].body, /cannot submit a transaction/);
-  assert.match(PREVIEW_EDUCATION_STEPS[0].body, /Ethereum Mainnet/);
-  assert.match(PREVIEW_EDUCATION_STEPS[0].body, /historical state-tour events/);
-  assert.match(PREVIEW_EDUCATION_STEPS[2].body, /historical custody states/);
+  assert.equal(PREVIEW_EDUCATION_STEPS[2].title, "Actions stay in this browser.");
+  assert.match(PREVIEW_EDUCATION_STEPS[2].body, /wallets and contracts are enabled/);
   assert.equal(PREVIEW_EDUCATION_VERSION, "2026-09-01-2");
+  assert.equal(PREVIEW_EDUCATION_STORAGE_KEY, "phlebas.previewEducationVersion");
 });
 
 test("education query force is allowlisted to 1", () => {

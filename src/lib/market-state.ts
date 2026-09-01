@@ -211,7 +211,7 @@ export function depthSessionLastCopy(
 export function tapeCaptionCopy(marketId: MarketId, withheld: boolean): string {
   const settlementPair = markets[marketId].settlementPair;
   if (withheld) {
-    return `Recent ${marketId} trades withheld. Settled as ${settlementPair}. Fixture tape is not shown.`;
+    return `Recent ${marketId} trades withheld. Settled as ${settlementPair}. Public tape is not shown.`;
   }
   return `Recent ${marketId} trades settled as ${settlementPair}. Session fills appear first.`;
 }
@@ -228,8 +228,8 @@ export function tapeMiniLabel(
   showFixtures: boolean,
   settlementPair: Market["settlementPair"],
 ): string {
-  if (hasSessionTape) return "Session + fixture";
-  if (showFixtures) return "Fixture tape";
+  if (hasSessionTape) return "Session + public tape";
+  if (showFixtures) return "Public tape";
   return `Withheld · ${settlementPair}`;
 }
 

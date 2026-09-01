@@ -5,7 +5,17 @@ import Link from "next/link";
 
 import { activateSkipLink } from "@/lib/skip-link";
 
+import { PreviewChip } from "./preview-chip";
+import { SiteFooter } from "./site-footer";
 import styles from "./terminal.module.css";
+
+const navigation = [
+  { href: "/#markets", label: "Markets" },
+  { href: "/trade?view=trade", label: "Terminal" },
+  { href: "/liquidity", label: "Liquidity" },
+  { href: "/trade?view=architecture", label: "Docs" },
+  { href: "/status", label: "Status" },
+] as const;
 
 export function SimulationFrame({
   title,
@@ -22,37 +32,26 @@ export function SimulationFrame({
         <a className={styles.skipLink} href="#main-content" onClick={activateSkipLink}>Skip to main content</a>
         {skipTo ? <a className={styles.skipLink} href={skipTo.href} onClick={activateSkipLink}>{skipTo.label}</a> : null}
       </nav>
-      <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
-        <strong>Simulation only</strong>
-        <span>No-value simulation. Optional Ethereum Mainnet wallet connection is sign-only and cannot submit a transaction.</span>
-      </div>
+      <PreviewChip />
       <header className={styles.topbar}>
         <Link href="/" className={styles.brand} aria-label="Phlebas home">
           <span className={styles.brandMark}>P</span>
           <span>PHLEBAS</span>
         </Link>
         <nav className={styles.nav} aria-label="Primary navigation">
-          <Link href="/trade?view=trade">Trade</Link>
-          <Link href="/liquidity">Liquidity</Link>
-          <Link href="/status">Status</Link>
-          <Link href="/legal">Legal</Link>
-          <Link href="/security">Security</Link>
+          {navigation.map((item) => (
+            <Link href={item.href} key={item.href}>{item.label}</Link>
+          ))}
         </nav>
+        <div className={styles.headerActions}>
+          <Link href="/trade?view=trade" className={styles.headerCta}>Open terminal</Link>
+        </div>
       </header>
       <main id="main-content" tabIndex={-1} className={styles.simpleMain}>
         <h1>{title}</h1>
         {children}
       </main>
-      <footer className={styles.footer}>
-        <span>Phlebas is a protocol preview, not a live exchange or an offer of financial services.</span>
-        <nav aria-label="Footer">
-          <Link href="/trade?view=architecture">Architecture</Link>
-          <Link href="/legal">Legal and compliance</Link>
-          <Link href="/#launch-gates">Launch gates</Link>
-          <Link href="/security">Security</Link>
-          <Link href="/status">Status</Link>
-        </nav>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

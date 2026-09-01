@@ -21,7 +21,7 @@ test("simple mode shows a Uniswap-style market ticket without the book", async (
   await expect(page.getByText("Token out", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Switch" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Max" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
 
   await expect(page.getByRole("heading", { name: "Order book" })).toHaveCount(0);
   await expect(page.locator("#order-book")).toHaveCount(0);
@@ -46,7 +46,7 @@ test("Max fills a positive size and Switch flips side", async ({ page }) => {
   expect(buySize).toBeGreaterThan(0);
 
   await page.getByRole("button", { name: "Switch" }).click();
-  await expect(page.getByRole("button", { name: "Review simulated sell" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review sell" })).toBeVisible();
   await expect(page.getByLabel("Token in")).toContainText("ZEC");
   await expect(page.getByLabel("Token out")).toContainText("USDC");
 
@@ -67,19 +67,19 @@ test("simple Review confirm completes an IOC market fill", async ({ page }) => {
 
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(describeSubmit(market, "ZEC/USDC"))).toBeVisible();
 });
 
 test("simple Review is disabled when the feed gate blocks it", async ({ page }) => {
   await page.goto("/trade?mode=simple&feed=stale", { waitUntil: "networkidle" });
-  const review = page.getByRole("button", { name: "Review simulated buy" });
+  const review = page.getByRole("button", { name: "Review buy" });
   await expect(review).toBeDisabled();
   await review.click({ force: true });
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
 test("simple mode at 375px has 44px primary buttons and no overflow", async ({ page }) => {
@@ -87,7 +87,7 @@ test("simple mode at 375px has 44px primary buttons and no overflow", async ({ p
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
   await expectNoHorizontalOverflow(page);
 
-  const review = page.getByRole("button", { name: "Review simulated buy" });
+  const review = page.getByRole("button", { name: "Review buy" });
   const max = page.getByRole("button", { name: "Max" });
   const swap = page.getByRole("button", { name: "Switch" });
   await expect(review).toBeVisible();
@@ -96,7 +96,7 @@ test("simple mode at 375px has 44px primary buttons and no overflow", async ({ p
   expect((await swap.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
   await review.click();
-  const confirm = page.getByRole("button", { name: "Confirm simulated buy" });
+  const confirm = page.getByRole("button", { name: "Complete buy" });
   const back = page.getByRole("button", { name: "Back" });
   await expect(confirm).toBeVisible();
   expect((await confirm.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);

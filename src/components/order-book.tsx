@@ -5,7 +5,6 @@ import {
   depthEmptyCopy,
   depthSessionLastCopy,
   feedSurface,
-  feedWithheldCopy,
   orderBookCaptionCopy,
   type FeedStatus,
 } from "@/lib/market-state";
@@ -39,9 +38,7 @@ export function OrderBook({
     <section id="order-book" tabIndex={-1} className={styles.panel} aria-labelledby="order-book-title">
       <div className={styles.panelHeader}>
         <h2 id="order-book-title">Order book</h2>
-        <span className={styles.miniLabel}>
-          {surface.showFixtures ? "0.01 tick · local book" : surface.heading}
-        </span>
+        <span className={styles.miniLabel}>0.01 tick</span>
       </div>
       <table className={styles.dataTable}>
         <caption className={styles.srOnly}>
@@ -59,9 +56,7 @@ export function OrderBook({
             <tr>
               <td colSpan={3}>
                 <p className={styles.emptyState}>
-                  {surface.showFixtures || feedStatus === "empty"
-                    ? depthEmptyCopy(market.settlementPair)
-                    : feedWithheldCopy(feedStatus, market.settlementPair)}
+                  {depthEmptyCopy(market.settlementPair)}
                 </p>
               </td>
             </tr>

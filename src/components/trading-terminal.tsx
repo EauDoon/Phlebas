@@ -15,6 +15,7 @@ import {
   subscribeIncidentDemo,
 } from "@/lib/gateway-incidents";
 import { activateSkipLink } from "@/lib/skip-link";
+import { PreviewChip } from "./preview-chip";
 import { NO_TEX_ISSUED, ZEC_DESTINATION_LABEL } from "@/lib/wallet-bar-copy";
 import { terminalUrl } from "@/lib/terminal-url";
 import {
@@ -48,9 +49,11 @@ import {
 } from "@/lib/market-state";
 import { interpretRovingKey } from "@/lib/roving-keys";
 import {
+  isTerminalView,
   nextTerminalView,
   TERMINAL_VIEW_LABELS,
   TERMINAL_VIEWS,
+  type RenderableTerminalView,
   type TerminalView,
 } from "@/lib/terminal-views";
 import type { SessionLogEvent } from "@/lib/replay";
@@ -81,8 +84,8 @@ import { BridgePanel } from "./bridge-panel";
 import { CountryBlock } from "./country-block";
 import { LiquidityPanel } from "./liquidity-panel";
 import { NativeMatcherOrderAction } from "./native-matcher-order-action";
-import { NativeSwapPanel } from "./native-swap-panel";
 import { OrderBlotter } from "./order-blotter";
+import { SettlementTicket } from "./settlement-ticket";
 import { OrderBook } from "./order-book";
 import { PreviewEducation } from "./preview-education";
 import { PriceChart } from "./price-chart";
@@ -91,7 +94,7 @@ import { WalletBar } from "./wallet-bar";
 import styles from "./terminal.module.css";
 
 function viewUrl(
-  view: TerminalView,
+  view: RenderableTerminalView,
   market: MarketId,
   feed: FeedStatus,
   demo?: string,
@@ -154,7 +157,7 @@ export function TradingTerminal({
   highlightIncidents = false,
   initialMode,
 }: {
-  initialView?: TerminalView;
+  initialView?: RenderableTerminalView;
   initialMarket?: MarketId;
   initialFeed?: FeedStatus;
   initialBridgeJourney?: "deposit" | "withdrawal";
@@ -164,8 +167,10 @@ export function TradingTerminal({
   initialMode?: TerminalMode;
 }) {
   const router = useRouter();
-  const [view, setView] = useState<TerminalView>(initialView);
-  const [viewFocusId, setViewFocusId] = useState<TerminalView>(initialView);
+  const [view, setView] = useState<RenderableTerminalView>(initialView);
+  const [viewFocusId, setViewFocusId] = useState<TerminalView>(
+    isTerminalView(initialView) ? initialView : "trade",
+  );
   const [marketId, setMarketId] = useState<MarketId>(initialMarket);
   const [marketFocusId, setMarketFocusId] = useState<MarketId>(initialMarket);
   const [feedStatus, setFeedStatus] = useState<FeedStatus>(initialFeed);
@@ -485,7 +490,7 @@ export function TradingTerminal({
   }
 
   const sessionTape = fills.filter((fill) => fill.marketId === marketId).slice(0, 6);
-  const fixtureTape = feed.showFixtures ? recentTrades[marketId] : [];
+  const publicTape = feed.showFixtures ? recentTrades[marketId] : [];
 
   const operatingView = initialAccess === "open" && (view === "trade" || view === "liquidity");
 
@@ -508,7 +513,7 @@ export function TradingTerminal({
           </>
         ) : null}
         {initialAccess === "open" && view === "settlement" ? (
-          <a className={styles.skipLink} href="#native-swap-title">Skip to native settlement walkthrough</a>
+          <a className={styles.skipLink} href="#native-swap-title" onClick={activateSkipLink}>Skip to fill ticket</a>
         ) : null}
         {initialAccess === "open" && view === "architecture" ? (
           <>
@@ -530,14 +535,7 @@ export function TradingTerminal({
           </>
         ) : null}
       </nav>
-      <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
-        <strong>{view === "settlement" ? "No-value walkthrough" : "Protocol preview"}</strong>
-        <span>
-          {view === "settlement"
-            ? "No-value native settlement walkthrough. It prepares no transaction, connects no wallet, and moves no asset."
-            : "Local in-browser matcher by default. Optional Ethereum Mainnet wallet connection is sign-only and cannot submit a transaction. This matcher is not trustless."}
-        </span>
-      </div>
+      <PreviewChip />
 
       <header className={styles.topbar}>
         <Link href="/" className={styles.brand} aria-label="Phlebas home">
@@ -596,7 +594,7 @@ export function TradingTerminal({
               <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
             </>
           ) : (
-            <span className={styles.fixturePill}>No wallet · fixture only</span>
+            <span className={styles.statusPill}>No wallet</span>
           )}
         </div>
       </header>
@@ -604,9 +602,7 @@ export function TradingTerminal({
       {view !== "settlement" && <PreviewEducation force={forceEducation} />}
 
       <main id="main-content" className={styles.main} tabIndex={-1}>
-        <h1 className={styles.srOnly}>
-          {view === "settlement" ? "Phlebas native settlement walkthrough" : "Phlebas ZEC trading terminal"}
-        </h1>
+        <h1 className={styles.srOnly}>Phlebas</h1>
         {initialAccess === "blocked" && <CountryBlock />}
         {initialAccess === "open" && view === "trade" && (
           <>
@@ -672,7 +668,7 @@ export function TradingTerminal({
                 </div>
                 <div><dt>24h high</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
                 <div><dt>24h low</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
-                <div><dt>24h volume</dt><dd>{feed.showFixtures ? `Fixture ${market.volume}` : "—"}</dd></div>
+                <div><dt>24h volume</dt><dd>{feed.showFixtures ? market.volume : "—"}</dd></div>
               </dl>
               <p className={styles.inlineNotice}>{feed.statsNote}</p>
             </section>
@@ -765,8 +761,8 @@ export function TradingTerminal({
                         <td>{trade.time}</td>
                       </tr>
                     ))}
-                    {fixtureTape.map((trade) => (
-                      <tr key={`fixture-${trade.time}-${trade.priceTicks.toString()}`}>
+                    {publicTape.map((trade) => (
+                      <tr key={`tape-${trade.time}-${trade.priceTicks.toString()}`}>
                         <th scope="row" className={trade.side === "buy" ? styles.buyText : styles.sellText}>
                           {tapeSideCopy(trade.side)} {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
                         </th>
@@ -774,7 +770,7 @@ export function TradingTerminal({
                         <td>{trade.time}</td>
                       </tr>
                     ))}
-                    {sessionTape.length === 0 && fixtureTape.length === 0 && (
+                    {sessionTape.length === 0 && publicTape.length === 0 && (
                       <tr>
                         <td colSpan={3}>
                           <p className={styles.emptyState}>{feedWithheldCopy(feedStatus, market.settlementPair)}</p>
@@ -797,6 +793,12 @@ export function TradingTerminal({
                 onReset={resetSession}
                 accountEpoch={accountEpoch}
               />
+              <SettlementTicket
+                key={marketId}
+                marketId={marketId}
+                variant="compact"
+                activeFillId={sessionTape[0]?.id}
+              />
             </div>
           </>
         )}
@@ -811,7 +813,7 @@ export function TradingTerminal({
           />
         )}
         {initialAccess === "open" && view === "settlement" && (
-          <NativeSwapPanel marketId={marketId} onMarketChange={selectMarket} />
+          <SettlementTicket key={marketId} marketId={marketId} onMarketChange={selectMarket} />
         )}
         {initialAccess === "open" && view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
         {initialAccess === "open" && view === "architecture" && (
@@ -836,7 +838,7 @@ export function TradingTerminal({
                   </button>
                 ))}
               </div>
-              <span className={styles.settlementBadge}>legacy simulation: {market.settlementPair}</span>
+              <span className={styles.settlementBadge}>legacy market: {market.settlementPair}</span>
             </div>
             <ArchitecturePanel highlightIncidents={incidentDemo} />
           </>

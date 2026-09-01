@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { IncidentDemo } from "./incident-demo";
 import styles from "./terminal.module.css";
 
@@ -5,12 +7,12 @@ const layers = [
   {
     label: "Public interface",
     title: "Vercel web application",
-    items: ["Read-only fixture market data", "Ethereum Mainnet wallet connection; transaction submission disabled", "No local operator service is hosted on Vercel", "No custody keys or Zcash node"],
+    items: ["Read-only illustrative market data", "Ethereum Mainnet wallet connection; transaction submission disabled", "No local operator service is hosted on Vercel", "No custody keys or Zcash node"],
   },
   {
     label: "Trading network",
     title: "Matcher and mainnet settlement",
-    items: ["Isolated ZEC/USDC and ZEC/USDT matchers, not trustless", "Native Zcash and Ethereum conditional-lock target", "Wallet-held solver liquidity", "Native ZEC, Ethereum USDC, Ethereum USDT"],
+    items: ["Isolated ZEC/USDC and ZEC/USDT matchers, not trustless", "Native Zcash and Ethereum conditional-lock target", "Wallet-held maker and solver quotes", "Native transparent ZEC, exact Ethereum Mainnet USDC and USDT"],
   },
   {
     label: "Historical custody model",
@@ -59,8 +61,31 @@ export function ArchitecturePanel({ highlightIncidents = false }: { highlightInc
         tabIndex={-1}
       >
         <strong>Target product boundary</strong>
-        <span>Native settlement target: a non-custodial interface with user-signed actions and an offchain matcher. The matcher is not trustless. It can censor or delay orders. Simulation only. Mainnet access policy remains unresolved.</span>
+        <span>Native settlement target: a non-custodial interface with user-signed actions and an offchain matcher. The matcher is not trustless. It can censor or delay orders. Mainnet access policy remains unresolved.</span>
       </div>
+      <nav className={styles.architectureLinks} aria-label="Settlement and launch">
+        <Link href="/trade?view=settlement">How settlement works</Link>
+        <Link href="/#launch-gates">Launch gates</Link>
+      </nav>
+      <section
+        id="historical-models"
+        aria-labelledby="historical-models-title"
+        tabIndex={-1}
+      >
+        <div className={styles.honestyBar}>
+          <strong id="historical-models-title">Historical models</strong>
+          <span className={styles.warningPill}>Retired</span>
+          <span>
+            Custody and AMM tours remain reachable. They are not the current liquidity product.
+            {" "}
+            <Link href="/trade?view=bridge">Deposit states</Link>
+            {" · "}
+            <Link href="/trade?view=bridge&journey=withdrawal">Withdrawal states</Link>
+            {" · "}
+            <Link href="/liquidity#historical-amm">Historical AMM model</Link>
+          </span>
+        </div>
+      </section>
       <IncidentDemo highlight={highlightIncidents} />
     </section>
   );

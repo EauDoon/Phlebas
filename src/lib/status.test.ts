@@ -27,7 +27,7 @@ test("status payload never claims live funds or custody", async () => {
   assert.equal(status.authoritativeJournal, "off-vercel");
   assert.equal(status.contracts, "conditional-lock-undeployed");
   assert.equal(status.network, "zcash-mainnet-and-ethereum-mainnet");
-  assert.equal(status.mode, "simulation");
+  assert.equal(status.mode, "preview");
   assert.equal(status.marketData, "illustrative");
   assert.equal(status.countryAccess, "deny-default");
   assert.equal(status.incidents, "architecture-demonstration");

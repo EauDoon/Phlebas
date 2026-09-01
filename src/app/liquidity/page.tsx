@@ -8,8 +8,8 @@ import { isEducationForceQuery } from "@/lib/preview-education";
 import { parseTerminalModeQuery } from "@/lib/terminal-mode";
 
 export const metadata: Metadata = {
-  title: "Liquidity simulation",
-  description: "Explore the no-value Phlebas ZEC liquidity simulation.",
+  title: "Liquidity",
+  description: "Wallet-held maker and solver quotes. Inventory stays in the provider wallet.",
 };
 
 function isMarketId(value: string | undefined): value is MarketId {
