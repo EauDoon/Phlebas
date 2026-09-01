@@ -3,6 +3,7 @@ import {
   ZCASH_ARTIFACT_BOUNDARY,
   ZCASH_ARTIFACT_SCHEMA,
   commitZcashArtifact,
+  createArtifactConstructionPolicy,
   type ArtifactOutput,
   type CommittedZcashArtifact,
 } from "./zcash-artifact.ts";
@@ -169,6 +170,10 @@ export function buildFundingArtifact(request: FundingArtifactRequest): Committed
     );
   }
 
+  const finalizedSize = changePlan.disposition === "change"
+    ? request.finalizedSizeWithChange
+    : request.finalizedSizeWithoutChange;
+
   return commitZcashArtifact({
     schema: ZCASH_ARTIFACT_SCHEMA,
     boundary: ZCASH_ARTIFACT_BOUNDARY,
@@ -187,6 +192,11 @@ export function buildFundingArtifact(request: FundingArtifactRequest): Committed
     inputs,
     outputs,
     feeZatoshis: changePlan.feeZatoshis.toString(),
+    policy: createArtifactConstructionPolicy({
+      feePolicy: request.feePolicy,
+      finalizedSize,
+      feeZatoshis: changePlan.feeZatoshis,
+    }),
     authorization: {
       sighashType: "SIGHASH_ALL",
       sighashCode: 1,

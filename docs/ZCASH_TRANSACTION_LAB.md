@@ -89,7 +89,7 @@ Output order is fixed:
 1. Contract output.
 2. Optional P2PKH change output.
 
-The caller supplies the requested fee, a maximum fee, a minimum output, a maximum serialized transaction size, and finalized transparent input and output byte counts for the ZIP 317 calculation. The maximum serialized size is assessed separately and stays unresolved until a complete canonical transaction serialization is supplied. Change below the configured minimum must be rejected or explicitly added to the fee. Silent omission is forbidden.
+The caller supplies the requested fee, a maximum fee, a minimum output, a maximum serialized transaction size, and finalized transparent input and output byte counts for the ZIP 317 calculation. The chosen fee policy and byte counts are committed into the manifest. Complete serialized size and relayability stay explicitly unresolved until canonical transaction bytes and current node-policy evidence are supplied. Change below the configured minimum must be rejected or explicitly added to the fee. Silent omission is forbidden.
 
 The caller also supplies a positive refund safety margin in the redeem-script locktime domain. A height lock is compared with the transaction profile target height. A timestamp lock requires an explicit timestamp cutoff. The margin and cutoff are committed into the funding artifact and revalidated after rehydration.
 
@@ -99,11 +99,11 @@ Both spend builders bind one exact contract outpoint, its value, the P2SH script
 
 The claim path requires an exact 32-byte preimage whose SHA-256 digest matches the script. Its output must be a network-correct P2PKH address whose hash matches the claim branch.
 
-The refund path requires a network-correct P2PKH address whose hash matches the refund branch. Missing, equal, or early height or time evidence blocks construction. The spend value must equal the recipient output plus fee. Spend change is not supported by this artifact version.
+The refund path requires a network-correct P2PKH address whose hash matches the refund branch. Its maturity evidence must use the same observed block height as expiry evaluation. Height locks require a strictly later block height. Timestamp locks require a strictly later median-time-past value, with no wall-clock fallback. The spend value must equal the recipient output plus fee. Spend change is not supported by this artifact version.
 
 ## PCZT and wallet review
 
-The candidate adapter binds the committed manifest to opaque PCZT bytes and wallet inspection fields. It fixes `SIGHASH_ALL` and `tx_modifiable = 0`. Transaction version 6 requires PCZT version 2. Review-request and restart boundaries require an independently retained approved manifest digest. A self-consistent artifact digest or restart checksum is not accepted as approval.
+The candidate adapter binds the committed manifest to opaque PCZT bytes and wallet inspection fields. It fixes `SIGHASH_ALL` and `tx_modifiable = 0`. Transaction version 6 requires PCZT version 2. Review-request and restart boundaries require a caller-supplied expected manifest digest. Equality binds the artifact to that expectation, but does not prove the expectation's provenance or approval.
 
 Readiness requires proven support for:
 
@@ -113,13 +113,13 @@ Readiness requires proven support for:
 * exact fallback locktime;
 * exact expiry height.
 
-An adapter marked unproven or unsupported for any required capability must reject readiness. `pczt_inspect` output is review data, not independent verification. A complete adapter must parse all applicable ZIP 374 fields, verify effecting data, confirm UTXOs from an approved source, and recompute the extracted transaction ID.
+An adapter marked unproven or unsupported for any required capability must reject readiness. The required set is fixed and cannot be narrowed by a caller. This artifact schema also keeps complete serialized size and relayability unresolved, so even an adapter with all five capabilities proven is not wallet-ready. `pczt_inspect` output is review data, not independent verification. A complete adapter must parse all applicable ZIP 374 fields, verify effecting data, confirm UTXOs from an approved source, and recompute the extracted transaction ID.
 
 PCZT files may contain viewing data, note material, derivation paths, and other sensitive fields. Treat opaque PCZT bytes as sensitive even when no spending key is present.
 
 ## Restart, expiry, and substitution
 
-Persist the canonical artifact, exact PCZT bytes, their SHA-256 digests, the independently approved manifest digest, and the lifecycle state atomically. Rehydration fails if the JSON is noncanonical, a digest changes, the artifact differs from the externally supplied approved digest, an unknown field appears, or an unsupported state is supplied.
+Persist the canonical artifact, exact PCZT bytes, their SHA-256 digests, the caller-supplied expected manifest digest, and the lifecycle state atomically. Rehydration fails if the JSON is noncanonical, a digest changes, the artifact differs from the supplied expectation, an unknown field appears, or an unsupported state is supplied. Under header-only PCZT validation, `signed` and `extracted` are unverified caller labels and are never restart-ready.
 
 A timeout during wallet work has unknown status. Reload the last committed bytes and repeat exact inspection. Never infer that signing or extraction completed.
 
@@ -135,7 +135,7 @@ The focused tests cover:
 * wrong digest, preimage, recipient, contract hash, sequence, and consensus profile;
 * fee, transparent byte sizing, unresolved complete-serialization sizing, value conservation, explicit change, and below-minimum change;
 * immediate or early refund, locktime-domain mismatch, absent maturity evidence, observed-height mismatch, expiry boundaries, and unresolved replacement policy;
-* canonical serialization, restart, duplicate outpoints, semantic artifact validation, and independently approved-digest substitution checks;
+* canonical serialization, restart, duplicate outpoints, semantic artifact validation, and expected-digest substitution checks;
 * PCZT header, capability, inspection, and lifecycle boundaries.
 
 Run the lab checks with:
@@ -146,7 +146,7 @@ npm run typecheck
 npm run lint
 ```
 
-`npm run check` remains the repository release gate. Browser tests are required when UI bytes change. This workstream changes no UI bytes.
+`npm run check` remains the repository release gate. Browser tests are required because the legacy `/zcash` UI is relabeled by this workstream.
 
 ## Prohibited actions
 

@@ -21,6 +21,7 @@ import {
   serializeWalletReviewRequest,
   verifyWalletPcztInspection,
   verifyWalletPcztRestartSnapshot,
+  walletPcztReadiness,
   type WalletPcztAdapter,
   type WalletPcztCapabilities,
   type WalletPcztInspection,
@@ -29,9 +30,11 @@ import {
   ZCASH_ARTIFACT_BOUNDARY,
   ZCASH_ARTIFACT_SCHEMA,
   commitZcashArtifact,
+  createArtifactConstructionPolicy,
   type CommittedZcashArtifact,
   type UnsignedTransparentManifest,
 } from "./zcash-artifact.ts";
+import { createZip317TransparentPolicy } from "./zcash-fees.ts";
 import { buildHtlcRedeemScript, htlcP2shScriptPubKey } from "./zcash-htlc.ts";
 
 function fixtureManifest(transactionVersion: 5 | 6 = 5): UnsignedTransparentManifest {
@@ -69,6 +72,15 @@ function fixtureManifest(transactionVersion: 5 | 6 = 5): UnsignedTransparentMani
       { role: "contract", valueZatoshis: "100000", scriptPubKeyHex: bytesToHex(htlcP2shScriptPubKey(redeemScript)) },
     ],
     feeZatoshis: "10000",
+    policy: createArtifactConstructionPolicy({
+      feePolicy: createZip317TransparentPolicy({
+        maximumFeeZatoshis: 50_000n,
+        minimumOutputZatoshis: 10_000n,
+        maximumSerializedTransactionBytes: 10_000,
+      }),
+      finalizedSize: { inputBytes: 150, outputBytes: 34 },
+      feeZatoshis: 10_000n,
+    }),
     authorization: {
       sighashType: "SIGHASH_ALL",
       sighashCode: 1,
@@ -98,7 +110,7 @@ function reviewRequest(artifact: CommittedZcashArtifact, version: 1 | 2) {
   return createWalletReviewRequest({
     artifact,
     pczt: fixturePczt(version),
-    approvedManifestDigest: artifact.manifestDigest,
+    expectedManifestDigest: artifact.manifestDigest,
   });
 }
 
@@ -144,11 +156,11 @@ test("creates immutable v5 review requests for both permitted PCZT versions", ()
 
     const serialized = serializeWalletReviewRequest(request, artifact.manifestDigest);
     assert.deepEqual(parseWalletReviewRequest(serialized, {
-      approvedManifestDigest: artifact.manifestDigest,
+      expectedManifestDigest: artifact.manifestDigest,
     }), request);
     assert.throws(
-      () => parseWalletReviewRequest(serialized, { approvedManifestDigest: "00".repeat(32) }),
-      /independently approved/,
+      () => parseWalletReviewRequest(serialized, { expectedManifestDigest: "00".repeat(32) }),
+      /caller-supplied expected/,
     );
   }
 });
@@ -166,13 +178,13 @@ test("requires PCZT v2 for transaction version 6 and rejects mutable authorizati
   assert.throws(() => createWalletReviewRequest({
     artifact: mutable,
     pczt: fixturePczt(1),
-    approvedManifestDigest: fixtureArtifact(5).manifestDigest,
+    expectedManifestDigest: fixtureArtifact(5).manifestDigest,
   }), /digest|txModifiable|freeze SIGHASH_ALL/);
   assert.throws(() => createWalletReviewRequest({
     artifact: fixtureArtifact(5),
     pczt: fixturePczt(1),
-    approvedManifestDigest: "00".repeat(32),
-  }), /independently approved/);
+    expectedManifestDigest: "00".repeat(32),
+  }), /caller-supplied expected/);
 });
 
 test("rejects wallet inspection substitutions and conflicting envelope fields", () => {
@@ -215,7 +227,13 @@ test("refuses readiness for an unproven Zallet-like capability declaration", () 
   assert.throws(() => assertWalletPcztReady({ ...unproven, exactExpiry: "unsupported" }), /unsupported/);
 
   const proven = allCapabilities("proven");
-  assert.equal(assertWalletPcztReady(proven).ready, true);
+  const narrowedCall = walletPcztReadiness as unknown as (...args: unknown[]) => ReturnType<typeof walletPcztReadiness>;
+  const provenReport = narrowedCall(proven, []);
+  assert.deepEqual(provenReport.required, REQUIRED_WALLET_PCZT_CAPABILITIES);
+  assert.equal(provenReport.capabilityReady, true);
+  assert.equal(provenReport.ready, false);
+  assert.deepEqual(provenReport.policyBlockers, ["serializedTransactionSize=unresolved", "relayability=unresolved"]);
+  assert.throws(() => assertWalletPcztReady(proven), /serializedTransactionSize=unresolved.*relayability=unresolved/);
 });
 
 test("keeps the adapter API opaque and string-only", () => {
@@ -227,7 +245,7 @@ test("keeps the adapter API opaque and string-only", () => {
     combinePczt: async (requests: readonly string[]) => requests[0] ?? "",
     extractPczt: async (request: string) => request,
   };
-  assert.equal(assertWalletPcztReady(adapter).ready, true);
+  assert.throws(() => assertWalletPcztReady(adapter), /serializedTransactionSize=unresolved.*relayability=unresolved/);
   assert.equal(typeof adapter.createPczt, "function");
   assert.equal(typeof adapter.inspectPczt, "function");
   assert.equal(typeof adapter.signPczt, "function");
@@ -238,8 +256,8 @@ test("round-trips an exact restart snapshot and rejects checksum or artifact mut
   const snapshot = createWalletPcztRestartSnapshot({
     artifact,
     pczt: fixturePczt(2),
-    approvedManifestDigest: artifact.manifestDigest,
-    lifecycle: "signed",
+    expectedManifestDigest: artifact.manifestDigest,
+    lifecycle: "inspected",
     observedHeight: 4_200_050,
   });
   assert.equal(Object.isFrozen(snapshot), true);
@@ -247,16 +265,16 @@ test("round-trips an exact restart snapshot and rejects checksum or artifact mut
   assert.equal(Object.isFrozen(snapshot.artifact.manifest), true);
   const serialized = serializeWalletPcztRestartSnapshot(snapshot, artifact.manifestDigest);
   const restored = parseWalletPcztRestartSnapshot(serialized, {
-    approvedManifestDigest: artifact.manifestDigest,
+    expectedManifestDigest: artifact.manifestDigest,
   });
   assert.deepEqual(restored, snapshot);
-  verifyWalletPcztRestartSnapshot(restored, { approvedManifestDigest: artifact.manifestDigest });
+  verifyWalletPcztRestartSnapshot(restored, { expectedManifestDigest: artifact.manifestDigest });
   assert.doesNotThrow(() => assertWalletPcztRestartReady(restored, {
-    approvedManifestDigest: artifact.manifestDigest,
+    expectedManifestDigest: artifact.manifestDigest,
   }));
   assert.throws(
-    () => parseWalletPcztRestartSnapshot(serialized, { approvedManifestDigest: "00".repeat(32) }),
-    /independently approved/,
+    () => parseWalletPcztRestartSnapshot(serialized, { expectedManifestDigest: "00".repeat(32) }),
+    /caller-supplied expected/,
   );
 
   const changedArtifact = {
@@ -283,32 +301,54 @@ test("fails closed when restart expiry is observed or unresolved", () => {
   const snapshot = createWalletPcztRestartSnapshot({
     artifact,
     pczt: fixturePczt(1),
-    approvedManifestDigest: artifact.manifestDigest,
+    expectedManifestDigest: artifact.manifestDigest,
     lifecycle: "inspected",
     observedHeight: 4_200_050,
   });
   const serialized = serializeWalletPcztRestartSnapshot(snapshot, artifact.manifestDigest);
   assert.throws(() => parseWalletPcztRestartSnapshot(serialized, {
-    approvedManifestDigest: artifact.manifestDigest,
+    expectedManifestDigest: artifact.manifestDigest,
     observedHeight: 4_200_101,
   }), /expired/);
   assert.throws(() => assertWalletPcztRestartReady(snapshot, {
-    approvedManifestDigest: artifact.manifestDigest,
+    expectedManifestDigest: artifact.manifestDigest,
     observedHeight: 4_200_101,
   }), /expired/);
 
   const unresolved = createWalletPcztRestartSnapshot({
     artifact,
     pczt: fixturePczt(1),
-    approvedManifestDigest: artifact.manifestDigest,
+    expectedManifestDigest: artifact.manifestDigest,
     lifecycle: "created",
   });
   assert.equal(unresolved.observedHeight, null);
   assert.throws(() => assertWalletPcztRestartReady(unresolved, {
-    approvedManifestDigest: artifact.manifestDigest,
+    expectedManifestDigest: artifact.manifestDigest,
   }), /unresolved/);
   assert.throws(() => parseWalletPcztRestartSnapshot(
     serializeWalletPcztRestartSnapshot(unresolved, artifact.manifestDigest),
-    { approvedManifestDigest: artifact.manifestDigest, observedHeight: 4_200_101 },
+    { expectedManifestDigest: artifact.manifestDigest, observedHeight: 4_200_101 },
   ), /expired/);
+});
+
+test("treats signed and extracted restart lifecycles as unverified header-only labels", () => {
+  const artifact = fixtureArtifact();
+  for (const lifecycle of ["signed", "extracted"] as const) {
+    const snapshot = createWalletPcztRestartSnapshot({
+      artifact,
+      pczt: fixturePczt(1),
+      expectedManifestDigest: artifact.manifestDigest,
+      lifecycle,
+      observedHeight: 4_200_050,
+    });
+    const restored = parseWalletPcztRestartSnapshot(
+      serializeWalletPcztRestartSnapshot(snapshot, artifact.manifestDigest),
+      { expectedManifestDigest: artifact.manifestDigest },
+    );
+    assert.equal(restored.lifecycle, lifecycle);
+    assert.throws(
+      () => assertWalletPcztRestartReady(restored, { expectedManifestDigest: artifact.manifestDigest }),
+      /unverified caller label.*header-only/,
+    );
+  }
 });

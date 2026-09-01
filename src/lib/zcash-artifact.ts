@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
 
+import {
+  assessSerializedTransactionSize,
+  validateTransparentFee,
+  zip317TransparentConventionalFee,
+  type FinalizedTransparentSize,
+  type TransparentFeePolicy,
+} from "./zcash-fees.ts";
 import { bytesToHex, hexToBytes } from "./keccak.ts";
 import { htlcP2shScriptPubKey, htlcTemplatePolicyReport, validateHtlcRedeemScript } from "./zcash-htlc.ts";
 import type { ZcashNetwork } from "./zcash-transparent.ts";
@@ -7,6 +14,8 @@ import { p2pkhScriptPubKey } from "./zcash-transparent.ts";
 
 export const ZCASH_ARTIFACT_SCHEMA = "phlebas-zcash-transparent-artifact-v1";
 export const ZCASH_ARTIFACT_BOUNDARY = "candidate-unsigned-effecting-data-manifest";
+export const ZCASH_SERIALIZED_SIZE_UNRESOLVED_REASON = "complete-canonical-transaction-not-supplied" as const;
+export const ZCASH_RELAYABILITY_UNRESOLVED = "unresolved-requires-complete-transaction-and-node-policy" as const;
 
 export type ZcashArtifactKind = "fund" | "claim" | "refund";
 
@@ -22,6 +31,32 @@ export type ArtifactOutput = Readonly<{
   role: "contract" | "recipient" | "change";
   valueZatoshis: string;
   scriptPubKeyHex: string;
+}>;
+
+export type ArtifactRefundMaturityEvidence = Readonly<{
+  lockType: "height" | "timestamp";
+  currentBlockHeight: number;
+  medianTimePast: number | null;
+}>;
+
+export type ArtifactConstructionPolicy = Readonly<{
+  feePolicy: Readonly<{
+    id: "zip317-transparent-r0-r1";
+    maximumFeeZatoshis: string;
+    minimumOutputZatoshis: string;
+    maximumSerializedTransactionBytes: number;
+    finalizedTransparentInputBytes: number;
+    finalizedTransparentOutputBytes: number;
+    conventionalFeeZatoshis: string;
+  }>;
+  serializedTransactionSize: Readonly<{
+    state: "unresolved";
+    actualBytes: null;
+    reason: typeof ZCASH_SERIALIZED_SIZE_UNRESOLVED_REASON;
+  }>;
+  relayability: typeof ZCASH_RELAYABILITY_UNRESOLVED;
+  observedHeight: number | null;
+  refundMaturity: ArtifactRefundMaturityEvidence | null;
 }>;
 
 export type UnsignedTransparentManifest = Readonly<{
@@ -42,6 +77,7 @@ export type UnsignedTransparentManifest = Readonly<{
   inputs: readonly ArtifactInput[];
   outputs: readonly ArtifactOutput[];
   feeZatoshis: string;
+  policy: ArtifactConstructionPolicy;
   authorization: Readonly<{
     sighashType: "SIGHASH_ALL";
     sighashCode: 1;
@@ -121,6 +157,43 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
+export function createArtifactConstructionPolicy(options: {
+  feePolicy: TransparentFeePolicy;
+  finalizedSize: FinalizedTransparentSize;
+  feeZatoshis: bigint;
+  observedHeight?: number;
+  refundMaturity?: ArtifactRefundMaturityEvidence;
+}): ArtifactConstructionPolicy {
+  if (options.feePolicy.id !== "zip317-transparent-r0-r1") {
+    throw new TypeError("Artifact fee policy must be the pinned ZIP 317 transparent policy");
+  }
+  validateTransparentFee(options.feePolicy, options.finalizedSize, options.feeZatoshis);
+  const serializedSize = assessSerializedTransactionSize(options.feePolicy);
+  if (serializedSize.state !== "unresolved") {
+    throw new Error("Artifact construction without canonical transaction bytes must leave serialized size unresolved");
+  }
+  const policy: ArtifactConstructionPolicy = {
+    feePolicy: {
+      id: "zip317-transparent-r0-r1",
+      maximumFeeZatoshis: options.feePolicy.maximumFeeZatoshis.toString(),
+      minimumOutputZatoshis: options.feePolicy.minimumOutputZatoshis.toString(),
+      maximumSerializedTransactionBytes: options.feePolicy.maximumSerializedTransactionBytes,
+      finalizedTransparentInputBytes: options.finalizedSize.inputBytes,
+      finalizedTransparentOutputBytes: options.finalizedSize.outputBytes,
+      conventionalFeeZatoshis: options.feePolicy.conventionalFee(options.finalizedSize).toString(),
+    },
+    serializedTransactionSize: {
+      state: "unresolved",
+      actualBytes: null,
+      reason: ZCASH_SERIALIZED_SIZE_UNRESOLVED_REASON,
+    },
+    relayability: ZCASH_RELAYABILITY_UNRESOLVED,
+    observedHeight: options.observedHeight ?? null,
+    refundMaturity: options.refundMaturity ?? null,
+  };
+  return deepFreeze(policy);
+}
+
 function recordValue(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`${label} must be an object`);
   return value as Record<string, unknown>;
@@ -149,6 +222,13 @@ function allowedKeys(
 function manifestUint32(value: unknown, label: string): number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0 || value > 0xffff_ffff) {
     throw new RangeError(`${label} must be an unsigned 32-bit integer`);
+  }
+  return value;
+}
+
+function manifestPositiveSafeInteger(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) {
+    throw new RangeError(`${label} must be a positive safe integer`);
   }
   return value;
 }
@@ -227,8 +307,21 @@ function validateArtifactSemantics(manifest: UnsignedTransparentManifest): void 
     const preimage = hexToBytes(manifest.authorization.preimageHex as string);
     const digest = createHash("sha256").update(preimage).digest();
     if (!sameBytes(digest, htlc.digest)) throw new Error("Artifact claim preimage does not match the HTLC digest");
-  } else if (manifest.lockTime !== htlc.lock.value) {
-    throw new Error("Refund artifact locktime does not match the HTLC redeemScript");
+  } else {
+    if (manifest.lockTime !== htlc.lock.value) {
+      throw new Error("Refund artifact locktime does not match the HTLC redeemScript");
+    }
+    const maturity = manifest.policy.refundMaturity as ArtifactRefundMaturityEvidence;
+    if (maturity.lockType !== htlc.lock.type) {
+      throw new Error("Refund artifact maturity evidence does not match the HTLC locktime domain");
+    }
+    if (htlc.lock.type === "height") {
+      if (maturity.medianTimePast !== null || maturity.currentBlockHeight <= htlc.lock.value) {
+        throw new Error("Refund artifact does not contain mature height evidence");
+      }
+    } else if (maturity.medianTimePast === null || maturity.medianTimePast <= htlc.lock.value) {
+      throw new Error("Refund artifact does not contain mature median-time-past evidence");
+    }
   }
 }
 
@@ -246,6 +339,7 @@ function validateManifestShape(value: unknown): asserts value is UnsignedTranspa
     "inputs",
     "outputs",
     "feeZatoshis",
+    "policy",
     "authorization",
     "transactionIdState",
   ], "Artifact manifest");
@@ -330,6 +424,79 @@ function validateManifestShape(value: unknown): asserts value is UnsignedTranspa
     throw new RangeError("Artifact aggregate value exceeds the ZEC supply bound");
   }
   if (inputTotal !== outputTotal + fee) throw new RangeError("Artifact input value does not equal outputs plus fee");
+
+  const policy = recordValue(manifest.policy, "Artifact construction policy");
+  exactKeys(
+    policy,
+    ["feePolicy", "serializedTransactionSize", "relayability", "observedHeight", "refundMaturity"],
+    "Artifact construction policy",
+  );
+  const feePolicy = recordValue(policy.feePolicy, "Artifact fee policy");
+  exactKeys(feePolicy, [
+    "id",
+    "maximumFeeZatoshis",
+    "minimumOutputZatoshis",
+    "maximumSerializedTransactionBytes",
+    "finalizedTransparentInputBytes",
+    "finalizedTransparentOutputBytes",
+    "conventionalFeeZatoshis",
+  ], "Artifact fee policy");
+  if (feePolicy.id !== "zip317-transparent-r0-r1") throw new TypeError("Artifact fee policy is unsupported");
+  const maximumFee = manifestZatoshis(feePolicy.maximumFeeZatoshis, "Artifact maximum fee");
+  const minimumOutput = manifestZatoshis(feePolicy.minimumOutputZatoshis, "Artifact minimum output");
+  manifestPositiveSafeInteger(feePolicy.maximumSerializedTransactionBytes, "Artifact maximum serialized transaction bytes");
+  const finalizedSize = {
+    inputBytes: manifestPositiveSafeInteger(feePolicy.finalizedTransparentInputBytes, "Artifact transparent input bytes"),
+    outputBytes: manifestPositiveSafeInteger(feePolicy.finalizedTransparentOutputBytes, "Artifact transparent output bytes"),
+  };
+  const conventionalFee = manifestZatoshis(feePolicy.conventionalFeeZatoshis, "Artifact conventional fee");
+  if (conventionalFee !== zip317TransparentConventionalFee(finalizedSize)) {
+    throw new RangeError("Artifact conventional fee does not match its finalized transparent byte counts");
+  }
+  if (fee < conventionalFee || fee > maximumFee) {
+    throw new RangeError("Artifact fee is outside its committed conventional and maximum fee bounds");
+  }
+  if (manifest.outputs.some((output) => BigInt(output.valueZatoshis) < minimumOutput)) {
+    throw new RangeError("Artifact output is below its committed minimum output");
+  }
+
+  const serializedSize = recordValue(policy.serializedTransactionSize, "Artifact serialized transaction size");
+  exactKeys(serializedSize, ["state", "actualBytes", "reason"], "Artifact serialized transaction size");
+  if (serializedSize.state !== "unresolved" || serializedSize.actualBytes !== null
+    || serializedSize.reason !== ZCASH_SERIALIZED_SIZE_UNRESOLVED_REASON) {
+    throw new TypeError("Artifact serialized transaction size must remain explicitly unresolved");
+  }
+  if (policy.relayability !== ZCASH_RELAYABILITY_UNRESOLVED) {
+    throw new TypeError("Artifact relayability must remain explicitly unresolved");
+  }
+  let observedHeight: number | null = null;
+  if (policy.observedHeight !== null) {
+    observedHeight = manifestUint32(policy.observedHeight, "Artifact observed height");
+    if (observedHeight < activationHeight || observedHeight >= 500_000_000) {
+      throw new RangeError("Artifact observed height is outside its network profile");
+    }
+    if (expiryHeight !== 0 && observedHeight > expiryHeight) throw new RangeError("Artifact is expired at its observed height");
+  }
+  if (manifest.kind === "fund") {
+    if (observedHeight !== null || policy.refundMaturity !== null) {
+      throw new TypeError("Funding artifact must not contain spend observation evidence");
+    }
+  } else if (observedHeight === null) {
+    throw new TypeError("Spend artifact must commit its observed height");
+  }
+  if (manifest.kind === "refund") {
+    const maturity = recordValue(policy.refundMaturity, "Artifact refund maturity evidence");
+    exactKeys(maturity, ["lockType", "currentBlockHeight", "medianTimePast"], "Artifact refund maturity evidence");
+    if (maturity.lockType !== "height" && maturity.lockType !== "timestamp") {
+      throw new TypeError("Artifact refund maturity lock type is unsupported");
+    }
+    if (manifestUint32(maturity.currentBlockHeight, "Artifact refund maturity height") !== observedHeight) {
+      throw new Error("Artifact refund maturity height does not match its observed height");
+    }
+    if (maturity.medianTimePast !== null) manifestUint32(maturity.medianTimePast, "Artifact refund median-time-past");
+  } else if (policy.refundMaturity !== null) {
+    throw new TypeError("Only refund artifacts may contain maturity evidence");
+  }
 
   const authorization = recordValue(manifest.authorization, "Artifact authorization");
   allowedKeys(

@@ -59,7 +59,7 @@ test("builds a deterministic contract-first funding artifact with explicit chang
   ]);
   assert.equal(artifact.manifest.feeZatoshis, "10000");
   assert.equal(artifact.manifest.authorization.txModifiable, 0);
-  assert.equal(artifact.manifestDigest, "1f5c6c39b394a979f2467e87ae98abcb3a2ab0e47f8e67a3cfc04ab82ee002db");
+  assert.equal(artifact.manifestDigest, "eb391c5b41996551c2a6ba59e7b1caa454b88bec384ebb2633f737ed224d3e28");
 });
 
 test("rejects wrong-network, mismatched, duplicate, and non-P2PKH funding inputs", () => {

@@ -248,12 +248,12 @@ function cloneArtifact(value: CommittedZcashArtifact | string): CommittedZcashAr
   return typeof value === "string" ? parseZcashArtifact(value) : parseZcashArtifact(serializeZcashArtifact(value));
 }
 
-function requireApprovedManifestDigest(approved: unknown, actual: string): void {
-  if (typeof approved !== "string" || !/^[0-9a-f]{64}$/.test(approved)) {
-    throw new TypeError("Approved manifest digest must be 32 lowercase hexadecimal bytes");
+function requireExpectedManifestDigest(expected: unknown, actual: string): void {
+  if (typeof expected !== "string" || !/^[0-9a-f]{64}$/.test(expected)) {
+    throw new TypeError("Expected manifest digest must be 32 lowercase hexadecimal bytes");
   }
-  if (approved !== actual) {
-    throw new Error("Wallet artifact does not match the independently approved manifest digest");
+  if (expected !== actual) {
+    throw new Error("Wallet artifact does not match the caller-supplied expected manifest digest");
   }
 }
 
@@ -306,15 +306,15 @@ function verifyWalletReviewRequestValue(value: WalletReviewRequest): void {
 export function createWalletReviewRequest(options: {
   artifact: CommittedZcashArtifact | string;
   pczt: PcztEnvelope | string;
-  approvedManifestDigest: string;
+  expectedManifestDigest: string;
 }): WalletReviewRequest;
 export function createWalletReviewRequest(options: {
   artifact: CommittedZcashArtifact | string;
   pczt: PcztEnvelope | string;
-  approvedManifestDigest: string;
+  expectedManifestDigest: string;
 }): WalletReviewRequest {
   const artifact = cloneArtifact(options.artifact);
-  requireApprovedManifestDigest(options.approvedManifestDigest, artifact.manifestDigest);
+  requireExpectedManifestDigest(options.expectedManifestDigest, artifact.manifestDigest);
   ensureReviewManifest(artifact.manifest);
   const envelope = normalizePcztEnvelope(options.pczt);
   const expected = expectedPcztVersionsForTransaction(artifact.manifest.profile.transactionVersion);
@@ -338,23 +338,23 @@ export function createWalletReviewRequest(options: {
   return deepFreeze(request);
 }
 
-export function verifyWalletReviewRequest(value: WalletReviewRequest, approvedManifestDigest: string): void {
+export function verifyWalletReviewRequest(value: WalletReviewRequest, expectedManifestDigest: string): void {
   verifyWalletReviewRequestValue(value);
-  requireApprovedManifestDigest(approvedManifestDigest, value.manifestDigest);
+  requireExpectedManifestDigest(expectedManifestDigest, value.manifestDigest);
 }
 
-export function serializeWalletReviewRequest(value: WalletReviewRequest, approvedManifestDigest: string): string {
-  verifyWalletReviewRequest(value, approvedManifestDigest);
+export function serializeWalletReviewRequest(value: WalletReviewRequest, expectedManifestDigest: string): string {
+  verifyWalletReviewRequest(value, expectedManifestDigest);
   return canonicalizeJson(value, "wallet review request");
 }
 
 export function parseWalletReviewRequest(
   serialized: string,
-  options: { approvedManifestDigest: string },
+  options: { expectedManifestDigest: string },
 ): WalletReviewRequest {
   const parsed = parseCanonicalJson(serialized, "Wallet review request");
   reviewRequestShapeGuard(parsed);
-  verifyWalletReviewRequest(parsed, options.approvedManifestDigest);
+  verifyWalletReviewRequest(parsed, options.expectedManifestDigest);
   return deepFreeze(parsed);
 }
 
@@ -414,12 +414,12 @@ function normalizeInspection(value: WalletPcztInspection | string): WalletPcztIn
 /** Build the exact inspection record a conforming adapter must return. */
 export function expectedWalletPcztInspection(
   value: WalletReviewRequest | string,
-  approvedManifestDigest: string,
+  expectedManifestDigest: string,
 ): WalletPcztInspection {
   const request = typeof value === "string"
-    ? parseWalletReviewRequest(value, { approvedManifestDigest })
+    ? parseWalletReviewRequest(value, { expectedManifestDigest })
     : value;
-  verifyWalletReviewRequest(request, approvedManifestDigest);
+  verifyWalletReviewRequest(request, expectedManifestDigest);
   return deepFreeze(expectedWalletInspection(request));
 }
 
@@ -430,12 +430,12 @@ export function expectedWalletPcztInspection(
 export function verifyWalletPcztInspection(
   requestValue: WalletReviewRequest | string,
   inspectionValue: WalletPcztInspection | string,
-  approvedManifestDigest: string,
+  expectedManifestDigest: string,
 ): void {
   const request = typeof requestValue === "string"
-    ? parseWalletReviewRequest(requestValue, { approvedManifestDigest })
+    ? parseWalletReviewRequest(requestValue, { expectedManifestDigest })
     : requestValue;
-  verifyWalletReviewRequest(request, approvedManifestDigest);
+  verifyWalletReviewRequest(request, expectedManifestDigest);
   const inspection = normalizeInspection(inspectionValue);
   const expected = expectedWalletInspection(request);
   if (canonicalizeJson(inspection, "wallet PCZT inspection") !== canonicalizeJson(expected, "expected wallet PCZT inspection")) {
@@ -475,20 +475,13 @@ export type WalletPcztCapabilities = Readonly<Record<WalletPcztCapability, Walle
 
 export type WalletPcztReadiness = Readonly<{
   ready: boolean;
+  capabilityReady: boolean;
   required: readonly WalletPcztCapability[];
   missing: readonly WalletPcztCapability[];
   unproven: readonly WalletPcztCapability[];
   unsupported: readonly WalletPcztCapability[];
+  policyBlockers: readonly ["serializedTransactionSize=unresolved", "relayability=unresolved"];
 }>;
-
-function capabilityList(value: readonly WalletPcztCapability[] = REQUIRED_WALLET_PCZT_CAPABILITIES): readonly WalletPcztCapability[] {
-  if (!Array.isArray(value) || value.some((entry) => !REQUIRED_WALLET_PCZT_CAPABILITIES.includes(entry))) {
-    throw new TypeError("Wallet PCZT required capabilities contain an unknown capability");
-  }
-  const unique = [...new Set(value)];
-  if (unique.length !== value.length) throw new TypeError("Wallet PCZT required capabilities contain duplicates");
-  return Object.freeze(unique);
-}
 
 function capabilityRecord(value: WalletPcztCapabilities | Partial<WalletPcztCapabilities>): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError("Wallet PCZT capabilities must be an object");
@@ -504,41 +497,46 @@ function capabilityRecord(value: WalletPcztCapabilities | Partial<WalletPcztCapa
 /** Assess readiness; absent capabilities are treated as unproven. */
 export function walletPcztReadiness(
   value: WalletPcztCapabilities | Partial<WalletPcztCapabilities> | WalletPcztAdapter,
-  required: readonly WalletPcztCapability[] = REQUIRED_WALLET_PCZT_CAPABILITIES,
 ): WalletPcztReadiness {
   const capabilities = "capabilities" in value ? value.capabilities : value;
   const record = capabilityRecord(capabilities);
-  const requiredList = capabilityList(required);
   const missing: WalletPcztCapability[] = [];
   const unproven: WalletPcztCapability[] = [];
   const unsupported: WalletPcztCapability[] = [];
-  for (const key of requiredList) {
+  for (const key of REQUIRED_WALLET_PCZT_CAPABILITIES) {
     const state = record[key];
     if (state === undefined) missing.push(key);
     else if (state === "unproven") unproven.push(key);
     else if (state === "unsupported") unsupported.push(key);
     else if (state !== "proven") throw new TypeError(`Wallet PCZT capability ${key} has an invalid state`);
   }
+  const capabilityReady = missing.length === 0 && unproven.length === 0 && unsupported.length === 0;
+  const policyBlockers = Object.freeze([
+    "serializedTransactionSize=unresolved",
+    "relayability=unresolved",
+  ] as const);
   return Object.freeze({
-    ready: missing.length === 0 && unproven.length === 0 && unsupported.length === 0,
-    required: requiredList,
+    ready: false,
+    capabilityReady,
+    required: REQUIRED_WALLET_PCZT_CAPABILITIES,
     missing: Object.freeze(missing),
     unproven: Object.freeze(unproven),
     unsupported: Object.freeze(unsupported),
+    policyBlockers,
   });
 }
 
 /** Fail closed unless every required custom transaction capability is proven. */
 export function assertWalletPcztReady(
   value: WalletPcztCapabilities | Partial<WalletPcztCapabilities> | WalletPcztAdapter,
-  required?: readonly WalletPcztCapability[],
 ): WalletPcztReadiness {
-  const readiness = walletPcztReadiness(value, required);
+  const readiness = walletPcztReadiness(value);
   if (!readiness.ready) {
     const failures = [
       ...readiness.missing.map((key) => `${key}=missing`),
       ...readiness.unproven.map((key) => `${key}=unproven`),
       ...readiness.unsupported.map((key) => `${key}=unsupported`),
+      ...readiness.policyBlockers,
     ];
     throw new Error(`Wallet PCZT adapter is not ready: ${failures.join(", ")}`);
   }
@@ -629,17 +627,17 @@ function expiryForSnapshot(artifact: CommittedZcashArtifact, height: number | nu
 
 function verifyWalletPcztRestartSnapshotValue(
   value: WalletPcztRestartSnapshot,
-  approvedManifestDigest: string,
+  expectedManifestDigest: string,
   currentHeight?: number,
 ): void {
   snapshotShapeGuard(value);
   const artifact = cloneArtifact(value.artifact);
-  requireApprovedManifestDigest(approvedManifestDigest, artifact.manifestDigest);
+  requireExpectedManifestDigest(expectedManifestDigest, artifact.manifestDigest);
   const envelope = envelopeFromBase64(value.pcztBase64);
   const request = createWalletReviewRequest({
     artifact,
     pczt: envelope,
-    approvedManifestDigest,
+    expectedManifestDigest,
   });
   if (value.pcztByteSha256 !== envelope.byteSha256 || value.pcztVersion !== envelope.version) {
     throw new Error("Wallet PCZT restart snapshot PCZT digest or version does not match its bytes");
@@ -665,7 +663,7 @@ function verifyWalletPcztRestartSnapshotValue(
 export function createWalletPcztRestartSnapshot(options: {
   artifact: CommittedZcashArtifact | string;
   pczt: PcztEnvelope | string;
-  approvedManifestDigest: string;
+  expectedManifestDigest: string;
   lifecycle: WalletPcztLifecycle;
   observedHeight?: number;
 }): WalletPcztRestartSnapshot {
@@ -674,7 +672,7 @@ export function createWalletPcztRestartSnapshot(options: {
   const request = createWalletReviewRequest({
     artifact,
     pczt: envelope,
-    approvedManifestDigest: options.approvedManifestDigest,
+    expectedManifestDigest: options.expectedManifestDigest,
   });
   const height = observedHeight(options.observedHeight);
   expiryForSnapshot(artifact, height);
@@ -689,28 +687,28 @@ export function createWalletPcztRestartSnapshot(options: {
   } satisfies Omit<WalletPcztRestartSnapshot, "checksum">;
   const checksum = sha256Bytes(Buffer.from(canonicalizeJson(snapshotPayload(payload), "wallet PCZT restart snapshot"), "utf8"));
   const snapshot = { ...payload, checksum } satisfies WalletPcztRestartSnapshot;
-  verifyWalletPcztRestartSnapshotValue(snapshot, options.approvedManifestDigest);
+  verifyWalletPcztRestartSnapshotValue(snapshot, options.expectedManifestDigest);
   return deepFreeze(snapshot);
 }
 
 export function verifyWalletPcztRestartSnapshot(
   value: WalletPcztRestartSnapshot,
-  options: { approvedManifestDigest: string; observedHeight?: number },
+  options: { expectedManifestDigest: string; observedHeight?: number },
 ): void {
-  verifyWalletPcztRestartSnapshotValue(value, options.approvedManifestDigest, options.observedHeight);
+  verifyWalletPcztRestartSnapshotValue(value, options.expectedManifestDigest, options.observedHeight);
 }
 
 export function serializeWalletPcztRestartSnapshot(
   value: WalletPcztRestartSnapshot,
-  approvedManifestDigest: string,
+  expectedManifestDigest: string,
 ): string {
-  verifyWalletPcztRestartSnapshotValue(value, approvedManifestDigest);
+  verifyWalletPcztRestartSnapshotValue(value, expectedManifestDigest);
   return canonicalizeJson(value, "wallet PCZT restart snapshot");
 }
 
 export function parseWalletPcztRestartSnapshot(
   serialized: string,
-  options: { approvedManifestDigest: string; observedHeight?: number },
+  options: { expectedManifestDigest: string; observedHeight?: number },
 ): WalletPcztRestartSnapshot {
   const parsed = parseCanonicalJson(serialized, "Wallet PCZT restart snapshot");
   snapshotShapeGuard(parsed);
@@ -725,16 +723,19 @@ export function parseWalletPcztRestartSnapshot(
     observedHeight: observedHeight(parsed.observedHeight),
     checksum: parsed.checksum,
   } satisfies WalletPcztRestartSnapshot;
-  verifyWalletPcztRestartSnapshotValue(normalized, options.approvedManifestDigest, options.observedHeight);
+  verifyWalletPcztRestartSnapshotValue(normalized, options.expectedManifestDigest, options.observedHeight);
   return deepFreeze(normalized);
 }
 
 /** A restart is usable only when chain height is known and the artifact is live. */
 export function assertWalletPcztRestartReady(
   value: WalletPcztRestartSnapshot,
-  options: { approvedManifestDigest: string; observedHeight?: number },
+  options: { expectedManifestDigest: string; observedHeight?: number },
 ): void {
-  verifyWalletPcztRestartSnapshotValue(value, options.approvedManifestDigest, options.observedHeight);
+  verifyWalletPcztRestartSnapshotValue(value, options.expectedManifestDigest, options.observedHeight);
+  if (value.lifecycle === "signed" || value.lifecycle === "extracted") {
+    throw new Error(`Wallet PCZT restart lifecycle ${value.lifecycle} is an unverified caller label under header-only validation`);
+  }
   if (value.lifecycle === "failed" || value.lifecycle === "expired") {
     throw new Error(`Wallet PCZT restart lifecycle ${value.lifecycle} is not ready`);
   }

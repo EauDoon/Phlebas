@@ -5,6 +5,7 @@ import {
   ZCASH_ARTIFACT_BOUNDARY,
   ZCASH_ARTIFACT_SCHEMA,
   commitZcashArtifact,
+  createArtifactConstructionPolicy,
   type CommittedZcashArtifact,
 } from "./zcash-artifact.ts";
 import {
@@ -176,6 +177,12 @@ function commonManifest(request: SpendArtifactRequest, prepared: ReturnType<type
     inputs: [prepared.input],
     outputs: [prepared.output],
     feeZatoshis: request.feeZatoshis.toString(),
+    policy: createArtifactConstructionPolicy({
+      feePolicy: request.feePolicy,
+      finalizedSize: request.finalizedSize,
+      feeZatoshis: request.feeZatoshis,
+      observedHeight: request.observedHeight,
+    }),
     transactionIdState: "unresolved-until-canonical-transaction-extraction",
   } as const;
 }
@@ -205,8 +212,7 @@ export function buildClaimArtifact(request: ClaimArtifactRequest): CommittedZcas
 
 export function buildRefundArtifact(request: RefundArtifactRequest): CommittedZcashArtifact {
   const prepared = prepareSpend(request, "refund");
-  if (prepared.htlc.lock.type === "height" && request.maturity.currentBlockHeight !== undefined
-    && request.maturity.currentBlockHeight !== request.observedHeight) {
+  if (request.maturity.currentBlockHeight !== request.observedHeight) {
     throw new Error("Refund height evidence must match the observed height used for expiry evaluation");
   }
   const maturity = evaluateHtlcCltv({
@@ -221,6 +227,17 @@ export function buildRefundArtifact(request: RefundArtifactRequest): CommittedZc
     ...commonManifest(request, prepared),
     kind: "refund",
     lockTime: prepared.htlc.lock.value,
+    policy: createArtifactConstructionPolicy({
+      feePolicy: request.feePolicy,
+      finalizedSize: request.finalizedSize,
+      feeZatoshis: request.feeZatoshis,
+      observedHeight: request.observedHeight,
+      refundMaturity: {
+        lockType: prepared.htlc.lock.type,
+        currentBlockHeight: request.maturity.currentBlockHeight,
+        medianTimePast: request.maturity.medianTimePast ?? null,
+      },
+    }),
     authorization: {
       sighashType: "SIGHASH_ALL",
       sighashCode: 1,

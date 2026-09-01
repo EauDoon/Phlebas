@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import { hexToBytes } from "./keccak.ts";
+import { commitZcashArtifact } from "./zcash-artifact.ts";
 import { createZip317TransparentPolicy } from "./zcash-fees.ts";
 import { buildHtlcRedeemScript, htlcP2shScriptPubKey, type HtlcParameters } from "./zcash-htlc.ts";
 import {
@@ -70,13 +71,13 @@ test("builds exact claim and mature refund artifacts without key or signature fi
   assert.equal(claimArtifact.manifest.lockTime, 0);
   assert.equal(claimArtifact.manifest.inputs[0].sequence, 0xffff_ffff);
   assert.equal(claimArtifact.manifest.authorization.preimageHex, "00".repeat(32));
-  assert.equal(claimArtifact.manifestDigest, "7dce9578b09ba7e5d73dd3d41de840600afb061cb3046881faf8ff8a6df98f1a");
+  assert.equal(claimArtifact.manifestDigest, "46f25fca19bf68e0ffd327fd7c1507724fb7fee1d9c36f9fe23da44935a19336");
 
   const refundArtifact = buildRefundArtifact(refund());
   assert.equal(refundArtifact.manifest.lockTime, HTLC.lock.value);
   assert.equal(refundArtifact.manifest.inputs[0].sequence, 0xffff_fffe);
   assert.equal("preimageHex" in refundArtifact.manifest.authorization, false);
-  assert.equal(refundArtifact.manifestDigest, "cbe4128d7e1622a078cb2b415e6eed81fa7fddf61876dd0b612335411f7ffeb3");
+  assert.equal(refundArtifact.manifestDigest, "e0edceaf573596dd787eb6a8df79446ebfae7200bc2f034dfb607778517dbb67");
 
   const serialized = JSON.stringify([claimArtifact, refundArtifact]);
   assert.doesNotMatch(serialized, /privateKey|secretKey|seed|signatureHex/);
@@ -107,7 +108,7 @@ test("rejects a substituted contract hash or expected HTLC", () => {
 });
 
 test("fails closed when refund maturity is absent, equal, or early", () => {
-  assert.throws(() => buildRefundArtifact(refund({ maturity: {} })), /unresolved or early/);
+  assert.throws(() => buildRefundArtifact(refund({ maturity: {} })), /height evidence/);
   assert.throws(
     () => buildRefundArtifact(refund({ observedHeight: HTLC.lock.value, maturity: { currentBlockHeight: HTLC.lock.value } })),
     /strictly greater/,
@@ -129,10 +130,56 @@ test("requires observed expiry evidence and rebuilds after expiry", () => {
     () => buildRefundArtifact(refund({ observedHeight: 4_300_001, maturity: { currentBlockHeight: 4_300_002 } })),
     /must match the observed height/,
   );
+
+  const timestampHtlc: HtlcParameters = {
+    ...HTLC,
+    lock: { type: "timestamp", value: 1_900_000_000 },
+  };
+  const timestampScript = buildHtlcRedeemScript(timestampHtlc);
+  assert.throws(() => buildRefundArtifact(refund({
+    contractUtxo: {
+      ...common().contractUtxo,
+      redeemScript: timestampScript,
+      scriptPubKey: htlcP2shScriptPubKey(timestampScript),
+    },
+    expectedHtlc: timestampHtlc,
+    maturity: { currentBlockHeight: 4_300_002, medianTimePast: 1_900_000_001 },
+  })), /must match the observed height/);
 });
 
 test("requires exact no-change reconciliation and a policy-compliant fee", () => {
   assert.throws(() => buildClaimArtifact(claim({ recipientValueZatoshis: 99_999n })), /plus fee/);
   assert.throws(() => buildClaimArtifact(claim({ feeZatoshis: 5_000n, recipientValueZatoshis: 105_000n })), /below/);
   assert.throws(() => buildClaimArtifact(claim({ recipientValueZatoshis: 9_999n, feeZatoshis: 100_001n })), /minimum output/);
+});
+
+test("rejects recomputed refund artifacts with substituted maturity evidence", () => {
+  const artifact = buildRefundArtifact(refund());
+  assert.throws(
+    () => commitZcashArtifact({
+      ...artifact.manifest,
+      policy: {
+        ...artifact.manifest.policy,
+        refundMaturity: {
+          ...artifact.manifest.policy.refundMaturity!,
+          currentBlockHeight: artifact.manifest.policy.observedHeight! + 1,
+        },
+      },
+    }),
+    /maturity height does not match its observed height/,
+  );
+  assert.throws(
+    () => commitZcashArtifact({
+      ...artifact.manifest,
+      policy: {
+        ...artifact.manifest.policy,
+        refundMaturity: {
+          ...artifact.manifest.policy.refundMaturity!,
+          lockType: "timestamp",
+          medianTimePast: HTLC.lock.value + 1,
+        },
+      },
+    }),
+    /maturity evidence does not match the HTLC locktime domain/,
+  );
 });

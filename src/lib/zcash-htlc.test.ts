@@ -172,7 +172,7 @@ test("CLTV evaluation requires type match, nonfinal sequence, transaction lock, 
   assert.equal(wrongType.valid, false);
 });
 
-test("timestamp maturity uses strict block time and no implicit default", () => {
+test("timestamp maturity uses strict median-time-past and no implicit fallback", () => {
   const lock = { type: "timestamp", value: CLTV_LOCKTIME_THRESHOLD } as const;
   const noContext = evaluateHtlcCltv({ lock, txLockTime: lock.value, inputSequence: 0xffff_fffe });
   assert.equal(noContext.valid, false);
@@ -182,7 +182,7 @@ test("timestamp maturity uses strict block time and no implicit default", () => 
     lock,
     txLockTime: lock.value,
     inputSequence: 0xffff_fffe,
-    currentBlockTime: lock.value,
+    medianTimePast: lock.value,
   });
   assert.equal(atTime.valid, false);
 
@@ -190,7 +190,7 @@ test("timestamp maturity uses strict block time and no implicit default", () => 
     lock,
     txLockTime: lock.value,
     inputSequence: 0xffff_fffe,
-    currentTime: lock.value + 1,
+    medianTimePast: lock.value + 1,
   });
   assert.equal(afterTime.valid, true);
 });

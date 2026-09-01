@@ -7,11 +7,13 @@ import {
   ZCASH_ARTIFACT_SCHEMA,
   canonicalArtifactJson,
   commitZcashArtifact,
+  createArtifactConstructionPolicy,
   parseZcashArtifact,
   serializeZcashArtifact,
   verifyZcashArtifact,
   type UnsignedTransparentManifest,
 } from "./zcash-artifact.ts";
+import { createZip317TransparentPolicy } from "./zcash-fees.ts";
 import { buildHtlcRedeemScript, htlcP2shScriptPubKey } from "./zcash-htlc.ts";
 
 function fixtureManifest(): UnsignedTransparentManifest {
@@ -49,6 +51,15 @@ function fixtureManifest(): UnsignedTransparentManifest {
       { role: "contract", valueZatoshis: "100000", scriptPubKeyHex: bytesToHex(htlcP2shScriptPubKey(redeemScript)) },
     ],
     feeZatoshis: "10000",
+    policy: createArtifactConstructionPolicy({
+      feePolicy: createZip317TransparentPolicy({
+        maximumFeeZatoshis: 50_000n,
+        minimumOutputZatoshis: 10_000n,
+        maximumSerializedTransactionBytes: 10_000,
+      }),
+      finalizedSize: { inputBytes: 150, outputBytes: 34 },
+      feeZatoshis: 10_000n,
+    }),
     authorization: {
       sighashType: "SIGHASH_ALL",
       sighashCode: 1,
@@ -70,7 +81,7 @@ test("canonicalizes object keys and rejects non-canonical values", () => {
 
 test("commits, freezes, serializes, and rehydrates an exact manifest", () => {
   const artifact = commitZcashArtifact(fixtureManifest());
-  assert.equal(artifact.manifestDigest, "f48cd6bf0aa05d4ea340f15827cbd8033d662921d8c09b3265118dad7789d6cc");
+  assert.equal(artifact.manifestDigest, "577c61fb85d18be926ed3f1b5e9b995d24b12aa58ce13831f5ebc27ac094cfa7");
   assert.equal(Object.isFrozen(artifact), true);
   assert.equal(Object.isFrozen(artifact.manifest.inputs), true);
 
@@ -144,5 +155,29 @@ test("validates every runtime manifest field before committing", () => {
       },
     }),
     /refund safety margin contains missing or unexpected fields/,
+  );
+  assert.throws(
+    () => commitZcashArtifact({
+      ...fixtureManifest(),
+      policy: {
+        ...fixtureManifest().policy,
+        feePolicy: { ...fixtureManifest().policy.feePolicy, conventionalFeeZatoshis: "9999" },
+      },
+    }),
+    /conventional fee does not match/,
+  );
+  assert.throws(
+    () => commitZcashArtifact({
+      ...fixtureManifest(),
+      policy: {
+        ...fixtureManifest().policy,
+        serializedTransactionSize: {
+          state: "within-limit",
+          actualBytes: 200,
+          reason: "caller-asserted",
+        } as never,
+      },
+    }),
+    /serialized transaction size must remain explicitly unresolved/,
   );
 });

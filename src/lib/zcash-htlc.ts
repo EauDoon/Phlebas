@@ -60,8 +60,7 @@ export type HtlcWitnessTemplate = Readonly<{
 
 export type HtlcMaturityContext = Readonly<{
   currentBlockHeight?: number;
-  currentBlockTime?: number;
-  currentTime?: number;
+  medianTimePast?: number;
 }>;
 
 export type HtlcCltvEvaluationInput = HtlcMaturityContext & Readonly<{
@@ -604,10 +603,10 @@ export function evaluateHtlcCltv(
   const passesCltv = lockTypeMatches && transactionLockAtLeastOperand && inputSequenceNonFinal;
 
   const currentHeight = normalizeMaturityValue(input.currentBlockHeight);
-  const currentTime = normalizeMaturityValue(input.currentBlockTime ?? input.currentTime);
+  const medianTimePast = normalizeMaturityValue(input.medianTimePast);
   const currentStateMature = lock.type === "height"
     ? currentHeight !== undefined && currentHeight > lock.value
-    : currentTime !== undefined && currentTime > lock.value;
+    : medianTimePast !== undefined && medianTimePast > lock.value;
   const mature = passesCltv && currentStateMature;
 
   let reason: string | undefined;
@@ -616,12 +615,12 @@ export function evaluateHtlcCltv(
   else if (!inputSequenceNonFinal) reason = "CLTV spending input sequence is final";
   else if (lock.type === "height" && currentHeight === undefined) {
     reason = "current block height is required for conservative maturity evaluation";
-  } else if (lock.type === "timestamp" && currentTime === undefined) {
-    reason = "current block time is required for conservative maturity evaluation";
+  } else if (lock.type === "timestamp" && medianTimePast === undefined) {
+    reason = "median-time-past evidence is required for conservative maturity evaluation";
   } else if (!currentStateMature) {
     reason = lock.type === "height"
       ? "current block height must be strictly greater than the CLTV operand"
-      : "current block time must be strictly greater than the CLTV operand";
+      : "median-time-past must be strictly greater than the CLTV operand";
   }
 
   return {
