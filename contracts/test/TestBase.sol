@@ -45,10 +45,6 @@ contract TestBase {
         require(left > right, "not gt");
     }
 
-    function assertEq(address left, address right) internal pure {
-        require(left == right, "address neq");
-    }
-
     function assertEq(bool left, bool right) internal pure {
         require(left == right, "bool neq");
     }

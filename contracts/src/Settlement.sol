@@ -98,18 +98,11 @@ contract Settlement {
         locked = false;
     }
 
-    constructor(
-        address zec_,
-        address usdc_,
-        address usdt_,
-        address feeRecipient_,
-        address pauser_,
-        address governor_
-    ) {
+    constructor(address zec_, address usdc_, address usdt_, address feeRecipient_, address pauser_, address governor_) {
         if (
             zec_ == address(0) || usdc_ == address(0) || usdt_ == address(0) || feeRecipient_ == address(0)
-                || pauser_ == address(0) || governor_ == address(0) || zec_ == usdc_ || zec_ == usdt_
-                || usdc_ == usdt_ || zec_.code.length == 0 || usdc_.code.length == 0 || usdt_.code.length == 0
+                || pauser_ == address(0) || governor_ == address(0) || zec_ == usdc_ || zec_ == usdt_ || usdc_ == usdt_
+                || zec_.code.length == 0 || usdc_.code.length == 0 || usdt_.code.length == 0
         ) revert InvalidConfiguration();
         zec = zec_;
         usdc = usdc_;
