@@ -15,11 +15,11 @@ import {
   verifySignedOrderIntent,
   type MatcherSignatureVerifier,
 } from "./matcher-auth.ts";
-import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier } from "./order-domain.ts";
+import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier, type Hex32 } from "./order-domain.ts";
 
 const CHAIN_ID = 421614n;
 const MAKER = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
-const FROZEN_DIGEST = "0x23cf06d636047955c46b031bd1e5e788d74321da1c19d01ee562b2e194cdc4e9";
+const FROZEN_DIGEST = "0x23cf06d636047955c46b031bd1e5e788d74321da1c19d01ee562b2e194cdc4e9" satisfies Hex32;
 const FROZEN_SIGNATURE = "0x25dda9696a4eed8b907e5b9fcb79f39169284f1c544f992627af993faa4a61e63c69c69b68a6306e970377cdcb9af0bb1dac6cd4f223f2fbba034c06682651091b";
 const domain = createOrderDomain(CHAIN_ID, "0x1111111111111111111111111111111111111111");
 
@@ -72,7 +72,7 @@ test("control authorization hashes bind domain, action, signer, nonce, and epoch
   const value = order();
   const cancel = hashMatcherControl(domain, {
     kind: "cancel-order",
-    orderHash: FROZEN_DIGEST,
+    orderHash: FROZEN_DIGEST as Hex32,
     makerAccountId: value.makerAccountId,
     accountEpoch: value.accountEpoch,
     nonce: value.nonce,
@@ -107,7 +107,7 @@ test("exports distinct clear-signing EIP-712 controls", () => {
   const value = order();
   const cancellation = {
     kind: "cancel-order" as const,
-    orderHash: FROZEN_DIGEST,
+    orderHash: FROZEN_DIGEST as Hex32,
     makerAccountId: value.makerAccountId,
     accountEpoch: value.accountEpoch,
     nonce: value.nonce,

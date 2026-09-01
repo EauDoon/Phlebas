@@ -3,19 +3,32 @@ import test from "node:test";
 
 import { type AtomicSwapPair } from "./atomic-swap-plan.ts";
 import { createOrderDomain, hashOrderDomain, hashTypedOrder, type TypedOrderIntent } from "./eip712-order.ts";
-import { evmAuthorizedSignerId } from "./matcher-auth.ts";
+import { evmAuthorizedSignerId, hashMatcherControl } from "./matcher-auth.ts";
 import {
+  MATCHER_ACCOUNT_EPOCH_OPERATION,
   MATCHER_API_PATH,
   MATCHER_BUY_ONLY_REASON,
   MATCHER_IDEMPOTENCY_HEADER,
+  MATCHER_ORDER_CANCELLATION_OPERATION,
   MATCHER_ORDER_OPERATION,
   MatcherOrderClientError,
   assertMatcherAccountIdentity,
+  assertMatcherControlReceipt,
   assertMatcherHealthIdentity,
   assertMatcherOrderReceipt,
+  buildMatcherAccountEpochAdvanceRequest,
+  buildMatcherControlRequest,
+  buildMatcherOrderCancellationRequest,
   buildMatcherOrderRequest,
+  createMatcherAccountEpochAdvanceControl,
+  createMatcherOrderCancellationControl,
+  serializeMatcherAccountEpochAdvance,
+  serializeMatcherControlSubmission,
+  serializeMatcherOrderCancellation,
   serializeMatcherOrderSubmission,
   type ExpectedMatcherIdentity,
+  type MatcherAccountEpochAdvanceSubmissionInput,
+  type MatcherOrderCancellationSubmissionInput,
   type MatcherOrderPayload,
   type MatcherOrderSubmissionInput,
 } from "./matcher-client.ts";
@@ -35,6 +48,9 @@ const NOW = 1_800_000_000n;
 const CHAIN_ID = 421_614n;
 const SIGNER = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
 const SIGNATURE = "0xac14f0e6c59ffb853f21cf338a836705e68850f44f371eab0b06169856c8a7b86df9706894f19e865330d47237bf726503a8704e617920c5a23011b22ad850ba1c";
+const PRIVATE_KEY = BigInt("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+const CURVE_ORDER = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
+const CURVE_GX = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798n;
 const BASE_NETWORK = "bip122:00040fe8ec8471911baa1db1266ea15d";
 const BASE_ASSET = `${BASE_NETWORK}/slip44:133`;
 const QUOTE_NETWORK = `eip155:${CHAIN_ID}`;
@@ -147,6 +163,74 @@ function input(overrides: Partial<MatcherOrderSubmissionInput> = {}): MatcherOrd
   };
 }
 
+function mod(value: bigint, modulus: bigint): bigint {
+  const remainder = value % modulus;
+  return remainder < 0n ? remainder + modulus : remainder;
+}
+
+// A fixed test-only secp256k1 nonce yields deterministic matcher-control signatures.
+function signControlDigest(digest: `0x${string}`): string {
+  const r = CURVE_GX;
+  let s = mod(mod(BigInt(digest), CURVE_ORDER) + (r * PRIVATE_KEY), CURVE_ORDER);
+  let v = 27;
+  if (s > CURVE_ORDER / 2n) {
+    s = CURVE_ORDER - s;
+    v = 28;
+  }
+  return `0x${r.toString(16).padStart(64, "0")}${s.toString(16).padStart(64, "0")}${v.toString(16)}`;
+}
+
+function cancellationControl(overrides: Partial<ReturnType<typeof createMatcherOrderCancellationControl>> = {}) {
+  return createMatcherOrderCancellationControl({
+    orderHash: hashTypedOrder(domain, order),
+    makerAccountId: order.makerAccountId,
+    accountEpoch: order.accountEpoch,
+    nonce: order.nonce,
+    authorizedSignerId: order.authorizedSignerId,
+    ...overrides,
+  });
+}
+
+function cancellationInput(
+  overrides: Partial<MatcherOrderCancellationSubmissionInput> = {},
+): MatcherOrderCancellationSubmissionInput {
+  const control = overrides.control ?? cancellationControl();
+  return {
+    matcherHealth,
+    expectedMatcher,
+    requestId: "cancel:testnet:0001",
+    occurredAtSeconds: NOW,
+    control,
+    signature: signControlDigest(hashMatcherControl(domain, control)),
+    ...overrides,
+  };
+}
+
+function epochControl(overrides: Partial<ReturnType<typeof createMatcherAccountEpochAdvanceControl>> = {}) {
+  return createMatcherAccountEpochAdvanceControl({
+    makerAccountId: order.makerAccountId,
+    currentEpoch: order.accountEpoch,
+    nextEpoch: order.accountEpoch + 1n,
+    authorizedSignerId: order.authorizedSignerId,
+    ...overrides,
+  });
+}
+
+function epochInput(
+  overrides: Partial<MatcherAccountEpochAdvanceSubmissionInput> = {},
+): MatcherAccountEpochAdvanceSubmissionInput {
+  const control = overrides.control ?? epochControl();
+  return {
+    matcherHealth,
+    expectedMatcher,
+    requestId: "epoch:testnet:0001",
+    occurredAtSeconds: NOW,
+    control,
+    signature: signControlDigest(hashMatcherControl(domain, control)),
+    ...overrides,
+  };
+}
+
 function parsedPayload(requestBody: string): MatcherOrderPayload {
   return JSON.parse(requestBody) as MatcherOrderPayload;
 }
@@ -185,6 +269,113 @@ test("builds stable proxy bytes that round-trip through the native matcher seria
   assert.equal(Object.isFrozen(request), true);
   assert.equal(Object.isFrozen(request.headers), true);
   assert.equal(Object.isFrozen(request.identity.market.quote), true);
+});
+
+test("builds exact signed order-cancellation bytes that round-trip through the native matcher schema", () => {
+  const control = cancellationControl({
+    orderHash: `0x${hashTypedOrder(domain, order).slice(2).toUpperCase()}` as `0x${string}`,
+    makerAccountId: `0x${order.makerAccountId.slice(2).toUpperCase()}` as `0x${string}`,
+    authorizedSignerId: `0x${order.authorizedSignerId.slice(2).toUpperCase()}` as `0x${string}`,
+  });
+  const value = cancellationInput({ control });
+  const request = buildMatcherOrderCancellationRequest(value);
+  const payload = JSON.parse(request.body);
+  const event: Extract<PersistentMatcherEvent, { kind: "cancel-order" }> = {
+    version: 1,
+    requestId: value.requestId,
+    occurredAtSeconds: value.occurredAtSeconds,
+    kind: "cancel-order",
+    orderHash: control.orderHash,
+    signature: value.signature,
+  };
+
+  assert.equal(request.path, MATCHER_API_PATH);
+  assert.equal(request.operation, MATCHER_ORDER_CANCELLATION_OPERATION);
+  assert.equal(request.controlHash, hashMatcherControl(domain, control));
+  assert.deepEqual(request.headers, {
+    "content-type": "application/json",
+    [MATCHER_IDEMPOTENCY_HEADER]: value.requestId,
+  });
+  assert.deepEqual(payload, serializePersistentMatcherEvent(configuration, event).payload);
+  assert.equal(request.body, serializeMatcherOrderCancellation(value));
+  assert.equal(request.body, serializeMatcherControlSubmission(value));
+  assert.equal(buildMatcherControlRequest(value).body, request.body);
+  assert.equal(request.body.includes("eth_sendTransaction"), false);
+  assert.equal(request.body.includes("approve"), false);
+  assert.equal(Object.isFrozen(request), true);
+  assert.equal(Object.isFrozen(request.control), true);
+});
+
+test("builds exact signed account-epoch bytes that round-trip through the native matcher schema", () => {
+  const control = epochControl({ nextEpoch: 2n });
+  const value = epochInput({ control });
+  const request = buildMatcherAccountEpochAdvanceRequest(value);
+  const payload = JSON.parse(request.body);
+  const event: Extract<PersistentMatcherEvent, { kind: "advance-epoch" }> = {
+    version: 1,
+    requestId: value.requestId,
+    occurredAtSeconds: value.occurredAtSeconds,
+    kind: "advance-epoch",
+    makerAccountId: control.makerAccountId,
+    nextEpoch: control.nextEpoch,
+    authorizedSignerId: control.authorizedSignerId,
+    signature: value.signature,
+  };
+
+  assert.equal(request.path, MATCHER_API_PATH);
+  assert.equal(request.operation, MATCHER_ACCOUNT_EPOCH_OPERATION);
+  assert.equal(request.controlHash, hashMatcherControl(domain, control));
+  assert.deepEqual(payload, serializePersistentMatcherEvent(configuration, event).payload);
+  assert.equal(request.body, serializeMatcherAccountEpochAdvance(value));
+  assert.equal(request.body, serializeMatcherControlSubmission(value));
+  assert.equal(Object.isFrozen(request.identity), true);
+});
+
+test("rejects malformed, unauthorized, or ambiguous matcher controls before serialization", () => {
+  assert.throws(
+    () => createMatcherOrderCancellationControl({
+      orderHash: hashTypedOrder(domain, order),
+      makerAccountId: order.makerAccountId,
+      accountEpoch: 0n,
+      nonce: 1n,
+      authorizedSignerId: `0x${"ff".repeat(32)}`,
+    }),
+    /maker and authorized signer must be identical/,
+  );
+  assert.throws(
+    () => createMatcherAccountEpochAdvanceControl({
+      makerAccountId: order.makerAccountId,
+      currentEpoch: 1n,
+      nextEpoch: 1n,
+      authorizedSignerId: order.authorizedSignerId,
+    }),
+    /must increase/,
+  );
+  assert.throws(
+    () => createMatcherOrderCancellationControl({
+      orderHash: hashTypedOrder(domain, order),
+      makerAccountId: order.makerAccountId,
+      accountEpoch: 0n,
+      nonce: 1n,
+      authorizedSignerId: order.authorizedSignerId,
+      unexpected: true,
+    } as unknown as Parameters<typeof createMatcherOrderCancellationControl>[0]),
+    /missing or unsupported fields/,
+  );
+  assert.throws(
+    () => buildMatcherOrderCancellationRequest(cancellationInput({ signature: "0x" })),
+    /65-byte/,
+  );
+  assert.throws(
+    () => buildMatcherAccountEpochAdvanceRequest(epochInput({ occurredAtSeconds: UINT64_MAX + 1n })),
+    /uint64 bigint/,
+  );
+  assert.throws(
+    () => buildMatcherOrderCancellationRequest(cancellationInput({
+      matcherHealth: { ...matcherHealth, custody: true },
+    })),
+    /no-value non-custodial/,
+  );
 });
 
 test("canonicalizes every signed bytes32 field and the ECDSA recovery byte", () => {
@@ -547,6 +738,101 @@ test("rejects matcher receipts that do not bind the reviewed no-value order", ()
   );
   assert.throws(
     () => assertMatcherOrderReceipt({ ...base, privateDetail: "must reject" }, expectation),
+    /missing or unsupported fields/,
+  );
+});
+
+test("binds cancellation and epoch receipts to their signed controls and approved checkpoint", () => {
+  const cancelled = cancellationControl();
+  const epoch = epochControl();
+  const response = (control: typeof cancelled | typeof epoch, sequence: string) => ({
+    ok: true,
+    replayed: false,
+    receipt: {
+      version: 1,
+      sequence,
+      requestId: control.kind === "cancel-order" ? "cancel:testnet:0001" : "epoch:testnet:0001",
+      kind: control.kind,
+      status: control.kind === "cancel-order" ? "cancelled" : "epoch-advanced",
+      subjectHash: control.kind === "cancel-order" ? control.orderHash : control.makerAccountId,
+      occurredAtSeconds: NOW.toString(),
+    },
+    checkpoint: {
+      version: 1,
+      sequence,
+      recordHash: `0x${"cd".repeat(32)}`,
+      stateRoot: `0x${"ef".repeat(32)}`,
+      configurationHash: expectedMatcher.configurationHash,
+    },
+  });
+
+  const cancellationReceipt = assertMatcherControlReceipt(response(cancelled, "8"), {
+    expectedMatcher,
+    requestId: "cancel:testnet:0001",
+    control: cancelled,
+  });
+  assert.equal(cancellationReceipt.receipt.kind, "cancel-order");
+  assert.equal(cancellationReceipt.receipt.status, "cancelled");
+  assert.equal(cancellationReceipt.receipt.subjectHash, cancelled.orderHash);
+
+  const epochReceipt = assertMatcherControlReceipt(response(epoch, "9"), {
+    expectedMatcher,
+    requestId: "epoch:testnet:0001",
+    control: epoch,
+  });
+  assert.equal(epochReceipt.receipt.kind, "advance-epoch");
+  assert.equal(epochReceipt.receipt.status, "epoch-advanced");
+  assert.equal(epochReceipt.receipt.subjectHash, epoch.makerAccountId);
+  assert.equal(Object.isFrozen(epochReceipt), true);
+  assert.equal(Object.isFrozen(epochReceipt.checkpoint), true);
+});
+
+test("rejects control receipts with drifted request, control, status, or checkpoint", () => {
+  const control = cancellationControl();
+  const base = {
+    ok: true,
+    replayed: true,
+    receipt: {
+      version: 1,
+      sequence: "8",
+      requestId: "cancel:testnet:0001",
+      kind: "cancel-order",
+      status: "cancelled",
+      subjectHash: control.orderHash,
+      occurredAtSeconds: NOW.toString(),
+    },
+    checkpoint: {
+      version: 1,
+      sequence: "8",
+      recordHash: `0x${"cd".repeat(32)}`,
+      stateRoot: `0x${"ef".repeat(32)}`,
+      configurationHash: expectedMatcher.configurationHash,
+    },
+  };
+  const expectation = { expectedMatcher, requestId: "cancel:testnet:0001", control };
+
+  assert.throws(
+    () => assertMatcherControlReceipt({ ...base, receipt: { ...base.receipt, requestId: "cancel:other" } }, expectation),
+    /submitted request/,
+  );
+  assert.throws(
+    () => assertMatcherControlReceipt({ ...base, receipt: { ...base.receipt, kind: "advance-epoch", status: "epoch-advanced" } }, expectation),
+    /submitted control/,
+  );
+  assert.throws(
+    () => assertMatcherControlReceipt({ ...base, receipt: { ...base.receipt, subjectHash: `0x${"11".repeat(32)}` } }, expectation),
+    /signed control/,
+  );
+  assert.throws(
+    () => assertMatcherControlReceipt({ ...base, checkpoint: { ...base.checkpoint, sequence: "9" } }, expectation),
+    /does not bind/,
+  );
+  assert.throws(
+    () => assertMatcherControlReceipt({ ...base, checkpoint: { ...base.checkpoint, configurationHash: `0x${"22".repeat(32)}` } }, expectation),
+    /approved matcher/,
+  );
+  assert.throws(
+    () => assertMatcherControlReceipt({ ...base, privateDetail: "must reject" }, expectation),
     /missing or unsupported fields/,
   );
 });

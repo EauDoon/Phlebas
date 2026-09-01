@@ -15,7 +15,9 @@ import {
 import {
   createEvmEoaSignatureVerifier,
   evmAuthorizedSignerId,
+  verifyMatcherControl,
   verifySignedOrderIntent,
+  type MatcherControlAuthorization,
 } from "./matcher-auth.ts";
 import {
   UINT64_MAX,
@@ -29,6 +31,8 @@ import { assertOrderPolicy, type OrderPair } from "./order-policy.ts";
 
 export const MATCHER_API_PATH = "/api/matcher" as const;
 export const MATCHER_ORDER_OPERATION = "/v1/orders" as const;
+export const MATCHER_ORDER_CANCELLATION_OPERATION = "/v1/order-cancellations" as const;
+export const MATCHER_ACCOUNT_EPOCH_OPERATION = "/v1/account-epochs" as const;
 export const MATCHER_IDEMPOTENCY_HEADER = "idempotency-key" as const;
 export const MATCHER_BUY_ONLY_REASON = "matcher-client-buy-orders-only" as const;
 
@@ -144,6 +148,64 @@ export type MatcherOrderRequest = Readonly<{
   body: string;
 }>;
 
+export type MatcherOrderCancellationControl = Extract<MatcherControlAuthorization, { kind: "cancel-order" }>;
+export type MatcherAccountEpochAdvanceControl = Extract<MatcherControlAuthorization, { kind: "advance-epoch" }>;
+type MatcherClientControl = MatcherOrderCancellationControl | MatcherAccountEpochAdvanceControl;
+
+export type MatcherOrderCancellationControlInput = Readonly<Omit<MatcherOrderCancellationControl, "kind">>;
+export type MatcherAccountEpochAdvanceControlInput = Readonly<Omit<MatcherAccountEpochAdvanceControl, "kind">>;
+
+type MatcherControlSubmissionBase<TControl extends MatcherClientControl> = Readonly<{
+  matcherHealth: unknown;
+  expectedMatcher: ExpectedMatcherIdentity;
+  requestId: string;
+  occurredAtSeconds: bigint;
+  control: TControl;
+  signature: string;
+}>;
+
+export type MatcherOrderCancellationSubmissionInput = MatcherControlSubmissionBase<MatcherOrderCancellationControl>;
+export type MatcherAccountEpochAdvanceSubmissionInput = MatcherControlSubmissionBase<MatcherAccountEpochAdvanceControl>;
+export type MatcherControlSubmissionInput = MatcherOrderCancellationSubmissionInput | MatcherAccountEpochAdvanceSubmissionInput;
+
+export type MatcherOrderCancellationPayload = Readonly<{
+  version: 1;
+  requestId: string;
+  occurredAtSeconds: string;
+  kind: "cancel-order";
+  orderHash: Hex32;
+  signature: string;
+}>;
+
+export type MatcherAccountEpochAdvancePayload = Readonly<{
+  version: 1;
+  requestId: string;
+  occurredAtSeconds: string;
+  kind: "advance-epoch";
+  makerAccountId: Hex32;
+  nextEpoch: string;
+  authorizedSignerId: Hex32;
+  signature: string;
+}>;
+
+export type MatcherControlPayload = MatcherOrderCancellationPayload | MatcherAccountEpochAdvancePayload;
+
+export type MatcherControlRequest = Readonly<{
+  path: typeof MATCHER_API_PATH;
+  method: "POST";
+  operation: typeof MATCHER_ORDER_CANCELLATION_OPERATION | typeof MATCHER_ACCOUNT_EPOCH_OPERATION;
+  requestId: string;
+  idempotencyKey: string;
+  identity: VerifiedMatcherIdentity;
+  control: MatcherClientControl;
+  controlHash: Hex32;
+  headers: Readonly<{
+    "content-type": "application/json";
+    "idempotency-key": string;
+  }>;
+  body: string;
+}>;
+
 export type VerifiedMatcherOrderReceipt = Readonly<{
   replayed: boolean;
   receipt: Readonly<{
@@ -170,10 +232,55 @@ export type MatcherOrderReceiptExpectation = Readonly<{
   subjectHash: Hex32;
 }>;
 
+export type MatcherControlReceiptExpectation = Readonly<{
+  expectedMatcher: ExpectedMatcherIdentity;
+  requestId: string;
+  control: MatcherClientControl;
+}>;
+
+export type VerifiedMatcherControlReceipt = Readonly<{
+  replayed: boolean;
+  receipt: (
+    | Readonly<{
+      version: 1;
+      sequence: bigint;
+      requestId: string;
+      kind: "cancel-order";
+      status: "cancelled";
+      subjectHash: Hex32;
+      occurredAtSeconds: bigint;
+    }>
+    | Readonly<{
+      version: 1;
+      sequence: bigint;
+      requestId: string;
+      kind: "advance-epoch";
+      status: "epoch-advanced";
+      subjectHash: Hex32;
+      occurredAtSeconds: bigint;
+    }>
+  );
+  checkpoint: Readonly<{
+    version: 1;
+    sequence: bigint;
+    recordHash: Hex32;
+    stateRoot: Hex32;
+    configurationHash: Hex32;
+  }>;
+}>;
+
 type PreparedSubmission = Readonly<{
   identity: VerifiedMatcherIdentity;
   requestId: string;
   payload: MatcherOrderPayload;
+}>;
+
+type PreparedControlSubmission = Readonly<{
+  identity: VerifiedMatcherIdentity;
+  requestId: string;
+  control: MatcherClientControl;
+  controlHash: Hex32;
+  payload: MatcherControlPayload;
 }>;
 
 export class MatcherOrderClientError extends Error {
@@ -312,11 +419,15 @@ function canonicalRequestId(value: string): string {
   return value;
 }
 
-function canonicalOccurredAtSeconds(value: bigint): bigint {
+function canonicalUint64(value: unknown, label: string): bigint {
   if (typeof value !== "bigint" || value < 0n || value > UINT64_MAX) {
-    throw new RangeError("Matcher event time must be a uint64 bigint");
+    throw new RangeError(`${label} must be a uint64 bigint`);
   }
   return value;
+}
+
+function canonicalOccurredAtSeconds(value: bigint): bigint {
+  return canonicalUint64(value, "Matcher event time");
 }
 
 function canonicalDecimalUint64(value: unknown, label: string): bigint {
@@ -381,17 +492,96 @@ export function assertMatcherAccountIdentity(
   });
 }
 
-function canonicalSignature(value: string): string {
+function canonicalSignature(value: string, label = "Order"): string {
   if (typeof value !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(value)) {
-    throw new TypeError("Order signature must be a 65-byte 0x-prefixed hexadecimal value");
+    throw new TypeError(`${label} signature must be a 65-byte 0x-prefixed hexadecimal value`);
   }
   const body = value.slice(2).toLowerCase();
   const recovery = Number.parseInt(body.slice(128), 16);
   const canonicalRecovery = recovery === 0 || recovery === 1 ? recovery + 27 : recovery;
   if (canonicalRecovery !== 27 && canonicalRecovery !== 28) {
-    throw new RangeError("Order signature recovery byte must be 0, 1, 27, or 28");
+    throw new RangeError(`${label} signature recovery byte must be 0, 1, 27, or 28`);
   }
   return `0x${body.slice(0, 128)}${canonicalRecovery.toString(16).padStart(2, "0")}`;
+}
+
+function normalizedHex32(value: unknown, label: string): Hex32 {
+  return normalizeHex32(stringValue(value, label), label);
+}
+
+function canonicalMatcherControl(value: MatcherClientControl): MatcherClientControl {
+  const control = objectValue(value, "Matcher control");
+  if (control.kind === "cancel-order") {
+    assertExactKeys(
+      control,
+      ["kind", "orderHash", "makerAccountId", "accountEpoch", "nonce", "authorizedSignerId"],
+      "Matcher order cancellation control",
+    );
+    const makerAccountId = normalizedHex32(control.makerAccountId, "Cancellation maker account ID");
+    const authorizedSignerId = normalizedHex32(control.authorizedSignerId, "Cancellation authorized signer ID");
+    if (makerAccountId !== authorizedSignerId) {
+      throw new Error("Native matcher cancellation maker and authorized signer must be identical");
+    }
+    return {
+      kind: "cancel-order",
+      orderHash: normalizedHex32(control.orderHash, "Cancelled order hash"),
+      makerAccountId,
+      accountEpoch: canonicalUint64(control.accountEpoch, "Cancellation account epoch"),
+      nonce: canonicalUint64(control.nonce, "Cancellation order nonce"),
+      authorizedSignerId,
+    };
+  }
+  if (control.kind === "advance-epoch") {
+    assertExactKeys(
+      control,
+      ["kind", "makerAccountId", "currentEpoch", "nextEpoch", "authorizedSignerId"],
+      "Matcher account epoch control",
+    );
+    const makerAccountId = normalizedHex32(control.makerAccountId, "Epoch maker account ID");
+    const authorizedSignerId = normalizedHex32(control.authorizedSignerId, "Epoch authorized signer ID");
+    if (makerAccountId !== authorizedSignerId) {
+      throw new Error("Native matcher epoch maker and authorized signer must be identical");
+    }
+    const currentEpoch = canonicalUint64(control.currentEpoch, "Current account epoch");
+    const nextEpoch = canonicalUint64(control.nextEpoch, "Next account epoch");
+    if (nextEpoch <= currentEpoch) throw new RangeError("Next account epoch must increase");
+    return {
+      kind: "advance-epoch",
+      makerAccountId,
+      currentEpoch,
+      nextEpoch,
+      authorizedSignerId,
+    };
+  }
+  throw new TypeError("Matcher control kind is unsupported");
+}
+
+export function createMatcherOrderCancellationControl(
+  input: MatcherOrderCancellationControlInput,
+): MatcherOrderCancellationControl {
+  const value = objectValue(input, "Matcher order cancellation control");
+  assertExactKeys(
+    value,
+    ["orderHash", "makerAccountId", "accountEpoch", "nonce", "authorizedSignerId"],
+    "Matcher order cancellation control",
+  );
+  const control = canonicalMatcherControl({ kind: "cancel-order", ...value } as MatcherOrderCancellationControl);
+  if (control.kind !== "cancel-order") throw new Error("Matcher cancellation control kind is unsupported");
+  return deepFreeze(control);
+}
+
+export function createMatcherAccountEpochAdvanceControl(
+  input: MatcherAccountEpochAdvanceControlInput,
+): MatcherAccountEpochAdvanceControl {
+  const value = objectValue(input, "Matcher account epoch control");
+  assertExactKeys(
+    value,
+    ["makerAccountId", "currentEpoch", "nextEpoch", "authorizedSignerId"],
+    "Matcher account epoch control",
+  );
+  const control = canonicalMatcherControl({ kind: "advance-epoch", ...value } as MatcherAccountEpochAdvanceControl);
+  if (control.kind !== "advance-epoch") throw new Error("Matcher epoch control kind is unsupported");
+  return deepFreeze(control);
 }
 
 function canonicalOrder(orderValue: TypedOrderIntent): TypedOrderIntent {
@@ -540,6 +730,108 @@ export function buildMatcherOrderRequest(input: MatcherOrderSubmissionInput): Ma
   });
 }
 
+function prepareMatcherControlSubmission(input: MatcherControlSubmissionInput): PreparedControlSubmission {
+  const identity = assertMatcherHealthIdentity(input.matcherHealth, input.expectedMatcher);
+  const requestId = canonicalRequestId(input.requestId);
+  const occurredAtSeconds = canonicalOccurredAtSeconds(input.occurredAtSeconds);
+  const control = canonicalMatcherControl(input.control);
+  const signature = canonicalSignature(input.signature, "Matcher control");
+  const controlHash = verifyMatcherControl(
+    createEvmEoaSignatureVerifier(input.expectedMatcher.orderDomain.chainId),
+    input.expectedMatcher.orderDomain,
+    control,
+    signature,
+  );
+  const payload: MatcherControlPayload = control.kind === "cancel-order"
+    ? {
+      version: 1,
+      requestId,
+      occurredAtSeconds: occurredAtSeconds.toString(),
+      kind: "cancel-order",
+      orderHash: control.orderHash,
+      signature,
+    }
+    : {
+      version: 1,
+      requestId,
+      occurredAtSeconds: occurredAtSeconds.toString(),
+      kind: "advance-epoch",
+      makerAccountId: control.makerAccountId,
+      nextEpoch: control.nextEpoch.toString(),
+      authorizedSignerId: control.authorizedSignerId,
+      signature,
+    };
+  return { identity, requestId, control, controlHash, payload };
+}
+
+function controlOperation(control: MatcherClientControl): MatcherControlRequest["operation"] {
+  return control.kind === "cancel-order"
+    ? MATCHER_ORDER_CANCELLATION_OPERATION
+    : MATCHER_ACCOUNT_EPOCH_OPERATION;
+}
+
+function requestForPreparedControl(prepared: PreparedControlSubmission): MatcherControlRequest {
+  const body = JSON.stringify(prepared.payload);
+  if (new TextEncoder().encode(body).length > MAX_MATCHER_BODY_BYTES) {
+    throw new RangeError("Matcher control request exceeds the API body limit");
+  }
+  return deepFreeze({
+    path: MATCHER_API_PATH,
+    method: "POST",
+    operation: controlOperation(prepared.control),
+    requestId: prepared.requestId,
+    idempotencyKey: prepared.requestId,
+    identity: prepared.identity,
+    control: prepared.control,
+    controlHash: prepared.controlHash,
+    headers: {
+      "content-type": "application/json",
+      [MATCHER_IDEMPOTENCY_HEADER]: prepared.requestId,
+    },
+    body,
+  });
+}
+
+export function serializeMatcherControlSubmission(input: MatcherControlSubmissionInput): string {
+  return JSON.stringify(prepareMatcherControlSubmission(input).payload);
+}
+
+export function buildMatcherControlRequest(input: MatcherControlSubmissionInput): MatcherControlRequest {
+  return requestForPreparedControl(prepareMatcherControlSubmission(input));
+}
+
+function requireControlKind<TKind extends MatcherClientControl["kind"]>(
+  prepared: PreparedControlSubmission,
+  kind: TKind,
+): PreparedControlSubmission & Readonly<{ control: Extract<MatcherClientControl, { kind: TKind }> }> {
+  if (prepared.control.kind !== kind) throw new TypeError(`Matcher control must be ${kind}`);
+  return prepared as PreparedControlSubmission & Readonly<{ control: Extract<MatcherClientControl, { kind: TKind }> }>;
+}
+
+export function serializeMatcherOrderCancellation(
+  input: MatcherOrderCancellationSubmissionInput,
+): string {
+  return JSON.stringify(requireControlKind(prepareMatcherControlSubmission(input), "cancel-order").payload);
+}
+
+export function buildMatcherOrderCancellationRequest(
+  input: MatcherOrderCancellationSubmissionInput,
+): MatcherControlRequest {
+  return requestForPreparedControl(requireControlKind(prepareMatcherControlSubmission(input), "cancel-order"));
+}
+
+export function serializeMatcherAccountEpochAdvance(
+  input: MatcherAccountEpochAdvanceSubmissionInput,
+): string {
+  return JSON.stringify(requireControlKind(prepareMatcherControlSubmission(input), "advance-epoch").payload);
+}
+
+export function buildMatcherAccountEpochAdvanceRequest(
+  input: MatcherAccountEpochAdvanceSubmissionInput,
+): MatcherControlRequest {
+  return requestForPreparedControl(requireControlKind(prepareMatcherControlSubmission(input), "advance-epoch"));
+}
+
 const MATCHER_ORDER_STATUSES = new Set<VerifiedMatcherOrderReceipt["receipt"]["status"]>([
   "open",
   "filled",
@@ -612,6 +904,85 @@ export function assertMatcherOrderReceipt(
       sequence: checkpointSequence,
       recordHash: canonicalHex32(checkpoint.recordHash, "Matcher checkpoint record hash"),
       stateRoot: canonicalHex32(checkpoint.stateRoot, "Matcher checkpoint state root"),
+      configurationHash,
+    },
+  });
+}
+
+export function assertMatcherControlReceipt(
+  value: unknown,
+  expectation: MatcherControlReceiptExpectation,
+): VerifiedMatcherControlReceipt {
+  const expectedIdentity = canonicalExpectedIdentity(expectation.expectedMatcher);
+  const expectedRequestId = canonicalRequestId(expectation.requestId);
+  const control = canonicalMatcherControl(expectation.control);
+  const expectedSubjectHash = control.kind === "cancel-order"
+    ? control.orderHash
+    : control.makerAccountId;
+  const expectedStatus = control.kind === "cancel-order" ? "cancelled" : "epoch-advanced";
+  const result = objectValue(value, "Matcher control response");
+  assertExactKeys(result, ["ok", "replayed", "receipt", "checkpoint"], "Matcher control response");
+  if (result.ok !== true || typeof result.replayed !== "boolean") {
+    throw new Error("Matcher control response is not an accepted receipt");
+  }
+
+  const receipt = objectValue(result.receipt, "Matcher control receipt");
+  assertExactKeys(
+    receipt,
+    ["version", "sequence", "requestId", "kind", "status", "subjectHash", "occurredAtSeconds"],
+    "Matcher control receipt",
+  );
+  if (receipt.version !== 1 || receipt.kind !== control.kind || receipt.status !== expectedStatus) {
+    throw new Error("Matcher control receipt does not match the submitted control");
+  }
+  const requestId = canonicalRequestId(stringValue(receipt.requestId, "Matcher control receipt request ID"));
+  if (requestId !== expectedRequestId) throw new Error("Matcher control receipt does not match the submitted request");
+  const subjectHash = canonicalHex32(receipt.subjectHash, "Matcher control receipt subject hash");
+  if (subjectHash !== expectedSubjectHash) throw new Error("Matcher control receipt does not match the signed control");
+  const occurredAtSeconds = canonicalDecimalUint64(receipt.occurredAtSeconds, "Matcher control receipt event time");
+
+  const checkpoint = objectValue(result.checkpoint, "Matcher control checkpoint");
+  assertExactKeys(
+    checkpoint,
+    ["version", "sequence", "recordHash", "stateRoot", "configurationHash"],
+    "Matcher control checkpoint",
+  );
+  if (checkpoint.version !== 1) throw new Error("Matcher control checkpoint version is unsupported");
+  const sequence = canonicalDecimalUint64(receipt.sequence, "Matcher control receipt sequence");
+  const checkpointSequence = canonicalDecimalUint64(checkpoint.sequence, "Matcher control checkpoint sequence");
+  if (checkpointSequence !== sequence) throw new Error("Matcher control checkpoint does not bind the receipt");
+  const configurationHash = canonicalHex32(checkpoint.configurationHash, "Matcher control checkpoint configuration hash");
+  if (configurationHash !== expectedIdentity.configurationHash) {
+    throw new Error("Matcher control receipt checkpoint does not match the approved matcher");
+  }
+
+  const verifiedReceipt = control.kind === "cancel-order"
+    ? {
+      version: 1 as const,
+      sequence,
+      requestId,
+      kind: "cancel-order" as const,
+      status: "cancelled" as const,
+      subjectHash,
+      occurredAtSeconds,
+    }
+    : {
+      version: 1 as const,
+      sequence,
+      requestId,
+      kind: "advance-epoch" as const,
+      status: "epoch-advanced" as const,
+      subjectHash,
+      occurredAtSeconds,
+    };
+  return deepFreeze({
+    replayed: result.replayed,
+    receipt: verifiedReceipt,
+    checkpoint: {
+      version: 1,
+      sequence: checkpointSequence,
+      recordHash: canonicalHex32(checkpoint.recordHash, "Matcher control checkpoint record hash"),
+      stateRoot: canonicalHex32(checkpoint.stateRoot, "Matcher control checkpoint state root"),
       configurationHash,
     },
   });
