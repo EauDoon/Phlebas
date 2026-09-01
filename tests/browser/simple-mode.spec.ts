@@ -49,6 +49,25 @@ test("simple mode shows a Uniswap-style market ticket without the book", async (
   await expect(page.getByText(/seed phrase|spending key|spend key|viewing key/i)).toHaveCount(0);
 });
 
+test("Advanced radio reveals Order book and Simple hides it again", async ({ page }) => {
+  await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
+
+  const modes = page.getByRole("radiogroup", { name: "Terminal mode" });
+  await expect(modes.getByRole("radio", { name: "Simple" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("heading", { name: "Order book" })).toHaveCount(0);
+  await expect(page.locator("#order-book")).toHaveCount(0);
+
+  await modes.getByRole("radio", { name: "Advanced" }).click();
+  await expect(modes.getByRole("radio", { name: "Advanced" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("heading", { name: "Order book" })).toBeVisible();
+  await expect(page.locator("#order-book")).toBeVisible();
+
+  await modes.getByRole("radio", { name: "Simple" }).click();
+  await expect(modes.getByRole("radio", { name: "Simple" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("heading", { name: "Order book" })).toHaveCount(0);
+  await expect(page.locator("#order-book")).toHaveCount(0);
+});
+
 test("Max fills a positive size and Switch flips side", async ({ page }) => {
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
 

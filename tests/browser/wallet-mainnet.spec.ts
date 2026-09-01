@@ -1,8 +1,33 @@
+import {
+  walletConnectBusyTitle,
+  walletConnectFailureCopy,
+  walletConnectIdleTitle,
+  walletDisconnectLabel,
+} from "../../src/lib/evm-wallet.ts";
+import { walletSessionInvalidationCopy } from "../../src/lib/evm-wallet-session.ts";
 import { ETHEREUM_MAINNET_CHAIN_HEX } from "../../src/lib/mainnet-assets.ts";
 import { expect, test } from "./fixtures";
 
 const METAMASK_UUID = "d9a04b1d-f5e2-40db-8f8a-9b4469c7471f";
 const RABBY_UUID = "350670db-19fa-4704-a166-e52e178b59d2";
+const RABBY_ACCOUNT = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const SETTLEMENT_PAIR = "ZEC-USDC" as const;
+const CONNECT_WALLET = "Connect Ethereum Mainnet wallet";
+const SIGNING_METHODS = [
+  "eth_sendTransaction",
+  "eth_sign",
+  "eth_signTypedData",
+  "eth_signTypedData_v4",
+  "personal_sign",
+  "wallet_sendCalls",
+] as const;
+
+function expectNoSigning(methods: readonly string[]) {
+  for (const method of SIGNING_METHODS) {
+    expect(methods, `wallet must not ${method}`).not.toContain(method);
+  }
+}
+
 test("selects an EIP-6963 wallet and clears the reviewed session on provider drift", async ({ page }) => {
   await page.addInitScript((chainId) => {
     type Listener = (...args: unknown[]) => void;
@@ -90,11 +115,17 @@ test("selects an EIP-6963 wallet and clears the reviewed session on provider dri
     "MetaMask (io.metamask)",
     "Rabby Wallet (io.rabby)",
   ]);
+  await expect(page.getByText("Ethereum Mainnet", { exact: true })).toBeVisible();
 
   await providerSelect.selectOption(RABBY_UUID);
-  const connect = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
+  const connect = page.getByRole("button", { name: CONNECT_WALLET });
+  await expect(connect).toHaveText("Connect wallet");
+  await expect(connect).toHaveAttribute("title", walletConnectIdleTitle(SETTLEMENT_PAIR));
   await connect.click();
+  const disconnectLabel = walletDisconnectLabel(RABBY_ACCOUNT, SETTLEMENT_PAIR);
+  await expect(page.getByRole("button", { name: disconnectLabel })).toBeVisible();
   await expect(page.getByRole("button", { name: "Disconnect 0xbbbb…bbbb. Settled as ZEC-USDC." })).toBeVisible();
+  await expect(page.getByText("Ethereum Mainnet", { exact: true })).toBeVisible();
 
   async function emit(event: "accountsChanged" | "chainChanged" | "disconnect", payload?: unknown) {
     await page.evaluate(({ eventName, eventPayload }) => {
@@ -105,25 +136,44 @@ test("selects an EIP-6963 wallet and clears the reviewed session on provider dri
     }, { eventName: event, eventPayload: payload });
   }
 
+  const accountChanged = walletConnectFailureCopy(
+    walletSessionInvalidationCopy({ event: "accountsChanged", reason: "account-changed" }),
+    SETTLEMENT_PAIR,
+  );
   await emit("accountsChanged", ["0x1111111111111111111111111111111111111111"]);
   await expect(connect).toBeVisible();
+  await expect(connect).toHaveText("Connect wallet");
   await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(
     "Wallet account changed. Reconnect to review again. Settled as ZEC-USDC.",
   );
+  await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(accountChanged);
+  await expect(connect).toHaveAttribute("title", accountChanged);
 
   await connect.click();
   await expect(page.getByRole("button", { name: "Disconnect 0xbbbb…bbbb. Settled as ZEC-USDC." })).toBeVisible();
+  const leftMainnet = walletConnectFailureCopy(
+    walletSessionInvalidationCopy({ event: "chainChanged", reason: "chain-changed" }),
+    SETTLEMENT_PAIR,
+  );
   await emit("chainChanged", "0xa4b1");
   await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(
     "Wallet left Ethereum Mainnet. Reconnect on Ethereum Mainnet. Settled as ZEC-USDC.",
   );
+  await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(leftMainnet);
+  await expect(connect).toHaveAttribute("title", leftMainnet);
 
   await connect.click();
   await expect(page.getByRole("button", { name: "Disconnect 0xbbbb…bbbb. Settled as ZEC-USDC." })).toBeVisible();
+  const disconnected = walletConnectFailureCopy(
+    walletSessionInvalidationCopy({ event: "disconnect", reason: "provider-disconnected" }),
+    SETTLEMENT_PAIR,
+  );
   await emit("disconnect", { code: 4900, message: "private provider detail" });
   await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(
     "Wallet disconnected. Reconnect to continue. Settled as ZEC-USDC.",
   );
+  await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(disconnected);
+  await expect(page.getByText("private provider detail")).toHaveCount(0);
 
   const calls = await page.evaluate(() => (
     (window as unknown as { __phlebasWalletHarness: { calls: Record<string, string[]> } })
@@ -131,6 +181,7 @@ test("selects an EIP-6963 wallet and clears the reviewed session on provider dri
   ));
   expect(calls["io.metamask"]).toEqual([]);
   expect(calls["io.rabby"]).not.toContain("eth_sendTransaction");
+  expectNoSigning(calls["io.rabby"] ?? []);
 
   await connect.click();
   const disconnect = page.getByRole("button", { name: "Disconnect 0xbbbb…bbbb. Settled as ZEC-USDC." });
@@ -214,9 +265,12 @@ test("a pending wallet connection cannot survive leaving the wallet surface", as
   }, ETHEREUM_MAINNET_CHAIN_HEX);
 
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const connect = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
+  const connect = page.getByRole("button", { name: CONNECT_WALLET });
+  await expect(connect).toHaveText("Connect wallet");
   await connect.click();
   await expect(connect).toHaveText("Connecting");
+  await expect(connect).toBeDisabled();
+  await expect(connect).toHaveAttribute("title", walletConnectBusyTitle(SETTLEMENT_PAIR));
 
   await page
     .getByRole("navigation", { name: "Primary navigation" })
@@ -244,10 +298,71 @@ test("a pending wallet connection cannot survive leaving the wallet surface", as
     .click();
   await expect(page).toHaveURL(/view=trade/);
   await expect(connect).toBeVisible();
+  await expect(connect).toHaveText("Connect wallet");
+  await expect(connect).toBeEnabled();
   await expect(page.getByRole("button", { name: /Disconnect/ })).toHaveCount(0);
   expect(await page.evaluate(() => (
     (window as unknown as {
       __phlebasPendingWalletHarness: { listenerCount(): number };
     }).__phlebasPendingWalletHarness.listenerCount()
   ))).toBe(0);
+  const pendingMethods = await page.evaluate(() => (
+    (window as unknown as { __phlebasPendingWalletHarness: { methods: string[] } })
+      .__phlebasPendingWalletHarness.methods
+  ));
+  expectNoSigning(pendingMethods);
+});
+
+test("a non-mainnet wallet stays disconnected on Ethereum Mainnet", async ({ page }) => {
+  await page.addInitScript((mainnetChainId) => {
+    const methods: string[] = [];
+    const switchParams: unknown[] = [];
+    const provider = {
+      request({ method, params }: { method: string; params?: unknown }) {
+        methods.push(method);
+        if (method === "wallet_switchEthereumChain") {
+          switchParams.push(params);
+          return Promise.resolve(null);
+        }
+        if (method === "eth_requestAccounts" || method === "eth_accounts") {
+          return Promise.resolve(["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]);
+        }
+        if (method === "eth_chainId") return Promise.resolve("0xa4b1");
+        return Promise.reject(new Error(method));
+      },
+      on() {},
+      removeListener() {},
+    };
+    Object.defineProperty(window, "ethereum", { configurable: true, value: provider });
+    Object.defineProperty(window, "__phlebasWrongChainHarness", {
+      value: { methods, switchParams, mainnetChainId },
+    });
+  }, ETHEREUM_MAINNET_CHAIN_HEX);
+
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const connect = page.getByRole("button", { name: CONNECT_WALLET });
+  await expect(page.getByText("Ethereum Mainnet", { exact: true })).toBeVisible();
+  await connect.click();
+  const blocked = walletConnectFailureCopy(
+    "Switch to Ethereum Mainnet. Other chains are blocked.",
+    SETTLEMENT_PAIR,
+  );
+  await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(blocked);
+  await expect(connect).toHaveText("Connect wallet");
+  await expect(page.getByRole("button", { name: /Disconnect/ })).toHaveCount(0);
+  await expect(connect).toHaveAttribute("title", blocked);
+
+  const harness = await page.evaluate(() => (
+    (window as unknown as {
+      __phlebasWrongChainHarness: {
+        methods: string[];
+        switchParams: unknown[];
+        mainnetChainId: string;
+      };
+    }).__phlebasWrongChainHarness
+  ));
+  expect(harness.methods).toContain("wallet_switchEthereumChain");
+  expect(harness.switchParams).toEqual([[{ chainId: harness.mainnetChainId }]]);
+  expect(harness.mainnetChainId).toBe("0x1");
+  expectNoSigning(harness.methods);
 });

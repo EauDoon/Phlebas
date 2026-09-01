@@ -11,9 +11,13 @@ test("320px Buy and Sell selection is labeled in text", async ({ page }) => {
 
   await expect(selectedBuy).toBeVisible();
   await expect(selectedBuy).toHaveAttribute("aria-pressed", "true");
+  await expect(selectedBuy).toHaveText(sideControlCopy("buy", true));
   await expect(unselectedSell).toBeVisible();
   await expect(unselectedSell).toHaveAttribute("aria-pressed", "false");
+  await expect(unselectedSell).toHaveText(sideControlCopy("sell", false));
   await expect(side.getByRole("button", { name: sideControlCopy("buy", false), exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review sell" })).toHaveCount(0);
 
   await unselectedSell.click();
 
@@ -22,6 +26,11 @@ test("320px Buy and Sell selection is labeled in text", async ({ page }) => {
 
   await expect(selectedSell).toBeVisible();
   await expect(selectedSell).toHaveAttribute("aria-pressed", "true");
+  await expect(selectedSell).toHaveText(sideControlCopy("sell", true));
   await expect(unselectedBuy).toBeVisible();
   await expect(unselectedBuy).toHaveAttribute("aria-pressed", "false");
+  await expect(unselectedBuy).toHaveText(sideControlCopy("buy", false));
+  await expect(side.getByRole("button", { name: sideControlCopy("sell", false), exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review sell" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review buy" })).toHaveCount(0);
 });

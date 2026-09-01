@@ -94,6 +94,16 @@ test.describe("desktop operating density", () => {
     await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   });
 
+  test("simple trade at 1440 shows Token in Token out Switch Review buy without Order book", async ({ page }) => {
+    await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
+
+    await expect(page.getByText("Token in", { exact: true })).toBeVisible();
+    await expect(page.getByText("Token out", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Switch" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Order book" })).toHaveCount(0);
+  });
+
   test("liquidity keeps solver quotes on one screen and labels historical AMM retired", async ({ page }) => {
     await page.goto("/liquidity", { waitUntil: "networkidle" });
 

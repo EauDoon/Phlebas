@@ -38,3 +38,23 @@ for (const path of routes) {
     expect(text).not.toMatch(/USDT0 is (?:listed|live)/i);
   });
 }
+
+test("/trade?mode=simple shows Token in, Token out, and Switch", async ({ page }) => {
+  await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
+  await expect(page.getByText(PREVIEW_CHIP, { exact: true })).toBeVisible();
+  await expect(page.getByText(SITE_FOOTER_SENTENCE, { exact: true })).toBeVisible();
+  await expect(page.getByText("Token in", { exact: true })).toBeVisible();
+  await expect(page.getByText("Token out", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Switch" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Order book" })).toHaveCount(0);
+});
+
+test("/trade?mode=advanced shows Order book", async ({ page }) => {
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
+  await expect(page.getByText(PREVIEW_CHIP, { exact: true })).toBeVisible();
+  await expect(page.getByText(SITE_FOOTER_SENTENCE, { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Order book" })).toBeVisible();
+  await expect(page.getByText("Token in", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Token out", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Switch" })).toHaveCount(0);
+});

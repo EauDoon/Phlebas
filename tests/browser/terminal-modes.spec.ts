@@ -98,6 +98,37 @@ test("advanced click persists and simple query overrides", async ({ page }) => {
   await expect(page.locator("#order-book")).toBeHidden();
 });
 
+test("Simple and Advanced radios switch visible surfaces", async ({ page }) => {
+  await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
+  await expectHonestPreview(page);
+
+  const modes = page.getByRole("radiogroup", { name: "Terminal mode" });
+  await expect(modes.getByRole("radio", { name: "Simple" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByText("Token in", { exact: true })).toBeVisible();
+  await expect(page.getByText("Token out", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Switch" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
+  await expect(page.locator("#order-book")).toBeHidden();
+  await expect(page.getByRole("button", { name: "GTC" })).toHaveCount(0);
+
+  await modes.getByRole("radio", { name: "Advanced" }).click();
+  await expect(modes.getByRole("radio", { name: "Advanced" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator("#order-book")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Order book" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "GTC" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "IOC" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "FOK" })).toBeVisible();
+  await expect(page.getByText("Token in", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Switch" })).toHaveCount(0);
+
+  await modes.getByRole("radio", { name: "Simple" }).click();
+  await expect(modes.getByRole("radio", { name: "Simple" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator("#order-book")).toBeHidden();
+  await expect(page.getByText("Token in", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Switch" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "GTC" })).toHaveCount(0);
+});
+
 test("terminal mode radios support roving focus and arrow navigation", async ({ page }) => {
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
   const simple = page.getByRole("radio", { name: "Simple" });

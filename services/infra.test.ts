@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -84,6 +85,12 @@ test("operator runbook exists and CI does not set a matcher URL", async () => {
   assert.match(runbook, /127\.0\.0\.1:8788/);
   assert.match(runbook, /Do not set `PHLEBAS_MATCHER_URL`, `PHLEBAS_MATCHER_USDC_URL`, or `PHLEBAS_MATCHER_USDT_URL` on Vercel/);
   assert.doesNotMatch(ci, /PHLEBAS_MATCHER(?:_(?:USDC|USDT))?_URL/);
+  const vercelPath = join(root, "vercel.json");
+  if (existsSync(vercelPath)) {
+    const vercel = await readFile(vercelPath, "utf8");
+    assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_URL\s*[:=]/);
+    assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_(?:USDC|USDT)_URL\s*[:=]/);
+  }
 });
 
 test("secret scan checks tracked bytes and fails matcher URLs in committed Vercel env files", async () => {
