@@ -22,7 +22,7 @@ import {
 import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier, UINT64_MAX } from "../../src/lib/order-domain.ts";
 import { VENUE_CLOB } from "../../src/lib/order-policy.ts";
 import type { SolverQuote } from "../../src/lib/solver-quotes.ts";
-import { hash160Value, p2shAddress } from "../../src/lib/zcash-address.ts";
+import { hash160Value, p2pkhAddress } from "../../src/lib/zcash-address.ts";
 import {
   JOURNAL_GENESIS_HASH,
   canonicalJournalJson,
@@ -84,7 +84,7 @@ const configuration: PersistentMatcherConfiguration = {
 const verifier: MatcherSignatureVerifier = { verify() {} };
 
 function zcashAccount(name: string): string {
-  const address = p2shAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
+  const address = p2pkhAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
   return `zcash:mainnet:${address}`;
 }
 

@@ -15,12 +15,13 @@ import {
 import { buildMatcherBuyOrderDraft, type MatcherBuyOrderDraftInput } from "./matcher-order-draft.ts";
 import { evmAuthorizedSignerId } from "./matcher-auth.ts";
 import { hashTypedOrder } from "./eip712-order.ts";
-import { hash160Value, p2shAddress } from "./zcash-address.ts";
+import { hash160Value, p2pkhAddress, p2shAddress } from "./zcash-address.ts";
 
 const NOW = 1_800_000_000n;
 const WALLET = `0x${"11".repeat(20)}`;
 const CONTRACT = `0x${"22".repeat(20)}`;
-const RECIPIENT = p2shAddress(hash160Value(new TextEncoder().encode("matcher-order-draft")), "mainnet");
+const RECIPIENT = p2pkhAddress(hash160Value(new TextEncoder().encode("matcher-order-draft")), "mainnet");
+const P2SH_RECIPIENT = p2shAddress(hash160Value(new TextEncoder().encode("matcher-order-draft-p2sh")), "mainnet");
 
 function activatedDeployment() {
   const manifest = JSON.parse(JSON.stringify(NATIVE_ZEC_USDC_MATCHER_MANIFEST)) as {
@@ -127,6 +128,13 @@ test("rejects a non-canonical or non-mainnet transparent Zcash recipient", () =>
   assert.throws(
     () => buildMatcherBuyOrderDraft(validInput({ zcashRecipient: "t1not-a-zcash-address" })),
     /base58|Zcash|address/i,
+  );
+});
+
+test("rejects a mainnet P2SH buyer recipient that the Zcash spend adapter cannot pay", () => {
+  assert.throws(
+    () => buildMatcherBuyOrderDraft(validInput({ zcashRecipient: P2SH_RECIPIENT })),
+    /buyer recipient account must be a transparent P2PKH mainnet Zcash account/,
   );
 });
 

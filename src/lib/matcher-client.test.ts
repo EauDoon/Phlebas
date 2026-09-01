@@ -45,7 +45,7 @@ import {
   chainIdentifier,
 } from "./order-domain.ts";
 import { VENUE_CLOB } from "./order-policy.ts";
-import { hash160Value, p2shAddress } from "./zcash-address.ts";
+import { hash160Value, p2pkhAddress, p2shAddress } from "./zcash-address.ts";
 import { serializePersistentMatcherEvent } from "../../services/matcher/persistent-store.ts";
 
 const NOW = 1_800_000_000n;
@@ -60,7 +60,7 @@ const QUOTE_NETWORK = `eip155:${CHAIN_ID}`;
 const QUOTE_ASSET = `${QUOTE_NETWORK}/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`;
 const PROTOCOL = "transparent-htlc-v1";
 const SOURCE_ACCOUNT = `${QUOTE_NETWORK}:${SIGNER}`;
-const RECIPIENT_ACCOUNT = `zcash:mainnet:${p2shAddress(new Uint8Array(20).fill(0xaa), "mainnet")}`;
+const RECIPIENT_ACCOUNT = `zcash:mainnet:${p2pkhAddress(new Uint8Array(20).fill(0xaa), "mainnet")}`;
 const domain = createOrderDomain(CHAIN_ID, "0x1111111111111111111111111111111111111111");
 const market: AtomicSwapPair = {
   base: { network: BASE_NETWORK, asset: BASE_ASSET, environment: "mainnet", decimals: 8 },

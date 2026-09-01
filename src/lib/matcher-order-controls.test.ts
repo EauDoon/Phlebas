@@ -26,7 +26,7 @@ import {
   type MatcherControlFetch,
   type ReviewedMatcherOrderControl,
 } from "./matcher-order-controls.ts";
-import { hash160Value, p2shAddress } from "./zcash-address.ts";
+import { hash160Value, p2pkhAddress } from "./zcash-address.ts";
 import type { MatcherMarketDeployment } from "./matcher-market-routing.ts";
 
 const NOW = 1_800_000_000n;
@@ -35,7 +35,7 @@ const WALLET = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
 const PRIVATE_KEY = BigInt("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
 const CURVE_ORDER = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
 const CURVE_GX = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798n;
-const RECIPIENT = p2shAddress(hash160Value(new TextEncoder().encode("matcher-order-controls")), "mainnet");
+const RECIPIENT = p2pkhAddress(hash160Value(new TextEncoder().encode("matcher-order-controls")), "mainnet");
 
 function mod(value: bigint, modulus: bigint): bigint {
   const remainder = value % modulus;
