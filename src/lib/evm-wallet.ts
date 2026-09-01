@@ -211,7 +211,7 @@ async function signReviewedTypedData(
   expectedAddress: string,
   expectedChainId: bigint,
   typedData: unknown,
-  signatureLabel: "order" | "matcher control",
+  signatureLabel: "order" | "matcher control" | "matcher account recovery",
 ): Promise<string> {
   const address = await assertConnectedWalletAuthority(provider, expectedAddress, expectedChainId);
   const signature = await provider.request({
@@ -231,6 +231,21 @@ export function signTypedOrderIntent(
   orderTypedData: unknown,
 ): Promise<string> {
   return signReviewedTypedData(provider, expectedAddress, expectedChainId, orderTypedData, "order");
+}
+
+export function signTypedMatcherAccountRecovery(
+  provider: Eip1193Provider,
+  expectedAddress: string,
+  expectedChainId: bigint,
+  recoveryTypedData: unknown,
+): Promise<string> {
+  return signReviewedTypedData(
+    provider,
+    expectedAddress,
+    expectedChainId,
+    recoveryTypedData,
+    "matcher account recovery",
+  );
 }
 
 export function signTypedMatcherControl(
