@@ -3,6 +3,7 @@ import {
   matcherHealthProxy,
   matcherMutationAction,
   matcherMutationProxy,
+  matcherOrderProxy,
 } from "@/lib/matcher-proxy";
 import { exactMatcherMarketSelection } from "@/lib/matcher-market-routing";
 
@@ -27,7 +28,7 @@ export function POST(request: Request) {
   const selection = exactMatcherMarketSelection(search, "action");
   if (!selection) return invalidMarketRoute();
   if (search.get("action") === null) {
-    return matcherMutationProxy(request, null, process.env, selection.deployment);
+    return matcherOrderProxy(request, process.env, selection.deployment);
   }
   const action = matcherMutationAction(search.get("action"));
   if (!action) {
