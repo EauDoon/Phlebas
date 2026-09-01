@@ -338,18 +338,17 @@ test("trade ticket shows parser errors instead of a tick notice", async ({ page 
   await expect(page.getByText("Value must use no more than 8 decimal places").first()).toBeVisible();
   await expect(page.getByText("Price must use 0.01 quote ticks")).toHaveCount(0);
 });
-test("gateway preview is not a receivable deposit", async ({ page }) => {
+test("historical custody tour is not a receivable deposit", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "ZEC gateway" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Historical ZEC state tour" })).toBeVisible();
   await expect(page.getByText("ZEC to pZEC")).toHaveCount(0);
   await expect(page.getByText("zcash:{TEX_ADDRESS}?amount=1&label=Phlebas", { exact: true })).toBeVisible();
-  await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
-  await page.getByRole("button", { name: "Issue testnet TEX" }).click();
-  await expect(page.getByText("Local gateway unavailable. No receivable address is displayed.")).toBeVisible();
-  await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Withdrawal states" })).toBeVisible();
-  await page.getByRole("button", { name: "Withdrawal states" }).click();
-  await expect(page.getByText("Preview withdrawal states, not Withdraw ZEC.")).toBeVisible();
+  await expect(page.getByText("No address is generated, copied, or accepted by this application.")).toBeVisible();
+  await expect(page.getByText("textest", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Issue testnet TEX" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Historical withdrawal states" })).toBeVisible();
+  await page.getByRole("button", { name: "Historical withdrawal states" }).click();
+  await expect(page.getByText("Historical withdrawal states only. Nothing is sent.")).toBeVisible();
   await page.getByRole("button", { name: "Next state" }).click();
   await expect(page.getByText("Screened", { exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("zs1notreal");
@@ -393,7 +392,8 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   await expect(page.getByText("in-browser", { exact: true })).toBeVisible();
   await expect(page.getByText("live funds", { exact: false })).toBeVisible();
   await expect(page.getByText("deny-default", { exact: true })).toBeVisible();
-  await expect(page.getByText("unset", { exact: true })).toBeVisible();
+  const sequenceRoot = page.getByRole("listitem").filter({ hasText: "Sequence root" });
+  await expect(sequenceRoot.getByText("none", { exact: true })).toBeVisible();
   const boundary = page.locator("main#main-content");
   await expect(boundary.getByRole("link", { name: "Legal and compliance" })).toBeVisible();
   await expect(boundary.getByRole("link", { name: "Security" })).toHaveCount(2);
@@ -417,7 +417,7 @@ test("/api/status publishes incidents as architecture-demonstration", async ({ p
 
 test("invalid demo query does not highlight incidents", async ({ page }) => {
   await page.goto("/trade?view=architecture&demo=live", { waitUntil: "networkidle" });
-  await expect(page.getByRole("combobox", { name: "Gateway incident demonstration" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Historical custody incident demonstration" })).toBeVisible();
   await expect(page.getByText("Status field architecture-demonstration.")).toHaveCount(0);
 });
 
@@ -450,11 +450,11 @@ test("leaving Architecture for Trade drops demo=incidents and return restores it
   await expect(page.getByText("Labeled demonstration, not a live outage.")).toBeVisible();
 });
 
-test("leaving Architecture for the ZEC gateway drops demo=incidents and return restores it", async ({ page }) => {
+test("leaving Architecture for the historical state tour drops demo=incidents and return restores it", async ({ page }) => {
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
   const nav = page.getByRole("tablist", { name: "Primary navigation" });
-  await nav.getByRole("tab", { name: "ZEC gateway" }).click();
+  await nav.getByRole("tab", { name: "Historical state tour" }).click();
   await expect(page).toHaveURL(/view=bridge/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
@@ -485,14 +485,13 @@ test("status Architecture link keeps the demonstration label", async ({ page }) 
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page.getByText("architecture-demonstration")).toBeVisible();
   await expect(page.getByText("State demonstration").first()).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "Gateway incident demonstration" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Historical custody incident demonstration" })).toBeVisible();
   await expect(page.getByText("Labeled demonstration, not a live outage.")).toBeVisible();
 });
 
-test("public operator APIs stay unavailable without a loopback operator URL", async ({ page }) => {
-  const gateway = await page.request.post("/api/deposit-intent");
-  expect(gateway.status()).toBe(503);
-  expect((await gateway.json()).reason).toBe("gateway-unavailable");
+test("only the matcher operator API remains and stays unavailable without its loopback URL", async ({ page }) => {
+  const removedGateway = await page.request.post("/api/deposit-intent");
+  expect(removedGateway.status()).toBe(404);
   const matcher = await page.request.get("/api/matcher");
   expect(matcher.status()).toBe(503);
   expect((await matcher.json()).reason).toBe("matcher-unavailable");
@@ -501,12 +500,12 @@ test("public operator APIs stay unavailable without a loopback operator URL", as
   expect((await matcherPost.json()).reason).toBe("matcher-unavailable");
 });
 
-test("ZIP 321 copy stays disabled without a gateway", async ({ page }) => {
+test("non-payable ZIP 321 format example has no issue or copy action", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
   await expect(page.getByText("Visual copy of the ZIP 321 request, not a mainnet address.")).toBeVisible();
-  await page.getByRole("button", { name: "Issue testnet TEX" }).click();
-  await expect(page.getByText("No receivable address is displayed.")).toBeVisible();
+  await expect(page.getByText("No address is generated, copied, or accepted by this application.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Issue testnet TEX" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Copy testnet URI" })).toHaveCount(0);
 });
 
@@ -546,7 +545,7 @@ test("review names the cheaper venue before confirm", async ({ page }) => {
   await expect(page.getByText("publicly linkable", { exact: false })).toBeVisible();
   await expect(page.getByText("Proposed taker 15 bps", { exact: false })).toBeVisible();
   await expect(
-    page.getByText("ZEC custody and redemption, if ever offered, would depend on a gateway. This preview is not live settlement."),
+    page.getByText("The historical ZEC custody and redemption model was removed from runtime. This preview is not live settlement."),
   ).toBeVisible();
   await expect(page.getByText("Custody and redemption", { exact: true })).toBeVisible();
 });
@@ -590,7 +589,7 @@ test("LP preview shows integer IL versus hold", async ({ page }) => {
   await expect(page.getByText("This preview labels native ZEC. It is not live settlement.")).toBeVisible();
   await expect(page.getByText("Leaves the session")).toBeVisible();
   await expect(
-    page.getByText("ZEC custody and redemption, if ever offered, would depend on a gateway. This preview is not live settlement."),
+    page.getByText("The historical ZEC custody and redemption model was removed from runtime. This preview is not live settlement."),
   ).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated mint" }).click();
   await expect(page.getByText(/Minted .* local LP shares\. Wallet actions stay disabled\. Settled as ZEC-USDC\./)).toBeVisible();
@@ -707,7 +706,7 @@ test("LP reset-pool notice names ZEC-USDT on the USDT pool", async ({ page }) =>
 
 test("withdrawal tour drives a stub claim without changing tour copy", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Withdrawal states" }).click();
+  await page.getByRole("button", { name: "Historical withdrawal states" }).click();
   await expect(page.getByText("Amount, transparent destination, network fee, service fee, and net output would be reviewed before any burn.")).toBeVisible();
   const dest = "t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc";
   await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill(dest);
@@ -826,7 +825,7 @@ test("session event log includes expiry after confirm", async ({ page }) => {
 
 test("architecture view keeps Vercel off the matcher", async ({ page }) => {
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
-  await expect(page.getByText("Loopback gateway and matcher never hosted on Vercel")).toBeVisible();
+  await expect(page.getByText("No local operator service is hosted on Vercel")).toBeVisible();
   await expect(page.getByText(/The matcher is not trustless/)).toBeVisible();
 });
 
@@ -1184,10 +1183,10 @@ test("country-blocked demonstration hides liquidity controls", async ({ page }) 
 
 test("deposit tour never shows a receivable address", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await expect(page.getByText("Preview deposit states, not Deposit ZEC.")).toBeVisible();
+  await expect(page.getByText("Historical deposit states only. This application never shows a receivable address.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Eligibility", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Next state" }).click();
-  await expect(page.getByText("No address generated in simulation.")).toBeVisible();
+  await expect(page.getByText("No address is generated. The ZIP 320 shape is a non-payable format example, never a wallet handoff.")).toBeVisible();
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
   for (let index = 2; index < DEPOSIT_TOUR.length; index += 1) {
     await page.getByRole("button", { name: "Next state" }).click();
@@ -1205,9 +1204,9 @@ test("unavailable feed retry returns to illustrative", async ({ page }) => {
 
 test("architecture incident demonstrations stay labeled", async ({ page }) => {
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
-  await page.getByLabel("Gateway incident demonstration").selectOption("unplanned-maintenance");
+  await page.getByLabel("Historical custody incident demonstration").selectOption("unplanned-maintenance");
   const demo = page.getByRole("region", { name: "Blocked, review, reorg, and maintenance copy" });
-  await expect(demo.getByRole("strong")).toHaveText("This service is temporarily unavailable.");
+  await expect(demo.getByRole("strong")).toHaveText("Historical service-unavailable state.");
   await expect(demo.getByText("These screens are labeled demonstrations.")).toBeVisible();
 });
 
@@ -1323,7 +1322,7 @@ test("landing journey tabs select LP without a page reload", async ({ page }) =>
   await expect(page.getByRole("link", { name: "Preview withdrawal states" })).toBeVisible();
   await page.getByRole("link", { name: "Preview withdrawal states" }).click();
   await expect(page).toHaveURL(/view=bridge/);
-  await expect(page.getByRole("button", { name: "Withdrawal states" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Historical withdrawal states" })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
@@ -1509,7 +1508,7 @@ test("deposit tour walks Eligibility through Complete without a receivable addre
   await expect(page.getByRole("heading", { name: "Eligibility", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Next state" }).click();
   await expect(page.getByRole("heading", { name: "Address request", exact: true })).toBeVisible();
-  await expect(page.getByText("No address generated in simulation.")).toBeVisible();
+  await expect(page.getByText("No address is generated. The ZIP 320 shape is a non-payable format example, never a wallet handoff.")).toBeVisible();
   await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toHaveCount(0);
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
   const next = page.getByRole("button", { name: "Next state" });
@@ -1524,14 +1523,14 @@ test("deposit tour walks Eligibility through Complete without a receivable addre
 
 test("architecture incident demonstrations stay labeled copy", async ({ page }) => {
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
-  const select = page.getByRole("combobox", { name: "Gateway incident demonstration" });
+  const select = page.getByRole("combobox", { name: "Historical custody incident demonstration" });
   await expect(select).toBeVisible();
-  await select.selectOption({ label: "Deposit credit is paused for review." });
-  await expect(page.getByText("The observed transaction has not been approved for minting.")).toBeVisible();
+  await select.selectOption({ label: "Historical deposit-review state." });
+  await expect(page.getByText(/No receiver, deposit intent, or minting path exists/)).toBeVisible();
   await expect(page.getByText("pZEC minting")).toHaveCount(0);
-  await select.selectOption({ label: "Gateway incident controls are active." });
+  await select.selectOption({ label: "Historical reconciliation state." });
   await expect(page.getByText("These screens are labeled demonstrations.")).toBeVisible();
-  await expect(page.getByText("A previously credited Zcash deposit changed after a chain reorganization.")).toBeVisible();
+  await expect(page.getByText(/There are no reserves, liabilities, mints, or native ZEC withdrawals/)).toBeVisible();
 });
 
 test("education dialog and incident select keep 44px targets at 320px", async ({ page }) => {
@@ -1545,7 +1544,7 @@ test("education dialog and incident select keep 44px targets at 320px", async ({
   expect(continueBox?.height ?? 0).toBeGreaterThanOrEqual(44);
   await page.keyboard.press("Escape");
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
-  const incident = page.getByRole("combobox", { name: "Gateway incident demonstration" });
+  const incident = page.getByRole("combobox", { name: "Historical custody incident demonstration" });
   await incident.focus();
   await expect(incident).toBeFocused();
   const incidentBox = await incident.boundingBox();
@@ -1621,7 +1620,7 @@ test("landing Menu Markets opens the terminal preview at 320px", async ({ page }
 test("architecture incident select stays inside 320px", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
-  const select = page.getByLabel("Gateway incident demonstration");
+  const select = page.getByLabel("Historical custody incident demonstration");
   await expect(select).toBeVisible();
   const box = await select.boundingBox();
   expect(box, "incident select bounding box").toBeTruthy();
@@ -1674,33 +1673,12 @@ test("LP mint and swap wait on the same feed gate as the ticket", async ({ page 
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeEnabled();
 });
 
-test("gateway shows a non-payable placeholder QR and honest clipboard failure", async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: {
-        writeText: () => Promise.reject(new Error("denied")),
-      },
-    });
-  });
+test("historical custody tour shows a non-payable placeholder with no clipboard action", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
   await expect(page.getByText("Placeholder QR. Not payable. Visual copy of the ZIP 321 request, not a mainnet address.")).toBeVisible();
-  await page.getByRole("button", { name: "Copy placeholder URI" }).click();
-  await expect(page.getByText("Clipboard copy failed. The URI was not copied. Nothing was sent.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Copy.*URI/ })).toHaveCount(0);
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
-});
-
-test("clipboard unavailable stays honest without writeText", async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: undefined,
-    });
-  });
-  await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Copy placeholder URI" }).click();
-  await expect(page.getByText("Clipboard is unavailable. The URI was not copied.")).toBeVisible();
 });
 
 test("G I F do not change time in force while review is open", async ({ page }) => {
@@ -1726,7 +1704,7 @@ test("education dialog on liquidity ignores G I F and stays open", async ({ page
 
 test("status names architecture incident demonstrations", async ({ page }) => {
   await page.goto("/status", { waitUntil: "networkidle" });
-  await expect(page.getByText("labeled incident demonstrations", { exact: false })).toBeVisible();
+  await expect(page.getByText("labeled historical-state demonstrations", { exact: false })).toBeVisible();
   await expect(page.getByText("not an incident feed", { exact: false })).toBeVisible();
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Launch gates" })).toBeVisible();
 });
@@ -1765,7 +1743,7 @@ test("LP empty-share copy is visible before a mint", async ({ page }) => {
 test("incident select is a 44px target at 320px", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
-  const select = page.getByLabel("Gateway incident demonstration");
+  const select = page.getByLabel("Historical custody incident demonstration");
   await select.focus();
   await expect(select).toBeFocused();
   const box = await select.boundingBox();
@@ -1894,7 +1872,7 @@ test("ticket keyboard is a named 44px region", async ({ page }) => {
 
 test("withdrawal tour demonstrates unresolved without inventing a payout", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Withdrawal states" }).click();
+  await page.getByRole("button", { name: "Historical withdrawal states" }).click();
   await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
   const next = page.getByRole("button", { name: "Next state" });
   const unresolvedIndex = WITHDRAWAL_TOUR.findIndex((step) => step.id === "unresolved");
@@ -1946,10 +1924,10 @@ test("size percent shortcuts are 44px on desktop", async ({ page }) => {
   expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
-test("gateway journey arrows move focus and Enter selects withdrawal", async ({ page }) => {
+test("historical custody journey arrows move focus and Enter selects withdrawal", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  const deposit = page.getByRole("button", { name: "Deposit preview" });
-  const withdrawal = page.getByRole("button", { name: "Withdrawal states" });
+  const deposit = page.getByRole("button", { name: "Historical deposit states" });
+  const withdrawal = page.getByRole("button", { name: "Historical withdrawal states" });
   await deposit.focus();
   await expect(deposit).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("ArrowRight");
@@ -1957,7 +1935,7 @@ test("gateway journey arrows move focus and Enter selects withdrawal", async ({ 
   await expect(deposit).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("Enter");
   await expect(withdrawal).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByText("Preview withdrawal states, not Withdraw ZEC.")).toBeVisible();
+  await expect(page.getByText("Historical withdrawal states only. Nothing is sent. Canonical names follow PRODUCT_SPEC 9.3.")).toBeVisible();
 });
 
 test("landing terminal preview names depth figures as fixtures", async ({ page }) => {
@@ -2062,9 +2040,9 @@ test("incident demonstration keeps selected copy in a named region", async ({ pa
   await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
   const region = page.getByRole("region", { name: "Selected incident demonstration" });
   await expect(region).toBeVisible();
-  await expect(region).toContainText("Phlebas is not available in this location.");
-  await page.getByLabel("Gateway incident demonstration").selectOption("planned-maintenance");
-  await expect(region).toContainText("Gateway maintenance is scheduled.");
+  await expect(region).toContainText("Historical location-block state.");
+  await page.getByLabel("Historical custody incident demonstration").selectOption("planned-maintenance");
+  await expect(region).toContainText("Historical maintenance state.");
   await expect(page.getByText("They do not imply a live account, incident, or outage.")).toBeVisible();
 });
 
@@ -2374,7 +2352,7 @@ test("architecture skip link reaches the honesty bar", async ({ page }) => {
 test("privacy callouts evidence rows and layer cards stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  const callout = page.locator("#privacy-callouts").getByText("Public linkability", { exact: true }).locator("xpath=ancestor::div[1]");
+  const callout = page.locator("#privacy-callouts").getByText("Historical linkability", { exact: true }).locator("xpath=ancestor::div[1]");
   await expect(callout).toBeVisible();
   expect((await callout.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
@@ -2658,8 +2636,8 @@ test("tour buttons retry copy and country-block skip stay 44px on desktop", asyn
   const next = page.getByRole("button", { name: "Next state" });
   await expect(next).toBeVisible();
   expect((await next.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-  await page.getByRole("button", { name: "Withdrawal states" }).click();
-  await expect(page.getByText("Preview withdrawal states, not Withdraw ZEC.")).toBeVisible();
+  await page.getByRole("button", { name: "Historical withdrawal states" }).click();
+  await expect(page.getByText("Historical withdrawal states only. Nothing is sent. Canonical names follow PRODUCT_SPEC 9.3.")).toBeVisible();
   const previous = page.getByRole("button", { name: "Previous state" });
   await expect(previous).toBeVisible();
   expect((await previous.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);

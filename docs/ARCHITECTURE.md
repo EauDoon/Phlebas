@@ -3,7 +3,7 @@
 Status: native-settlement target, no-value simulation
 Updated: 01-09-2026
 
-Phlebas is being built as a non-custodial exchange for native transparent ZEC against USDC and USDT. The current public application is a no-value browser simulation. Optional loopback stubs exist for a textest gateway, matcher, and observer, and an optional wallet connector is limited to undeployed Arbitrum Sepolia terms. Those services are never hosted on Vercel and do not move mainnet funds.
+Phlebas is being built as a non-custodial exchange for native transparent ZEC against USDC and USDT. The current public application is a no-value browser simulation. An optional loopback matcher exists, and an optional wallet connector is limited to undeployed Arbitrum Sepolia terms. The custody-capable TEX gateway and legacy mint/reserve-attestation observer were removed from runtime. The matcher is never hosted on Vercel and does not move mainnet funds.
 
 No Phlebas contract is deployed. No Zcash node, production signer, reserve account, custody process, transaction, or real asset is connected. Every balance, order, trade, pool, price, and transaction shown by the public application is simulated.
 
@@ -24,7 +24,7 @@ Version 1 is transparent. It does not provide shielded settlement or privacy.
 
 ## Current system
 
-The current repository contains a Next.js no-value simulation, undeployed Arbitrum Sepolia contract sources, and optional loopback operator stubs. Public Vercel must not run the gateway, matcher, or observer.
+The current repository contains a Next.js no-value simulation, undeployed Arbitrum Sepolia contract sources, and optional loopback operator stubs. Public Vercel must not run the matcher or observer.
 
 | Component | Current state | Target state |
 | --- | --- | --- |
@@ -32,11 +32,11 @@ The current repository contains a Next.js no-value simulation, undeployed Arbitr
 | Market data | Illustrative fixtures plus session fills | Signed and independently monitored public feeds |
 | Order book | In-browser matcher plus a persistent loopback no-value matcher | Privately hosted signed-order matcher with receipts after release approval |
 | Settlement | Local inventory updates and undeployed legacy Sepolia contracts | One two-chain atomic swap per fill |
-| Zcash path | Key-independent transparent HTLC and unsigned-artifact lab, plus superseded gateway stubs | Wallet-reviewed P2SH fund, claim, and refund transactions |
+| Zcash path | Key-independent transparent HTLC and unsigned-artifact lab, plus a historical state tour | Wallet-reviewed P2SH fund, claim, and refund transactions |
 | EVM path | Optional Sepolia wallet flow against an undeployed legacy manifest | Exact-token conditional-lock contract |
 | Liquidity | Superseded pZEC AMM and LP previews | Wallet-held maker and solver quotes |
 | Wallets | Optional EIP-1193 testnet flow; no native swap adapter | Explicit adapters that keep every key in the wallet |
-| Observers | Optional loopback textest stub | Independent read-only Zcash and EVM evidence |
+| Observers | Atomic-swap reference domain, not a running mint-attestation service | Independent read-only Zcash and EVM evidence |
 | Coordinator | None | Persistent state, recovery, and safe-action policy |
 
 The historical pZEC gateway and reserve model remains in the repository while the simulation UI is migrated. It is not the active target and must not receive new production functionality.

@@ -8,8 +8,8 @@ export const LANDING_EVIDENCE = [
     body: "Constant-product calculations for two fixed pool fixtures, with no deposits and no return projection.",
   },
   {
-    title: "Gateway design",
-    body: "A transparent native ZEC to pZEC state model, with no address generation, custody, mint, or redemption.",
+    title: "Historical custody model",
+    body: "A removed transparent-ZEC custody state model, retained only as a keyless tour with no address generation, custody, mint, or redemption.",
   },
   {
     title: "Published boundary",

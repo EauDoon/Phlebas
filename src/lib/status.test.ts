@@ -15,7 +15,7 @@ test("status payload never claims live funds or custody", async () => {
   const status = simulationStatus();
   assert.equal(status.liveFunds, false);
   assert.equal(status.custody, "none");
-  assert.equal(status.deposits, "testnet-gateway-optional");
+  assert.equal(status.deposits, "historical-tour-only");
   assert.equal(status.wallets, "eip-1193-sepolia");
   assert.equal(status.sepoliaSubmit, "flag-off");
   assert.equal(status.matcher, "in-browser");
@@ -30,7 +30,6 @@ test("status payload never claims live funds or custody", async () => {
   assert.equal(status.countryAccess, "deny-default");
   assert.equal(status.incidents, "architecture-demonstration");
   assert.equal(status.sequenceRoot, null);
-  assert.equal(status.intentCap, null);
 });
 
 test("vercel.json does not assign operator URLs", async () => {
@@ -40,24 +39,19 @@ test("vercel.json does not assign operator URLs", async () => {
     return;
   }
   const vercel = await readFile(vercelPath, "utf8");
-  assert.doesNotMatch(vercel, /PHLEBAS_GATEWAY_URL\s*[:=]/);
   assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_URL\s*[:=]/);
 });
 
-test("status exposes operator fields only for loopback operator URLs", () => {
+test("status exposes matcher fields only for loopback operator URLs", () => {
   const remote = simulationStatus({
     PHLEBAS_MATCHER_URL: "https://example.com",
-    PHLEBAS_GATEWAY_URL: "http://example.com:8787",
   });
   assert.equal(remote.sequenceRoot, null);
-  assert.equal(remote.intentCap, null);
   assert.equal(remote.matcherService, "off");
 
   const loopback = simulationStatus({
     PHLEBAS_MATCHER_URL: "http://127.0.0.1:8788",
-    PHLEBAS_GATEWAY_URL: "http://127.0.0.1:8787",
   });
   assert.equal(loopback.sequenceRoot, null);
-  assert.equal(loopback.intentCap, 64);
   assert.equal(loopback.matcherService, "persistent-native-v1-loopback");
 });
