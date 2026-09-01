@@ -22,6 +22,7 @@ import {
 import { matcherApiPathForMarket, matcherMarketIdForIdentity } from "./matcher-market-routing.ts";
 import {
   UINT64_MAX,
+  UINT256_MAX,
   assetIdentifier,
   chainIdentifier,
   normalizeAddress,
@@ -221,10 +222,14 @@ export type VerifiedMatcherOrderReceipt = Readonly<{
     version: 1;
     sequence: bigint;
     requestId: string;
+    commandHash: Hex32;
     kind: "accept-order";
     status: "open" | "filled" | "partially-filled" | "ioc-remainder-cancelled" | "fok-rejected" | "unfilled";
     subjectHash: Hex32;
     occurredAtSeconds: bigint;
+    routeKind?: "order-book" | "solver" | "combined";
+    remainingBaseAtoms: bigint;
+    swapPlanIds: readonly Hex32[];
   }>;
   /** The journal prefix that accepted this receipt. */
   receiptCheckpoint: VerifiedMatcherCheckpoint;
@@ -439,6 +444,15 @@ function canonicalDecimalUint64(value: unknown, label: string): bigint {
   }
   const parsed = BigInt(value);
   if (parsed > UINT64_MAX) throw new RangeError(`${label} must fit uint64`);
+  return parsed;
+}
+
+function canonicalDecimalUint256(value: unknown, label: string): bigint {
+  if (typeof value !== "string" || !/^(?:0|[1-9][0-9]*)$/.test(value)) {
+    throw new TypeError(`${label} must be a canonical decimal string`);
+  }
+  const parsed = BigInt(value);
+  if (parsed > UINT256_MAX) throw new RangeError(`${label} must fit uint256`);
   return parsed;
 }
 
@@ -887,11 +901,12 @@ export function assertMatcherOrderReceipt(
   }
 
   const receipt = objectValue(result.receipt, "Matcher order receipt");
-  assertExactKeys(
-    receipt,
-    ["version", "sequence", "requestId", "kind", "status", "subjectHash", "occurredAtSeconds"],
-    "Matcher order receipt",
-  );
+  const receiptKeys = [
+    "version", "sequence", "requestId", "commandHash", "kind", "status", "subjectHash", "occurredAtSeconds",
+    "remainingBaseAtoms", "swapPlanIds",
+    ...(Object.hasOwn(receipt, "routeKind") ? ["routeKind"] : []),
+  ];
+  assertExactKeys(receipt, receiptKeys, "Matcher order receipt");
   if (receipt.version !== 1 || receipt.kind !== "accept-order") {
     throw new Error("Matcher order receipt type is unsupported");
   }
@@ -900,6 +915,20 @@ export function assertMatcherOrderReceipt(
   const subjectHash = canonicalHex32(receipt.subjectHash, "Matcher receipt order hash");
   if (subjectHash !== expectedSubjectHash) throw new Error("Matcher receipt does not match the signed order");
   const occurredAtSeconds = canonicalDecimalUint64(receipt.occurredAtSeconds, "Matcher receipt event time");
+  const commandHash = canonicalHex32(receipt.commandHash, "Matcher receipt command hash");
+  const remainingBaseAtoms = canonicalDecimalUint256(receipt.remainingBaseAtoms, "Matcher receipt remaining amount");
+  if (!Array.isArray(receipt.swapPlanIds)) throw new TypeError("Matcher receipt swap plan IDs must be an array");
+  const swapPlanIds = receipt.swapPlanIds.map((value, index) => (
+    canonicalHex32(value, `Matcher receipt swap plan ID ${index}`)
+  ));
+  if (new Set(swapPlanIds).size !== swapPlanIds.length) throw new Error("Matcher receipt swap plan IDs must be distinct");
+  const routeKind = receipt.routeKind;
+  if (routeKind !== undefined && routeKind !== "order-book" && routeKind !== "solver" && routeKind !== "combined") {
+    throw new Error("Matcher receipt route kind is unsupported");
+  }
+  if ((swapPlanIds.length === 0) !== (routeKind === undefined)) {
+    throw new Error("Matcher receipt route kind and swap plan IDs are inconsistent");
+  }
   const status = receipt.status;
   if (typeof status !== "string" || !MATCHER_ORDER_STATUSES.has(status as VerifiedMatcherOrderReceipt["receipt"]["status"])) {
     throw new Error("Matcher order receipt status is unsupported");
@@ -931,10 +960,14 @@ export function assertMatcherOrderReceipt(
       version: 1,
       sequence,
       requestId,
+      commandHash,
       kind: "accept-order",
       status: status as VerifiedMatcherOrderReceipt["receipt"]["status"],
       subjectHash,
       occurredAtSeconds,
+      ...(routeKind === undefined ? {} : { routeKind }),
+      remainingBaseAtoms,
+      swapPlanIds: Object.freeze(swapPlanIds),
     },
     receiptCheckpoint,
     checkpoint,

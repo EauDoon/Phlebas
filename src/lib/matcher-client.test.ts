@@ -664,10 +664,13 @@ test("binds a matcher receipt to the reviewed request, signed order, and configu
       version: 1,
       sequence: "8",
       requestId: "order:testnet:0001",
+      commandHash: `0x${"ab".repeat(32)}`,
       kind: "accept-order",
       status: "open",
       subjectHash,
       occurredAtSeconds: NOW.toString(),
+      remainingBaseAtoms: order.baseAmountAtoms.toString(),
+      swapPlanIds: [],
     },
     receiptCheckpoint: {
       version: 1,
@@ -693,6 +696,9 @@ test("binds a matcher receipt to the reviewed request, signed order, and configu
   assert.equal(verified.receipt.sequence, 8n);
   assert.equal(verified.receipt.status, "open");
   assert.equal(verified.receipt.occurredAtSeconds, NOW);
+  assert.equal(verified.receipt.commandHash, `0x${"ab".repeat(32)}`);
+  assert.equal(verified.receipt.remainingBaseAtoms, order.baseAmountAtoms);
+  assert.deepEqual(verified.receipt.swapPlanIds, []);
   assert.equal(verified.receiptCheckpoint.sequence, 8n);
   assert.equal(verified.checkpoint.configurationHash, expectedMatcher.configurationHash);
   assert.equal(Object.isFrozen(verified), true);
@@ -710,10 +716,13 @@ test("rejects matcher receipts that do not bind the reviewed no-value order", ()
       version: 1,
       sequence: "8",
       requestId: "order:testnet:0001",
+      commandHash: `0x${"ab".repeat(32)}`,
       kind: "accept-order",
       status: "open",
       subjectHash,
       occurredAtSeconds: NOW.toString(),
+      remainingBaseAtoms: order.baseAmountAtoms.toString(),
+      swapPlanIds: [],
     },
     receiptCheckpoint: {
       version: 1,
@@ -753,6 +762,32 @@ test("rejects matcher receipts that do not bind the reviewed no-value order", ()
     () => assertMatcherOrderReceipt({ ...base, receipt: { ...base.receipt, status: "cancelled" } }, expectation),
     /status is unsupported/,
   );
+  assert.throws(
+    () => assertMatcherOrderReceipt({
+      ...base,
+      receipt: { ...base.receipt, routeKind: "order-book", swapPlanIds: [] },
+    }, expectation),
+    /inconsistent/,
+  );
+  assert.throws(
+    () => assertMatcherOrderReceipt({
+      ...base,
+      receipt: { ...base.receipt, swapPlanIds: [`0x${"44".repeat(32)}`] },
+    }, expectation),
+    /inconsistent/,
+  );
+  const routed = assertMatcherOrderReceipt({
+    ...base,
+    receipt: {
+      ...base.receipt,
+      status: "filled",
+      remainingBaseAtoms: "0",
+      routeKind: "order-book",
+      swapPlanIds: [`0x${"44".repeat(32)}`],
+    },
+  }, expectation);
+  assert.equal(routed.receipt.routeKind, "order-book");
+  assert.deepEqual(routed.receipt.swapPlanIds, [`0x${"44".repeat(32)}`]);
   const replayAtNewerHead = assertMatcherOrderReceipt({
     ...base,
     replayed: true,
