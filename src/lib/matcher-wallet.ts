@@ -1,0 +1,108 @@
+import type { Eip1193Provider } from "./evm-wallet.ts";
+import {
+  ARBITRUM_ONE_CHAIN_ID,
+  type NativeZecUsdcMatcherDeploymentState,
+} from "./native-zec-usdc-matcher-manifest.ts";
+
+export const ARBITRUM_ONE_HEX = `0x${ARBITRUM_ONE_CHAIN_ID.toString(16)}` as const;
+
+const ARBITRUM_ONE_PARAMETERS = Object.freeze({
+  chainId: ARBITRUM_ONE_HEX,
+  chainName: "Arbitrum One",
+  nativeCurrency: Object.freeze({ name: "Ether", symbol: "ETH", decimals: 18 }),
+  rpcUrls: Object.freeze(["https://arb1.arbitrum.io/rpc"]),
+  blockExplorerUrls: Object.freeze(["https://arbiscan.io"]),
+});
+
+export type MatcherWalletConnection = Readonly<{
+  address: string;
+  chainId: typeof ARBITRUM_ONE_HEX;
+}>;
+
+function providerErrorCode(error: unknown): unknown {
+  if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
+  return (error as { code?: unknown }).code;
+}
+
+function canonicalAddress(value: unknown, label: string): string {
+  if (typeof value !== "string" || !/^0x[0-9a-fA-F]{40}$/.test(value)) {
+    throw new TypeError(`${label} must be a 20-byte EVM address`);
+  }
+  return value.toLowerCase();
+}
+
+function canonicalChainId(value: unknown): string {
+  if (typeof value !== "string" || !/^0x[0-9a-fA-F]+$/.test(value)) {
+    throw new TypeError("Wallet chain ID must be hexadecimal");
+  }
+  return `0x${BigInt(value).toString(16)}`;
+}
+
+function assertEnabledMatcher(deployment: NativeZecUsdcMatcherDeploymentState): void {
+  if (!deployment.enabled || deployment.expectedMatcher === null || deployment.orderDomain === null) {
+    throw new Error("Native matcher wallet connection is disabled by the deployment manifest");
+  }
+  if (deployment.orderDomain.chainId !== BigInt(ARBITRUM_ONE_CHAIN_ID)
+    || deployment.expectedMatcher.orderDomain.chainId !== BigInt(ARBITRUM_ONE_CHAIN_ID)) {
+    throw new Error("Native matcher wallet network does not match the approved deployment manifest");
+  }
+}
+
+async function activeAccount(provider: Eip1193Provider, method: "eth_requestAccounts" | "eth_accounts"): Promise<string> {
+  const accounts = await provider.request({ method });
+  if (!Array.isArray(accounts) || accounts.length === 0) {
+    throw new Error("The wallet did not return an account");
+  }
+  return canonicalAddress(accounts[0], "Wallet account");
+}
+
+async function switchToArbitrumOne(provider: Eip1193Provider): Promise<void> {
+  try {
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: ARBITRUM_ONE_HEX }],
+    });
+  } catch (error) {
+    const code = providerErrorCode(error);
+    if (code !== 4902 && code !== "4902") throw error;
+    await provider.request({
+      method: "wallet_addEthereumChain",
+      params: [ARBITRUM_ONE_PARAMETERS],
+    });
+  }
+}
+
+export async function connectMatcherWallet(
+  provider: Eip1193Provider,
+  deployment: NativeZecUsdcMatcherDeploymentState,
+): Promise<MatcherWalletConnection> {
+  assertEnabledMatcher(deployment);
+  const requestedAccount = await activeAccount(provider, "eth_requestAccounts");
+  const initialChainId = canonicalChainId(await provider.request({ method: "eth_chainId" }));
+  if (initialChainId !== ARBITRUM_ONE_HEX) await switchToArbitrumOne(provider);
+
+  const chainId = canonicalChainId(await provider.request({ method: "eth_chainId" }));
+  if (chainId !== ARBITRUM_ONE_HEX) {
+    throw new Error("Switch to Arbitrum One before reviewing a native matcher order");
+  }
+  const currentAccount = await activeAccount(provider, "eth_accounts");
+  if (currentAccount !== requestedAccount) {
+    throw new Error("Wallet account changed while connecting to the native matcher");
+  }
+  return Object.freeze({ address: currentAccount, chainId: ARBITRUM_ONE_HEX });
+}
+
+export function publicMatcherWalletError(error: unknown): string {
+  const code = providerErrorCode(error);
+  if (code === 4001 || code === "4001" || code === "ACTION_REJECTED") {
+    return "Wallet request was rejected.";
+  }
+  if (code === -32002 || code === "-32002") return "A wallet request is already pending.";
+  if (code === 4200 || code === "4200") return "The connected wallet does not support this request.";
+  if (error instanceof Error && (
+    error.message === "Native matcher wallet connection is disabled by the deployment manifest"
+    || error.message === "Switch to Arbitrum One before reviewing a native matcher order"
+    || error.message === "Wallet account changed while connecting to the native matcher"
+  )) return error.message;
+  return "Native matcher wallet connection failed.";
+}
