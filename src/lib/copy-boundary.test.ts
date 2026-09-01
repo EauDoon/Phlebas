@@ -13,7 +13,7 @@ import { simulationStatus } from "./status.ts";
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const execFileAsync = promisify(execFile);
 
-async function scanSecrets(cwd) {
+async function scanSecrets(cwd: string) {
   try {
     const result = await execFileAsync(process.execPath, ["scripts/scan-secrets.mjs"], {
       cwd,
@@ -51,9 +51,9 @@ function withoutHonestCopyNegation(copy: string) {
 }
 
 async function shippedUiFiles() {
-  const files = [];
+  const files: string[] = [];
 
-  async function walk(directory, match) {
+  async function walk(directory: string, match: (name: string) => boolean) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
       if (entry.isDirectory()) {
