@@ -1,21 +1,28 @@
 :root {
   --font-geist-sans: "Segoe UI", Inter, Arial, Helvetica, sans-serif;
   --font-geist-mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
-  --background: #090b0f;
-  --surface: #0e1217;
-  --surface-raised: #131920;
-  --surface-soft: #171e26;
-  --border: #242c35;
-  --border-strong: #333e49;
-  --text: #eef1eb;
-  --text-secondary: #a2aca4;
-  --text-muted: #8f9a92;
-  --accent: #f4c95d;
-  --accent-soft: rgba(244, 201, 93, 0.12);
-  --buy: #55d6a1;
-  --buy-soft: rgba(85, 214, 161, 0.1);
-  --sell: #ff7a82;
-  --sell-soft: rgba(255, 122, 130, 0.1);
+  --background: #070b0c;
+  --surface: #0b1214;
+  --surface-raised: #111a1d;
+  --surface-soft: #111a1d;
+  --elevated: #111a1d;
+  --border: #1f2a2e;
+  --border-strong: #1f2a2e;
+  --line: #1f2a2e;
+  --text: #e7eef0;
+  --text-secondary: #8aa0a6;
+  --text-muted: #8aa0a6;
+  --muted: #8aa0a6;
+  --accent: #2dd4bf;
+  --accent-dim: #0f766e;
+  --accent-fg: #042f2e;
+  --accent-soft: rgba(45, 212, 191, 0.12);
+  --buy: #34d399;
+  --buy-soft: rgba(52, 211, 153, 0.1);
+  --bid: #34d399;
+  --sell: #fb7185;
+  --sell-soft: rgba(251, 113, 133, 0.1);
+  --ask: #fb7185;
   --info: #7bb8ff;
 }
 
@@ -34,10 +41,10 @@ html {
 body {
   min-height: 100vh;
   color: var(--text);
-  background:
-    radial-gradient(circle at 20% -10%, rgba(244, 201, 93, 0.06), transparent 34rem),
-    var(--background);
+  background: var(--background);
   font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -71,6 +78,6 @@ a {
 }
 
 ::selection {
-  color: #11130f;
+  color: var(--accent-fg);
   background: var(--accent);
 }

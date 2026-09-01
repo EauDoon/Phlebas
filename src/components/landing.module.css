@@ -4,7 +4,7 @@
   overflow-clip-margin: 8px;
   color: var(--text);
   background:
-    radial-gradient(circle at 15% 12%, rgba(244, 201, 93, 0.07), transparent 31rem),
+    radial-gradient(circle at 15% 12%, rgba(45, 212, 191, 0.07), transparent 31rem),
     var(--background);
 }
 
@@ -34,14 +34,14 @@
   align-items: center;
   padding: 9px 12px;
   border-radius: 5px;
-  color: #15140d;
+  color: var(--accent-fg);
   background: var(--accent);
   font-size: 12px;
   font-weight: 700;
 }
 
 .skipLink:focus {
-  outline: 2px solid #15140d;
+  outline: 2px solid var(--accent-fg);
   outline-offset: 2px;
 }
 
@@ -82,9 +82,9 @@
   justify-content: center;
   gap: 10px;
   padding: 6px 20px;
-  border-bottom: 1px solid rgba(244, 201, 93, 0.27);
+  border-bottom: 1px solid rgba(45, 212, 191, 0.27);
   color: #d9cb9f;
-  background: rgba(244, 201, 93, 0.065);
+  background: rgba(45, 212, 191, 0.065);
   font-size: 12px;
 }
 
@@ -105,8 +105,7 @@
   gap: 24px;
   padding: 0 clamp(20px, 4vw, 62px);
   border-bottom: 1px solid var(--border);
-  background: rgba(9, 11, 15, 0.86);
-  backdrop-filter: blur(14px);
+  background: var(--surface);
 }
 
 .brand {
@@ -130,7 +129,7 @@
   border-radius: 7px 2px 7px 2px;
   color: #171408;
   background: var(--accent);
-  box-shadow: 0 0 24px rgba(244, 201, 93, 0.15);
+  box-shadow: 0 0 24px rgba(45, 212, 191, 0.15);
   font-family: var(--font-geist-mono);
   font-weight: 800;
 }
@@ -193,7 +192,7 @@
 
 .headerCta,
 .primaryCta {
-  border: 1px solid rgba(244, 201, 93, 0.45);
+  border: 1px solid rgba(45, 212, 191, 0.45);
   color: #16140c;
   background: var(--accent);
 }
@@ -228,7 +227,6 @@
 
 .menuDialog::backdrop {
   background: rgba(4, 5, 7, 0.78);
-  backdrop-filter: blur(6px);
 }
 
 .menuDialogHeader {
@@ -376,7 +374,7 @@
   flex-direction: column;
   padding: clamp(32px, 5vw, 76px);
   background:
-    linear-gradient(180deg, rgba(244, 201, 93, 0.045), transparent 52%),
+    linear-gradient(180deg, rgba(45, 212, 191, 0.045), transparent 52%),
     var(--surface);
 }
 
@@ -852,7 +850,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.75fr);
   gap: clamp(52px, 10vw, 160px);
   background:
-    linear-gradient(110deg, rgba(244, 201, 93, 0.055), transparent 45%),
+    linear-gradient(110deg, rgba(45, 212, 191, 0.055), transparent 45%),
     var(--background);
 }
 

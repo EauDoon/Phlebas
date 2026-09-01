@@ -232,7 +232,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landingCss, /:global\(#terminal-preview\)/);
   assert.match(landingCss, /:global\(#journeys\)/);
   assert.match(landingCss, /:global\(#launch-gates\)/);
-  assert.match(landingCss, /outline: 2px solid #15140d/);
+  assert.match(landingCss, /outline: 2px solid var\(--accent-fg\)/);
   assert.match(landingCss, /outline-offset: 2px/);
   assert.match(landingCss, /top: 12px/);
   assert.match(landingCss, /left: 12px/);
@@ -255,7 +255,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /Fixture \{selectedPool\.tvl\}/);
   assert.match(liquidity, /Fixture \{selectedPool\.volume\}/);
   assert.match(liquidity, /Retry illustrative feed/);
-  assert.match(liquidity, /No session LP shares/);
+  assert.match(liquidity, /emptyShareCopy\(selectedPool\.id\)/);
   assert.match(liquidity, /not a return or profit projection/i);
   assert.match(liquidity, /feeEnvelopeCopy/);
   assert.match(liquidity, /Confirm simulated \{review\.kind\}/);
