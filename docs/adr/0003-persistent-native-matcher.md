@@ -24,7 +24,7 @@ Every accepted mutation follows this order:
 6. publish the derived state in memory;
 7. atomically write a checkpoint that binds the journal head, state root, and configuration hash.
 
-Restart replays every journal event from genesis. It verifies any checkpoint at its exact journal prefix and rewrites a valid stale checkpoint to the current head. Missing initialized files, partial records, sequence gaps, changed records, state-root mismatch, configuration drift, or an existing writer lock fails closed. The service never creates an empty replacement for initialized state.
+Restart replays every journal event from genesis. It verifies any checkpoint at its exact journal prefix and rewrites a valid stale checkpoint to the current head. Missing initialized files, partial records, sequence gaps, changed records, state-root mismatch, configuration drift, or an existing writer lock fails closed. Each writer lock carries a random ownership token, and shutdown refuses to remove a lock whose exact ownership bytes changed. The service never creates an empty replacement for initialized state.
 
 ## Matching and authorization
 
@@ -53,13 +53,18 @@ Every selected fill maps to one immutable no-value atomic-swap plan. The plan bi
 
 * both signed authorization hashes;
 * exact assets, networks, amounts, and accounts;
-* one shared SHA-256 hashlock digest;
+* gross quote atoms, fee basis points, fee quote atoms, and the all-in quote transfer atoms derived with exact integer rounding;
+* the buyer and seller signed price limits and both signed maximum fee limits;
+* one deterministic per-fill hashlock commitment request ID shared by both legs;
+* an explicit `unresolved-wallet-authorization` hashlock status and no hashlock digest until the wallets authorize the exact shared commitment;
 * an earlier stablecoin refund and later Zcash refund;
 * configured confirmation and finality requirements;
 * zero platform-retained base and quote amounts;
 * no unilateral Phlebas spending authority.
 
-The plan status is always `blocked`. It contains no transaction bytes, private key, signature request, broadcast method, funded address, contract deployment, or mainnet action. Execution remains blocked on the explicit gates in `NO_VALUE_SWAP_GATES`.
+The plan derives the gross quote from base atoms and execution price. A seller-side maker price rounds up and a buyer-side maker price rounds down. The fee rounds down, and the exact fee-adjusted transfer must remain between the seller's minimum and buyer's maximum signed quote bounds. The fee is rejected when it exceeds either signed maximum fee or the immutable protocol cap. Zero-value quote dust is rejected. An order salt is never reinterpreted as a hashlock digest.
+
+The plan status is always `blocked`. It contains no transaction bytes, private key, preimage, signature request, broadcast method, funded address, contract deployment, or mainnet action. Execution remains blocked on the explicit gates in `NO_VALUE_SWAP_GATES`, including `per-fill-shared-hashlock-authorization`.
 
 ## HTTP boundary
 

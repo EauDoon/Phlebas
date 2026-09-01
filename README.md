@@ -20,7 +20,7 @@ The matcher remains an offchain availability and fairness boundary. The target i
 - An original landing page with explicit system-status disclosures
 - An in-browser price-time matcher (GTC, IOC, FOK) with session inventory, open orders, fills, and an append-only replay log
 - A separate loopback-only persistent matcher with signed order intake, cancellation and epoch controls, wallet-held signed solver quotes, bounded book-versus-solver routing, durable replay, and stable cursor feeds
-- One immutable, blocked, no-value atomic-swap plan per fill. Plans retain zero platform balances and no unilateral Phlebas spending authority.
+- One immutable, blocked, no-value atomic-swap plan per fill. Plans derive gross quote, fee, and all-in quote atoms from the signed fill, enforce both signed price and fee limits with side-aware integer rounding, retain zero platform balances, and expose no unilateral Phlebas spending authority.
 - Canonical PRODUCT_SPEC order encoding with a SHA-256 simulation digest and a keccak EIP-712 typed-data hash
 - Integer CLOB vs legacy pZEC AMM split-route comparison and LP share mint/burn previews, including IL versus hold at 4x and 1/4x. The native-settlement target uses wallet-held maker and solver liquidity.
 - First-session education, country-blocked demonstration, deposit state tour, and labeled gateway incident copy
@@ -116,7 +116,7 @@ The [browser acceptance guide](docs/BROWSER_ACCEPTANCE.md) defines the routes, v
 - Orders: domain-separated signed intents with nonce cancellation, account epochs, expiry, fee caps, and explicit venue masks
 - Matcher: single-writer price-time sequencing, hash-chained events, atomic checkpoints, deterministic replay, and bounded public feeds
 - Liquidity: signed wallet-held maker and solver capacity, including fixed or bounded curve pricing. No passive LP claim is created.
-- Settlement: immutable no-value two-chain plans today. Executable Zcash and EVM transaction paths remain blocked.
+- Settlement: immutable no-value two-chain plans today. Each plan has a deterministic per-fill hashlock commitment request ID shared by both legs, but its hashlock digest remains unresolved until separate wallet authorization. Executable Zcash and EVM transaction paths remain blocked.
 - Custody: none in the target matcher and settlement design. Each user or solver retains its keys and refund path.
 
 Every decision remains provisional until implementation, independent audits, legal review, custody validation, and the launch gates pass.
