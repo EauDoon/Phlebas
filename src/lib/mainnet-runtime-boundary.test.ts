@@ -56,3 +56,10 @@ test("active manifests bind chain 1 and exact issuer token identities", async ()
   assert.equal(usdt.market.quote.asset, "eip155:1/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7");
   assert.equal(usdc.deployed || usdc.submissionEnabled || usdt.deployed || usdt.submissionEnabled, false);
 });
+
+test("active application code cannot supply its own stablecoin deployment authority", async () => {
+  for (const path of ACTIVE_MAINNET_FILES.filter((path) => path !== "src/lib/stablecoin-wallet-action.ts")) {
+    const source = await readFile(join(root, path), "utf8");
+    assert.doesNotMatch(source, /(?:Funding|Claim|Refund)ActionWithAuthority|StablecoinLockDeploymentAuthority/, path);
+  }
+});

@@ -123,7 +123,7 @@ const ZERO_HEX32 = `0x${"00".repeat(32)}`;
 const UINT64_MAX = (1n << 64n) - 1n;
 const TRACKED_CONDITIONAL_LOCK_MANIFEST: unknown = structuredClone(trackedConditionalLockManifest);
 
-type ApprovedDeploymentManifest = Readonly<{
+export type StablecoinLockDeploymentAuthority = Readonly<{
   address: HexAddress;
   transactionHash: Hex32;
   blockNumber: bigint;
@@ -231,7 +231,7 @@ function requiredString(value: unknown, label: string): string {
  * manifest is intentionally undeployed, so this function currently fails
  * closed before any approval or lock calldata can be created.
  */
-function approvedDeploymentManifest(): ApprovedDeploymentManifest {
+function approvedDeploymentManifest(): StablecoinLockDeploymentAuthority {
   const manifest = record(TRACKED_CONDITIONAL_LOCK_MANIFEST, "Tracked conditional lock manifest");
   const deployment = record(manifest.deployment, "Tracked conditional lock deployment");
   const terms = record(record(manifest.terms, "Tracked conditional lock terms").values, "Tracked conditional lock values");
@@ -271,10 +271,12 @@ function approvedDeploymentManifest(): ApprovedDeploymentManifest {
   });
 }
 
-function normalizeContext(input: StablecoinLockContext): NormalizedContext {
+function normalizeContext(
+  input: StablecoinLockContext,
+  approved: StablecoinLockDeploymentAuthority,
+): NormalizedContext {
   const market = mainnetMarket(input.marketId);
   const lock = nonzeroAddress(input.lock, "Conditional lock");
-  const approved = approvedDeploymentManifest();
   const receipt = input.deploymentReceipt;
   if (receipt.chainId !== ETHEREUM_MAINNET_CHAIN_HEX
     || receipt.receiptStatus !== "0x1") {
@@ -398,7 +400,25 @@ export function planStablecoinFundingActions(
   input: StablecoinLockContext,
   allowanceObservation: StablecoinAllowanceObservation,
 ): readonly StablecoinWalletAction[] {
-  const context = normalizeContext(input);
+  return planStablecoinFundingActionsWithAuthority(
+    input,
+    allowanceObservation,
+    approvedDeploymentManifest(),
+  );
+}
+
+/**
+ * Pure verification engine. This function confers no deployment authority.
+ * Production callers must use planStablecoinFundingActions, which supplies the
+ * repository-tracked authority. The explicit authority form exists for full
+ * executable-path verification against immutable test vectors.
+ */
+export function planStablecoinFundingActionsWithAuthority(
+  input: StablecoinLockContext,
+  allowanceObservation: StablecoinAllowanceObservation,
+  authority: StablecoinLockDeploymentAuthority,
+): readonly StablecoinWalletAction[] {
+  const context = normalizeContext(input, authority);
   requireState(context, "unfunded");
   if (context.observationBlockTimestampSeconds > context.fundingCutoff) {
     throw new Error("Conditional lock funding cutoff has passed");
@@ -449,7 +469,22 @@ export function createStablecoinClaimAction(
   actor: string,
   preimage: string,
 ): StablecoinWalletAction {
-  const context = normalizeContext(input);
+  return createStablecoinClaimActionWithAuthority(
+    input,
+    actor,
+    preimage,
+    approvedDeploymentManifest(),
+  );
+}
+
+/** Pure engine counterpart; it does not approve its authority argument. */
+export function createStablecoinClaimActionWithAuthority(
+  input: StablecoinLockContext,
+  actor: string,
+  preimage: string,
+  authority: StablecoinLockDeploymentAuthority,
+): StablecoinWalletAction {
+  const context = normalizeContext(input, authority);
   requireState(context, "funded");
   if (context.observationBlockTimestampSeconds > context.claimCutoff) {
     throw new Error("Conditional lock claim cutoff has passed");
@@ -473,7 +508,20 @@ export function createStablecoinRefundAction(
   input: StablecoinLockContext,
   actor: string,
 ): StablecoinWalletAction {
-  const context = normalizeContext(input);
+  return createStablecoinRefundActionWithAuthority(
+    input,
+    actor,
+    approvedDeploymentManifest(),
+  );
+}
+
+/** Pure engine counterpart; it does not approve its authority argument. */
+export function createStablecoinRefundActionWithAuthority(
+  input: StablecoinLockContext,
+  actor: string,
+  authority: StablecoinLockDeploymentAuthority,
+): StablecoinWalletAction {
+  const context = normalizeContext(input, authority);
   requireState(context, "funded");
   if (context.observationBlockTimestampSeconds < context.refundTime) {
     throw new Error("Conditional lock refund time has not been reached");
