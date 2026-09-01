@@ -43,6 +43,7 @@ the corresponding file in the docs tree.
 - [ADR 0008](adr/0008-operations-hardening.md) — operations hardening
 - [ADR 0009](adr/0009-final-integration-audit.md) — final integration and audit prep
 - [ADR 0010](adr/0010-skip-nav-wrap.md) — 320px skip-nav wrap
+  - [ADR 0010 impl notes](adr/0010-impl-notes.md)
 
 ## Audit and release
 
