@@ -26,3 +26,7 @@ export function shouldShowPreviewEducation(
 export function isEducationForceQuery(value: string | undefined): boolean {
   return value === "1";
 }
+
+export function isEducationLastStep(step: number): boolean {
+  return step === PREVIEW_EDUCATION_STEPS.length - 1;
+}

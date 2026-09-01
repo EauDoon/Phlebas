@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   isEducationForceQuery,
+  isEducationLastStep,
   PREVIEW_EDUCATION_STEPS,
   PREVIEW_EDUCATION_VERSION,
   shouldShowPreviewEducation,
@@ -31,4 +32,14 @@ test("education query force is allowlisted to 1", () => {
   assert.equal(isEducationForceQuery("1"), true);
   assert.equal(isEducationForceQuery("true"), false);
   assert.equal(isEducationForceQuery(undefined), false);
+});
+
+test("education last step is the final briefing, not an extra consent screen", () => {
+  const last = PREVIEW_EDUCATION_STEPS.length - 1;
+  assert.equal(isEducationLastStep(-1), false);
+  assert.equal(isEducationLastStep(0), false);
+  assert.equal(isEducationLastStep(last - 1), false);
+  assert.equal(isEducationLastStep(last), true);
+  assert.equal(isEducationLastStep(last + 1), false);
+  assert.match(PREVIEW_EDUCATION_STEPS[last].title, /this browser/i);
 });

@@ -1633,6 +1633,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
   margin: 16px 22px 0;
 }
 
@@ -1640,7 +1642,8 @@
   display: inline-flex;
   min-width: 44px;
   min-height: 44px;
-  flex-shrink: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
   align-items: center;
   justify-content: center;
   padding: 8px 14px;
@@ -1649,6 +1652,8 @@
   color: var(--text);
   background: var(--surface-raised);
   font-size: 12px;
+  white-space: normal;
+  text-align: center;
 }
 
 .tourNav button:disabled {
@@ -1715,7 +1720,12 @@
 }
 
 .educationDialog {
-  width: min(calc(100vw - 16px), 460px);
+  box-sizing: border-box;
+  width: min(calc(100% - 16px), 460px);
+  max-width: 100%;
+  max-height: calc(100% - 16px);
+  overflow-x: hidden;
+  overflow-y: auto;
   margin: auto;
   padding: 20px 18px 16px;
   border: 1px solid var(--border-strong);
@@ -1731,6 +1741,7 @@
 
 .educationDialog h2 {
   margin: 8px 0 12px;
+  overflow-wrap: anywhere;
   font-size: 20px;
   letter-spacing: -0.03em;
 }
@@ -1742,12 +1753,15 @@
 
 .educationDialog p {
   min-height: 44px;
+  overflow-wrap: anywhere;
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.55;
 }
 
 .educationDialog .tourNav {
+  min-width: 0;
+  max-width: 100%;
   margin: 18px 0 0;
 }
 
@@ -1755,10 +1769,11 @@
   display: inline-flex;
   min-width: 44px;
   min-height: 44px;
+  max-width: 100%;
   align-items: center;
   justify-content: center;
   padding: 0 14px;
-  flex: 1 0 auto;
+  flex: 1 1 auto;
 }
 
 .blockedPanel {
@@ -2245,7 +2260,12 @@
 }
 
 .educationDialog {
-  width: min(calc(100vw - 16px), 460px);
+  box-sizing: border-box;
+  width: min(calc(100% - 16px), 460px);
+  max-width: 100%;
+  max-height: calc(100% - 16px);
+  overflow-x: hidden;
+  overflow-y: auto;
   margin: auto;
   padding: 20px 18px 16px;
   border: 1px solid var(--border-strong);
@@ -2261,6 +2281,7 @@
 
 .educationDialog h2 {
   margin: 8px 0 12px;
+  overflow-wrap: anywhere;
   font-size: 20px;
   letter-spacing: -0.03em;
 }
@@ -2271,19 +2292,23 @@
 }
 
 .educationDialog p {
+  overflow-wrap: anywhere;
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.55;
 }
 
 .educationDialog .tourNav {
+  min-width: 0;
+  max-width: 100%;
   margin: 18px 0 0;
 }
 
 .educationDialog .tourNav button {
   min-width: 44px;
   min-height: 44px;
-  flex: 1;
+  max-width: 100%;
+  flex: 1 1 auto;
 }
 
 .blockedPanel {
@@ -2329,8 +2354,8 @@
 
 @media (max-width: 320px) {
   .educationDialog {
-    width: calc(100vw - 16px);
-    max-width: 320px;
+    width: min(calc(100% - 16px), 304px);
+    max-width: 100%;
     padding: 16px 12px 12px;
   }
 

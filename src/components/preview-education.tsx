@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
+  isEducationLastStep,
   PREVIEW_EDUCATION_STEPS,
   PREVIEW_EDUCATION_STORAGE_KEY,
   PREVIEW_EDUCATION_VERSION,
@@ -66,7 +67,7 @@ export function PreviewEducation({ force = false }: { force?: boolean }) {
   }
 
   const current = PREVIEW_EDUCATION_STEPS[step];
-  const last = step === PREVIEW_EDUCATION_STEPS.length - 1;
+  const last = isEducationLastStep(step);
 
   return (
     <dialog
