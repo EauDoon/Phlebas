@@ -1,4 +1,6 @@
 import type { MatcherExecution, PersistentMatcherState } from "./persistent-matcher.ts";
+import type { RouteCandidate, RouteFill } from "./matcher-routing.ts";
+import type { SolverPricePolicy, SolverQuote } from "./solver-quotes.ts";
 
 export const MAX_FEED_PAGE_SIZE = 100;
 
@@ -7,6 +9,69 @@ export type MatcherBookLevel = Readonly<{
   baseAmountAtoms: bigint;
   orderCount: number;
   firstSequence: bigint;
+}>;
+
+export type MatcherPublicSolverQuoteTerms = Readonly<Pick<SolverQuote,
+  "version"
+  | "matcherDomainHash"
+  | "baseNetwork"
+  | "baseAsset"
+  | "quoteNetwork"
+  | "quoteAsset"
+  | "side"
+  | "capacityBaseAtoms"
+  | "minimumFillBaseAtoms"
+  | "pricePolicy"
+  | "maximumSlippageBps"
+  | "feeBps"
+  | "nonce"
+  | "expirySeconds"
+  | "settlementProtocolVersion"
+>>;
+
+export type MatcherSolverQuoteFeedItem = Readonly<{
+  quoteHash: string;
+  acceptedSequence: bigint;
+  acceptedAtSeconds: bigint;
+  remainingCapacityBaseAtoms: bigint;
+  quote: MatcherPublicSolverQuoteTerms;
+}>;
+
+export type MatcherExecutionFeedItem = Readonly<{
+  sequence: bigint;
+  takerOrderHash: string;
+  route: Readonly<{
+    kind: RouteCandidate["kind"];
+    fills: readonly Readonly<{
+      venue: RouteFill["venue"];
+      counterpartyOrderHash: string;
+      counterpartySequence: bigint;
+      solverQuoteHash?: string;
+      executionPriceTicks: bigint;
+      baseAmountAtoms: bigint;
+      grossQuoteAtoms: bigint;
+      feeQuoteAtoms: bigint;
+      quoteTransferAtoms: bigint;
+    }>[];
+    filledBaseAtoms: bigint;
+    remainingBaseAtoms: bigint;
+    quoteTransferAtoms: bigint;
+    complete: boolean;
+  }> | null;
+}>;
+
+export type MatcherSolverQuoteFeedPage = Readonly<{
+  quotes: readonly MatcherSolverQuoteFeedItem[];
+  after: bigint;
+  nextAfter: bigint;
+  hasMore: boolean;
+}>;
+
+export type MatcherExecutionFeedPage = Readonly<{
+  executions: readonly MatcherExecutionFeedItem[];
+  after: bigint;
+  nextAfter: bigint;
+  hasMore: boolean;
 }>;
 
 function boundedLimit(value: number): number {
@@ -58,32 +123,126 @@ export function matcherBookFeed(state: PersistentMatcherState, nowSeconds: bigin
 }
 
 export function matcherSolverQuoteFeed(state: PersistentMatcherState, nowSeconds: bigint, limit = 50) {
+  return matcherSolverQuoteFeedPage(state, nowSeconds, limit).quotes;
+}
+
+function publicPricePolicy(policy: SolverPricePolicy): SolverPricePolicy {
+  if (policy.kind === "fixed") return { kind: "fixed", priceTicks: policy.priceTicks };
+  return {
+    kind: "curve",
+    levels: policy.levels.map((level) => ({
+      cumulativeBaseAtoms: level.cumulativeBaseAtoms,
+      priceTicks: level.priceTicks,
+    })),
+  };
+}
+
+function publicSolverQuote(accepted: PersistentMatcherState["solverQuotes"][string]): MatcherSolverQuoteFeedItem {
+  const quote = accepted.quote;
+  return {
+    quoteHash: accepted.quoteHash,
+    acceptedSequence: accepted.acceptedSequence,
+    acceptedAtSeconds: accepted.acceptedAtSeconds,
+    remainingCapacityBaseAtoms: accepted.remainingCapacityBaseAtoms,
+    quote: {
+      version: quote.version,
+      matcherDomainHash: quote.matcherDomainHash,
+      baseNetwork: quote.baseNetwork,
+      baseAsset: quote.baseAsset,
+      quoteNetwork: quote.quoteNetwork,
+      quoteAsset: quote.quoteAsset,
+      side: quote.side,
+      capacityBaseAtoms: quote.capacityBaseAtoms,
+      minimumFillBaseAtoms: quote.minimumFillBaseAtoms,
+      pricePolicy: publicPricePolicy(quote.pricePolicy),
+      maximumSlippageBps: quote.maximumSlippageBps,
+      feeBps: quote.feeBps,
+      nonce: quote.nonce,
+      expirySeconds: quote.expirySeconds,
+      settlementProtocolVersion: quote.settlementProtocolVersion,
+    },
+  };
+}
+
+export function matcherSolverQuoteFeedPage(
+  state: PersistentMatcherState,
+  nowSeconds: bigint,
+  limit = 50,
+  afterSequence = 0n,
+): MatcherSolverQuoteFeedPage {
   boundedLimit(limit);
   if (typeof nowSeconds !== "bigint" || nowSeconds < 0n) throw new RangeError("Solver feed time must be non-negative");
-  return Object.values(state.solverQuotes)
+  if (typeof afterSequence !== "bigint" || afterSequence < 0n) throw new RangeError("Solver feed cursor must be non-negative");
+  const matching = Object.values(state.solverQuotes)
     .filter((accepted) => !state.cancelledSolverQuotes[accepted.quoteHash]
       && accepted.quote.expirySeconds > nowSeconds
-      && accepted.remainingCapacityBaseAtoms > 0n)
+      && accepted.remainingCapacityBaseAtoms > 0n
+      && accepted.acceptedSequence > afterSequence)
     .sort((left, right) => left.acceptedSequence < right.acceptedSequence ? -1
       : left.acceptedSequence > right.acceptedSequence ? 1
-        : left.quoteHash.localeCompare(right.quoteHash))
-    .slice(0, limit)
-    .map((accepted) => ({
-      quoteHash: accepted.quoteHash,
-      acceptedSequence: accepted.acceptedSequence,
-      acceptedAtSeconds: accepted.acceptedAtSeconds,
-      remainingCapacityBaseAtoms: accepted.remainingCapacityBaseAtoms,
-      signature: accepted.signature,
-      quote: accepted.quote,
-    }));
+        : left.quoteHash < right.quoteHash ? -1 : left.quoteHash > right.quoteHash ? 1 : 0);
+  const quotes = matching.slice(0, limit).map(publicSolverQuote);
+  return {
+    quotes,
+    after: afterSequence,
+    nextAfter: quotes.at(-1)?.acceptedSequence ?? afterSequence,
+    hasMore: matching.length > quotes.length,
+  };
+}
+
+function publicExecution(execution: MatcherExecution): MatcherExecutionFeedItem {
+  if (!execution.route) return {
+    sequence: execution.sequence,
+    takerOrderHash: execution.takerOrderHash,
+    route: null,
+  };
+  return {
+    sequence: execution.sequence,
+    takerOrderHash: execution.takerOrderHash,
+    route: {
+      kind: execution.route.kind,
+      fills: execution.route.fills.map((fill) => ({
+        venue: fill.venue,
+        counterpartyOrderHash: fill.counterpartyOrderHash,
+        counterpartySequence: fill.counterpartySequence,
+        ...(fill.solverQuoteHash ? { solverQuoteHash: fill.solverQuoteHash } : {}),
+        executionPriceTicks: fill.executionPriceTicks,
+        baseAmountAtoms: fill.baseAmountAtoms,
+        grossQuoteAtoms: fill.grossQuoteAtoms,
+        feeQuoteAtoms: fill.feeQuoteAtoms,
+        quoteTransferAtoms: fill.quoteTransferAtoms,
+      })),
+      filledBaseAtoms: execution.route.filledBaseAtoms,
+      remainingBaseAtoms: execution.route.remainingBaseAtoms,
+      quoteTransferAtoms: execution.route.quoteTransferAtoms,
+      complete: execution.route.complete,
+    },
+  };
 }
 
 export function matcherExecutionFeed(
   state: PersistentMatcherState,
   afterSequence: bigint,
   limit = 50,
-): readonly MatcherExecution[] {
+): readonly MatcherExecutionFeedItem[] {
+  return matcherExecutionFeedPage(state, afterSequence, limit).executions;
+}
+
+export function matcherExecutionFeedPage(
+  state: PersistentMatcherState,
+  afterSequence: bigint,
+  limit = 50,
+): MatcherExecutionFeedPage {
   boundedLimit(limit);
   if (typeof afterSequence !== "bigint" || afterSequence < 0n) throw new RangeError("Execution cursor must be non-negative");
-  return state.executions.filter((execution) => execution.sequence > afterSequence).slice(0, limit);
+  const matching = state.executions
+    .filter((execution) => execution.sequence > afterSequence)
+    .sort((left, right) => left.sequence < right.sequence ? -1 : left.sequence > right.sequence ? 1 : 0);
+  const executions = matching.slice(0, limit).map(publicExecution);
+  return {
+    executions,
+    after: afterSequence,
+    nextAfter: executions.at(-1)?.sequence ?? afterSequence,
+    hasMore: matching.length > executions.length,
+  };
 }

@@ -2,7 +2,12 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { matcherBookFeed, matcherExecutionFeed, matcherSolverQuoteFeed, MAX_FEED_PAGE_SIZE } from "../../src/lib/matcher-feeds.ts";
+import {
+  matcherBookFeed,
+  matcherExecutionFeedPage,
+  matcherSolverQuoteFeedPage,
+  MAX_FEED_PAGE_SIZE,
+} from "../../src/lib/matcher-feeds.ts";
 import { createEvmEoaSignatureVerifier, type MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
 import {
   findRequestReceipt,
@@ -34,6 +39,8 @@ import { listenHost } from "../../src/lib/operator-url.ts";
 import type { JournalValue } from "./journal.ts";
 import {
   PersistentMatcherStore,
+  MatcherPersistenceUnavailableError,
+  assertMatcherEventTime,
   deserializePersistentMatcherEvent,
   type PersistentMatcherStoreOptions,
 } from "./persistent-store.ts";
@@ -41,9 +48,12 @@ import { parseStrictJson } from "./strict-json.ts";
 
 const DEFAULT_DATA_DIRECTORY = join(dirname(fileURLToPath(import.meta.url)), ".data", "native-v1");
 const DEFAULT_BODY_BYTES = 64 * 1024;
+const DEFAULT_BODY_READ_TIMEOUT_MILLISECONDS = 10_000;
 const DEFAULT_PENDING_MUTATIONS = 64;
 const DEFAULT_RATE_WINDOW_MILLISECONDS = 60_000;
 const DEFAULT_RATE_LIMIT = 120;
+const DEFAULT_RATE_LIMIT_ENTRIES = 10_000;
+const MAX_BODY_READ_TIMEOUT_MILLISECONDS = 5 * 60 * 1_000;
 const MUTATION_KINDS = new Map<string, PersistentMatcherEvent["kind"]>([
   ["/v1/orders", "accept-order"],
   ["/v1/order-cancellations", "cancel-order"],
@@ -62,9 +72,15 @@ export type MatcherServerOptions = Readonly<{
   configuration?: PersistentMatcherConfiguration;
   verifier?: MatcherSignatureVerifier;
   maximumBodyBytes?: number;
+  bodyReadTimeoutMilliseconds?: number;
   maximumPendingMutations?: number;
   mutationRateLimit?: number;
   mutationRateWindowMilliseconds?: number;
+  maximumRateLimitEntries?: number;
+  maximumJournalRecords?: number;
+  maximumJournalLineBytes?: number;
+  maximumJournalBytes?: number;
+  maximumFutureEventSeconds?: bigint;
   clockSeconds?: () => bigint;
 }>;
 
@@ -95,7 +111,11 @@ function send(response: ServerResponse, status: number, body: unknown): void {
   response.end(JSON.stringify(body, (_key, value) => typeof value === "bigint" ? value.toString() : value));
 }
 
-async function readJson(request: IncomingMessage, maximumBodyBytes: number): Promise<Record<string, JournalValue>> {
+async function readJson(
+  request: IncomingMessage,
+  maximumBodyBytes: number,
+  bodyReadTimeoutMilliseconds: number,
+): Promise<Record<string, JournalValue>> {
   if (request.headers["content-type"]?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
     throw new HttpError(415, "content-type-must-be-application-json");
   }
@@ -103,23 +123,40 @@ async function readJson(request: IncomingMessage, maximumBodyBytes: number): Pro
   if (declaredLength && (!/^(?:0|[1-9][0-9]*)$/.test(declaredLength) || BigInt(declaredLength) > BigInt(maximumBodyBytes))) {
     throw new HttpError(413, "request-body-too-large");
   }
-  const chunks: Buffer[] = [];
-  let length = 0;
-  for await (const chunk of request) {
-    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    length += bytes.length;
-    if (length > maximumBodyBytes) throw new HttpError(413, "request-body-too-large");
-    chunks.push(bytes);
-  }
-  if (length === 0) throw new HttpError(400, "request-body-required");
-  let parsed: unknown;
+  const readBody = async (): Promise<Record<string, JournalValue>> => {
+    const chunks: Buffer[] = [];
+    let length = 0;
+    for await (const chunk of request) {
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      length += bytes.length;
+      if (length > maximumBodyBytes) {
+        request.destroy();
+        throw new HttpError(413, "request-body-too-large");
+      }
+      chunks.push(bytes);
+    }
+    if (length === 0) throw new HttpError(400, "request-body-required");
+    let parsed: unknown;
+    try {
+      parsed = parseStrictJson(Buffer.concat(chunks).toString("utf8"));
+    } catch {
+      throw new HttpError(400, "request-body-invalid-json");
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new HttpError(400, "request-body-must-be-object");
+    return parsed as Record<string, JournalValue>;
+  };
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      request.destroy();
+      reject(new HttpError(408, "request-body-timeout"));
+    }, bodyReadTimeoutMilliseconds);
+  });
   try {
-    parsed = parseStrictJson(Buffer.concat(chunks).toString("utf8"));
-  } catch {
-    throw new HttpError(400, "request-body-invalid-json");
+    return await Promise.race([readBody(), deadline]);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new HttpError(400, "request-body-must-be-object");
-  return parsed as Record<string, JournalValue>;
 }
 
 function decimalCursor(value: string | null, label: string): bigint {
@@ -148,6 +185,11 @@ function persistenceOptions(options: MatcherServerOptions): PersistentMatcherSto
     lockPath: join(directory, "writer.lock"),
     configuration: options.configuration,
     verifier: options.verifier ?? createEvmEoaSignatureVerifier(options.configuration.domain.chainId),
+    maximumJournalBytes: options.maximumJournalBytes,
+    maximumJournalRecords: options.maximumJournalRecords,
+    maximumJournalLineBytes: options.maximumJournalLineBytes,
+    maximumFutureEventSeconds: options.maximumFutureEventSeconds,
+    clockSeconds: options.clockSeconds,
   };
 }
 
@@ -157,6 +199,10 @@ function remoteKey(request: IncomingMessage): string {
 
 function errorStatus(error: unknown): number {
   if (error instanceof HttpError) return error.status;
+  if (error instanceof MatcherPersistenceUnavailableError
+    || (typeof error === "object" && error !== null && (error as { code?: unknown }).code === "MATCHER_PERSISTENCE_UNAVAILABLE")) {
+    return 503;
+  }
   const message = error instanceof Error ? error.message : "matcher-error";
   if (/already used for a different command|already has a matcher receipt|replayed|already cancelled/.test(message)) return 409;
   if (/limit reached|outside matcher limits/.test(message)) return 422;
@@ -225,11 +271,13 @@ function publicTrades(state: PersistentMatcherState | null, nowSeconds: bigint, 
 function publicTicker(state: PersistentMatcherState | null, nowSeconds: bigint) {
   const depth = publicDepth(state, nowSeconds, 1);
   const trades = publicTrades(state, nowSeconds, 1_000);
+  const cutoff = nowSeconds > 86_400n ? nowSeconds - 86_400n : 0n;
+  const windowTrades = trades.trades.filter((trade) => trade.observedAt >= cutoff);
   const bestBid = depth.bids[0]?.priceTicks ?? null;
   const bestAsk = depth.asks[0]?.priceTicks ?? null;
-  const prices = trades.trades.map((trade) => BigInt(trade.priceTicks));
-  const volumeBase = trades.trades.reduce((total, trade) => total + BigInt(trade.sizeAtoms), 0n);
-  const volumeQuote = trades.trades.reduce((total, trade) => total + ((BigInt(trade.sizeAtoms) * BigInt(trade.priceTicks)) / 10_000n), 0n);
+  const prices = windowTrades.map((trade) => BigInt(trade.priceTicks));
+  const volumeBase = windowTrades.reduce((total, trade) => total + BigInt(trade.sizeAtoms), 0n);
+  const volumeQuote = windowTrades.reduce((total, trade) => total + ((BigInt(trade.sizeAtoms) * BigInt(trade.priceTicks)) / 10_000n), 0n);
   return {
     bestBidTicks: bestBid,
     bestAskTicks: bestAsk,
@@ -240,9 +288,23 @@ function publicTicker(state: PersistentMatcherState | null, nowSeconds: bigint) 
     lowTicks24h: prices.length > 0 ? prices.reduce((left, right) => left < right ? left : right).toString() : null,
     volumeBase24h: volumeBase.toString(),
     volumeQuote24h: volumeQuote.toString(),
-    tradeCount24h: trades.count,
+    tradeCount24h: windowTrades.length,
+    windowTruncated: trades.count === 1_000,
     sequence: state ? Number(state.sequence) : 0,
     generatedAt: nowSeconds,
+  };
+}
+
+function pruneRateLimitMiddleware(middleware: RateLimitMiddleware, nowSeconds: bigint, maximumEntries: number): RateLimitMiddleware {
+  const idleSeconds = middleware.config.capacity / middleware.config.refillPerSecond + 1n;
+  const active = Object.entries(middleware.state)
+    .filter(([, bucket]) => nowSeconds < bucket.lastRefillAt + idleSeconds)
+    .sort((left, right) => left[1].lastRefillAt < right[1].lastRefillAt ? -1
+      : left[1].lastRefillAt > right[1].lastRefillAt ? 1 : left[0].localeCompare(right[0]));
+  const retained = active.length > maximumEntries ? active.slice(active.length - maximumEntries) : active;
+  return {
+    config: middleware.config,
+    state: Object.fromEntries(retained),
   };
 }
 
@@ -250,12 +312,22 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
   const host = listenHost(options.host);
   const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8788);
   const maximumBodyBytes = positiveBoundedInteger(options.maximumBodyBytes ?? DEFAULT_BODY_BYTES, "Maximum request body bytes", 1024 * 1024);
+  const bodyReadTimeoutMilliseconds = positiveBoundedInteger(
+    options.bodyReadTimeoutMilliseconds ?? DEFAULT_BODY_READ_TIMEOUT_MILLISECONDS,
+    "Body read timeout",
+    MAX_BODY_READ_TIMEOUT_MILLISECONDS,
+  );
   const maximumPending = positiveBoundedInteger(options.maximumPendingMutations ?? DEFAULT_PENDING_MUTATIONS, "Maximum pending mutations", 10_000);
   const mutationRateLimit = positiveBoundedInteger(options.mutationRateLimit ?? DEFAULT_RATE_LIMIT, "Mutation rate limit", 1_000_000);
   const rateWindowMilliseconds = positiveBoundedInteger(
     options.mutationRateWindowMilliseconds ?? DEFAULT_RATE_WINDOW_MILLISECONDS,
     "Mutation rate window",
     24 * 60 * 60 * 1000,
+  );
+  const maximumRateLimitEntries = positiveBoundedInteger(
+    options.maximumRateLimitEntries ?? DEFAULT_RATE_LIMIT_ENTRIES,
+    "Maximum rate-limit entries",
+    1_000_000,
   );
   const clockSeconds = options.clockSeconds ?? (() => BigInt(Math.floor(Date.now() / 1_000)));
   const configured = persistenceOptions(options);
@@ -283,7 +355,16 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
   function checkRate(request: IncomingMessage): void {
     const now = Date.now();
     const key = remoteKey(request);
+    let oldestKey: string | undefined;
+    for (const [entryKey, entry] of rateWindows) {
+      if (now - entry.startedAt >= rateWindowMilliseconds) {
+        rateWindows.delete(entryKey);
+      } else if (oldestKey === undefined || (rateWindows.get(oldestKey)?.startedAt ?? now) > entry.startedAt) {
+        oldestKey = entryKey;
+      }
+    }
     const prior = rateWindows.get(key);
+    if (!prior && rateWindows.size >= maximumRateLimitEntries && oldestKey !== undefined) rateWindows.delete(oldestKey);
     const current = !prior || now - prior.startedAt >= rateWindowMilliseconds
       ? { startedAt: now, count: 1 }
       : { ...prior, count: prior.count + 1 };
@@ -295,6 +376,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
     void (async () => {
       const requestNow = clockSeconds();
       const clientKey = extractClientKey(request);
+      rateLimit = pruneRateLimitMiddleware(rateLimit, requestNow, maximumRateLimitEntries);
       const rl = checkRateLimit(rateLimit, clientKey, requestNow);
       rateLimit = { state: rl.state, config: rateLimit.config };
       if (!rl.allowed) {
@@ -325,6 +407,21 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
             configured: true,
             acceptingMutations: false,
             reason: errorReason(storeError),
+          });
+          return;
+        }
+        if (!store.acceptingMutations) {
+          send(response, 503, {
+            ok: false,
+            matcher: "persistent-native-v1",
+            configured: true,
+            acceptingMutations: false,
+            reason: store.faultReason ?? "matcher-store-closed",
+            sequence: store.state.sequence,
+            stateRoot: matcherStateRoot(store.state),
+            configurationHash: matcherConfigurationHash(store.state.configuration),
+            checkpoint: store.checkpoint,
+            startedAt,
           });
           return;
         }
@@ -431,21 +528,28 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
         return;
       }
       if (request.method === "GET" && url.pathname === "/v1/solver-quotes") {
+        const after = decimalCursor(url.searchParams.get("after"), "after");
+        const limit = pageLimit(url.searchParams.get("limit"));
+        const page = matcherSolverQuoteFeedPage(store.state, clockSeconds(), limit, after);
         send(response, 200, {
           checkpoint: store.checkpoint,
-          quotes: matcherSolverQuoteFeed(store.state, clockSeconds(), pageLimit(url.searchParams.get("limit"))),
+          after: page.after,
+          nextAfter: page.nextAfter,
+          hasMore: page.hasMore,
+          quotes: page.quotes,
         });
         return;
       }
       if (request.method === "GET" && url.pathname === "/v1/executions") {
         const after = decimalCursor(url.searchParams.get("after"), "after");
         const limit = pageLimit(url.searchParams.get("limit"));
-        const executions = matcherExecutionFeed(store.state, after, limit);
+        const page = matcherExecutionFeedPage(store.state, after, limit);
         send(response, 200, {
           checkpoint: store.checkpoint,
           after,
-          nextAfter: executions.at(-1)?.sequence ?? after,
-          executions,
+          nextAfter: page.nextAfter,
+          hasMore: page.hasMore,
+          executions: page.executions,
         });
         return;
       }
@@ -470,7 +574,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
         if (pendingMutations >= maximumPending) throw new HttpError(503, "mutation-queue-capacity-reached");
         pendingMutations += 1;
         try {
-          const body = await readJson(request, maximumBodyBytes);
+          const body = await readJson(request, maximumBodyBytes, bodyReadTimeoutMilliseconds);
           const event = deserializePersistentMatcherEvent(store.state.configuration, {
             type: "persistent-matcher-event",
             configurationHash: matcherConfigurationHash(store.state.configuration),
@@ -481,6 +585,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
           if (typeof idempotencyKey !== "string" || idempotencyKey !== event.requestId) {
             throw new HttpError(400, "idempotency-key-must-match-request-id");
           }
+          assertMatcherEventTime(event, requestNow, options.maximumFutureEventSeconds ?? 30n);
           const result = await store.mutate(event);
           send(response, result.replayed ? 200 : 201, { ok: true, ...result });
         } finally {

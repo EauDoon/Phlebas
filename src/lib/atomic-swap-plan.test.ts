@@ -30,8 +30,9 @@ const policy: AtomicSwapPolicy = {
 };
 
 function party(name: string, side: 0 | 1): AtomicSwapParty {
-  const sourceAccount = side === 0 ? `eip155:42161:0x${side}${"1".repeat(39)}` : `zcash:mainnet:t3-${name}`;
-  const recipientAccount = side === 0 ? `zcash:mainnet:t3-${name}` : `eip155:42161:0x${side}${"2".repeat(39)}`;
+  const zcashAddress = `t3${keccak256Text(`zcash:${name}`).slice(2).replaceAll("0", "a").slice(0, 33)}`;
+  const sourceAccount = side === 0 ? `eip155:42161:0x${side}${"1".repeat(39)}` : `zcash:mainnet:${zcashAddress}`;
+  const recipientAccount = side === 0 ? `zcash:mainnet:${zcashAddress}` : `eip155:42161:0x${side}${"2".repeat(39)}`;
   const order: TypedOrderIntent = {
     makerAccountId: accountIdentifier(sourceAccount),
     authorizedSignerId: accountIdentifier(`eip155:42161:signer-${name}`),
@@ -42,7 +43,7 @@ function party(name: string, side: 0 | 1): AtomicSwapParty {
     quoteAssetId: assetIdentifier(policy.pair.quote.asset),
     side,
     baseAmountAtoms: 100_000_000n,
-    limitPriceTicks: 5_000n,
+    limitPriceTicks: side === 0 ? 5_100n : 4_900n,
     nonce: 1n,
     accountEpoch: 0n,
     expiry: 2_000_000_000n,
@@ -55,6 +56,11 @@ function party(name: string, side: 0 | 1): AtomicSwapParty {
   return { orderHash: hashTypedOrder(policy.orderDomain, order), order, accounts: { sourceAccount, recipientAccount } };
 }
 
+function withOrder(partyValue: AtomicSwapParty, changes: Partial<TypedOrderIntent>): AtomicSwapParty {
+  const order = { ...partyValue.order, ...changes };
+  return { ...partyValue, order, orderHash: hashTypedOrder(policy.orderDomain, order) };
+}
+
 test("maps a fill deterministically to direct wallet legs with ordered deadlines", () => {
   const input = {
     venue: "solver" as const,
@@ -64,7 +70,7 @@ test("maps a fill deterministically to direct wallet legs with ordered deadlines
     acceptedAtSeconds: 1_800_000_000n,
     executionPriceTicks: 5_000n,
     baseAmountAtoms: 100_000_000n,
-    quoteTransferAtoms: 50_000_000n,
+    feeBps: 10n,
     policy,
   };
   const first = createAtomicSwapPlan(input);
@@ -74,6 +80,16 @@ test("maps a fill deterministically to direct wallet legs with ordered deadlines
   assert.equal(first.stablecoinLeg.claimant, input.counterparty.accounts.recipientAccount);
   assert.equal(first.zcashLeg.funder, input.counterparty.accounts.sourceAccount);
   assert.equal(first.zcashLeg.claimant, input.taker.accounts.recipientAccount);
+  assert.equal(first.grossQuoteAtoms, "50000000");
+  assert.equal(first.feeBps, "10");
+  assert.equal(first.feeQuoteAtoms, "50000");
+  assert.equal(first.quoteTransferAtoms, "50050000");
+  assert.equal(first.stablecoinLeg.amountAtoms, first.quoteTransferAtoms);
+  assert.equal(first.hashlockDigest, null);
+  assert.equal(first.hashlockStatus, "unresolved-wallet-authorization");
+  assert.equal(first.hashlockCommitmentRequestId, first.stablecoinLeg.hashlockCommitmentRequestId);
+  assert.equal(first.hashlockCommitmentRequestId, first.zcashLeg.hashlockCommitmentRequestId);
+  assert.equal(first.execution.blockingGates.includes("per-fill-shared-hashlock-authorization"), true);
   assert.ok(BigInt(first.stablecoinLeg.refundLock.valueSeconds) < BigInt(first.zcashLeg.refundLock.valueSeconds));
 });
 
@@ -86,7 +102,7 @@ test("keeps every plan no-value with no platform residual or unilateral authorit
     acceptedAtSeconds: 1_800_000_000n,
     executionPriceTicks: 5_000n,
     baseAmountAtoms: 50_000_000n,
-    quoteTransferAtoms: 25_000_000n,
+    feeBps: 10n,
     policy,
   });
   assert.equal(plan.platformRetainedBaseAtoms, "0");
@@ -95,8 +111,12 @@ test("keeps every plan no-value with no platform residual or unilateral authorit
   assert.equal(plan.execution.status, "blocked");
   assert.equal(plan.stablecoinLeg.broadcast, "disabled");
   assert.equal(plan.zcashLeg.broadcast, "disabled");
+  assert.equal(plan.grossQuoteAtoms, "25000000");
+  assert.equal(plan.feeQuoteAtoms, "25000");
+  assert.equal(plan.quoteTransferAtoms, "24975000");
   assert.equal(JSON.stringify(plan).includes("preimage"), false);
   assert.equal(JSON.stringify(plan).includes("privateKey"), false);
+  assert.equal(JSON.stringify(plan).includes("transactionBytes"), false);
 });
 
 test("rejects account substitution, same-side fills, and pair confusion", () => {
@@ -110,12 +130,12 @@ test("rejects account substitution, same-side fills, and pair confusion", () => 
     acceptedAtSeconds: 1_800_000_000n,
     executionPriceTicks: 5_000n,
     baseAmountAtoms: 1n,
-    quoteTransferAtoms: 1n,
+    feeBps: 0n,
     policy,
   };
   assert.throws(() => createAtomicSwapPlan({
     ...base,
-    taker: { ...taker, accounts: { ...taker.accounts, recipientAccount: "zcash:mainnet:t3-attacker" } },
+    taker: { ...taker, accounts: { ...taker.accounts, recipientAccount: "zcash:mainnet:t3attacker" } },
   }), /recipient account/);
   assert.throws(() => createAtomicSwapPlan({ ...base, counterparty: party("other-buyer", 0) }), /opposite sides/);
   assert.throws(() => createAtomicSwapPlan({
@@ -136,7 +156,7 @@ test("requires positive confirmations and a timestamp-style absolute CLTV plan",
     acceptedAtSeconds: 1_800_000_000n,
     executionPriceTicks: 5_000n,
     baseAmountAtoms: 1n,
-    quoteTransferAtoms: 1n,
+    feeBps: 0n,
     policy,
   };
   assert.throws(() => createAtomicSwapPlan({ ...input, acceptedAtSeconds: 499_999_999n }), /timestamp-style/);
@@ -146,4 +166,171 @@ test("requires positive confirmations and a timestamp-style absolute CLTV plan",
     ...input,
     policy: { ...policy, pair: { ...policy.pair, base: { ...policy.pair.base, decimals: 18 } } },
   }), /8-decimal/);
+});
+
+test("derives quote amounts and ignores any caller-supplied notional", () => {
+  const buyer = party("notional-buyer", 0);
+  const seller = party("notional-seller", 1);
+  const plan = createAtomicSwapPlan({
+    venue: "solver",
+    fillIndex: 0,
+    taker: buyer,
+    counterparty: seller,
+    acceptedAtSeconds: 1_800_000_000n,
+    executionPriceTicks: 5_000n,
+    baseAmountAtoms: 100_000_000n,
+    feeBps: 10n,
+    policy,
+    // A legacy notional must not be accepted as an input or affect the plan.
+    quoteTransferAtoms: 1n,
+  } as Parameters<typeof createAtomicSwapPlan>[0] & { quoteTransferAtoms: bigint });
+  assert.equal(plan.quoteTransferAtoms, "50050000");
+  assert.equal(plan.stablecoinLeg.amountAtoms, "50050000");
+});
+
+test("rejects fee caps and integer quote rounding that would violate either signed limit", () => {
+  const buyer = party("limit-buyer", 0);
+  const seller = party("limit-seller", 1);
+  const base = {
+    venue: "order-book" as const,
+    fillIndex: 0,
+    taker: buyer,
+    counterparty: seller,
+    acceptedAtSeconds: 1_800_000_000n,
+    executionPriceTicks: 5_291n,
+    baseAmountAtoms: 1n,
+    feeBps: 0n,
+    policy,
+  };
+  const roundedBuyer = withOrder(buyer, { baseAmountAtoms: 1n, limitPriceTicks: 5_291n });
+  const roundedSeller = withOrder(seller, { baseAmountAtoms: 1n, limitPriceTicks: 5_291n });
+  assert.throws(() => createAtomicSwapPlan({ ...base, taker: roundedBuyer, counterparty: roundedSeller }), /signed limits/);
+
+  assert.throws(() => createAtomicSwapPlan({
+    ...base,
+    executionPriceTicks: 5_000n,
+    baseAmountAtoms: 100_000_000n,
+    feeBps: 5n,
+    taker: withOrder(buyer, { maximumFeeBps: 4n }),
+    counterparty: withOrder(seller, { maximumFeeBps: 4n }),
+  }), /signed maximum fee/);
+
+  assert.throws(() => createAtomicSwapPlan({
+    ...base,
+    executionPriceTicks: 5_000n,
+    baseAmountAtoms: 100_000_000n,
+    feeBps: 10n,
+    taker: withOrder(buyer, { limitPriceTicks: 5_000n }),
+    counterparty: withOrder(seller, { limitPriceTicks: 4_900n }),
+  }), /signed limits/);
+
+  assert.throws(() => createAtomicSwapPlan({
+    ...base,
+    executionPriceTicks: 5_000n,
+    baseAmountAtoms: 100_000_000n,
+    feeBps: 10n,
+    taker: withOrder(seller, { limitPriceTicks: 5_000n }),
+    counterparty: withOrder(buyer, { limitPriceTicks: 5_100n }),
+  }), /signed limits/);
+});
+
+test("rejects quote dust instead of producing a zero-value stablecoin leg", () => {
+  const buyer = withOrder(party("dust-buyer", 0), { baseAmountAtoms: 1n, limitPriceTicks: 1n });
+  const seller = withOrder(party("dust-seller", 1), { baseAmountAtoms: 1n, limitPriceTicks: 1n });
+  assert.throws(() => createAtomicSwapPlan({
+    venue: "order-book",
+    fillIndex: 0,
+    taker: seller,
+    counterparty: buyer,
+    acceptedAtSeconds: 1_800_000_000n,
+    executionPriceTicks: 1n,
+    baseAmountAtoms: 1n,
+    feeBps: 0n,
+    policy,
+  }), /dust/);
+});
+
+test("gives each partial fill a unique deterministic shared commitment request ID", () => {
+  const input = {
+    venue: "solver" as const,
+    taker: party("partial-buyer", 0),
+    counterparty: party("partial-seller", 1),
+    acceptedAtSeconds: 1_800_000_000n,
+    executionPriceTicks: 5_000n,
+    feeBps: 10n,
+    policy,
+  };
+  const first = createAtomicSwapPlan({ ...input, fillIndex: 0, baseAmountAtoms: 40_000_000n });
+  const second = createAtomicSwapPlan({ ...input, fillIndex: 1, baseAmountAtoms: 60_000_000n });
+  assert.notEqual(first.hashlockCommitmentRequestId, second.hashlockCommitmentRequestId);
+  assert.equal(first.hashlockCommitmentRequestId, first.stablecoinLeg.hashlockCommitmentRequestId);
+  assert.equal(first.hashlockCommitmentRequestId, first.zcashLeg.hashlockCommitmentRequestId);
+  assert.equal(first.hashlockDigest, null);
+  assert.equal(first.stablecoinLeg.hashlockDigest, null);
+  assert.equal(first.zcashLeg.hashlockDigest, null);
+});
+
+test("does not reinterpret the signed order salt as a hashlock digest", () => {
+  const taker = party("salt-buyer", 0);
+  const counterparty = party("salt-seller", 1);
+  const plan = createAtomicSwapPlan({
+    venue: "solver",
+    fillIndex: 0,
+    taker,
+    counterparty,
+    acceptedAtSeconds: 1_800_000_000n,
+    executionPriceTicks: 5_000n,
+    baseAmountAtoms: 100_000_000n,
+    feeBps: 0n,
+    policy,
+  });
+  assert.equal(plan.hashlockDigest, null);
+  assert.equal(plan.stablecoinLeg.hashlockDigest, null);
+  assert.equal(plan.zcashLeg.hashlockDigest, null);
+  assert.notEqual(plan.hashlockCommitmentRequestId, taker.order.salt);
+  assert.equal(plan.hashlockStatus, "unresolved-wallet-authorization");
+});
+
+test("rejects account-role and exact-network mismatches even when signed IDs match", () => {
+  const buyer = party("role-buyer", 0);
+  const seller = party("role-seller", 1);
+  const wrongSource = "eip155:1:0x1111111111111111111111111111111111111111";
+  const wrongOrder = { ...buyer.order, makerAccountId: accountIdentifier(wrongSource) };
+  const wrongBuyer = {
+    ...buyer,
+    order: wrongOrder,
+    orderHash: hashTypedOrder(policy.orderDomain, wrongOrder),
+    accounts: { ...buyer.accounts, sourceAccount: wrongSource },
+  };
+  assert.throws(() => createAtomicSwapPlan({
+    venue: "order-book",
+    fillIndex: 0,
+    taker: wrongBuyer,
+    counterparty: seller,
+    acceptedAtSeconds: 1_800_000_000n,
+    executionPriceTicks: 5_000n,
+    baseAmountAtoms: 100_000_000n,
+    feeBps: 0n,
+    policy,
+  }), /exact eip155:42161 network/);
+
+  const wrongZcash = `zcash:testnet:t3${"a".repeat(33)}`;
+  const wrongSellerOrder = { ...seller.order, makerAccountId: accountIdentifier(wrongZcash) };
+  const wrongSeller = {
+    ...seller,
+    order: wrongSellerOrder,
+    orderHash: hashTypedOrder(policy.orderDomain, wrongSellerOrder),
+    accounts: { ...seller.accounts, sourceAccount: wrongZcash },
+  };
+  assert.throws(() => createAtomicSwapPlan({
+    venue: "order-book",
+    fillIndex: 0,
+    taker: buyer,
+    counterparty: wrongSeller,
+    acceptedAtSeconds: 1_800_000_000n,
+    executionPriceTicks: 5_000n,
+    baseAmountAtoms: 100_000_000n,
+    feeBps: 0n,
+    policy,
+  }), /transparent mainnet Zcash account/);
 });

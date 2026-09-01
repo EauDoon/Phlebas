@@ -17,8 +17,8 @@ export function isLoopbackOperatorUrl(value: string | undefined): value is strin
 
 export function listenHost(requested?: string, env: Record<string, string | undefined> = process.env): string {
   const host = requested ?? env.PHLEBAS_BIND ?? "127.0.0.1";
-  if (host === "0.0.0.0" || host === "::") {
-    if (env.PHLEBAS_ALLOW_NON_LOOPBACK === "1") return host;
+  if (env.PHLEBAS_ALLOW_NON_LOOPBACK === "1") return host;
+  if (!LOOPBACK.has(host)) {
     throw new Error("Direct processes bind loopback only. Compose may set PHLEBAS_ALLOW_NON_LOOPBACK=1.");
   }
   return host;

@@ -16,7 +16,6 @@ import {
   type AcceptedSolverQuote,
   type SolverMarginalLevel,
 } from "./solver-quotes.ts";
-import { quoteAtomsForFill } from "./units.ts";
 
 export type RestingRouteOrder = Readonly<{
   sequenced: SequencedOrder;
@@ -30,6 +29,7 @@ export type RouteFill = Readonly<{
   solverQuoteHash?: Hex32;
   executionPriceTicks: bigint;
   baseAmountAtoms: bigint;
+  feeBps: bigint;
   grossQuoteAtoms: bigint;
   feeQuoteAtoms: bigint;
   quoteTransferAtoms: bigint;
@@ -201,6 +201,10 @@ function allocate(
   throw new Error("Solver minimum-fill filtering exceeded its bounded attempts");
 }
 
+function isUnmaterializableQuote(error: unknown): boolean {
+  return error instanceof Error && /quote amount is dust|quote settlement amount is outside|quote rounding cannot preserve both signed limits/i.test(error.message);
+}
+
 function materializeCandidate(input: {
   kind: RouteCandidate["kind"];
   taker: SequencedOrder;
@@ -211,64 +215,78 @@ function materializeCandidate(input: {
   maximumFills: number;
   maximumSolverFills: number;
 }): RouteCandidate | null {
-  let allocated = allocate(input.taker, input.segments, input.maximumFills, input.maximumSolverFills);
-  const filled = allocated.reduce((total, segment) => total + segment.baseAmountAtoms, 0n);
-  if (input.taker.order.timeInForce === 2 && filled !== input.taker.remainingBaseAtoms) allocated = [];
-  if (input.kind === "combined") {
-    const venues = new Set(allocated.map((segment) => segment.venue));
-    if (venues.size < 2) return null;
-  }
   const takerParty: AtomicSwapParty = {
     orderHash: normalizeHex32(input.taker.orderHash, "Taker order hash"),
     order: input.taker.order,
     accounts: input.takerAccounts,
   };
-  const fills: RouteFill[] = [];
-  for (const [fillIndex, segment] of allocated.entries()) {
-    const grossQuoteAtoms = quoteAtomsForFill(
-      segment.baseAmountAtoms,
-      segment.executionPriceTicks,
-      input.taker.order.side === 0 ? "up" : "down",
-    );
-    const feeQuoteAtoms = (grossQuoteAtoms * segment.feeBps) / 10_000n;
-    const quoteTransferAtoms = input.taker.order.side === 0
-      ? grossQuoteAtoms + feeQuoteAtoms
-      : grossQuoteAtoms - feeQuoteAtoms;
-    if (quoteTransferAtoms <= 0n) continue;
-    const swapPlan = createAtomicSwapPlan({
-      venue: segment.venue,
-      fillIndex,
-      taker: takerParty,
-      counterparty: segment.counterparty,
-      acceptedAtSeconds: input.acceptedAtSeconds,
-      executionPriceTicks: segment.executionPriceTicks,
-      baseAmountAtoms: segment.baseAmountAtoms,
-      quoteTransferAtoms,
-      policy: input.atomicSwapPolicy,
-    });
-    fills.push({
-      venue: segment.venue,
-      counterpartyOrderHash: segment.counterpartyOrderHash,
-      counterpartySequence: segment.counterpartySequence,
-      ...(segment.solverQuote ? { solverQuoteHash: segment.solverQuote.quoteHash } : {}),
-      executionPriceTicks: segment.executionPriceTicks,
-      baseAmountAtoms: segment.baseAmountAtoms,
-      grossQuoteAtoms,
-      feeQuoteAtoms,
-      quoteTransferAtoms,
-      swapPlan,
-    });
+  let usableSegments = [...input.segments];
+  for (let attempt = 0; attempt <= input.segments.length; attempt += 1) {
+    let allocated = allocate(input.taker, usableSegments, input.maximumFills, input.maximumSolverFills);
+    const filled = allocated.reduce((total, segment) => total + segment.baseAmountAtoms, 0n);
+    if (input.taker.order.timeInForce === 2 && filled !== input.taker.remainingBaseAtoms) allocated = [];
+    if (input.kind === "combined") {
+      const venues = new Set(allocated.map((segment) => segment.venue));
+      if (venues.size < 2) return null;
+    }
+    const fills: RouteFill[] = [];
+    let rejectedSegment: Segment | undefined;
+    for (const [fillIndex, segment] of allocated.entries()) {
+      try {
+        const swapPlan = createAtomicSwapPlan({
+          venue: segment.venue,
+          fillIndex,
+          taker: takerParty,
+          counterparty: segment.counterparty,
+          acceptedAtSeconds: input.acceptedAtSeconds,
+          executionPriceTicks: segment.executionPriceTicks,
+          baseAmountAtoms: segment.baseAmountAtoms,
+          feeBps: segment.feeBps,
+          policy: input.atomicSwapPolicy,
+        });
+        const grossQuoteAtoms = BigInt(swapPlan.grossQuoteAtoms);
+        const feeQuoteAtoms = BigInt(swapPlan.feeQuoteAtoms);
+        const quoteTransferAtoms = BigInt(swapPlan.quoteTransferAtoms);
+        fills.push({
+          venue: segment.venue,
+          counterpartyOrderHash: segment.counterpartyOrderHash,
+          counterpartySequence: segment.counterpartySequence,
+          ...(segment.solverQuote ? { solverQuoteHash: segment.solverQuote.quoteHash } : {}),
+          executionPriceTicks: segment.executionPriceTicks,
+          baseAmountAtoms: segment.baseAmountAtoms,
+          feeBps: segment.feeBps,
+          grossQuoteAtoms,
+          feeQuoteAtoms,
+          quoteTransferAtoms,
+          swapPlan,
+        });
+      } catch (error: unknown) {
+        if (!isUnmaterializableQuote(error)) throw error;
+        rejectedSegment = segment;
+        break;
+      }
+    }
+    if (rejectedSegment) {
+      usableSegments = usableSegments.filter((segment) => !(
+        segment.venue === rejectedSegment.venue
+        && segment.counterpartyOrderHash === rejectedSegment.counterpartyOrderHash
+        && segment.counterpartySequence === rejectedSegment.counterpartySequence
+        && segment.executionPriceTicks === rejectedSegment.executionPriceTicks
+      ));
+      continue;
+    }
+    const filledBaseAtoms = fills.reduce((total, fill) => total + fill.baseAmountAtoms, 0n);
+    const remainingBaseAtoms = input.taker.remainingBaseAtoms - filledBaseAtoms;
+    return {
+      kind: input.kind,
+      fills,
+      filledBaseAtoms,
+      remainingBaseAtoms,
+      quoteTransferAtoms: fills.reduce((total, fill) => total + fill.quoteTransferAtoms, 0n),
+      complete: remainingBaseAtoms === 0n,
+    };
   }
-  const filledBaseAtoms = fills.reduce((total, fill) => total + fill.baseAmountAtoms, 0n);
-  const remainingBaseAtoms = input.taker.remainingBaseAtoms - filledBaseAtoms;
-  return {
-    kind: input.kind,
-    fills,
-    filledBaseAtoms,
-    remainingBaseAtoms,
-    quoteTransferAtoms: fills.reduce((total, fill) => total + fill.quoteTransferAtoms, 0n),
-    complete: remainingBaseAtoms === 0n,
-  };
+  throw new Error("Quote materialization filtering exceeded its bounded attempts");
 }
 
 function candidateIsBetter(side: TypedOrderIntent["side"], left: RouteCandidate, right: RouteCandidate): boolean {

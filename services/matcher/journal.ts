@@ -1,4 +1,4 @@
-import { mkdir, open, readFile } from "node:fs/promises";
+import { mkdir, open, readFile, stat } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import { keccak256Text } from "../../src/lib/keccak.ts";
@@ -9,6 +9,7 @@ export const JOURNAL_VERSION = 1;
 export const JOURNAL_GENESIS_HASH = `0x${"00".repeat(32)}` as Hex32;
 export const DEFAULT_MAX_JOURNAL_RECORDS = 100_000;
 export const DEFAULT_MAX_JOURNAL_LINE_BYTES = 256 * 1024;
+export const DEFAULT_MAX_JOURNAL_BYTES = 256 * 1024 * 1024;
 
 export type JournalValue = null | boolean | number | string | JournalValue[] | { [key: string]: JournalValue };
 
@@ -24,6 +25,7 @@ export type JournalState = Readonly<{
   records: readonly JournalRecord[];
   sequence: bigint;
   head: Hex32;
+  byteLength: number;
 }>;
 
 export type JournalCheckpoint = Readonly<{
@@ -36,6 +38,35 @@ export type JournalCheckpoint = Readonly<{
 
 const appendLocks = new Map<string, Promise<void>>();
 const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+type JournalLimits = Readonly<{
+  maxRecords?: number;
+  maxLineBytes?: number;
+  maxBytes?: number;
+  maximumJournalBytes?: number;
+}>;
+
+function maximumJournalBytes(limits: JournalLimits): number {
+  const maximum = limits.maxBytes ?? limits.maximumJournalBytes ?? DEFAULT_MAX_JOURNAL_BYTES;
+  if (!Number.isSafeInteger(maximum) || maximum <= 0) throw new RangeError("Maximum journal bytes must be positive");
+  return maximum;
+}
+
+function validateJournalSize(size: number, maximum: number): number {
+  if (!Number.isSafeInteger(size) || size < 0) throw new RangeError("Journal size is outside its allowed range");
+  if (size > maximum) throw new RangeError("Journal byte limit exceeded");
+  return size;
+}
+
+async function journalSize(path: string, maximum: number): Promise<number> {
+  try {
+    const file = await stat(path);
+    return validateJournalSize(file.size, maximum);
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return 0;
+    throw error;
+  }
+}
 
 function assertPlainObject(value: object): asserts value is Record<string, unknown> {
   const prototype = Object.getPrototypeOf(value);
@@ -124,22 +155,27 @@ function validateRecord(value: unknown, expectedSequence: bigint, previousHash: 
 
 export async function readJournal(
   path: string,
-  limits: { maxRecords?: number; maxLineBytes?: number } = {},
+  limits: JournalLimits = {},
 ): Promise<JournalState> {
   const maxRecords = limits.maxRecords ?? DEFAULT_MAX_JOURNAL_RECORDS;
   const maxLineBytes = limits.maxLineBytes ?? DEFAULT_MAX_JOURNAL_LINE_BYTES;
+  const maxBytes = maximumJournalBytes(limits);
   if (!Number.isSafeInteger(maxRecords) || maxRecords <= 0) throw new RangeError("Maximum journal records must be positive");
   if (!Number.isSafeInteger(maxLineBytes) || maxLineBytes <= 0) throw new RangeError("Maximum journal line bytes must be positive");
+  const observedSize = await journalSize(path, maxBytes);
   let contents: string;
   try {
     contents = await readFile(path, "utf8");
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return { records: [], sequence: 0n, head: JOURNAL_GENESIS_HASH };
+      if (observedSize !== 0) throw new Error("Journal changed while reading");
+      return { records: [], sequence: 0n, head: JOURNAL_GENESIS_HASH, byteLength: 0 };
     }
     throw error;
   }
-  if (contents.length === 0) return { records: [], sequence: 0n, head: JOURNAL_GENESIS_HASH };
+  const byteLength = validateJournalSize(Buffer.byteLength(contents, "utf8"), maxBytes);
+  if (byteLength !== observedSize) throw new Error("Journal changed while reading");
+  if (contents.length === 0) return { records: [], sequence: 0n, head: JOURNAL_GENESIS_HASH, byteLength };
   if (!contents.endsWith("\n")) throw new Error("Journal ends with a partial record");
   const lines = contents.slice(0, -1).split("\n");
   if (lines.length > maxRecords) throw new RangeError("Journal record limit exceeded");
@@ -154,7 +190,7 @@ export async function readJournal(
     sequence += 1n;
     previousHash = record.recordHash;
   }
-  return { records, sequence: sequence - 1n, head: previousHash };
+  return { records, sequence: sequence - 1n, head: previousHash, byteLength };
 }
 
 async function withAppendLock<T>(path: string, work: () => Promise<T>): Promise<T> {
@@ -172,31 +208,98 @@ async function withAppendLock<T>(path: string, work: () => Promise<T>): Promise<
   }
 }
 
+async function assertJournalTail(
+  path: string,
+  byteLength: number,
+  expectedSequence: bigint,
+  expectedHead: Hex32,
+  maxLineBytes: number,
+): Promise<void> {
+  if (expectedSequence <= 0n) {
+    if (byteLength !== 0) throw new Error("Journal head changed before append");
+    if (expectedHead !== JOURNAL_GENESIS_HASH) throw new Error("Expected journal head is not the genesis hash");
+    return;
+  }
+  if (byteLength === 0) throw new Error("Journal head changed before append");
+
+  const windowBytes = Math.min(byteLength, maxLineBytes + 1);
+  const buffer = Buffer.alloc(windowBytes);
+  const handle = await open(path, "r");
+  try {
+    const result = await handle.read(buffer, 0, windowBytes, byteLength - windowBytes);
+    if (result.bytesRead !== windowBytes) throw new Error("Journal changed while reading");
+  } finally {
+    await handle.close();
+  }
+  const tail = buffer.toString("utf8");
+  if (!tail.endsWith("\n")) throw new Error("Journal ends with a partial record");
+  const lineEnd = tail.length - 1;
+  const lineStart = tail.lastIndexOf("\n", lineEnd - 1) + 1;
+  const line = tail.slice(lineStart, lineEnd);
+  if (line.length === 0) throw new Error("Journal contains an empty record");
+  if (Buffer.byteLength(line, "utf8") > maxLineBytes || lineStart === 0 && byteLength > windowBytes) {
+    throw new RangeError("Journal line limit exceeded");
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(line);
+  } catch {
+    throw new Error("Journal tail is not valid JSON");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new TypeError("Journal record must be an object");
+  assertExactKeys(parsed, ["version", "sequence", "previousRecordHash", "event", "recordHash"], "Journal record");
+  const record = parsed as Partial<JournalRecord>;
+  if (record.version !== JOURNAL_VERSION) throw new Error("Journal record version is unsupported");
+  const sequence = canonicalSequence(String(record.sequence), "Journal sequence");
+  if (sequence !== expectedSequence) throw new Error("Journal sequence gap or reordering detected");
+  if (!record.event || typeof record.event !== "object" || Array.isArray(record.event)) {
+    throw new TypeError("Journal event must be an object");
+  }
+  canonicalJournalJson(record.event);
+  const previousRecordHash = normalizeHex32(String(record.previousRecordHash), "Previous journal record hash");
+  const recordHash = normalizeHex32(String(record.recordHash), "Journal record hash");
+  if (hashJournalRecord(sequence, previousRecordHash, record.event) !== recordHash) {
+    throw new Error("Journal record hash does not match its contents");
+  }
+  if (recordHash !== expectedHead) throw new Error("Journal head changed before append");
+}
+
 export async function appendJournal(
   path: string,
-  expected: Pick<JournalState, "sequence" | "head">,
+  expected: Pick<JournalState, "sequence" | "head"> & Partial<Pick<JournalState, "byteLength">>,
   event: Readonly<Record<string, JournalValue>>,
-  limits: { maxRecords?: number; maxLineBytes?: number } = {},
+  limits: JournalLimits = {},
 ): Promise<JournalRecord> {
   return withAppendLock(path, async () => {
     canonicalJournalJson(event);
-    const current = await readJournal(path, limits);
-    if (current.sequence !== expected.sequence || current.head !== normalizeHex32(expected.head, "Expected journal head")) {
-      throw new Error("Journal head changed before append");
-    }
     const maxRecords = limits.maxRecords ?? DEFAULT_MAX_JOURNAL_RECORDS;
-    if (current.records.length >= maxRecords) throw new RangeError("Journal record limit exceeded");
-    const sequence = current.sequence + 1n;
+    const maxLineBytes = limits.maxLineBytes ?? DEFAULT_MAX_JOURNAL_LINE_BYTES;
+    const maxBytes = maximumJournalBytes(limits);
+    if (!Number.isSafeInteger(maxRecords) || maxRecords <= 0) throw new RangeError("Maximum journal records must be positive");
+    if (!Number.isSafeInteger(maxLineBytes) || maxLineBytes <= 0) throw new RangeError("Maximum journal line bytes must be positive");
+    const expectedHead = normalizeHex32(expected.head, "Expected journal head");
+    if (typeof expected.sequence !== "bigint" || expected.sequence < 0n) throw new RangeError("Expected journal sequence is invalid");
+    const currentSize = await journalSize(path, maxBytes);
+    if (expected.byteLength !== undefined) {
+      if (!Number.isSafeInteger(expected.byteLength) || expected.byteLength < 0) {
+        throw new RangeError("Expected journal size is invalid");
+      }
+      if (currentSize !== expected.byteLength) throw new Error("Journal head changed before append; journal size changed");
+    }
+    await assertJournalTail(path, currentSize, expected.sequence, expectedHead, maxLineBytes);
+    if (expected.sequence >= BigInt(maxRecords)) throw new RangeError("Journal record limit exceeded");
+    const sequence = expected.sequence + 1n;
     const record: JournalRecord = {
       version: JOURNAL_VERSION,
       sequence: sequence.toString(),
-      previousRecordHash: current.head,
+      previousRecordHash: expectedHead,
       event,
-      recordHash: hashJournalRecord(sequence, current.head, event),
+      recordHash: hashJournalRecord(sequence, expectedHead, event),
     };
     const line = `${canonicalJournalJson(record)}\n`;
-    const maxLineBytes = limits.maxLineBytes ?? DEFAULT_MAX_JOURNAL_LINE_BYTES;
     if (Buffer.byteLength(line, "utf8") > maxLineBytes) throw new RangeError("Journal line limit exceeded");
+    const nextSize = currentSize + Buffer.byteLength(line, "utf8");
+    if (!Number.isSafeInteger(nextSize) || nextSize > maxBytes) throw new RangeError("Journal byte limit exceeded");
     await mkdir(dirname(path), { recursive: true, mode: 0o700 });
     const handle = await open(path, "a", 0o600);
     try {

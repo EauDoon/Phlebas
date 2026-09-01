@@ -1,4 +1,9 @@
-import { assertSettlementAccounts, type WalletSettlementAccounts, type AtomicSwapPolicy } from "./atomic-swap-plan.ts";
+import {
+  assertSettlementAccountRoles,
+  assertSettlementAccounts,
+  type WalletSettlementAccounts,
+  type AtomicSwapPolicy,
+} from "./atomic-swap-plan.ts";
 import { hashOrderDomain, hashTypedOrder, type OrderDomain, type TypedOrderIntent } from "./eip712-order.ts";
 import { keccak256Text } from "./keccak.ts";
 import {
@@ -15,7 +20,7 @@ import {
   normalizeHex32,
   type Hex32,
 } from "./order-domain.ts";
-import { activeAccountEpoch, orderActivity } from "./order-lifecycle.ts";
+import { activeAccountEpoch, orderActivity, orderNonceKey } from "./order-lifecycle.ts";
 import { VENUE_CLOB } from "./order-policy.ts";
 import {
   acceptOrderIntent,
@@ -119,6 +124,7 @@ export type PersistentMatcherState = Readonly<{
   openOrders: Readonly<Record<string, RestingRouteOrder>>;
   solverQuotes: Readonly<Record<string, AcceptedSolverQuote>>;
   cancelledSolverQuotes: Readonly<Record<string, true>>;
+  solverNonceClaims: Readonly<Record<string, Hex32>>;
   accountSigners: Readonly<Record<string, Hex32>>;
   executions: readonly MatcherExecution[];
   receipts: readonly MatcherMutationReceipt[];
@@ -198,6 +204,7 @@ export function createPersistentMatcher(configuration: PersistentMatcherConfigur
     openOrders: {},
     solverQuotes: {},
     cancelledSolverQuotes: {},
+    solverNonceClaims: {},
     accountSigners: {},
     executions: [],
     receipts: [],
@@ -276,8 +283,58 @@ function activeRestingOrderEntries(state: PersistentMatcherState, nowSeconds: bi
   ).active);
 }
 
-function activeSolverQuotes(state: PersistentMatcherState): AcceptedSolverQuote[] {
-  return Object.values(state.solverQuotes).filter((quote) => !state.cancelledSolverQuotes[quote.quoteHash]);
+function solverNonceKey(quote: Pick<SolverQuote, "solverAccountId" | "accountEpoch" | "nonce">): string {
+  return orderNonceKey({
+    makerAccountId: quote.solverAccountId,
+    accountEpoch: quote.accountEpoch,
+    nonce: quote.nonce,
+  });
+}
+
+function canonicalSolverNonceClaimKey(key: string): string {
+  const parts = key.split(":");
+  if (parts.length !== 3 || !/^(?:0|[1-9][0-9]*)$/.test(parts[1] ?? "") || !/^(?:0|[1-9][0-9]*)$/.test(parts[2] ?? "")) {
+    throw new TypeError("Solver nonce claim key is not canonical");
+  }
+  const accountId = normalizeHex32(parts[0] ?? "", "Solver nonce claim account ID");
+  const accountEpoch = BigInt(parts[1] ?? "0");
+  const nonce = BigInt(parts[2] ?? "0");
+  const normalized = solverNonceKey({ solverAccountId: accountId, accountEpoch, nonce });
+  if (key !== normalized) throw new TypeError("Solver nonce claim key is not canonical");
+  return normalized;
+}
+
+function activeSolverQuotes(state: PersistentMatcherState, nowSeconds: bigint): AcceptedSolverQuote[] {
+  return Object.values(state.solverQuotes).filter((accepted) => {
+    const quote = accepted.quote;
+    return !state.cancelledSolverQuotes[accepted.quoteHash]
+      && accepted.remainingCapacityBaseAtoms > 0n
+      && quote.expirySeconds > nowSeconds
+      && quote.accountEpoch === activeAccountEpoch(state.orderReference.lifecycle, quote.solverAccountId);
+  });
+}
+
+function pruneSolverQuoteBodies(state: PersistentMatcherState, nowSeconds: bigint): Readonly<Record<string, AcceptedSolverQuote>> {
+  const currentEpochs = state.orderReference.lifecycle;
+  return Object.fromEntries(Object.entries(state.solverQuotes).filter(([, accepted]) => {
+    const quote = accepted.quote;
+    return !state.cancelledSolverQuotes[accepted.quoteHash]
+      && accepted.remainingCapacityBaseAtoms > 0n
+      && quote.expirySeconds > nowSeconds
+      && quote.accountEpoch === activeAccountEpoch(currentEpochs, quote.solverAccountId);
+  }));
+}
+
+function solverCapacityByAccount(
+  state: PersistentMatcherState,
+  nowSeconds: bigint,
+): Map<string, bigint> {
+  const totals = new Map<string, bigint>();
+  for (const accepted of activeSolverQuotes(state, nowSeconds)) {
+    const account = normalizeHex32(accepted.quote.solverAccountId, "Solver account ID");
+    totals.set(account, (totals.get(account) ?? 0n) + accepted.remainingCapacityBaseAtoms);
+  }
+  return totals;
 }
 
 function bindAccountSigner(state: PersistentMatcherState, accountId: Hex32, signerId: Hex32): Readonly<Record<string, Hex32>> {
@@ -304,16 +361,19 @@ function applyOrderAcceptance(
   }
   verifySignedOrderIntent(verifier, state.configuration.domain, order, event.submission.signature);
   assertSettlementAccounts(order, event.submission.accounts);
+  assertSettlementAccountRoles(order.side, event.submission.accounts, state.configuration.atomicSwapPolicy.pair, "Order");
   const accountSigners = bindAccountSigner(state, order.makerAccountId, order.authorizedSignerId);
   const accepted = acceptOrderIntent(state.orderReference, order, event.occurredAtSeconds);
   const orderHash = accepted.accepted.orderHash;
   const taker: SequencedOrder = { ...accepted.accepted, sequence };
   const activeRestingEntries = activeRestingOrderEntries(state, event.occurredAtSeconds);
+  const solverQuotes = pruneSolverQuoteBodies(state, event.occurredAtSeconds);
+  const solverState = { ...state, solverQuotes };
   const comparison = compareExecutableRoutes({
     taker,
     takerAccounts: event.submission.accounts,
     restingOrders: activeRestingEntries.map(([, entry]) => entry),
-    solverQuotes: activeSolverQuotes(state),
+    solverQuotes: activeSolverQuotes(solverState, event.occurredAtSeconds),
     acceptedAtSeconds: event.occurredAtSeconds,
     atomicSwapPolicy: state.configuration.atomicSwapPolicy,
     maximumFills: limits.maximumRouteFills,
@@ -322,7 +382,7 @@ function applyOrderAcceptance(
   const selected = comparison.selected;
   let reference = accepted.state;
   const openOrders = Object.fromEntries(activeRestingEntries);
-  const solverQuotes = { ...state.solverQuotes };
+  const nextSolverQuotes = { ...solverQuotes };
   if (selected) {
     for (const fill of selected.fills) {
       if (fill.venue === "order-book") {
@@ -346,9 +406,11 @@ function applyOrderAcceptance(
       );
     }
     for (const [quoteHash, amount] of solverConsumption) {
-      const quote = solverQuotes[quoteHash];
+      const quote = nextSolverQuotes[quoteHash];
       if (!quote) throw new Error("Selected route references a missing solver quote");
-      solverQuotes[quoteHash] = consumeSolverCapacity(quote, amount);
+      const consumed = consumeSolverCapacity(quote, amount);
+      if (consumed.remainingCapacityBaseAtoms === 0n) delete nextSolverQuotes[quoteHash];
+      else nextSolverQuotes[quoteHash] = consumed;
     }
   }
   const remaining = selected?.remainingBaseAtoms ?? order.baseAmountAtoms;
@@ -375,7 +437,7 @@ function applyOrderAcceptance(
     orderReference: reference,
     orderAccounts: { ...state.orderAccounts, [orderHash]: { ...event.submission.accounts } },
     openOrders,
-    solverQuotes,
+    solverQuotes: nextSolverQuotes,
     accountSigners,
     executions: [...state.executions, { sequence, takerOrderHash: orderHash, route: selected }],
   };
@@ -399,6 +461,10 @@ function applyOrderCancellation(
   const orderHash = normalizeHex32(event.orderHash, "Cancelled order hash");
   const accepted = state.orderReference.acceptedOrders[orderHash];
   if (!accepted) throw new Error("Cancelled order is unknown");
+  const nonceKey = orderNonceKey(accepted.order);
+  if (state.orderReference.lifecycle.cancelledNonceKeys[nonceKey]) {
+    throw new Error("Order is already cancelled");
+  }
   const authorization = {
     kind: "cancel-order" as const,
     orderHash,
@@ -437,7 +503,13 @@ function applyEpochAdvance(
   }, event.signature);
   const reference = applyOrderReferenceEvent(state.orderReference, { kind: "advance-epoch", accountId: makerAccountId, nextEpoch: event.nextEpoch });
   const openOrders = Object.fromEntries(Object.entries(state.openOrders).filter(([, entry]) => entry.sequenced.order.makerAccountId !== makerAccountId));
-  return { state: { ...state, orderReference: reference, openOrders }, subjectHash: makerAccountId };
+  const epochAdvancedState = { ...state, orderReference: reference, openOrders };
+  const solverQuotes = Object.fromEntries(Object.entries(state.solverQuotes).filter(([, accepted]) =>
+    accepted.quote.solverAccountId !== makerAccountId));
+  return {
+    state: { ...epochAdvancedState, solverQuotes: pruneSolverQuoteBodies({ ...epochAdvancedState, solverQuotes }, event.occurredAtSeconds) },
+    subjectHash: makerAccountId,
+  };
 }
 
 function applySolverAcceptance(
@@ -446,8 +518,15 @@ function applySolverAcceptance(
   sequence: bigint,
   verifier: MatcherSignatureVerifier,
 ) {
-  if (Object.keys(state.solverQuotes).length >= state.configuration.limits.maximumSolverQuotes) {
-    throw new RangeError("Solver quote limit reached");
+  const activeEpoch = activeAccountEpoch(state.orderReference.lifecycle, event.quote.solverAccountId);
+  const solverQuotes = pruneSolverQuoteBodies(state, event.occurredAtSeconds);
+  const activeState = { ...state, solverQuotes };
+  assertSettlementAccountRoles(event.quote.side, {
+    sourceAccount: event.quote.sourceAccount,
+    recipientAccount: event.quote.recipientAccount,
+  }, state.configuration.atomicSwapPolicy.pair, "Solver quote");
+  if (event.quote.accountEpoch !== activeEpoch) {
+    throw new Error("Solver quote account epoch is not active");
   }
   const accepted = acceptSolverQuote(
     event.quote,
@@ -456,11 +535,31 @@ function applySolverAcceptance(
     event.occurredAtSeconds,
     state.configuration.solverQuotePolicy,
     verifier,
+    activeEpoch,
   );
+  const nonceKey = solverNonceKey(event.quote);
   if (state.solverQuotes[accepted.quoteHash]) throw new Error("Solver quote replayed");
+  const existingClaim = state.solverNonceClaims[nonceKey];
+  if (existingClaim) {
+    if (existingClaim === accepted.quoteHash) throw new Error("Solver quote replayed");
+    throw new Error("Solver quote nonce is already claimed by a different quote");
+  }
+  if (activeSolverQuotes(activeState, event.occurredAtSeconds).length >= state.configuration.limits.maximumSolverQuotes) {
+    throw new RangeError("Solver quote limit reached");
+  }
+  const account = normalizeHex32(event.quote.solverAccountId, "Solver account ID");
+  const activeCapacity = solverCapacityByAccount(activeState, event.occurredAtSeconds).get(account) ?? 0n;
+  if (activeCapacity + accepted.remainingCapacityBaseAtoms > state.configuration.solverQuotePolicy.maximumCapacityBaseAtoms) {
+    throw new RangeError("Aggregate solver capacity exceeds the configured maximum for the account");
+  }
   const accountSigners = bindAccountSigner(state, event.quote.solverAccountId, event.quote.authorizedSignerId);
   return {
-    state: { ...state, solverQuotes: { ...state.solverQuotes, [accepted.quoteHash]: accepted }, accountSigners },
+    state: {
+      ...activeState,
+      solverQuotes: { ...solverQuotes, [accepted.quoteHash]: accepted },
+      solverNonceClaims: { ...state.solverNonceClaims, [nonceKey]: accepted.quoteHash },
+      accountSigners,
+    },
     subjectHash: accepted.quoteHash,
   };
 }
@@ -471,6 +570,7 @@ function applySolverCancellation(
   verifier: MatcherSignatureVerifier,
 ) {
   const quoteHash = normalizeHex32(event.quoteHash, "Solver quote hash");
+  if (state.cancelledSolverQuotes[quoteHash]) throw new Error("Solver quote is already cancelled");
   const accepted = state.solverQuotes[quoteHash];
   if (!accepted) throw new Error("Solver quote is unknown");
   verifyMatcherControl(verifier, state.configuration.domain, {
@@ -479,9 +579,12 @@ function applySolverCancellation(
     solverAccountId: accepted.quote.solverAccountId,
     authorizedSignerId: accepted.quote.authorizedSignerId,
   }, event.signature);
-  if (state.cancelledSolverQuotes[quoteHash]) throw new Error("Solver quote is already cancelled");
   return {
-    state: { ...state, cancelledSolverQuotes: { ...state.cancelledSolverQuotes, [quoteHash]: true as const } },
+    state: {
+      ...state,
+      solverQuotes: Object.fromEntries(Object.entries(state.solverQuotes).filter(([hash]) => hash !== quoteHash)),
+      cancelledSolverQuotes: { ...state.cancelledSolverQuotes, [quoteHash]: true as const },
+    },
     subjectHash: quoteHash,
   };
 }
@@ -523,6 +626,10 @@ export function applyPersistentMatcherEvent(
     changed = result.state;
     details = { status: "solver-quote-cancelled", subjectHash: result.subjectHash, swapPlanIds: [] };
   }
+  changed = {
+    ...changed,
+    solverQuotes: pruneSolverQuoteBodies(changed, event.occurredAtSeconds),
+  };
   const receipt: MatcherMutationReceipt = {
     version: PERSISTENT_MATCHER_VERSION,
     sequence,
@@ -649,17 +756,47 @@ export function matcherStateRoot(state: PersistentMatcherState): Hex32 {
     if (hashTypedOrder(state.configuration.domain, entry.sequenced.order) !== orderHash) throw new Error("Open order body does not match its hash");
     assertSettlementAccounts(entry.sequenced.order, entry.accounts);
   }
+  const solverCapacityByAccountAtHead = new Map<string, bigint>();
+  for (const [claimKey, quoteHashValue] of Object.entries(state.solverNonceClaims)) {
+    const canonicalClaimKey = canonicalSolverNonceClaimKey(claimKey);
+    const canonicalQuoteHash = normalizeHex32(quoteHashValue, "Solver nonce claim quote hash");
+    if (claimKey !== canonicalClaimKey || state.solverNonceClaims[canonicalClaimKey] !== canonicalQuoteHash) {
+      throw new Error("Solver nonce claim is not canonical");
+    }
+  }
   for (const [quoteHash, accepted] of Object.entries(state.solverQuotes)) {
     if (normalizeHex32(quoteHash, "Solver quote key") !== normalizeHex32(accepted.quoteHash, "Solver quote hash")
       || hashSolverQuote(accepted.quote) !== quoteHash) {
       throw new Error("Solver quote body does not match its hash");
     }
+    const canonicalQuoteHash = normalizeHex32(quoteHash, "Solver quote hash");
+    if (state.cancelledSolverQuotes[canonicalQuoteHash]) {
+      throw new Error("Cancelled solver quote body must be pruned");
+    }
+    if (accepted.quote.accountEpoch !== activeAccountEpoch(state.orderReference.lifecycle, accepted.quote.solverAccountId)) {
+      throw new Error("Solver quote account epoch is not active");
+    }
+    if (accepted.quote.expirySeconds <= state.lastEventAtSeconds) {
+      throw new Error("Expired solver quote body must be pruned");
+    }
     if (accepted.remainingCapacityBaseAtoms < 0n || accepted.remainingCapacityBaseAtoms > accepted.quote.capacityBaseAtoms) {
       throw new Error("Solver remaining capacity is invalid");
     }
+    if (accepted.remainingCapacityBaseAtoms === 0n) throw new Error("Fully consumed solver quote body must be pruned");
+    const nonceKey = solverNonceKey(accepted.quote);
+    if (state.solverNonceClaims[nonceKey] !== canonicalQuoteHash) {
+      throw new Error("Solver nonce claim does not match its quote body");
+    }
+    const account = normalizeHex32(accepted.quote.solverAccountId, "Solver account ID");
+    const total = (solverCapacityByAccountAtHead.get(account) ?? 0n) + accepted.remainingCapacityBaseAtoms;
+    solverCapacityByAccountAtHead.set(account, total);
+    if (total > state.configuration.solverQuotePolicy.maximumCapacityBaseAtoms) {
+      throw new Error("Aggregate solver capacity exceeds the configured maximum for the account");
+    }
   }
   for (const [quoteHash, marker] of Object.entries(state.cancelledSolverQuotes)) {
-    if (marker !== true || !state.solverQuotes[normalizeHex32(quoteHash, "Cancelled solver quote hash")]) {
+    const canonicalQuoteHash = normalizeHex32(quoteHash, "Cancelled solver quote hash");
+    if (quoteHash !== canonicalQuoteHash || marker !== true || !Object.values(state.solverNonceClaims).includes(canonicalQuoteHash)) {
       throw new Error("Cancelled solver quote marker is invalid");
     }
   }

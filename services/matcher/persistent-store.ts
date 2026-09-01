@@ -1,4 +1,5 @@
 import { access, mkdir, open, readFile, unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 
 import type { TypedOrderIntent } from "../../src/lib/eip712-order.ts";
@@ -15,11 +16,12 @@ import {
   type PersistentMatcherState,
 } from "../../src/lib/persistent-matcher.ts";
 import type { MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
-import { normalizeHex32, type Hex32 } from "../../src/lib/order-domain.ts";
+import { normalizeHex32, UINT64_MAX, type Hex32 } from "../../src/lib/order-domain.ts";
 import type { SolverPricePolicy, SolverQuote } from "../../src/lib/solver-quotes.ts";
 import { atomicWriteFile } from "../durable-file.ts";
 import {
   JOURNAL_GENESIS_HASH,
+  DEFAULT_MAX_JOURNAL_BYTES,
   JOURNAL_VERSION,
   appendJournal,
   assertCheckpointInJournal,
@@ -43,6 +45,9 @@ export type PersistentMatcherStoreOptions = Readonly<{
   verifier: MatcherSignatureVerifier;
   maximumJournalRecords?: number;
   maximumJournalLineBytes?: number;
+  maximumJournalBytes?: number;
+  clockSeconds?: () => bigint;
+  maximumFutureEventSeconds?: bigint;
 }>;
 
 export type PersistentMutationResult = Readonly<{
@@ -50,6 +55,61 @@ export type PersistentMutationResult = Readonly<{
   replayed: boolean;
   checkpoint: JournalCheckpoint;
 }>;
+
+export const DEFAULT_MAXIMUM_FUTURE_EVENT_SECONDS = 30n;
+
+export class MatcherPersistenceUnavailableError extends Error {
+  readonly code = "MATCHER_PERSISTENCE_UNAVAILABLE";
+
+  constructor(operation: string, cause: unknown) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    super(`matcher-persistence-unavailable:${operation}:${detail}`);
+    this.name = "MatcherPersistenceUnavailableError";
+    this.cause = cause;
+  }
+}
+
+function defaultClockSeconds(): bigint {
+  return BigInt(Math.floor(Date.now() / 1_000));
+}
+
+function trustedClock(options: PersistentMatcherStoreOptions): bigint {
+  const now = (options.clockSeconds ?? defaultClockSeconds)();
+  if (typeof now !== "bigint" || now < 0n || now > UINT64_MAX) {
+    throw new RangeError("Matcher clock must return a uint64 bigint");
+  }
+  return now;
+}
+
+function maximumFutureEventSeconds(options: PersistentMatcherStoreOptions): bigint {
+  const maximum = options.maximumFutureEventSeconds ?? DEFAULT_MAXIMUM_FUTURE_EVENT_SECONDS;
+  if (typeof maximum !== "bigint" || maximum < 0n || maximum > UINT64_MAX) {
+    throw new RangeError("Maximum future event time must be a uint64 bigint");
+  }
+  return maximum;
+}
+
+export function assertMatcherEventTime(
+  event: PersistentMatcherEvent,
+  nowSeconds: bigint,
+  maximumFutureSeconds = DEFAULT_MAXIMUM_FUTURE_EVENT_SECONDS,
+): void {
+  if (typeof nowSeconds !== "bigint" || nowSeconds < 0n || nowSeconds > UINT64_MAX) {
+    throw new RangeError("Matcher clock must return a uint64 bigint");
+  }
+  if (typeof maximumFutureSeconds !== "bigint" || maximumFutureSeconds < 0n || maximumFutureSeconds > UINT64_MAX) {
+    throw new RangeError("Maximum future event time must be a uint64 bigint");
+  }
+  if (typeof event.occurredAtSeconds !== "bigint" || event.occurredAtSeconds < 0n || event.occurredAtSeconds > UINT64_MAX) {
+    throw new RangeError("Matcher event time must be a uint64 bigint");
+  }
+  const maximumAllowed = nowSeconds > UINT64_MAX - maximumFutureSeconds
+    ? UINT64_MAX
+    : nowSeconds + maximumFutureSeconds;
+  if (event.occurredAtSeconds > maximumAllowed) {
+    throw new RangeError("Matcher event time is too far in the future");
+  }
+}
 
 function serializedOrder(order: TypedOrderIntent): SerializedObject {
   return {
@@ -104,6 +164,7 @@ function serializedQuote(quote: SolverQuote): SerializedObject {
     pricePolicy: serializedPricePolicy(quote.pricePolicy),
     maximumSlippageBps: quote.maximumSlippageBps.toString(),
     feeBps: quote.feeBps.toString(),
+    accountEpoch: quote.accountEpoch.toString(),
     nonce: quote.nonce.toString(),
     expirySeconds: quote.expirySeconds.toString(),
     settlementProtocolVersion: quote.settlementProtocolVersion,
@@ -245,7 +306,7 @@ function deserializeQuote(value: JournalValue | undefined): SolverQuote {
     "version", "matcherDomainHash", "solverAccountId", "authorizedSignerId", "recipientAccountId", "sourceAccount",
     "recipientAccount", "baseNetwork", "baseAsset", "quoteNetwork", "quoteAsset", "side",
     "capacityBaseAtoms", "minimumFillBaseAtoms", "pricePolicy", "maximumSlippageBps", "feeBps",
-    "nonce", "expirySeconds", "settlementProtocolVersion",
+    "accountEpoch", "nonce", "expirySeconds", "settlementProtocolVersion",
   ], "Serialized solver quote");
   const version = integerValue(quote.version, "Solver quote version");
   const side = integerValue(quote.side, "Solver quote side");
@@ -269,6 +330,7 @@ function deserializeQuote(value: JournalValue | undefined): SolverQuote {
     pricePolicy: deserializePricePolicy(quote.pricePolicy),
     maximumSlippageBps: bigintValue(quote.maximumSlippageBps, "Solver maximum slippage"),
     feeBps: bigintValue(quote.feeBps, "Solver fee"),
+    accountEpoch: bigintValue(quote.accountEpoch, "Solver account epoch"),
     nonce: bigintValue(quote.nonce, "Solver quote nonce"),
     expirySeconds: bigintValue(quote.expirySeconds, "Solver quote expiry"),
     settlementProtocolVersion: stringValue(quote.settlementProtocolVersion, "Solver settlement protocol"),
@@ -348,7 +410,9 @@ async function pathExists(path: string): Promise<boolean> {
   }
 }
 
-async function acquireWriterLock(path: string, configurationHash: Hex32): Promise<void> {
+type WriterLockOwnership = Readonly<{ bytes: string }>;
+
+async function acquireWriterLock(path: string, configurationHash: Hex32): Promise<WriterLockOwnership> {
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   let handle;
   try {
@@ -359,16 +423,35 @@ async function acquireWriterLock(path: string, configurationHash: Hex32): Promis
     }
     throw error;
   }
-  try {
-    await handle.writeFile(`${canonicalJournalJson({
+  const bytes = `${canonicalJournalJson({
       version: 1,
       pid: process.pid,
+      ownerToken: randomUUID(),
       configurationHash,
-    })}\n`, "utf8");
+    })}\n`;
+  try {
+    await handle.writeFile(bytes, "utf8");
     await handle.sync();
   } finally {
     await handle.close();
   }
+  return { bytes };
+}
+
+async function releaseWriterLock(path: string, ownership: WriterLockOwnership): Promise<void> {
+  let observed: string;
+  try {
+    observed = await readFile(path, "utf8");
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Error("Matcher writer lock disappeared before owned release");
+    }
+    throw error;
+  }
+  if (observed !== ownership.bytes) {
+    throw new Error("Matcher writer lock ownership changed; refusing to remove an unowned lock");
+  }
+  await unlink(path);
 }
 
 export class PersistentMatcherStore {
@@ -378,32 +461,44 @@ export class PersistentMatcherStore {
   #checkpoint: JournalCheckpoint;
   #queue = Promise.resolve();
   #closed = false;
+  #fault: MatcherPersistenceUnavailableError | null = null;
+  #lockOwnership: WriterLockOwnership;
 
   private constructor(
     options: PersistentMatcherStoreOptions,
     journal: JournalState,
     state: PersistentMatcherState,
     checkpoint: JournalCheckpoint,
+    lockOwnership: WriterLockOwnership,
   ) {
     this.#options = options;
     this.#journal = journal;
     this.#state = state;
     this.#checkpoint = checkpoint;
+    this.#lockOwnership = lockOwnership;
   }
 
   static async open(options: PersistentMatcherStoreOptions): Promise<PersistentMatcherStore> {
-    const markerPath = options.markerPath ?? `${options.journalPath}.initialized`;
-    const lockPath = options.lockPath ?? `${options.journalPath}.lock`;
-    const configurationHash = matcherConfigurationHash(options.configuration);
-    await acquireWriterLock(lockPath, configurationHash);
+    const normalizedOptions: PersistentMatcherStoreOptions = {
+      ...options,
+      markerPath: options.markerPath ?? `${options.journalPath}.initialized`,
+      lockPath: options.lockPath ?? `${options.journalPath}.lock`,
+      maximumJournalBytes: options.maximumJournalBytes ?? DEFAULT_MAX_JOURNAL_BYTES,
+      clockSeconds: options.clockSeconds ?? defaultClockSeconds,
+      maximumFutureEventSeconds: options.maximumFutureEventSeconds ?? DEFAULT_MAXIMUM_FUTURE_EVENT_SECONDS,
+    };
+    const markerPath = normalizedOptions.markerPath as string;
+    const lockPath = normalizedOptions.lockPath as string;
+    const configurationHash = matcherConfigurationHash(normalizedOptions.configuration);
+    const lockOwnership = await acquireWriterLock(lockPath, configurationHash);
     try {
       const markerExists = await pathExists(markerPath);
-      const journalExists = await pathExists(options.journalPath);
-      const checkpointExists = await pathExists(options.checkpointPath);
-      const initial = createPersistentMatcher(options.configuration);
+      const journalExists = await pathExists(normalizedOptions.journalPath);
+      const checkpointExists = await pathExists(normalizedOptions.checkpointPath);
+      const initial = createPersistentMatcher(normalizedOptions.configuration);
       if (!markerExists) {
         if (journalExists || checkpointExists) throw new Error("Uninitialized matcher has pre-existing persistence files");
-        await atomicWriteFile(options.journalPath, "");
+        await atomicWriteFile(normalizedOptions.journalPath, "");
         const genesisCheckpoint: JournalCheckpoint = {
           version: JOURNAL_VERSION,
           sequence: "0",
@@ -411,7 +506,7 @@ export class PersistentMatcherStore {
           stateRoot: matcherStateRoot(initial),
           configurationHash,
         };
-        await writeJournalCheckpoint(options.checkpointPath, genesisCheckpoint);
+        await writeJournalCheckpoint(normalizedOptions.checkpointPath, genesisCheckpoint);
         await atomicWriteFile(markerPath, `persistent-matcher-v1:${configurationHash}\n`);
       } else {
         const marker = await readFile(markerPath, "utf8");
@@ -419,11 +514,12 @@ export class PersistentMatcherStore {
         if (!journalExists || !checkpointExists) throw new Error("Initialized matcher persistence is missing");
       }
 
-      const journal = await readJournal(options.journalPath, {
-        maxRecords: options.maximumJournalRecords,
-        maxLineBytes: options.maximumJournalLineBytes,
+      const journal = await readJournal(normalizedOptions.journalPath, {
+        maxRecords: normalizedOptions.maximumJournalRecords,
+        maxLineBytes: normalizedOptions.maximumJournalLineBytes,
+        maxBytes: normalizedOptions.maximumJournalBytes,
       });
-      const checkpoint = await readJournalCheckpoint(options.checkpointPath);
+      const checkpoint = await readJournalCheckpoint(normalizedOptions.checkpointPath);
       if (!checkpoint) throw new Error("Initialized matcher checkpoint is missing");
       if (checkpoint.configurationHash !== configurationHash) throw new Error("Matcher checkpoint configuration does not match");
       assertCheckpointInJournal(checkpoint, journal);
@@ -432,9 +528,12 @@ export class PersistentMatcherStore {
       if (checkpointSequence === 0n && matcherStateRoot(state) !== checkpoint.stateRoot) {
         throw new Error("Matcher genesis checkpoint state root does not match replay");
       }
+      const replayNow = trustedClock(normalizedOptions);
+      const maximumFutureSeconds = maximumFutureEventSeconds(normalizedOptions);
       for (const record of journal.records) {
-        const event = deserializePersistentMatcherEvent(options.configuration, record.event);
-        state = applyPersistentMatcherEvent(state, event, BigInt(record.sequence), options.verifier).state;
+        const event = deserializePersistentMatcherEvent(normalizedOptions.configuration, record.event);
+        assertMatcherEventTime(event, replayNow, maximumFutureSeconds);
+        state = applyPersistentMatcherEvent(state, event, BigInt(record.sequence), normalizedOptions.verifier).state;
         if (BigInt(record.sequence) === checkpointSequence && matcherStateRoot(state) !== checkpoint.stateRoot) {
           throw new Error("Matcher checkpoint state root does not match replay");
         }
@@ -447,11 +546,11 @@ export class PersistentMatcherStore {
         configurationHash,
       };
       if (canonicalJournalJson(checkpoint) !== canonicalJournalJson(currentCheckpoint)) {
-        await writeJournalCheckpoint(options.checkpointPath, currentCheckpoint);
+        await writeJournalCheckpoint(normalizedOptions.checkpointPath, currentCheckpoint);
       }
-      return new PersistentMatcherStore({ ...options, markerPath, lockPath }, journal, state, currentCheckpoint);
+      return new PersistentMatcherStore(normalizedOptions, journal, state, currentCheckpoint, lockOwnership);
     } catch (error) {
-      await unlink(lockPath).catch(() => undefined);
+      await releaseWriterLock(lockPath, lockOwnership).catch(() => undefined);
       throw error;
     }
   }
@@ -468,40 +567,78 @@ export class PersistentMatcherStore {
     return this.#checkpoint;
   }
 
+  get acceptingMutations(): boolean {
+    return !this.#closed && this.#fault === null;
+  }
+
+  get faultReason(): string | null {
+    return this.#fault?.message ?? null;
+  }
+
+  get fault(): MatcherPersistenceUnavailableError | null {
+    return this.#fault;
+  }
+
   async mutate(event: PersistentMatcherEvent): Promise<PersistentMutationResult> {
     if (this.#closed) throw new Error("Matcher store is closed");
+    if (this.#fault) throw this.#fault;
     const issued = this.#queue.then(() => this.#mutate(event));
     this.#queue = issued.then(() => undefined, () => undefined);
     return issued;
   }
 
   async #mutate(event: PersistentMatcherEvent): Promise<PersistentMutationResult> {
+    if (this.#fault) throw this.#fault;
+    assertMatcherEventTime(event, trustedClock(this.#options), maximumFutureEventSeconds(this.#options));
     const commandHash = matcherCommandHash(this.#options.configuration, event);
     const prior = findRequestReceipt(this.#state, event.requestId, commandHash);
     if (prior) {
-      await this.#writeCheckpoint();
+      try {
+        await this.#writeCheckpoint();
+      } catch (error: unknown) {
+        throw this.#markFault("checkpoint", error);
+      }
       return { receipt: prior, replayed: true, checkpoint: this.#checkpoint };
     }
     const sequence = this.#state.sequence + 1n;
     const candidate = applyPersistentMatcherEvent(this.#state, event, sequence, this.#options.verifier);
-    const record = await appendJournal(
-      this.#options.journalPath,
-      this.#journal,
-      serializePersistentMatcherEvent(this.#options.configuration, event),
-      {
-        maxRecords: this.#options.maximumJournalRecords,
-        maxLineBytes: this.#options.maximumJournalLineBytes,
-      },
-    );
-    if (BigInt(record.sequence) !== sequence) throw new Error("Persisted journal sequence differs from the prepared matcher event");
+    let record;
+    try {
+      record = await appendJournal(
+        this.#options.journalPath,
+        this.#journal,
+        serializePersistentMatcherEvent(this.#options.configuration, event),
+        {
+          maxRecords: this.#options.maximumJournalRecords,
+          maxLineBytes: this.#options.maximumJournalLineBytes,
+          maxBytes: this.#options.maximumJournalBytes,
+        },
+      );
+      if (BigInt(record.sequence) !== sequence) throw new Error("Persisted journal sequence differs from the prepared matcher event");
+    } catch (error: unknown) {
+      throw this.#markFault("journal-append", error);
+    }
     this.#state = candidate.state;
     this.#journal = {
       records: [...this.#journal.records, record],
       sequence,
       head: record.recordHash,
+      byteLength: this.#journal.byteLength + Buffer.byteLength(`${canonicalJournalJson(record)}\n`, "utf8"),
     };
-    await this.#writeCheckpoint();
+    try {
+      await this.#writeCheckpoint();
+    } catch (error: unknown) {
+      throw this.#markFault("checkpoint", error);
+    }
     return { receipt: candidate.receipt, replayed: false, checkpoint: this.#checkpoint };
+  }
+
+  #markFault(operation: string, error: unknown): MatcherPersistenceUnavailableError {
+    if (this.#fault) return this.#fault;
+    this.#fault = error instanceof MatcherPersistenceUnavailableError
+      ? error
+      : new MatcherPersistenceUnavailableError(operation, error);
+    return this.#fault;
   }
 
   async #writeCheckpoint(): Promise<void> {
@@ -520,6 +657,6 @@ export class PersistentMatcherStore {
     if (this.#closed) return;
     this.#closed = true;
     await this.#queue;
-    await unlink(this.#options.lockPath ?? `${this.#options.journalPath}.lock`);
+    await releaseWriterLock(this.#options.lockPath ?? `${this.#options.journalPath}.lock`, this.#lockOwnership);
   }
 }

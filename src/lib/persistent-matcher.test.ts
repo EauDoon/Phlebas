@@ -18,7 +18,7 @@ import {
   type PersistentMatcherEvent,
   type PersistentMatcherState,
 } from "./persistent-matcher.ts";
-import type { SolverQuote } from "./solver-quotes.ts";
+import { hashSolverQuote, type SolverQuote } from "./solver-quotes.ts";
 
 const now = 1_800_000_000n;
 const domain = createOrderDomain(42161n, "0x1111111111111111111111111111111111111111");
@@ -65,12 +65,17 @@ const configuration: PersistentMatcherConfiguration = {
 };
 const verifier: MatcherSignatureVerifier = { verify() {} };
 
+function zcashAccount(name: string): string {
+  const address = `t3${keccak256Text(`zcash:${name}`).slice(2).replaceAll("0", "a").slice(0, 33)}`;
+  return `zcash:mainnet:${address}`;
+}
+
 function intent(name: string, side: 0 | 1, amount: bigint, price: bigint, tif: 0 | 1 | 2, nonce: bigint, venues = 3) {
   const sourceAccount = side === 0
     ? `${quoteNetwork}:0x${nonce.toString(16).padStart(40, "0")}`
-    : `zcash:mainnet:t3-${name}`;
+    : zcashAccount(`${name}:source`);
   const recipientAccount = side === 0
-    ? `zcash:mainnet:t3-${name}`
+    ? zcashAccount(`${name}:recipient`)
     : `${quoteNetwork}:0x${(nonce + 1_000n).toString(16).padStart(40, "0")}`;
   const order: TypedOrderIntent = {
     makerAccountId: accountIdentifier(sourceAccount),
@@ -113,12 +118,31 @@ function apply(state: PersistentMatcherState, event: PersistentMatcherEvent) {
   return applyPersistentMatcherEvent(state, event, state.sequence + 1n, verifier);
 }
 
-function solverQuote(name: string, side: 0 | 1, amount: bigint, price: bigint, nonce: bigint): SolverQuote {
+function acceptSolverEvent(requestId: string, quote: SolverQuote, occurredAtSeconds = now): Extract<PersistentMatcherEvent, { kind: "accept-solver-quote" }> {
+  return {
+    version: 1,
+    requestId,
+    occurredAtSeconds,
+    kind: "accept-solver-quote",
+    quote,
+    signature: `solver-signature:${requestId}`,
+  };
+}
+
+function solverQuote(
+  name: string,
+  side: 0 | 1,
+  amount: bigint,
+  price: bigint,
+  nonce: bigint,
+  accountEpoch = 0n,
+  expirySeconds = now + 4_000n,
+): SolverQuote {
   const sourceAccount = side === 0
     ? `${quoteNetwork}:0x${(nonce + 2_000n).toString(16).padStart(40, "0")}`
-    : `zcash:mainnet:t3-solver-${name}`;
+    : zcashAccount(`solver:${name}:source`);
   const recipientAccount = side === 0
-    ? `zcash:mainnet:t3-solver-${name}`
+    ? zcashAccount(`solver:${name}:recipient`)
     : `${quoteNetwork}:0x${(nonce + 3_000n).toString(16).padStart(40, "0")}`;
   return {
     version: 1,
@@ -138,8 +162,9 @@ function solverQuote(name: string, side: 0 | 1, amount: bigint, price: bigint, n
     pricePolicy: { kind: "fixed", priceTicks: price },
     maximumSlippageBps: 0n,
     feeBps: 0n,
+    accountEpoch,
     nonce,
-    expirySeconds: now + 4_000n,
+    expirySeconds,
     settlementProtocolVersion: protocol,
   };
 }
@@ -231,6 +256,14 @@ test("authenticates cancellation and epoch advancement before removing liquidity
   state = cancelled.state;
   assert.equal(cancelled.receipt.status, "cancelled");
   assert.equal(Object.keys(state.openOrders).length, 0);
+  assert.throws(() => apply(state, {
+    version: 1,
+    requestId: "cancel-maker-again",
+    occurredAtSeconds: now + 1n,
+    kind: "cancel-order",
+    orderHash,
+    signature: "cancel-signature",
+  }), /already applied|already.*cancel/i);
 
   const makerTwo = intent("maker-two", 1, 100n, 5_000n, 0, 2n, VENUE_CLOB);
   const sameAccountOrder = {
@@ -335,4 +368,76 @@ test("solver cancellation is authenticated and makes the quote unmatchable", () 
   const result = apply(state, acceptEvent("after-cancel", taker, now + 2n));
   assert.equal(result.receipt.status, "unfilled");
   assert.equal(result.receipt.swapPlanIds.length, 0);
+});
+
+test("solver quote claims reject nonce reuse and survive cancellation", () => {
+  const first = solverQuote("nonce-replay", 1, 100n, 5_000n, 1n);
+  let state = apply(createPersistentMatcher(configuration), acceptSolverEvent("quote-one", first)).state;
+  const different = solverQuote("nonce-replay", 1, 100n, 5_001n, 1n);
+  assert.notEqual(hashSolverQuote(first), hashSolverQuote(different));
+  assert.throws(() => apply(state, acceptSolverEvent("quote-different", different)), /nonce.*different/i);
+  const quoteHash = Object.keys(state.solverQuotes)[0];
+  assert.ok(quoteHash);
+  state = apply(state, {
+    version: 1,
+    requestId: "cancel-for-claim",
+    occurredAtSeconds: now + 1n,
+    kind: "cancel-solver-quote",
+    quoteHash: quoteHash as `0x${string}`,
+    signature: "cancel-signature",
+  }).state;
+  assert.equal(state.solverQuotes[quoteHash], undefined);
+  assert.equal(Object.values(state.solverNonceClaims).includes(quoteHash as `0x${string}`), true);
+  assert.throws(() => apply(state, acceptSolverEvent("quote-replay-after-cancel", first, now + 2n)), /replayed|nonce/i);
+});
+
+test("solver aggregate capacity is bounded per account and reclaimed by consumption", () => {
+  const limited: PersistentMatcherConfiguration = {
+    ...configuration,
+    solverQuotePolicy: { ...configuration.solverQuotePolicy, maximumCapacityBaseAtoms: 100n },
+  };
+  const first = solverQuote("aggregate", 1, 60n, 5_000n, 1n);
+  let state = apply(createPersistentMatcher(limited), acceptSolverEvent("aggregate-one", first)).state;
+  assert.throws(() => apply(state, acceptSolverEvent("aggregate-two", solverQuote("aggregate", 1, 41n, 5_001n, 2n))), /aggregate.*capacity/i);
+
+  const taker = intent("aggregate-taker", 0, 60n, 5_100n, 1, 2n, VENUE_SOLVER);
+  state = apply(state, acceptEvent("aggregate-consume", taker, now + 1n)).state;
+  assert.deepEqual(state.solverQuotes, {});
+  const replacement = solverQuote("aggregate", 1, 100n, 5_001n, 3n);
+  state = apply(state, acceptSolverEvent("aggregate-replacement", replacement, now + 2n)).state;
+  assert.equal(Object.keys(state.solverQuotes).length, 1);
+});
+
+test("expired and cancelled solver quote bodies free bounded slots while claims remain", () => {
+  const limited: PersistentMatcherConfiguration = {
+    ...configuration,
+    limits: { ...configuration.limits, maximumSolverQuotes: 1 },
+  };
+  const expiring = solverQuote("slot", 1, 100n, 5_000n, 1n, 0n, now + 1n);
+  let state = apply(createPersistentMatcher(limited), acceptSolverEvent("expiring", expiring)).state;
+  const replacement = solverQuote("slot", 1, 100n, 5_001n, 2n, 0n, now + 4_000n);
+  state = apply(state, acceptSolverEvent("after-expiry", replacement, now + 2n)).state;
+  assert.equal(Object.keys(state.solverQuotes).length, 1);
+  assert.equal(Object.values(state.solverNonceClaims).includes(hashSolverQuote(expiring)), true);
+});
+
+test("advancing a solver account epoch removes old quote bodies and permits the new epoch", () => {
+  const oldQuote = solverQuote("epoch", 1, 100n, 5_000n, 1n);
+  let state = apply(createPersistentMatcher(configuration), acceptSolverEvent("epoch-old", oldQuote)).state;
+  state = apply(state, {
+    version: 1,
+    requestId: "epoch-advance-solver",
+    occurredAtSeconds: now + 1n,
+    kind: "advance-epoch",
+    makerAccountId: oldQuote.solverAccountId,
+    nextEpoch: 1n,
+    authorizedSignerId: oldQuote.authorizedSignerId,
+    signature: "epoch-signature",
+  }).state;
+  assert.deepEqual(state.solverQuotes, {});
+  assert.equal(Object.values(state.solverNonceClaims).includes(hashSolverQuote(oldQuote)), true);
+  assert.throws(() => apply(state, acceptSolverEvent("epoch-stale", oldQuote, now + 2n)), /epoch.*active/i);
+  const current = solverQuote("epoch", 1, 100n, 5_000n, 1n, 1n);
+  state = apply(state, acceptSolverEvent("epoch-current", current, now + 2n)).state;
+  assert.equal(Object.keys(state.solverQuotes).length, 1);
 });

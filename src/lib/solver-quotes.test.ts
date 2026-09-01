@@ -54,6 +54,7 @@ function quote(overrides: Partial<SolverQuote> = {}): SolverQuote {
     },
     maximumSlippageBps: 100n,
     feeBps: 10n,
+    accountEpoch: 0n,
     nonce: 1n,
     expirySeconds: 10_600n,
     settlementProtocolVersion: policy.settlementProtocolVersion,
@@ -78,6 +79,7 @@ test("authenticates a quote that binds exact networks, assets, recipients, curve
   const order = solverQuoteAsOrder(accepted, 5_000n);
   assert.equal(order.makerAccountId, value.solverAccountId);
   assert.equal(order.recipientAccountId, value.recipientAccountId);
+  assert.equal(order.accountEpoch, value.accountEpoch);
   assert.equal(order.allowedVenues, 2);
 });
 
@@ -107,6 +109,7 @@ test("rejects expired, excessive, misbound, and cross-asset quotes", () => {
   assert.throws(() => assertSolverQuote(quote({ quoteAsset: "eip155:42161/erc20:0x3333333333333333333333333333333333333333" }), policy, 10_000n), /exact asset pair/);
   assert.throws(() => assertSolverQuote(quote({ feeBps: 31n }), policy, 10_000n), /fee/i);
   assert.throws(() => assertSolverQuote(quote({ matcherDomainHash: keccak256Text("other-matcher") }), policy, 10_000n), /matcher domain/);
+  assert.throws(() => assertSolverQuote(quote({ accountEpoch: 1n }), policy, 10_000n, 0n), /epoch/);
 });
 
 test("rejects non-monotonic curves and slippage beyond the signed bound", () => {
@@ -143,6 +146,7 @@ test("quote hashes change on recipient, asset, price, capacity, or protocol chan
     quote({ capacityBaseAtoms: 400_000_000n, pricePolicy: { kind: "fixed", priceTicks: 5_000n } }),
     quote({ pricePolicy: { kind: "fixed", priceTicks: 5_001n } }),
     quote({ settlementProtocolVersion: "transparent-htlc-v2" }),
+    quote({ accountEpoch: 1n }),
   ]) {
     assert.notEqual(hashSolverQuote(baseline), hashSolverQuote(changed));
   }

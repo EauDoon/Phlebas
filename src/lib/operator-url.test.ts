@@ -24,6 +24,8 @@ test("direct processes refuse 0.0.0.0 unless Compose allows it", async () => {
   assert.equal(listenHost(undefined, {}), "127.0.0.1");
   assert.throws(() => listenHost("0.0.0.0", {}), /loopback only/);
   assert.throws(() => listenHost("::", {}), /loopback only/);
+  assert.throws(() => listenHost("192.0.2.10", {}), /loopback only/);
+  assert.equal(listenHost("192.0.2.10", { PHLEBAS_ALLOW_NON_LOOPBACK: "1" }), "192.0.2.10");
   assert.equal(listenHost("0.0.0.0", { PHLEBAS_ALLOW_NON_LOOPBACK: "1" }), "0.0.0.0");
   assert.equal(listenHost("::", { PHLEBAS_ALLOW_NON_LOOPBACK: "1" }), "::");
 });

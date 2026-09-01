@@ -42,12 +42,17 @@ const solverPolicy: SolverQuotePolicy = {
 };
 const verifier: MatcherSignatureVerifier = { verify() {} };
 
+function zcashAccount(name: string): string {
+  const address = `t3${keccak256Text(`zcash:${name}`).slice(2).replaceAll("0", "a").slice(0, 33)}`;
+  return `zcash:mainnet:${address}`;
+}
+
 function order(name: string, side: 0 | 1, price: bigint, amount: bigint, sequence: bigint, tif: 0 | 1 | 2 = 1, venues = 3) {
   const sourceAccount = side === 0
     ? `${quoteNetwork}:0x${sequence.toString(16).padStart(40, "0")}`
-    : `zcash:mainnet:t3-${name}`;
+    : zcashAccount(`${name}:source`);
   const recipientAccount = side === 0
-    ? `zcash:mainnet:t3-${name}`
+    ? zcashAccount(`${name}:recipient`)
     : `${quoteNetwork}:0x${(sequence + 100n).toString(16).padStart(40, "0")}`;
   const intent: TypedOrderIntent = {
     makerAccountId: accountIdentifier(sourceAccount),
@@ -81,9 +86,9 @@ function order(name: string, side: 0 | 1, price: bigint, amount: bigint, sequenc
 function solver(name: string, side: 0 | 1, price: bigint, capacity: bigint, sequence: bigint, feeBps = 0n) {
   const sourceAccount = side === 0
     ? `${quoteNetwork}:0x${(sequence + 200n).toString(16).padStart(40, "0")}`
-    : `zcash:mainnet:t3-solver-${name}`;
+    : zcashAccount(`solver:${name}:source`);
   const recipientAccount = side === 0
-    ? `zcash:mainnet:t3-solver-${name}`
+    ? zcashAccount(`solver:${name}:recipient`)
     : `${quoteNetwork}:0x${(sequence + 300n).toString(16).padStart(40, "0")}`;
   const value: SolverQuote = {
     version: 1,
@@ -103,6 +108,7 @@ function solver(name: string, side: 0 | 1, price: bigint, capacity: bigint, sequ
     pricePolicy: { kind: "fixed", priceTicks: price },
     maximumSlippageBps: 0n,
     feeBps,
+    accountEpoch: 0n,
     nonce: sequence,
     expirySeconds: now + 5_000n,
     settlementProtocolVersion: protocol,
@@ -170,6 +176,20 @@ test("honors venue masks, quote expiry, fee caps, and self-trade prevention", ()
   const active = solver("expiry", 1, 5_000n, 100_000_000n, 3n);
   const expired = { ...active, quote: { ...active.quote, expirySeconds: now } };
   assert.equal(compare(solverOnly, [], [expired]).selected, null);
+});
+
+test("skips fee-adjusted limit and dust segments without failing the taker command", () => {
+  const taker = order("limit-taker", 0, 5_000n, 100_000_000n, 10n);
+  const book = order("book-fallback", 1, 4_990n, 100_000_000n, 1n, 0);
+  const invalidAllInSolver = solver("all-in-limit", 1, 5_000n, 100_000_000n, 2n, 10n);
+  const withFallback = compare(taker, [book], [invalidAllInSolver]);
+  assert.equal(withFallback.selected?.kind, "order-book");
+  assert.equal(withFallback.selected?.complete, true);
+  assert.equal(withFallback.candidates.some((candidate) => candidate.kind === "solver" && candidate.filledBaseAtoms > 0n), false);
+
+  const dustTaker = order("dust-taker", 0, 1n, 1n, 20n, 1, VENUE_SOLVER);
+  const dustSolver = solver("dust-solver", 1, 1n, 1n, 21n);
+  assert.equal(compare(dustTaker, [], [dustSolver]).selected, null);
 });
 
 test("tie-breaking is deterministic and prefers fewer fills before route rank", () => {

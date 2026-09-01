@@ -41,6 +41,7 @@ export type SolverQuote = Readonly<{
   pricePolicy: SolverPricePolicy;
   maximumSlippageBps: bigint;
   feeBps: bigint;
+  accountEpoch: bigint;
   nonce: bigint;
   expirySeconds: bigint;
   settlementProtocolVersion: string;
@@ -131,7 +132,12 @@ function assertCurveSlippage(quote: SolverQuote, levels: readonly Readonly<{ pri
   }
 }
 
-export function assertSolverQuote(quote: SolverQuote, policy: SolverQuotePolicy, nowSeconds: bigint): void {
+export function assertSolverQuote(
+  quote: SolverQuote,
+  policy: SolverQuotePolicy,
+  nowSeconds: bigint,
+  expectedAccountEpoch?: bigint,
+): void {
   if (quote.version !== SOLVER_QUOTE_VERSION) throw new Error("Solver quote version is unsupported");
   if (normalizeHex32(quote.matcherDomainHash, "Solver matcher domain hash")
     !== normalizeHex32(policy.matcherDomainHash, "Configured matcher domain hash")) {
@@ -153,7 +159,12 @@ export function assertSolverQuote(quote: SolverQuote, policy: SolverQuotePolicy,
   assertUint(policy.maximumCapacityBaseAtoms, UINT256_MAX, "Maximum solver capacity", true);
   assertUint(quote.capacityBaseAtoms, policy.maximumCapacityBaseAtoms, "Solver capacity", true);
   assertUint(quote.minimumFillBaseAtoms, quote.capacityBaseAtoms, "Solver minimum fill", true);
+  assertUint(quote.accountEpoch, UINT64_MAX, "Solver account epoch");
   assertUint(quote.nonce, UINT64_MAX, "Solver quote nonce");
+  if (expectedAccountEpoch !== undefined) {
+    assertUint(expectedAccountEpoch, UINT64_MAX, "Expected solver account epoch");
+    if (quote.accountEpoch !== expectedAccountEpoch) throw new Error("Solver quote account epoch is not active");
+  }
   assertUint(nowSeconds, UINT64_MAX, "Solver quote acceptance time");
   assertUint(quote.expirySeconds, UINT64_MAX, "Solver quote expiry", true);
   assertUint(policy.maximumLifetimeSeconds, UINT64_MAX, "Maximum solver quote lifetime", true);
@@ -190,6 +201,7 @@ function quotePayload(quote: SolverQuote): string {
     `pricePolicy=${quote.pricePolicy.kind}:${prices}`,
     `maximumSlippageBps=${quote.maximumSlippageBps}`,
     `feeBps=${quote.feeBps}`,
+    `accountEpoch=${quote.accountEpoch}`,
     `nonce=${quote.nonce}`,
     `expirySeconds=${quote.expirySeconds}`,
     `settlementProtocolVersion=${quote.settlementProtocolVersion}`,
@@ -217,8 +229,9 @@ export function acceptSolverQuote(
   nowSeconds: bigint,
   policy: SolverQuotePolicy,
   verifier: MatcherSignatureVerifier,
+  expectedAccountEpoch?: bigint,
 ): AcceptedSolverQuote {
-  assertSolverQuote(quote, policy, nowSeconds);
+  assertSolverQuote(quote, policy, nowSeconds, expectedAccountEpoch);
   assertUint(acceptedSequence, UINT64_MAX, "Solver quote acceptance sequence", true);
   const quoteHash = hashSolverQuote(quote);
   verifier.verify(quoteHash, signature, normalizeHex32(quote.authorizedSignerId, "Solver authorized signer ID"));
@@ -286,7 +299,7 @@ export function solverQuoteAsOrder(
     baseAmountAtoms: accepted.quote.capacityBaseAtoms,
     limitPriceTicks: executionPriceTicks,
     nonce: accepted.quote.nonce,
-    accountEpoch: 0n,
+    accountEpoch: accepted.quote.accountEpoch,
     expiry: accepted.quote.expirySeconds,
     salt: accepted.quoteHash,
     timeInForce: 0,

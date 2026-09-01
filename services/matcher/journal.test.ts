@@ -53,6 +53,29 @@ test("serializes concurrent appends and rejects the stale expected head", async 
   }
 });
 
+test("preflights the journal byte limit and detects external size changes", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-journal-size-"));
+  const path = join(directory, "events.jsonl");
+  try {
+    const empty = await readJournal(path, { maxBytes: 1_024 });
+    const first = await appendJournal(path, empty, { kind: "one" }, { maxBytes: 1_024 });
+    const afterFirst = await readJournal(path, { maxBytes: 1_024 });
+    assert.equal(afterFirst.byteLength, Buffer.byteLength(await readFile(path, "utf8"), "utf8"));
+    await writeFile(path, `${await readFile(path, "utf8")}\n`);
+    await assert.rejects(
+      () => appendJournal(path, afterFirst, { kind: "two" }, { maxBytes: 1_024 }),
+      /size changed/,
+    );
+
+    await assert.rejects(
+      () => readJournal(path, { maxBytes: first.recordHash.length }),
+      /byte limit/,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("detects omission, sequence gaps, record changes, and partial trailing writes", async () => {
   const directory = await mkdtemp(join(tmpdir(), "phlebas-journal-corrupt-"));
   const path = join(directory, "events.jsonl");

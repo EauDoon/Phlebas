@@ -1,7 +1,9 @@
 import { hashTypedOrder, type OrderDomain, type TypedOrderIntent } from "./eip712-order.ts";
 import { keccak256Text } from "./keccak.ts";
 import {
+  MAX_ORDER_FEE_BPS,
   UINT64_MAX,
+  UINT256_MAX,
   accountIdentifier,
   adapterIdentifier,
   assetIdentifier,
@@ -16,9 +18,12 @@ export const NO_VALUE_SWAP_GATES = [
   "approved-stablecoin-escrow-contract",
   "current-chain-and-finality-evidence",
   "wallet-leg-authorizations",
+  "per-fill-shared-hashlock-authorization",
   "legal-release-approval",
   "explicit-transaction-authorization",
 ] as const;
+
+export const HASHLOCK_STATUS = "unresolved-wallet-authorization" as const;
 
 export type ExactAsset = Readonly<{
   network: string;
@@ -65,7 +70,9 @@ export type AtomicSwapLeg = Readonly<{
   claimant: string;
   refundAccount: string;
   hashAlgorithm: "sha256";
-  hashlockDigest: Hex32;
+  hashlockStatus: typeof HASHLOCK_STATUS;
+  hashlockDigest: Hex32 | null;
+  hashlockCommitmentRequestId: Hex32;
   refundLock: Readonly<{
     mode: "absolute-time";
     valueSeconds: string;
@@ -87,8 +94,13 @@ export type AtomicSwapPlan = Readonly<{
   counterpartyOrderHash: Hex32;
   executionPriceTicks: string;
   baseAmountAtoms: string;
+  grossQuoteAtoms: string;
+  feeBps: string;
+  feeQuoteAtoms: string;
   quoteTransferAtoms: string;
-  hashlockDigest: Hex32;
+  hashlockStatus: typeof HASHLOCK_STATUS;
+  hashlockDigest: Hex32 | null;
+  hashlockCommitmentRequestId: Hex32;
   stablecoinLeg: AtomicSwapLeg;
   zcashLeg: AtomicSwapLeg;
   deadlineOrdering: "stablecoin-refund-before-zcash-refund";
@@ -119,6 +131,67 @@ function assertConfirmations(value: number, label: string): void {
   if (!Number.isSafeInteger(value) || value <= 0 || value > 10_000) {
     throw new RangeError(`${label} must be a positive bounded integer`);
   }
+}
+
+function divideUp(numerator: bigint, denominator: bigint): bigint {
+  if (numerator === 0n) return 0n;
+  return ((numerator - 1n) / denominator) + 1n;
+}
+
+function quoteForFill(baseAmountAtoms: bigint, executionPriceTicks: bigint, sellerSide: boolean): bigint {
+  const numerator = baseAmountAtoms * executionPriceTicks;
+  return sellerSide ? divideUp(numerator, 10_000n) : numerator / 10_000n;
+}
+
+function assertEvmAccount(account: string, network: string, label: string): void {
+  if (!/^eip155:[1-9][0-9]*$/.test(network)
+    || !account.startsWith(`${network}:`)
+    || !/^0x[0-9a-fA-F]{40}$/.test(account.slice(network.length + 1))) {
+    throw new Error(`${label} must be an EVM account on the exact ${network} network`);
+  }
+}
+
+function assertZcashTransparentAccount(account: string, environment: ExactAsset["environment"], label: string): void {
+  const prefix = `zcash:${environment}:`;
+  const address = account.startsWith(prefix) ? account.slice(prefix.length) : "";
+  const addressPattern = environment === "mainnet"
+    ? /^(?:t1|t3)[1-9A-HJ-NP-Za-km-z]{33}$/
+    : /^(?:tm|t2)[1-9A-HJ-NP-Za-km-z]{33}$/;
+  if (!addressPattern.test(address)) {
+    throw new Error(`${label} must be a transparent ${environment} Zcash account`);
+  }
+}
+
+export function assertSettlementAccountRoles(
+  side: TypedOrderIntent["side"],
+  accounts: WalletSettlementAccounts,
+  pair: AtomicSwapPair,
+  label: string,
+): void {
+  if (side === 0) {
+    assertEvmAccount(accounts.sourceAccount, pair.quote.network, `${label} buyer source account`);
+    assertZcashTransparentAccount(accounts.recipientAccount, pair.base.environment, `${label} buyer recipient account`);
+  } else {
+    assertZcashTransparentAccount(accounts.sourceAccount, pair.base.environment, `${label} seller source account`);
+    assertEvmAccount(accounts.recipientAccount, pair.quote.network, `${label} seller recipient account`);
+  }
+}
+
+function assertQuoteLimits(
+  baseAmountAtoms: bigint,
+  executionPriceTicks: bigint,
+  quoteTransferAtoms: bigint,
+  buyer: AtomicSwapParty,
+  seller: AtomicSwapParty,
+): void {
+  const minimumForSeller = divideUp(baseAmountAtoms * seller.order.limitPriceTicks, 10_000n);
+  const maximumForBuyer = (baseAmountAtoms * buyer.order.limitPriceTicks) / 10_000n;
+  if (minimumForSeller > maximumForBuyer
+    || quoteTransferAtoms < minimumForSeller
+    || quoteTransferAtoms > maximumForBuyer) {
+    throw new Error("Atomic-swap quote rounding cannot preserve both signed limits");
+  }
+  if (executionPriceTicks <= 0n) throw new RangeError("Execution price must be positive");
 }
 
 export function assertSettlementAccounts(order: TypedOrderIntent, accounts: WalletSettlementAccounts): void {
@@ -163,7 +236,9 @@ function planPayload(plan: Omit<AtomicSwapPlan, "planId">): string {
     value.claimant,
     value.refundAccount,
     value.hashAlgorithm,
+    value.hashlockStatus,
     value.hashlockDigest,
+    value.hashlockCommitmentRequestId,
     value.refundLock.mode,
     value.refundLock.valueSeconds,
     value.requiredConfirmations,
@@ -182,8 +257,13 @@ function planPayload(plan: Omit<AtomicSwapPlan, "planId">): string {
     `counterpartyOrderHash=${plan.counterpartyOrderHash}`,
     `executionPriceTicks=${plan.executionPriceTicks}`,
     `baseAmountAtoms=${plan.baseAmountAtoms}`,
+    `grossQuoteAtoms=${plan.grossQuoteAtoms}`,
+    `feeBps=${plan.feeBps}`,
+    `feeQuoteAtoms=${plan.feeQuoteAtoms}`,
     `quoteTransferAtoms=${plan.quoteTransferAtoms}`,
+    `hashlockStatus=${plan.hashlockStatus}`,
     `hashlockDigest=${plan.hashlockDigest}`,
+    `hashlockCommitmentRequestId=${plan.hashlockCommitmentRequestId}`,
     `stablecoin=${leg(plan.stablecoinLeg)}`,
     `zcash=${leg(plan.zcashLeg)}`,
     `deadlineOrdering=${plan.deadlineOrdering}`,
@@ -202,7 +282,7 @@ export function createAtomicSwapPlan(input: {
   acceptedAtSeconds: bigint;
   executionPriceTicks: bigint;
   baseAmountAtoms: bigint;
-  quoteTransferAtoms: bigint;
+  feeBps: bigint;
   policy: AtomicSwapPolicy;
 }): AtomicSwapPlan {
   assertPolicy(input.policy);
@@ -215,8 +295,12 @@ export function createAtomicSwapPlan(input: {
   if (typeof input.executionPriceTicks !== "bigint" || input.executionPriceTicks <= 0n) {
     throw new RangeError("Execution price must be positive");
   }
+  if (input.executionPriceTicks > UINT256_MAX) throw new RangeError("Execution price must fit uint256");
   if (typeof input.baseAmountAtoms !== "bigint" || input.baseAmountAtoms <= 0n) throw new RangeError("Base amount must be positive");
-  if (typeof input.quoteTransferAtoms !== "bigint" || input.quoteTransferAtoms <= 0n) throw new RangeError("Quote transfer must be positive");
+  if (input.baseAmountAtoms > UINT256_MAX) throw new RangeError("Base amount must fit uint256");
+  if (typeof input.feeBps !== "bigint" || input.feeBps < 0n || input.feeBps > MAX_ORDER_FEE_BPS) {
+    throw new RangeError("Fee must be a non-negative value no greater than the protocol fee cap");
+  }
   if (input.taker.order.side === input.counterparty.order.side) throw new Error("Atomic-swap parties must be on opposite sides");
   assertPair(input.taker.order, input.policy.pair);
   assertPair(input.counterparty.order, input.policy.pair);
@@ -227,6 +311,8 @@ export function createAtomicSwapPlan(input: {
   }
   assertSettlementAccounts(input.taker.order, input.taker.accounts);
   assertSettlementAccounts(input.counterparty.order, input.counterparty.accounts);
+  assertSettlementAccountRoles(input.taker.order.side, input.taker.accounts, input.policy.pair, "Taker");
+  assertSettlementAccountRoles(input.counterparty.order.side, input.counterparty.accounts, input.policy.pair, "Counterparty");
   const takerOrderHash = normalizeHex32(input.taker.orderHash, "Taker order hash");
   const counterpartyOrderHash = normalizeHex32(input.counterparty.orderHash, "Counterparty order hash");
   if (takerOrderHash === counterpartyOrderHash) throw new Error("Atomic-swap parties must use distinct orders");
@@ -252,18 +338,51 @@ export function createAtomicSwapPlan(input: {
     || (input.counterparty.order.side === 1 && input.executionPriceTicks < input.counterparty.order.limitPriceTicks)) {
     throw new Error("Atomic-swap execution price violates a signed limit");
   }
-  const hashlockDigest = normalizeHex32(input.taker.order.salt, "Swap hashlock digest");
-  if (hashlockDigest === `0x${"00".repeat(32)}`) throw new Error("Swap hashlock digest cannot be zero");
 
   const buyer = input.taker.order.side === 0 ? input.taker : input.counterparty;
   const seller = input.taker.order.side === 1 ? input.taker : input.counterparty;
+  if (input.feeBps > input.taker.order.maximumFeeBps || input.feeBps > input.counterparty.order.maximumFeeBps) {
+    throw new Error("Fee exceeds a signed maximum fee cap");
+  }
+  const grossQuoteAtoms = quoteForFill(
+    input.baseAmountAtoms,
+    input.executionPriceTicks,
+    input.counterparty.order.side === 1,
+  );
+  if (grossQuoteAtoms <= 0n) throw new Error("Quote amount is dust");
+  const feeQuoteAtoms = (grossQuoteAtoms * input.feeBps) / 10_000n;
+  const quoteTransferAtoms = input.taker.order.side === 0
+    ? grossQuoteAtoms + feeQuoteAtoms
+    : grossQuoteAtoms - feeQuoteAtoms;
+  if (grossQuoteAtoms > UINT256_MAX || feeQuoteAtoms > UINT256_MAX || quoteTransferAtoms <= 0n || quoteTransferAtoms > UINT256_MAX) {
+    throw new RangeError("Quote settlement amount is outside uint256 or is dust");
+  }
+  assertQuoteLimits(input.baseAmountAtoms, input.executionPriceTicks, quoteTransferAtoms, buyer, seller);
+  const hashlockStatus = HASHLOCK_STATUS;
+  const hashlockDigest = null;
+  const hashlockCommitmentRequestId = keccak256Text([
+    "PhlebasHashlockCommitmentRequest",
+    "version=1",
+    `venue=${input.venue}`,
+    `fillIndex=${input.fillIndex}`,
+    `takerOrderHash=${takerOrderHash}`,
+    `counterpartyOrderHash=${counterpartyOrderHash}`,
+    `executionPriceTicks=${input.executionPriceTicks}`,
+    `baseAmountAtoms=${input.baseAmountAtoms}`,
+    `grossQuoteAtoms=${grossQuoteAtoms}`,
+    `feeBps=${input.feeBps}`,
+    `feeQuoteAtoms=${feeQuoteAtoms}`,
+    `quoteTransferAtoms=${quoteTransferAtoms}`,
+  ].join("\n"));
   const stablecoinRefund = input.acceptedAtSeconds + input.policy.stablecoinRefundDelaySeconds;
   const zcashRefund = stablecoinRefund + input.policy.zcashRefundSafetyDeltaSeconds;
   if (zcashRefund > UINT64_MAX) throw new RangeError("Atomic-swap refund time exceeds uint64");
 
   const common = {
     hashAlgorithm: "sha256" as const,
+    hashlockStatus,
     hashlockDigest,
+    hashlockCommitmentRequestId,
     walletAuthorization: "required" as const,
     broadcast: "disabled" as const,
     transactionTemplate: "unresolved-no-value" as const,
@@ -274,7 +393,7 @@ export function createAtomicSwapPlan(input: {
     network: input.policy.pair.quote.network,
     asset: input.policy.pair.quote.asset,
     decimals: input.policy.pair.quote.decimals,
-    amountAtoms: input.quoteTransferAtoms.toString(),
+    amountAtoms: quoteTransferAtoms.toString(),
     funder: buyer.accounts.sourceAccount,
     claimant: seller.accounts.recipientAccount,
     refundAccount: buyer.accounts.sourceAccount,
@@ -305,8 +424,13 @@ export function createAtomicSwapPlan(input: {
     counterpartyOrderHash,
     executionPriceTicks: input.executionPriceTicks.toString(),
     baseAmountAtoms: input.baseAmountAtoms.toString(),
-    quoteTransferAtoms: input.quoteTransferAtoms.toString(),
+    grossQuoteAtoms: grossQuoteAtoms.toString(),
+    feeBps: input.feeBps.toString(),
+    feeQuoteAtoms: feeQuoteAtoms.toString(),
+    quoteTransferAtoms: quoteTransferAtoms.toString(),
+    hashlockStatus,
     hashlockDigest,
+    hashlockCommitmentRequestId,
     stablecoinLeg,
     zcashLeg,
     deadlineOrdering: "stablecoin-refund-before-zcash-refund",

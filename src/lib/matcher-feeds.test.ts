@@ -3,9 +3,16 @@ import test from "node:test";
 
 import { createOrderDomain, hashOrderDomain, hashTypedOrder, type TypedOrderIntent } from "./eip712-order.ts";
 import { keccak256Text } from "./keccak.ts";
-import { matcherBookFeed, matcherExecutionFeed, matcherSolverQuoteFeed } from "./matcher-feeds.ts";
+import {
+  matcherBookFeed,
+  matcherExecutionFeed,
+  matcherExecutionFeedPage,
+  matcherSolverQuoteFeed,
+  matcherSolverQuoteFeedPage,
+} from "./matcher-feeds.ts";
 import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier } from "./order-domain.ts";
 import { createPersistentMatcher, type PersistentMatcherConfiguration, type PersistentMatcherState } from "./persistent-matcher.ts";
+import type { AcceptedSolverQuote } from "./solver-quotes.ts";
 
 const domain = createOrderDomain(42161n, "0x1111111111111111111111111111111111111111");
 const baseNetwork = "bip122:00040fe8ec8471911baa1db1266ea15d";
@@ -113,4 +120,94 @@ test("bounds feeds and applies stable exclusive cursors", () => {
   assert.deepEqual(matcherSolverQuoteFeed(value, 1_000n), []);
   assert.throws(() => matcherBookFeed(value, 1_000n, 101), /Feed limit/);
   assert.throws(() => matcherExecutionFeed(value, -1n), /cursor/);
+});
+
+test("publishes solver IDs and fill terms without signatures or settlement accounts", () => {
+  const value = state();
+  const quoteHash = keccak256Text("public-quote");
+  const accepted: AcceptedSolverQuote = {
+    quoteHash,
+    acceptedSequence: 10n,
+    acceptedAtSeconds: 1_000n,
+    remainingCapacityBaseAtoms: 900n,
+    signature: "solver-secret-signature",
+    quote: {
+      version: 1,
+      matcherDomainHash: hashOrderDomain(domain),
+      solverAccountId: accountIdentifier(`${quoteNetwork}:solver-public`),
+      authorizedSignerId: accountIdentifier(`${quoteNetwork}:signer-public`),
+      recipientAccountId: accountIdentifier(`${quoteNetwork}:recipient-public`),
+      sourceAccount: `${quoteNetwork}:source-public`,
+      recipientAccount: `${quoteNetwork}:recipient-public`,
+      baseNetwork,
+      baseAsset,
+      quoteNetwork,
+      quoteAsset,
+      side: 1,
+      capacityBaseAtoms: 1_000n,
+      minimumFillBaseAtoms: 10n,
+      pricePolicy: { kind: "fixed", priceTicks: 5_100n },
+      maximumSlippageBps: 100n,
+      feeBps: 10n,
+      accountEpoch: 0n,
+      nonce: 1n,
+      expirySeconds: 1_500n,
+      settlementProtocolVersion: protocol,
+    },
+  };
+  const withQuote = { ...value, solverQuotes: { [quoteHash]: accepted } };
+  const page = matcherSolverQuoteFeedPage(withQuote, 1_000n, 1);
+  const serialized = JSON.stringify(page, (_key, item) => typeof item === "bigint" ? item.toString() : item);
+  for (const sensitive of [
+    "solver-secret-signature",
+    "sourceAccount",
+    "recipientAccount",
+    "solverAccountId",
+    "authorizedSignerId",
+    "recipientAccountId",
+  ]) assert.equal(serialized.includes(sensitive), false, sensitive);
+  assert.equal(page.quotes[0]?.quoteHash, quoteHash);
+  assert.equal(page.quotes[0]?.quote.feeBps, 10n);
+  assert.equal(page.hasMore, false);
+});
+
+test("publishes execution IDs and fill terms without swap plans or account data", () => {
+  const value = state();
+  const execution = {
+    sequence: 8n,
+    takerOrderHash: keccak256Text("public-taker"),
+    route: {
+      kind: "solver" as const,
+      fills: [{
+        venue: "solver" as const,
+        counterpartyOrderHash: keccak256Text("public-counterparty"),
+        counterpartySequence: 7n,
+        solverQuoteHash: keccak256Text("public-quote"),
+        executionPriceTicks: 5_100n,
+        baseAmountAtoms: 25n,
+        grossQuoteAtoms: 12_750n,
+        feeQuoteAtoms: 13n,
+        quoteTransferAtoms: 12_763n,
+        swapPlan: {
+          planId: keccak256Text("private-plan"),
+          sourceAccount: "private-source-account",
+          recipientAccount: "private-recipient-account",
+        },
+      }],
+      filledBaseAtoms: 25n,
+      remainingBaseAtoms: 0n,
+      quoteTransferAtoms: 12_763n,
+      complete: true,
+    },
+  } as unknown as PersistentMatcherState["executions"][number];
+  const page = matcherExecutionFeedPage({ ...value, executions: [execution, { ...execution, sequence: 9n }] }, 0n, 1);
+  const serialized = JSON.stringify(page, (_key, item) => typeof item === "bigint" ? item.toString() : item);
+  for (const sensitive of ["swapPlan", "private-plan", "sourceAccount", "recipientAccount"]) {
+    assert.equal(serialized.includes(sensitive), false, sensitive);
+  }
+  assert.equal(page.executions.length, 1);
+  assert.equal(page.executions[0]?.route?.fills[0]?.baseAmountAtoms, 25n);
+  assert.equal(page.nextAfter, 8n);
+  assert.equal(page.hasMore, true);
+  assert.equal(matcherExecutionFeed({ ...value, executions: [execution] }, 0n)[0]?.route?.fills[0]?.quoteTransferAtoms, 12_763n);
 });
