@@ -4,7 +4,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 
 import { activateSkipLink } from "@/lib/skip-link";
-
+import { nextSkipNavState, type SkipNavState } from "../lib/skip-nav-state.ts";
 import styles from "./terminal.module.css";
 
 export function SimulationFrame({
@@ -20,19 +20,22 @@ export function SimulationFrame({
   useEffect(() => {
     const nav = skipNavRef.current;
     if (!nav) return;
-    const setState = (state: "hidden" | "visible" | "hidden-after-activation") => {
-      nav.setAttribute("data-skip-nav-state", state);
+    let state: SkipNavState = "hidden";
+    const setState = (next: SkipNavState) => {
+      state = next;
+      nav.setAttribute("data-skip-nav-state", next);
     };
-    const onActivate = () => setState("hidden-after-activation");
-    const onFocusIn = () => setState("visible");
+    const onClick = () => setState(nextSkipNavState(state, { kind: "click" }));
+    const onFocusIn = () => setState(nextSkipNavState(state, { kind: "focusin" }));
     const onKeydown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setState("hidden-after-activation");
+      const next = nextSkipNavState(state, { kind: "keydown", key: event.key });
+      if (next !== state) setState(next);
     };
-    nav.addEventListener("click", onActivate);
+    nav.addEventListener("click", onClick);
     nav.addEventListener("focusin", onFocusIn);
     nav.addEventListener("keydown", onKeydown);
     return () => {
-      nav.removeEventListener("click", onActivate);
+      nav.removeEventListener("click", onClick);
       nav.removeEventListener("focusin", onFocusIn);
       nav.removeEventListener("keydown", onKeydown);
     };
