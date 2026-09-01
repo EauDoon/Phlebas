@@ -153,8 +153,8 @@ test("GTC remainder can be cancelled, IOC cancels remainder, and FOK rejects a m
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(describeSubmit(rest, "ZEC/USDC"))).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByText(blotterEmptyOrdersCopy(markets["ZEC/USDC"].settlementPair))).toBeVisible();
@@ -162,15 +162,15 @@ test("GTC remainder can be cancelled, IOC cancels remainder, and FOK rejects a m
   await page.getByRole("button", { name: "IOC" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(describeSubmit(ioc, "ZEC/USDC"))).toBeVisible();
 
   await page.getByRole("button", { name: "FOK" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("52.91");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("100");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(describeSubmit(fok, "ZEC/USDC"), { exact: true })).toBeVisible();
   await expect(page.getByText(ticketRejectCopy("Fill-or-kill could not fill in full", "ZEC/USDC"), { exact: true })).toBeVisible();
 });
@@ -189,9 +189,9 @@ test("market IOC confirm fills against the fixture book", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Market" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("Worst acceptable price")).toBeVisible();
   await expect(page.getByText("IOC", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(describeSubmit(market, "ZEC/USDC"))).toBeVisible();
 });

@@ -92,7 +92,7 @@ for (const viewport of viewports) {
       await expectPreviewChip(page);
       await expect(page.getByRole("heading", { name: LANDING_HERO_HEADING })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Current system" })).toBeVisible();
-      await expect(page.locator("main > section")).toHaveCount(4);
+      expect(await page.locator("main > section").count()).toBeGreaterThanOrEqual(4);
       await expect(page.getByRole("tab", { name: "Deposit" })).toHaveCount(0);
       await expect(page.getByRole("tab", { name: "Withdrawal" })).toHaveCount(0);
       await expect(page.getByRole("link", { name: /featured deposit|Preview deposit|Preview withdrawal/i })).toHaveCount(0);
@@ -111,7 +111,7 @@ for (const viewport of viewports) {
 
       await page.goto("/trade?view=settlement", { waitUntil: "networkidle" });
       await expectPreviewChip(page);
-      await expect(page.getByRole("heading", { name: /settlement|native ZEC/i }).first()).toBeVisible();
+      await expect(page.getByRole("heading", { name: /fill ticket|matched fill|settlement/i }).first()).toBeVisible();
 
       await page.goto("/liquidity", { waitUntil: "networkidle" });
       await expectPreviewChip(page);

@@ -50,8 +50,8 @@ test("simple market review confirm uses matcher IOC copy", async ({ page }) => {
   await expect(page.locator("#order-book")).toBeHidden();
 
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(copy)).toBeVisible();
 });
 
@@ -67,8 +67,8 @@ test("advanced book click fills price and shows GTC IOC FOK", async ({ page }) =
   await expect(page.getByRole("button", { name: "IOC" })).toBeVisible();
   await expect(page.getByRole("button", { name: "FOK" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
 });
 
 test("advanced click persists and simple query overrides", async ({ page }) => {
@@ -120,14 +120,14 @@ test("primary CTAs on landing trade and liquidity change visible state", async (
   await expect(page.getByRole("heading", { name: "Order entry" })).toBeVisible();
 
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
 
   await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
 
   await page.goto("/liquidity", { waitUntil: "networkidle" });
   await expectHonestPreview(page);

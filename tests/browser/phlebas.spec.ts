@@ -346,9 +346,9 @@ test("local matcher fills a buy against the fixture ask", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Ask 52.91" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("This preview labels native ZEC. It is not live settlement.")).toBeVisible();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(/Filled against the local ZEC\/USDC book/)).toBeVisible();
   await expect(page.getByText("Nothing was signed or submitted to a chain.")).toBeVisible();
   await expect(page.getByRole("tab", { name: "Fills" })).toBeVisible();
@@ -360,8 +360,8 @@ test("price improvement cannot create a free ZEC atom", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("100");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("0.00000001");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(/Dust-blocked crossed remainder was cancelled/)).toBeVisible();
 
   await page.getByRole("tab", { name: "Inventory" }).click();
@@ -426,7 +426,7 @@ test("leaving Architecture for Trade drops demo=incidents and return restores it
   await nav.getByRole("tab", { name: "Trade" }).click();
   await expect(page).toHaveURL(/view=trade/);
   await expect(page).not.toHaveURL(/demo=incidents/);
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
   await expect(page.getByText("Status field architecture-demonstration.")).toHaveCount(0);
   await nav.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
@@ -495,33 +495,33 @@ test("non-payable ZIP 321 format example has no issue or copy action", async ({ 
 test("stale market data disables preview-to-sign and retries to illustrative", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByLabel("Market statistics").getByText("Session last · ZEC-USDC")).toBeVisible();
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await page.getByRole("radio", { name: "Stale" }).click();
   await expect(page.getByText("Market data stale", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("The illustrative feed is marked delayed. Stale data cannot move from preview to confirm. Settled as ZEC-USDC.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeEnabled();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
   await expect(page).toHaveURL(/\/trade/);
 });
 
 test("Escape leaves review without confirming a session order", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
 });
 
 test("review names the cheaper venue before confirm", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Ask 52.91" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("CLOB cheaper for a full fill", { exact: true })).toBeVisible();
   await expect(page.getByText("Confirm submits only the local CLOB")).toBeVisible();
   await expect(page.getByText("Leaves the session")).toBeVisible();
@@ -537,8 +537,8 @@ test("GTC remainder can be cancelled and epoch invalidation is visible", async (
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
   await expect(page.getByRole("table", { name: /Resting session orders on the local ZEC\/USDC book, settled as ZEC-USDC/ })).toBeVisible();
   await page.getByRole("button", { name: "Invalidate older session orders" }).click();
@@ -556,7 +556,7 @@ test("USDT market names USDT settlement and empty feed shows no depth", async ({
   await expect(page.getByText("No resting depth. The local book is empty. Settled as ZEC-USDT.")).toBeVisible();
   await expect(page.getByText("No resting depth. Review is disabled until the local book has size. Settled as ZEC-USDT.")).toBeVisible();
   await expect(page.getByText("session last · ZEC-USDT")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   await page.getByRole("radio", { name: "Loading" }).click();
   await expect(page.getByText("Loading market data", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("The ticket is waiting for a book snapshot. Retry is safe; nothing was submitted. Settled as ZEC-USDT.")).toBeVisible();
@@ -704,15 +704,15 @@ test("IOC cancels an unfilled remainder and FOK rejects a full miss", async ({ p
   await page.getByRole("button", { name: "IOC" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(/Unfilled size was cancelled/)).toBeVisible();
 
   await page.getByRole("button", { name: "FOK" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("52.91");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("100");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText("Rejected. Fill-or-kill could not fill in full. Settled as ZEC-USDC.", { exact: true })).toBeVisible();
 });
 
@@ -721,15 +721,15 @@ test("FOK reject copy names ZEC-USDT if market switches while rejected panel is 
   await page.getByRole("button", { name: "FOK" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("52.91");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("100");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Fill-or-kill could not fill in full. Settled as ZEC-USDC.", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Fill-or-kill could not fill in full. Settled as ZEC-USDT.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
 test("invalidate-epoch control is keyboard focusable", async ({ page }) => {
@@ -750,7 +750,7 @@ test("market orders are IOC with a visible worst price", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Market" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("Worst acceptable price")).toBeVisible();
   await expect(page.getByText("IOC", { exact: true })).toBeVisible();
 });
@@ -765,11 +765,11 @@ test("320px market buy at zero slippage does not fill beyond the signed worst pr
   await expect(page.getByRole("button", { name: "GTC" })).toHaveCount(0);
   await page.getByRole("textbox", { name: "Maximum slippage percent" }).fill("0");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("Worst acceptable price")).toBeVisible();
   await expect(page.getByText("Worst acceptable price").locator("xpath=following-sibling::dd")).toHaveText("52.84 USDC");
   await expect(page.getByText("IOC", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText("Immediate-or-cancel finished with no fills")).toBeVisible();
   await expect(page.getByRole("button", { name: "Ask 52.91" })).toBeVisible();
   await page.getByRole("tab", { name: "Fills" }).click();
@@ -779,9 +779,9 @@ test("320px market buy at zero slippage does not fill beyond the signed worst pr
 test("invalid expiry stays on the ticket and does not open review", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1.5");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("Expiry must be a whole unix time, or 0 for none.").first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
 test("order expiry unix time appears on review", async ({ page }) => {
@@ -790,8 +790,8 @@ test("order expiry unix time appears on review", async ({ page }) => {
   await expect(page.getByRole("textbox", { name: "Order expiry unix time" })).toHaveValue("0");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill(expiry);
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await expect(page.getByText(expiry).first()).toBeVisible();
 });
 
@@ -800,8 +800,8 @@ test("session event log includes expiry after confirm", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill(expiry);
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await page.getByRole("tab", { name: "Event log" }).click();
   await expect(page.getByText(`buy GTC user-1 expiry ${expiry}`)).toBeVisible();
 });
@@ -1007,14 +1007,14 @@ test("ticket signing stays disabled while the settlement contract is undeployed"
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDC." })).toBeVisible();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
   await expect(page.getByText("Session digest", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
   await expect(page.getByText("Session digest", { exact: true })).toBeVisible();
 });
@@ -1040,11 +1040,11 @@ test("market switching cannot enable undeployed testnet signing", async ({ page 
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDC." })).toBeVisible();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
   await expect(page.getByText("Session digest", { exact: true })).toBeVisible();
 });
@@ -1150,7 +1150,7 @@ test("country-blocked demonstration hides trading controls", async ({ page }) =>
   await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Phlebas is not available in this location." })).toBeVisible();
   await expect(page.getByText("State demonstration")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review buy" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Read the architecture" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Return home" })).toBeVisible();
 });
@@ -1181,9 +1181,9 @@ test("deposit tour never shows a receivable address", async ({ page }) => {
 test("unavailable feed retry returns to illustrative", async ({ page }) => {
   await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeEnabled();
 });
 
 test("architecture incident demonstrations stay labeled", async ({ page }) => {
@@ -1223,31 +1223,31 @@ test("past unix expiry rejects before review and names the rejected panel", asyn
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Order expiry has passed. Settled as ZEC-USDC.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
 test("ticket reject copy names ZEC-USDT if market switches while rejected panel is open", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Order expiry has passed. Settled as ZEC-USDC.", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Order expiry has passed. Settled as ZEC-USDT.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
 test("confirmed ticket writes expiry onto the blotter event log", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("4102444800");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await page.getByRole("tab", { name: "Event log" }).click();
   await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText("expiry 4102444800");
   await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText("Settled as ZEC-USDC.");
@@ -1306,7 +1306,7 @@ test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
   await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed.").first()).toBeVisible();
   await expect(page.getByRole("region", { name: "Selected market summary" })).toContainText("settles ZEC-USDC");
   await expect(page.getByText("Integrity checks failed. Preview-to-sign is disabled. Retry is safe; nothing was submitted. Settled as ZEC-USDC.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
@@ -1398,7 +1398,7 @@ test("country-blocked demonstration hides trading and liquidity controls", async
   await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Phlebas is not available in this location." })).toBeVisible();
   await expect(page.getByText("State demonstration")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review buy" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Read the architecture" })).toBeVisible();
   await page.goto("/liquidity?access=blocked", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Phlebas is not available in this location." })).toBeVisible();
@@ -1433,11 +1433,11 @@ test("chart range uses a radiogroup and unavailable tape names the feed", async 
 test("ticket G I F shortcuts ignore review until Escape", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await page.keyboard.press("i");
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
   await page.getByRole("heading", { name: "Order entry" }).click();
   await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
 });
@@ -1661,12 +1661,12 @@ test("historical custody tour shows a non-payable placeholder with no clipboard 
 test("G I F do not change time in force while review is open", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await page.keyboard.press("i");
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "IOC" })).toHaveAttribute("aria-pressed", "false");
 });
@@ -1757,17 +1757,17 @@ test("invalid size shows a field error and keeps review closed", async ({ page }
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("abc");
   await expect(page.getByText("Value must use plain decimal notation").first()).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Order size in ZEC" })).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
 test("USDT review does not repeat a later listing gate", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await expect(page.getByText("Later listing gate")).toHaveCount(0);
   await expect(page.getByText("settles ZEC-USDT")).toBeVisible();
 });
@@ -1968,7 +1968,7 @@ test("feed-state arrows move focus and Enter selects loading", async ({ page }) 
 test("review Back and ticket primary stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const review = page.getByRole("button", { name: "Review simulated buy" });
+  const review = page.getByRole("button", { name: "Review buy" });
   const reviewBox = await review.boundingBox();
   expect(reviewBox?.height ?? 0).toBeGreaterThanOrEqual(44);
   await review.click();
@@ -1976,7 +1976,7 @@ test("review Back and ticket primary stay 44px on desktop", async ({ page }) => 
   await expect(back).toBeVisible();
   const backBox = await back.boundingBox();
   expect(backBox?.height ?? 0).toBeGreaterThanOrEqual(44);
-  const confirm = page.getByRole("button", { name: "Confirm simulated buy" });
+  const confirm = page.getByRole("button", { name: "Complete buy" });
   const confirmBox = await confirm.boundingBox();
   expect(confirmBox?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
@@ -2140,8 +2140,8 @@ test("Reset session Cancel Retry illustrative and tape rows stay 44px on desktop
 
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   const cancel = page.getByRole("button", { name: "Cancel", exact: true });
   await expect(cancel).toBeVisible();
   expect((await cancel.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -2175,8 +2175,8 @@ test("mid-price fills and inventory rows stay 44px on desktop", async ({ page })
 
   await page.getByRole("button", { name: "Ask 52.91" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await page.getByRole("tab", { name: "Fills" }).click();
   const fillRow = page.getByRole("table", { name: /Session fills for ZEC\/USDC/ }).locator("tbody tr").first();
   await expect(fillRow).toBeVisible();
@@ -2207,8 +2207,8 @@ test("event-log LP stats and chart empty stay 44px on desktop", async ({ page })
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await page.getByRole("button", { name: "Complete buy" }).click();
   await page.getByRole("tab", { name: "Event log" }).click();
   const logRow = page.getByRole("table", { name: /Append-only session event log/ }).locator("tbody tr").first();
   await expect(logRow).toBeVisible();
@@ -2308,7 +2308,7 @@ test("honesty bar incident copy and review custody stay 44px on desktop", async 
   expect((await incident.locator("p").boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await page.getByRole("button", { name: "Review buy" }).click();
   const custody = page.getByLabel("Review custody notice");
   await expect(custody).toBeVisible();
   expect((await custody.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
