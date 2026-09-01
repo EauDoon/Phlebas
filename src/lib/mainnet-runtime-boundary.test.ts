@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { readdir, readFile } from "node:fs/promises";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -58,8 +58,23 @@ test("active manifests bind chain 1 and exact issuer token identities", async ()
 });
 
 test("active application code cannot supply its own stablecoin deployment authority", async () => {
-  for (const path of ACTIVE_MAINNET_FILES.filter((path) => path !== "src/lib/stablecoin-wallet-action.ts")) {
-    const source = await readFile(join(root, path), "utf8");
+  const pending = [join(root, "src"), join(root, "services")];
+  const sources: string[] = [];
+  while (pending.length > 0) {
+    const directory = pending.pop()!;
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const absolute = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(absolute);
+      } else if (/\.(?:ts|tsx)$/.test(entry.name) && !/\.test\.(?:ts|tsx)$/.test(entry.name)) {
+        sources.push(absolute);
+      }
+    }
+  }
+  for (const absolute of sources) {
+    const path = relative(root, absolute).replaceAll("\\", "/");
+    if (path === "src/lib/stablecoin-wallet-action.ts") continue;
+    const source = await readFile(absolute, "utf8");
     assert.doesNotMatch(source, /(?:Funding|Claim|Refund)ActionWithAuthority|StablecoinLockDeploymentAuthority/, path);
   }
 });

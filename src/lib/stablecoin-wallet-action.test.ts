@@ -248,10 +248,19 @@ test("verified engine rejects receipt, code, observation, and immutable substitu
     { refundTime: TERMS.refundTime + 1n },
   ];
   for (const substitution of substitutions) {
+    const substitutedTerms = { ...TERMS, ...substitution };
     assert.throws(
       () => planStablecoinFundingActionsWithAuthority({
         ...BASE,
-        observation: { ...OBSERVATION, immutableTerms: { ...TERMS, ...substitution } },
+        expectedTerms: substitutedTerms,
+        observation: { ...OBSERVATION, immutableTerms: substitutedTerms },
+      }, { ...allowance, token: substitutedTerms.token }, AUTHORITY),
+      /Expected conditional lock terms do not match the repository-approved deployment manifest/,
+    );
+    assert.throws(
+      () => planStablecoinFundingActionsWithAuthority({
+        ...BASE,
+        observation: { ...OBSERVATION, immutableTerms: substitutedTerms },
       }, allowance, AUTHORITY),
       /do not match all 11/,
     );
