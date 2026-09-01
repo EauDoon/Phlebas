@@ -1,3 +1,6 @@
+"use client";
+
+import { type MouseEvent } from "react";
 import Link from "next/link";
 
 import {
@@ -15,12 +18,23 @@ import { LandingJourneys } from "./landing-journeys";
 import { LandingTerminalPreview } from "./landing-terminal-preview";
 import styles from "./landing.module.css";
 
+function activateSkipLink(event: MouseEvent<HTMLAnchorElement>) {
+  const href = event.currentTarget.getAttribute("href");
+  if (!href?.startsWith("#")) return;
+  const target = document.getElementById(href.slice(1));
+  if (!(target instanceof HTMLElement)) return;
+  event.preventDefault();
+  event.currentTarget.blur();
+  target.focus();
+  window.history.replaceState(null, "", href);
+}
+
 export function LandingPage() {
   return (
     <div className={styles.page}>
       <nav className={styles.skipNav} aria-label="Skip links">
         {LANDING_SKIP_LINKS.map((link) => (
-          <a className={styles.skipLink} href={link.href} key={link.href}>{link.label}</a>
+          <a className={styles.skipLink} href={link.href} key={link.href} onClick={activateSkipLink}>{link.label}</a>
         ))}
       </nav>
       <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">

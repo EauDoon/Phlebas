@@ -1,11 +1,26 @@
+"use client";
+
+import { type MouseEvent } from "react";
+
 import styles from "./terminal.module.css";
+
+function activateSkipLink(event: MouseEvent<HTMLAnchorElement>) {
+  const href = event.currentTarget.getAttribute("href");
+  if (!href?.startsWith("#")) return;
+  const target = document.getElementById(href.slice(1));
+  if (!(target instanceof HTMLElement)) return;
+  event.preventDefault();
+  event.currentTarget.blur();
+  target.focus();
+  window.history.replaceState(null, "", href);
+}
 
 export function SimulationLoading() {
   return (
     <div className={styles.shell}>
       <nav className={styles.skipNav} aria-label="Skip links">
-        <a className={styles.skipLink} href="#main-content">Skip to main content</a>
-        <a className={styles.skipLink} href="#withheld-price">Skip to withheld-price notice</a>
+        <a className={styles.skipLink} href="#main-content" onClick={activateSkipLink}>Skip to main content</a>
+        <a className={styles.skipLink} href="#withheld-price" onClick={activateSkipLink}>Skip to withheld-price notice</a>
       </nav>
       <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
         <strong>Simulation only</strong>

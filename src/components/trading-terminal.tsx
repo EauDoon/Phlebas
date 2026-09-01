@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -91,6 +91,17 @@ function seedAccounts(): Record<MarketId, PaperAccount> {
     "ZEC/USDC": seedPaperAccount(),
     "ZEC/USDT": seedPaperAccount(),
   };
+}
+
+function activateSkipLink(event: MouseEvent<HTMLAnchorElement>) {
+  const href = event.currentTarget.getAttribute("href");
+  if (!href?.startsWith("#")) return;
+  const target = document.getElementById(href.slice(1));
+  if (!(target instanceof HTMLElement)) return;
+  event.preventDefault();
+  event.currentTarget.blur();
+  target.focus();
+  window.history.replaceState(null, "", href);
 }
 
 export function TradingTerminal({
@@ -407,36 +418,36 @@ export function TradingTerminal({
   return (
     <div className={operatingView ? `${styles.shell} ${styles.operatingShell}` : styles.shell}>
       <nav className={styles.skipNav} aria-label="Skip links">
-        <a className={styles.skipLink} href="#main-content">Skip to main content</a>
+        <a className={styles.skipLink} href="#main-content" onClick={activateSkipLink}>Skip to main content</a>
         {initialAccess === "blocked" ? (
-          <a className={styles.skipLink} href="#country-block">Skip to country-block notice</a>
+          <a className={styles.skipLink} href="#country-block" onClick={activateSkipLink}>Skip to country-block notice</a>
         ) : null}
         {initialAccess === "open" && view === "trade" ? (
           <>
-            <a className={styles.skipLink} href="#order-ticket">Skip to order ticket</a>
-            <a className={styles.skipLink} href="#price-chart">Skip to price chart</a>
-            <a className={styles.skipLink} href="#order-book">Skip to order book</a>
-            <a className={styles.skipLink} href="#session-blotter">Skip to blotter</a>
-            <a className={styles.skipLink} href="#recent-trades">Skip to recent trades</a>
+            <a className={styles.skipLink} href="#order-ticket" onClick={activateSkipLink}>Skip to order ticket</a>
+            <a className={styles.skipLink} href="#price-chart" onClick={activateSkipLink}>Skip to price chart</a>
+            <a className={styles.skipLink} href="#order-book" onClick={activateSkipLink}>Skip to order book</a>
+            <a className={styles.skipLink} href="#session-blotter" onClick={activateSkipLink}>Skip to blotter</a>
+            <a className={styles.skipLink} href="#recent-trades" onClick={activateSkipLink}>Skip to recent trades</a>
           </>
         ) : null}
         {initialAccess === "open" && view === "architecture" ? (
           <>
-            <a className={styles.skipLink} href="#architecture-layers">Skip to architecture layers</a>
-            <a className={styles.skipLink} href="#honesty-bar">Skip to honesty bar</a>
-            <a className={styles.skipLink} href="#incident-demonstration">Skip to incident demonstration</a>
+            <a className={styles.skipLink} href="#architecture-layers" onClick={activateSkipLink}>Skip to architecture layers</a>
+            <a className={styles.skipLink} href="#honesty-bar" onClick={activateSkipLink}>Skip to honesty bar</a>
+            <a className={styles.skipLink} href="#incident-demonstration" onClick={activateSkipLink}>Skip to incident demonstration</a>
           </>
         ) : null}
         {initialAccess === "open" && view === "liquidity" ? (
           <>
-            <a className={styles.skipLink} href="#liquidity-pools">Skip to pool tabs</a>
-            <a className={styles.skipLink} href="#pool-stats">Skip to pool stats</a>
+            <a className={styles.skipLink} href="#liquidity-pools" onClick={activateSkipLink}>Skip to pool tabs</a>
+            <a className={styles.skipLink} href="#pool-stats" onClick={activateSkipLink}>Skip to pool stats</a>
           </>
         ) : null}
         {initialAccess === "open" && view === "bridge" ? (
           <>
-            <a className={styles.skipLink} href="#destination-inspector">Skip to destination inspector</a>
-            <a className={styles.skipLink} href="#privacy-callouts">Skip to privacy callouts</a>
+            <a className={styles.skipLink} href="#destination-inspector" onClick={activateSkipLink}>Skip to destination inspector</a>
+            <a className={styles.skipLink} href="#privacy-callouts" onClick={activateSkipLink}>Skip to privacy callouts</a>
           </>
         ) : null}
       </nav>
