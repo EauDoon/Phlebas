@@ -62,3 +62,24 @@ The secret scanner reads tracked bytes from `git ls-files`; it does not enumerat
 - Obtain separate authorization before any Testnet value movement, contract deployment, funded address, RPC credential, push, PR merge, Vercel deployment, or mainnet activation.
 
 Until those gates close, all public copy and actions must remain truthful about the no-value preview boundary.
+
+## Done this batch (PR 10 — shared skip-nav controller hook)
+
+- Skip-nav state machine (`src/lib/skip-nav-state.ts`) is a pure function over a state record. The state machine maps click, focusin, and Escape keydown to `hidden-after-activation`, `visible`, and `hidden-after-activation`, with every other event a no-op. The state machine is the only place that decides the next state.
+- Skip-nav React hook (`src/lib/use-skip-nav-controller.ts`) wires the state machine to a DOM element through three DOM event listeners. The hook is a thin DOM adapter. It never reaches out to the network and never signs a transaction.
+- `src/components/simulation-frame.tsx` consumes the hook on its 2-link nav.
+- `src/components/trading-terminal.tsx` consumes the same hook on its 12-link nav. The two components cannot drift.
+- `src/components/terminal.module.css` adds the `data-skip-nav-state="hidden-after-activation"` rule that hides the nav and disables pointer events even when the nav is focused.
+- 5 new state machine unit tests in `src/lib/skip-nav-state.test.ts`. The hook has no isolated unit test because adding `jsdom` would be a new dependency; the integration is asserted by Playwright on both `/trade` and `/status`.
+- 6 new Playwright tests in `tests/browser/phlebas.spec.ts` — three for the trading terminal nav and three for the simulation frame nav, each covering the click → hidden-after-activation, focusin → visible, and Escape → hidden-after-activation transitions.
+- `docs/adr/0009-skip-nav-hook.md` captures the decision to extract the controller into a shared hook so the two components cannot drift.
+- `docs/runbooks/a11y-test.md` documents the controller contract and the failure modes.
+- `docs/operations/a11y-slo.md` defines the accessibility SLOs.
+- `docs/audit/a11y-changelog.md` records the slice.
+- `docs/THREAT_MODEL.md` adds section 24 for the shared controller surface.
+- `docs/index.md` cross-references the new docs.
+- 1055 node tests pass (state machine adds 5 tests; net 1055 because three tests were removed upstream), 496-file secret-pattern scan clean, production build clean locally. Playwright browser tests will run on CI.
+
+## Branch
+
+`feat/skip-nav-hook` off current `main` at `944c8b6`. PR body: stacks on current `main`, no key or token touched.
