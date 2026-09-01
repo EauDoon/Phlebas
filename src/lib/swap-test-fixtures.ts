@@ -1,4 +1,9 @@
 import { keccak256Text } from "./keccak.ts";
+import {
+  ETHEREUM_MAINNET_NETWORK,
+  ETHEREUM_MAINNET_USDC_ASSET,
+  ZCASH_MAINNET_NETWORK,
+} from "./mainnet-assets.ts";
 import type { Hex32 } from "./order-domain.ts";
 import {
   deriveSwapFillId,
@@ -27,8 +32,8 @@ import {
 
 export const hex20 = (byte: string) => `0x${byte.repeat(40)}` as `0x${string}`;
 
-const sampleZecChain = "bip122:00040fe8ec8471911baa1db1266ea15d";
-const sampleQuoteChain = "eip155:421614";
+const sampleZecChain = ZCASH_MAINNET_NETWORK;
+const sampleQuoteChain = ETHEREUM_MAINNET_NETWORK;
 const sampleObserverSourceIds = [keccak256Text("fixture-observer-a"), keccak256Text("fixture-observer-b")]
   .sort() as Hex32[];
 
@@ -38,7 +43,7 @@ export const sampleMarketPolicy: SwapMarketPolicyV1 = {
     zecChain: sampleZecChain,
     zecAsset: `${sampleZecChain}/slip44:133`,
     quoteChain: sampleQuoteChain,
-    quoteAsset: `${sampleQuoteChain}/erc20:0x1111111111111111111111111111111111111111`,
+    quoteAsset: ETHEREUM_MAINNET_USDC_ASSET,
   }],
 };
 
@@ -89,7 +94,7 @@ export const sampleSwapTerms: SwapTermsV1 = {
   zecChain: sampleZecChain,
   zecAsset: `${sampleZecChain}/slip44:133`,
   quoteChain: sampleQuoteChain,
-  quoteAsset: "eip155:421614/erc20:0x1111111111111111111111111111111111111111",
+  quoteAsset: ETHEREUM_MAINNET_USDC_ASSET,
   protocolFeeQuoteAtoms: 0n,
   feeRecipient: hex20("7"),
   maximumFeeBps: 30n,
