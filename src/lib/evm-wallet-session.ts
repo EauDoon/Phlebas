@@ -84,6 +84,7 @@ export function subscribeReviewedWalletSession(
   const registered: Array<readonly [WalletSessionEventName, WalletSessionEventListener]> = [];
 
   const dispose = (): void => {
+    valid = false;
     observing = false;
     for (const [event, listener] of registered.splice(0)) {
       provider.removeListener(event, listener);
@@ -91,7 +92,7 @@ export function subscribeReviewedWalletSession(
   };
 
   const invalidate = (invalidation: WalletSessionInvalidation): void => {
-    if (!valid) return;
+    if (!valid || !observing) return;
     valid = false;
     dispose();
     onInvalidated(invalidation);

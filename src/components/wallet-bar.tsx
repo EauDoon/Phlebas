@@ -112,7 +112,8 @@ export function WalletBar({
         provider,
         { account: connected.address, chainId: "0x1" },
         (invalidation) => {
-          if (session.current === watched) session.current = null;
+          if (session.current !== watched) return;
+          session.current = null;
           onChange({
             ...disconnectedWallet,
             error: walletConnectFailureCopy(

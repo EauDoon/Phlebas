@@ -34,6 +34,10 @@ class EventProvider implements Eip1193SessionProvider {
   listenerCount(): number {
     return [...this.listeners.values()].reduce((count, listeners) => count + listeners.size, 0);
   }
+
+  listenersFor(event: WalletSessionEventName): readonly WalletSessionEventListener[] {
+    return [...(this.listeners.get(event) ?? [])];
+  }
 }
 
 function subscribe(provider: EventProvider, invalidations: WalletSessionInvalidation[]) {
@@ -124,6 +128,24 @@ test("dispose stops observation and prevents reuse of the reviewed session", () 
   assert.equal(subscription.isValid(), false);
   assert.deepEqual(invalidations, []);
   assert.equal(provider.listenerCount(), 0);
+});
+
+test("a callback queued before disposal cannot invalidate a replacement session", () => {
+  const provider = new EventProvider();
+  const oldInvalidations: WalletSessionInvalidation[] = [];
+  const replacementInvalidations: WalletSessionInvalidation[] = [];
+  const oldSubscription = subscribe(provider, oldInvalidations);
+  const queuedOldCallback = provider.listenersFor("accountsChanged")[0]!;
+
+  oldSubscription.dispose();
+  const replacement = subscribe(provider, replacementInvalidations);
+  queuedOldCallback(["0x1111111111111111111111111111111111111111"]);
+
+  assert.equal(oldSubscription.isValid(), false);
+  assert.equal(replacement.isValid(), true);
+  assert.deepEqual(oldInvalidations, []);
+  assert.deepEqual(replacementInvalidations, []);
+  replacement.dispose();
 });
 
 test("rejects an invalid reviewed session before registering listeners", () => {
