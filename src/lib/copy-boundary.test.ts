@@ -666,6 +666,15 @@ test("journeys forbid rebuilding wrapped-ZEC custody services", async () => {
   assert.doesNotMatch(journeys, /The production address service/);
 });
 
+test("journeys bind the ZIP 321 fixture and destination inspector to non-payable local examples", async () => {
+  const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
+  assert.match(journeys, /intentionally invalid `zcash:` URI-format example/);
+  assert.match(journeys, /literal brace-delimited `\{TEX_ADDRESS\}` placeholder/);
+  assert.match(journeys, /does not accept a real Zcash or EVM address as a deposit or payment input/);
+  assert.match(journeys, /separate local destination inspector follows the format-only boundary/);
+  assert.match(journeys, /must not persist or transmit the value/);
+});
+
 test("journeys route native withdrawals to user-controlled atomic settlement", async () => {
   const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
   assert.match(journeys, /user-controlled refund or claim path of the atomic settlement/);

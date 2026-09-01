@@ -489,11 +489,11 @@ The entry action is `Preview deposit states`, not `Deposit ZEC`.
 3. The page repeats that tZEC would be custody-backed, transparent activity may be publicly linkable, and shielded deposits are not supported.
 4. The visitor selects `Walk through states`.
 5. A deterministic state tour displays Eligibility, Address request, Observed, Unavailable, Screening, Rejected, Confirming, Stale, Mint queued, and Complete.
-6. The Address request state shows a neutral placeholder panel with `No address generated in simulation`. It may display an intentionally invalid, non-scannable placeholder glyph, but it must not display an address-like fixture, copy control, URI, or payable data.
+6. The Address request state shows a neutral placeholder panel with `No address generated in simulation`. Outside that state, the historical tour may display an intentionally invalid `zcash:` URI-format example containing the literal brace-delimited `{TEX_ADDRESS}` placeholder and a non-scannable glyph. It must not display an address-like fixture, copy control, or payable data.
 7. Unavailable, Rejected, and Stale are fail-closed demonstration steps. Unavailable: `Observers unavailable or disagree. Fail closed. Nothing is minted.` Rejected: `Deposit failed screening or is ineligible. Nothing was minted. Nothing is sent.` Stale: `Observation or proof is stale. Fail closed. Nothing is minted.` Nothing is minted. No receivable address.
 8. The Complete state says: `State demonstration complete. No native ZEC was received and nothing was minted.`
 
-The simulation does not accept a Zcash address, EVM address, transaction hash, amount tied to a wallet, identity document, country, name, email, or screening input.
+The deposit tour does not accept a real Zcash or EVM address as a deposit or payment input, nor does it accept a transaction hash, amount tied to a wallet, identity document, country, name, email, or screening input.
 
 ### Retired custody-state reference
 
@@ -507,7 +507,7 @@ The entry action is `Preview withdrawal states`, not `Withdraw ZEC`.
 
 1. The visitor opens Historical state tour and selects Withdrawal.
 2. The page states: `A removed custody model would have burned a receipt and created a transparent-native-ZEC claim. No burn can occur here.`
-3. The interface shows a fixed, clearly labeled example summary. It does not accept or display a real Zcash address.
+3. The historical withdrawal state tour itself shows a fixed, clearly labeled example summary and does not accept or display a real Zcash address. The separate local destination inspector follows the format-only boundary below.
 4. The visitor selects `Walk through states`.
 5. A deterministic state tour displays title-case labels for the PRODUCT_SPEC 9.3 happy path: Requested, Screened, Burn submitted, Burn finalized, Payable, Transaction prepared, Signed, Broadcast, Mined, Confirmed.
 6. The Confirmed state says: `State demonstration complete. Nothing was burned and no native ZEC was sent.`
@@ -734,7 +734,7 @@ PR 2 completes the simulation journeys and state demonstrations.
 3. Given order preview values are invalid, then the review sheet cannot open, errors are linked to their fields, and no value enters analytics, logs, storage, or the URL.
 4. Given an order preview completes, then the interface states that nothing was signed or submitted and creates no order identifier or fake fill.
 5. Given an LP preview opens, then custody, stablecoin, smart-contract, impermanent-loss, and toxic-flow risks appear before completion, with no return or profit projection.
-6. Given a deposit state tour, then no address-like string, payable QR code, copy control, wallet address, transaction hash, or real amount is accepted or displayed; an invalid non-scannable placeholder glyph may be shown.
+6. Given a deposit state tour, then no address-like fixture, payable QR code, copy control, wallet address, transaction hash, or real amount is accepted or displayed; a non-payable URI-format example with the brace-delimited `{TEX_ADDRESS}` placeholder and an invalid non-scannable glyph may be shown.
 7. Given a withdrawal state tour, then the local destination inspector performs format-only validation without persistence or transmission, and no QR scanner, wallet connector, burn, payout, or transaction submission is available.
 8. Given blocked, review, pre-mint reorganization, post-mint reorganization, planned maintenance, unplanned maintenance, stale data, or unavailable data is selected, then the exact scoped copy and allowed actions in this specification render.
 9. Given a post-mint reorganization demonstration, then new mints and native ZEC withdrawals show paused, while trading and LP surfaces wait for their separate status rather than inventing availability.
