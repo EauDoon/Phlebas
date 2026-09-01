@@ -491,7 +491,7 @@ export function assertSwapStateIntegrity(state: SwapState): SwapState {
       if (leg === "zec") {
         if (preparedAt >= state.terms.zecFundBy) throw new Error("Persisted ZEC funding preparation missed its signed cutoff");
       } else {
-        if (preparedAt >= state.terms.evmFundBy || preparedAt >= state.terms.evmClaimSafetyCutoff) {
+        if (preparedAt > state.terms.evmFundBy || preparedAt >= state.terms.evmClaimSafetyCutoff) {
           throw new Error("Persisted EVM funding preparation missed its safe signed window");
         }
         if (state.zec.fundingConfirmedAtSeconds === undefined
@@ -792,7 +792,7 @@ export function prepareSwapFunding(
     if (state.zec.fundingConfirmedAtSeconds !== undefined && nowSeconds < state.zec.fundingConfirmedAtSeconds) {
       throw new Error("EVM funding preparation cannot predate policy-confirmed ZEC funding");
     }
-    if (nowSeconds >= state.terms.evmFundBy || nowSeconds >= state.terms.evmClaimSafetyCutoff) {
+    if (nowSeconds > state.terms.evmFundBy || nowSeconds >= state.terms.evmClaimSafetyCutoff) {
       throw new Error("Safe EVM funding window has closed");
     }
   }
@@ -917,8 +917,12 @@ function validateFundingEvidence(state: SwapState, evidence: FundingEvidence): F
   ] as const) {
     if (normalizedFact[key] !== expected[key]) throw new Error(`Funding evidence ${key} does not match swap terms`);
   }
-  const cutoff = normalizedFact.leg === "zec" ? state.terms.zecFundBy : state.terms.evmFundBy;
-  if (normalizedFact.executedAtSeconds >= cutoff) throw new Error("Funding was executed at or after its signed cutoff");
+  if (normalizedFact.leg === "zec" && normalizedFact.executedAtSeconds >= state.terms.zecFundBy) {
+    throw new Error("ZEC funding was executed at or after its signed cutoff");
+  }
+  if (normalizedFact.leg === "evm" && normalizedFact.executedAtSeconds > state.terms.evmFundBy) {
+    throw new Error("EVM funding was executed after its signed cutoff");
+  }
   if (current.fundingPreparedAtSeconds === undefined
     || normalizedFact.executedAtSeconds < current.fundingPreparedAtSeconds) {
     throw new Error("Funding execution cannot predate its prepared artifact");

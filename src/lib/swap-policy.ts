@@ -191,8 +191,8 @@ export function swapDeadlineStatus(terms: SwapTermsV1, nowSeconds: bigint): Swap
   return {
     authorizationOpen: nowSeconds < validated.authorizationDeadline,
     zecFundingOpen: nowSeconds < validated.zecFundBy,
-    evmFundingOpen: nowSeconds < validated.evmFundBy,
-    evmClaimSafe: nowSeconds < validated.evmClaimSafetyCutoff,
+    evmFundingOpen: nowSeconds <= validated.evmFundBy,
+    evmClaimSafe: nowSeconds <= validated.evmClaimSafetyCutoff,
     evmRefundEligible: nowSeconds >= validated.evmRefundTime,
     zecRefundEligible: nowSeconds >= validated.zecRefundTime,
   };

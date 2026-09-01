@@ -22,6 +22,7 @@ import {
   confirmSwapFunding,
   createSwapState,
   expireSwap,
+  fundingFactId,
   observeSwapFunding,
   observeSwapSpend,
   prepareSwapFunding,
@@ -33,6 +34,7 @@ import {
   spendFactId,
   swapPhase,
   type SwapLeg,
+  type FundingEvidence,
   type SpendEvidence,
   type SwapState,
 } from "./swap-state.ts";
@@ -62,6 +64,24 @@ function replaceSpendFact(evidence: SpendEvidence, changes: Partial<Omit<SpendEv
   void _factId;
   const unsigned = { ...current, ...changes };
   return { ...evidence, fact: { factId: spendFactId(unsigned), ...unsigned } };
+}
+
+function replaceFundingFact(
+  evidence: FundingEvidence,
+  changes: Partial<Omit<FundingEvidence["fact"], "factId">>,
+): FundingEvidence {
+  const { factId: _factId, ...current } = evidence.fact;
+  void _factId;
+  const unsigned = { ...current, ...changes };
+  const factId = fundingFactId(unsigned);
+  return {
+    fact: { factId, ...unsigned },
+    attestation: {
+      ...evidence.attestation,
+      factId,
+      observedAtSeconds: unsigned.executedAtSeconds + sampleEvidencePolicies.evmFinality.minimumAgeSeconds,
+    },
+  };
 }
 
 test("requires both exact terms authorizations before ZEC funding", () => {
@@ -105,17 +125,35 @@ test("enforces ZEC-first funding and exact evidence", () => {
   assert.equal(swapPhase(confirmed), "awaiting-evm-funding");
 });
 
-test("funds the EVM leg only inside its safe window", () => {
+test("funds the EVM leg through its inclusive signed cutoff and rejects one second later", () => {
   const zecFunded = fundedZecSwap();
+  const prepared = prepareSwapFunding(zecFunded, "evm", keccak256Text("evm-artifact"), sampleSwapTerms.evmFundBy);
+  assert.equal(swapPhase(prepared), "awaiting-evm-funding");
   assert.throws(
-    () => prepareSwapFunding(zecFunded, "evm", keccak256Text("evm-artifact"), sampleSwapTerms.evmFundBy),
+    () => prepareSwapFunding(zecFunded, "evm", keccak256Text("late-evm-artifact"), sampleSwapTerms.evmFundBy + 1n),
     /window has closed/,
   );
-  const prepared = prepareSwapFunding(zecFunded, "evm", keccak256Text("evm-artifact"), sampleSwapTerms.evmFundBy - 1n);
-  const { first, observed, qualifiedAtSeconds } = observeFundingQuorum(prepared, "evm");
+  assert.throws(
+    () => swapPhase({
+      ...prepared,
+      evm: { ...prepared.evm, fundingPreparedAtSeconds: sampleSwapTerms.evmFundBy + 1n },
+    }),
+    /missed its safe signed window/,
+  );
+  const first = replaceFundingFact(fundingEvidence("evm", "1", sampleSwapTerms, 0), {
+    executedAtSeconds: sampleSwapTerms.evmFundBy,
+  });
+  const second = replaceFundingFact(fundingEvidence("evm", "1", sampleSwapTerms, 1), {
+    executedAtSeconds: sampleSwapTerms.evmFundBy,
+  });
+  const observed = observeSwapFunding(observeSwapFunding(prepared, first), second);
   assert.equal(swapPhase(observed), "awaiting-evm-confirmation");
-  const confirmed = confirmSwapFunding(observed, "evm", first.fact.factId, qualifiedAtSeconds);
+  const confirmed = confirmSwapFunding(observed, "evm", first.fact.factId, second.attestation.observedAtSeconds);
   assert.equal(swapPhase(confirmed), "awaiting-evm-claim");
+  const late = replaceFundingFact(fundingEvidence("evm"), {
+    executedAtSeconds: sampleSwapTerms.evmFundBy + 1n,
+  });
+  assert.throws(() => observeSwapFunding(prepared, late), /after its signed cutoff/);
 });
 
 test("reveals the secret only from a successful canonical EVM claim", () => {

@@ -53,6 +53,11 @@ test("derives deadline eligibility without turning it into journal evidence", ()
     evmRefundEligible: true,
     zecRefundEligible: false,
   });
+  assert.equal(swapDeadlineStatus(sampleSwapTerms, sampleSwapTerms.zecFundBy).zecFundingOpen, false);
+  assert.equal(swapDeadlineStatus(sampleSwapTerms, sampleSwapTerms.evmFundBy).evmFundingOpen, true);
+  assert.equal(swapDeadlineStatus(sampleSwapTerms, sampleSwapTerms.evmFundBy + 1n).evmFundingOpen, false);
+  assert.equal(swapDeadlineStatus(sampleSwapTerms, sampleSwapTerms.evmClaimSafetyCutoff).evmClaimSafe, true);
+  assert.equal(swapDeadlineStatus(sampleSwapTerms, sampleSwapTerms.evmClaimSafetyCutoff + 1n).evmClaimSafe, false);
   assert.equal(swapDeadlineStatus(sampleSwapTerms, sampleSwapTerms.zecRefundTime).zecRefundEligible, true);
 });
 
