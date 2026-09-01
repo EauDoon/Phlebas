@@ -133,14 +133,14 @@ test("zero, missing, and malformed fields fail closed", () => {
   assert.throws(() => parseNativeZecUsdcMatcherManifest(uppercaseAdapter), /exactly 32 bytes|canonical lowercase/);
 });
 
-test("cross-chain, USDT, and mismatched order-domain identities are rejected", () => {
+test("legacy chains, USDT substitution, and mismatched order-domain identities are rejected", () => {
   const wrongChain = copyManifest();
-  wrongChain.evm.network = "eip155:421614";
-  wrongChain.evm.chainId = 421614;
+  wrongChain.evm.network = "eip155:42161";
+  wrongChain.evm.chainId = 42161;
   assert.throws(() => parseNativeZecUsdcMatcherManifest(wrongChain), /EVM network/);
 
   const usdt = copyManifest();
-  usdt.market.quote.asset = "eip155:42161/erc20:0x1111111111111111111111111111111111111111";
+  usdt.market.quote.asset = "eip155:1/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7";
   assert.throws(() => parseNativeZecUsdcMatcherManifest(usdt), /quote asset identifier/);
 
   const wrongDomain = copyManifest();

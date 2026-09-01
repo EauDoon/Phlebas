@@ -7,6 +7,7 @@
 import { normalizeHex32, type Hex32 } from "../../src/lib/order-domain.ts";
 import { validateHtlcRedeemScript } from "../../src/lib/zcash-htlc.ts";
 import { hexToBytes } from "../../src/lib/keccak.ts";
+import { decodeTransparentAddress, type ZcashNetwork } from "../../src/lib/zcash-transparent.ts";
 import type { AtomicSwapObserverServiceConfig } from "./types.ts";
 
 export type ServiceConfigError =
@@ -44,6 +45,39 @@ function parseBigInt(name: string, raw: string, minimum: bigint): bigint {
   }
   if (value < minimum) throw new ServiceConfigException({ kind: "negative", name });
   return value;
+}
+
+function parseZcashNetwork(raw: string): ZcashNetwork {
+  if (raw !== "testnet" && raw !== "mainnet") {
+    throw new ServiceConfigException({
+      kind: "invalid",
+      name: "PHLEBAS_ZCASH_NETWORK",
+      reason: "must be exactly testnet or mainnet",
+    });
+  }
+  return raw;
+}
+
+function parseWatchAddresses(raw: string, network: ZcashNetwork): string[] {
+  const addresses = raw.split(",").map((value) => value.trim()).filter((value) => value.length > 0);
+  if (addresses.length === 0) {
+    throw new ServiceConfigException({ kind: "invalid", name: "PHLEBAS_ZCASH_WATCH_ADDRESSES", reason: "must contain at least one address" });
+  }
+  for (const address of addresses) {
+    try {
+      const decoded = decodeTransparentAddress(address);
+      if (decoded.network !== network || decoded.type !== "p2sh") {
+        throw new Error(`must contain only ${network} transparent P2SH addresses`);
+      }
+    } catch (error) {
+      throw new ServiceConfigException({
+        kind: "invalid",
+        name: "PHLEBAS_ZCASH_WATCH_ADDRESSES",
+        reason: error instanceof Error ? error.message : "contains an invalid transparent P2SH address",
+      });
+    }
+  }
+  return addresses;
 }
 
 function parseOutpointMap(env: EnvSource, name: string): Record<string, Hex32> {
@@ -121,6 +155,7 @@ export function loadServiceConfig(
 ): AtomicSwapObserverServiceConfig {
   const contractAddress = requireEnv(env, "PHLEBAS_CONDITIONAL_LOCK_ADDRESS");
   const snapshotPath = requireEnv(env, "PHLEBAS_OBSERVER_SNAPSHOT_PATH");
+  const zcashNetwork = parseZcashNetwork(requireEnv(env, "PHLEBAS_ZCASH_NETWORK"));
   const addressesRaw = requireEnv(env, "PHLEBAS_ZCASH_WATCH_ADDRESSES");
   const fromBlock = parseBigInt("PHLEBAS_OBSERVER_FROM_BLOCK", requireEnv(env, "PHLEBAS_OBSERVER_FROM_BLOCK"), 0n);
   const fromHeight = parseBigInt("PHLEBAS_OBSERVER_FROM_HEIGHT", requireEnv(env, "PHLEBAS_OBSERVER_FROM_HEIGHT"), 0n);
@@ -129,13 +164,10 @@ export function loadServiceConfig(
   const pollIntervalSeconds = parseBigInt("PHLEBAS_OBSERVER_POLL_INTERVAL_SECONDS", requireEnv(env, "PHLEBAS_OBSERVER_POLL_INTERVAL_SECONDS"), 1n);
   const fillIdByOutpoint = parseOutpointMap(env, "PHLEBAS_OUTPOINT_FILL_MAP");
   const expectedRedeemScriptByOutpoint = parseRedeemScriptMap(env, "PHLEBAS_ZCASH_REDEEM_SCRIPT_MAP");
-  const addresses = addressesRaw.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
-  if (addresses.length === 0) {
-    throw new ServiceConfigException({ kind: "invalid", name: "PHLEBAS_ZCASH_WATCH_ADDRESSES", reason: "must contain at least one address" });
-  }
+  const addresses = parseWatchAddresses(addressesRaw, zcashNetwork);
   return {
     evm: { contractAddress, fromBlock, source: sources.evm },
-    zcash: { addresses, fromHeight, source: sources.zcash, expectedRedeemScriptByOutpoint },
+    zcash: { network: zcashNetwork, addresses, fromHeight, source: sources.zcash, expectedRedeemScriptByOutpoint },
     watchtower: { reorgDepth, deadlineBuffer },
     fillIdByOutpoint,
     snapshotPath,

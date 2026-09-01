@@ -18,45 +18,9 @@ Core contracts are non-upgradeable. There is no seizure path, arbitrary pair cre
 forge test --root contracts -vv
 ```
 
-## Arbitrum Sepolia deploy
+## Retired Arbitrum Sepolia artifacts
 
-Need Foundry, an Arbitrum Sepolia RPC, and approved, distinct deployer, minter, pauser, governor, and fee-recipient addresses. The private key stays outside git.
-
-```bash
-export PHLEBAS_DEPLOYER=...
-export PHLEBAS_MINTER=...
-export PHLEBAS_PAUSER=...
-export PHLEBAS_GOVERNOR=...
-export PHLEBAS_FEE_RECIPIENT=...
-```
-
-Dry run, no state change:
-
-```bash
-forge script script/DeployTestnet.s.sol:DeployTestnet --root contracts --rpc-url $ARBITRUM_SEPOLIA_RPC
-```
-
-Broadcast (creates a real Sepolia tx):
-
-```bash
-forge script script/DeployTestnet.s.sol:DeployTestnet --root contracts --rpc-url $ARBITRUM_SEPOLIA_RPC --broadcast --private-key $PHLEBAS_DEPLOYER_KEY
-```
-
-Foundry writes `contracts/broadcast/DeployTestnet.s.sol/421614/run-latest.json`. That file is gitignored.
-
-Copy addresses into the canonical manifest without claiming deployment:
-
-```bash
-node scripts/record-sepolia-deploy.mjs
-```
-
-`infra/testnet/arbitrum-sepolia.json` stays `"deployed": false` until a real transaction hash is in the broadcast **and** you pass `--mark-deployed` after checking the explorer:
-
-```bash
-node scripts/record-sepolia-deploy.mjs --mark-deployed
-```
-
-Do not run `--mark-deployed` from CI or Vercel. Do not point this script at mainnet.
+The older Arbitrum Sepolia contracts and manifest remain only as historical local-test records. There is no supported broadcast, wallet-submission, manifest-promotion, CI, or Vercel activation path for them. Do not use them as Ethereum Mainnet configuration.
 
 ## ConditionalLock local verification
 

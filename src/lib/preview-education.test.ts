@@ -32,7 +32,8 @@ test("education copy stays a public-preview briefing, not consent", () => {
     assert.doesNotMatch(step.body, /is trustless/);
   }
   assert.equal(PREVIEW_EDUCATION_STEPS[0].title, "This public preview uses illustrative data.");
-  assert.equal(PREVIEW_EDUCATION_STEPS[0].body, "No chain is connected.");
+  assert.match(PREVIEW_EDUCATION_STEPS[0].body, /Ethereum Mainnet wallet can connect for identity/);
+  assert.match(PREVIEW_EDUCATION_STEPS[0].body, /does not sign or submit a transaction/);
   assert.equal(PREVIEW_EDUCATION_STEPS[1].title, "Pairs are native ZEC against USDC and USDT.");
   assert.equal(
     PREVIEW_EDUCATION_STEPS[1].body,
@@ -40,7 +41,8 @@ test("education copy stays a public-preview briefing, not consent", () => {
   );
   assert.doesNotMatch(PREVIEW_EDUCATION_STEPS[1].body, /pZEC is the planned settlement receipt/);
   assert.equal(PREVIEW_EDUCATION_STEPS[2].title, "Actions stay in this browser.");
-  assert.equal(PREVIEW_EDUCATION_STEPS[2].body, "Until wallets and contracts are enabled.");
+  assert.match(PREVIEW_EDUCATION_STEPS[2].body, /Contracts are not deployed/);
+  assert.match(PREVIEW_EDUCATION_STEPS[2].body, /no signing, submission, or asset movement is enabled/);
   assert.equal(PREVIEW_EDUCATION_VERSION, "2026-09-01-3");
   assert.equal(PREVIEW_EDUCATION_STORAGE_KEY, "phlebas.previewEducationVersion");
 });
@@ -58,5 +60,5 @@ test("education last step is the final briefing, not an extra consent screen", (
   assert.equal(isEducationLastStep(last - 1), false);
   assert.equal(isEducationLastStep(last), true);
   assert.equal(isEducationLastStep(last + 1), false);
-  assert.match(PREVIEW_EDUCATION_STEPS[last].title, /this browser/i);
+  assert.match(PREVIEW_EDUCATION_STEPS[last].body, /no signing, submission, or asset movement is enabled/i);
 });

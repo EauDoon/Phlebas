@@ -25,9 +25,14 @@ test("Compose publishes only the matcher on loopback and the image copies exactl
   const compose = await readFile(join(root, "services/compose.yaml"), "utf8");
   const dockerfile = await readFile(join(root, "services/Dockerfile"), "utf8");
   assert.match(compose, /127\.0\.0\.1:8788:8788/);
+  assert.match(compose, /127\.0\.0\.1:8789:8789/);
   assert.doesNotMatch(compose, /^\s*PHLEBAS_MATCHER_URL:/m);
-  assert.match(compose, /Do not set PHLEBAS_MATCHER_URL on Vercel/);
+  assert.match(compose, /Do not set any PHLEBAS_MATCHER\*_URL on Vercel/);
   assert.match(compose, /PHLEBAS_ALLOW_NON_LOOPBACK: "1"/);
+  assert.match(compose, /PHLEBAS_MATCHER_MARKET_ID: "ZEC\/USDC"/);
+  assert.match(compose, /PHLEBAS_MATCHER_MARKET_ID: "ZEC\/USDT"/);
+  assert.match(compose, /matcher-usdc-data:\/app\/services\/matcher\/\.data/);
+  assert.match(compose, /matcher-usdt-data:\/app\/services\/matcher\/\.data/);
   assert.match(dockerfile, /node:24/);
   assert.doesNotMatch(dockerfile, /^COPY\s+(?:\.|src|services)\s/m);
   assert.doesNotMatch(dockerfile, /services\/(?:gateway|observer|atomic-swap-observer)/);
@@ -77,8 +82,8 @@ test("operator runbook exists and CI does not set a matcher URL", async () => {
   const runbook = await readFile(join(root, "docs/OPERATOR_RUNBOOK.md"), "utf8");
   const ci = await readFile(join(root, ".github/workflows/ci.yml"), "utf8");
   assert.match(runbook, /127\.0\.0\.1:8788/);
-  assert.match(runbook, /Do not set `PHLEBAS_MATCHER_URL` on Vercel/);
-  assert.doesNotMatch(ci, /PHLEBAS_MATCHER_URL/);
+  assert.match(runbook, /Do not set `PHLEBAS_MATCHER_URL`, `PHLEBAS_MATCHER_USDC_URL`, or `PHLEBAS_MATCHER_USDT_URL` on Vercel/);
+  assert.doesNotMatch(ci, /PHLEBAS_MATCHER(?:_(?:USDC|USDT))?_URL/);
 });
 
 test("secret scan checks tracked bytes and fails matcher URLs in committed Vercel env files", async () => {
@@ -87,7 +92,7 @@ test("secret scan checks tracked bytes and fails matcher URLs in committed Verce
     scripts: Record<string, string>;
   };
   assert.match(scan, /name: "vercel-operator-matcher"/);
-  assert.match(scan, /PHLEBAS_MATCHER_URL\\s\*\[:=\]/);
+  assert.match(scan, /PHLEBAS_MATCHER_\(\?:USDC\|USDT\)_URL/);
   assert.match(scan, /git", \["ls-files", "-z"\]/);
   assert.match(scan, /\(\^|\\\/\)\(\\\.env|vercel\\\.json|\\\.vercel\\\/\)/);
   assert.match(pkg.scripts.check, /scan:secrets/);

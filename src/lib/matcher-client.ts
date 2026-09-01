@@ -19,6 +19,7 @@ import {
   verifySignedOrderIntent,
   type MatcherControlAuthorization,
 } from "./matcher-auth.ts";
+import { matcherApiPathForMarket, matcherMarketIdForIdentity } from "./matcher-market-routing.ts";
 import {
   UINT64_MAX,
   assetIdentifier,
@@ -135,7 +136,7 @@ export type MatcherOrderPayload = Readonly<{
 }>;
 
 export type MatcherOrderRequest = Readonly<{
-  path: typeof MATCHER_API_PATH;
+  path: string;
   method: "POST";
   operation: typeof MATCHER_ORDER_OPERATION;
   requestId: string;
@@ -191,7 +192,7 @@ export type MatcherAccountEpochAdvancePayload = Readonly<{
 export type MatcherControlPayload = MatcherOrderCancellationPayload | MatcherAccountEpochAdvancePayload;
 
 export type MatcherControlRequest = Readonly<{
-  path: typeof MATCHER_API_PATH;
+  path: string;
   method: "POST";
   operation: typeof MATCHER_ORDER_CANCELLATION_OPERATION | typeof MATCHER_ACCOUNT_EPOCH_OPERATION;
   requestId: string;
@@ -743,7 +744,7 @@ export function buildMatcherOrderRequest(input: MatcherOrderSubmissionInput): Ma
     throw new RangeError("Matcher order request exceeds the API body limit");
   }
   return deepFreeze({
-    path: MATCHER_API_PATH,
+    path: matcherApiPathForMarket(matcherMarketIdForIdentity(prepared.identity.market)),
     method: "POST",
     operation: MATCHER_ORDER_OPERATION,
     requestId: prepared.requestId,
@@ -797,13 +798,17 @@ function controlOperation(control: MatcherClientControl): MatcherControlRequest[
     : MATCHER_ACCOUNT_EPOCH_OPERATION;
 }
 
+function controlAction(control: MatcherClientControl): "cancel-order" | "advance-epoch" {
+  return control.kind === "cancel-order" ? "cancel-order" : "advance-epoch";
+}
+
 function requestForPreparedControl(prepared: PreparedControlSubmission): MatcherControlRequest {
   const body = JSON.stringify(prepared.payload);
   if (new TextEncoder().encode(body).length > MAX_MATCHER_BODY_BYTES) {
     throw new RangeError("Matcher control request exceeds the API body limit");
   }
   return deepFreeze({
-    path: MATCHER_API_PATH,
+    path: `${matcherApiPathForMarket(matcherMarketIdForIdentity(prepared.identity.market))}&action=${controlAction(prepared.control)}`,
     method: "POST",
     operation: controlOperation(prepared.control),
     requestId: prepared.requestId,

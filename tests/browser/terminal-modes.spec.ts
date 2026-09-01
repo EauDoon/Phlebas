@@ -1,12 +1,20 @@
 import { type Page } from "@playwright/test";
 
+import { missingProviderCopy } from "../../src/lib/evm-wallet.ts";
+import { markets } from "../../src/lib/market-data.ts";
 import { submitOrder } from "../../src/lib/matcher.ts";
 import { describeSubmit, seedBook } from "../../src/lib/session.ts";
 import { TERMINAL_MODE_STORAGE_KEY } from "../../src/lib/terminal-mode.ts";
 import { parseAtomicUnits, PRICE_DECIMALS, worstPriceTicks, ZEC_DECIMALS } from "../../src/lib/units.ts";
 import { inspectTransparentDestination } from "../../src/lib/zcash-address.ts";
 
-import { expect, OPEN_TERMINAL_CTA, PREVIEW_CHIP, test } from "./fixtures";
+import {
+  expect,
+  LANDING_HERO_HEADING,
+  OPEN_TERMINAL_CTA,
+  PREVIEW_CHIP,
+  test,
+} from "./fixtures";
 
 const viewports = [375, 768, 1280] as const;
 
@@ -50,7 +58,9 @@ test("simple market review confirm uses matcher IOC copy", async ({ page }) => {
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review buy" }).click();
   await page.getByRole("button", { name: "Complete buy" }).click();
-  await expect(page.getByText(copy)).toBeVisible();
+  await expect(page.getByText(copy, { exact: true })).toBeVisible();
+  await expect(page.getByRole("table", { name: /Recent ZEC\/USDC trades settled as ZEC-USDC/ })
+    .getByRole("row", { name: /^Buy 52\.91 1\.00 / })).toBeVisible();
 });
 
 test("advanced book click fills price and shows GTC IOC FOK", async ({ page }) => {
@@ -113,7 +123,9 @@ test("terminal mode radios support roving focus and arrow navigation", async ({ 
 test("primary CTAs on landing trade and liquidity change visible state", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
   await expectHonestPreview(page);
-  await page.locator("main").getByRole("link", { name: OPEN_TERMINAL_CTA }).first().click();
+  await page.getByRole("region", { name: LANDING_HERO_HEADING })
+    .getByRole("link", { name: OPEN_TERMINAL_CTA })
+    .click();
   await expect(page).toHaveURL(/\/trade/);
   await expect(page.getByRole("heading", { name: "Order entry" })).toBeVisible();
 
@@ -154,11 +166,9 @@ test("ZEC TEX reject shielded destination and sends nothing", async ({ page }) =
 test("EVM connect without provider names the rejection and has no seed field", async ({ page }) => {
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
   await expectHonestPreview(page);
-  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
-  await expect(connect).toBeDisabled();
-  await expect(connect).toHaveAttribute(
-    "title",
-    "Wallets are off. Optional Sepolia connect is not started. Settled as ZEC-USDC.",
+  await page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" }).click();
+  await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(
+    missingProviderCopy(markets["ZEC/USDC"].settlementPair),
   );
   await expect(page.getByText(/seed phrase|spending key|spend key|viewing key/i)).toHaveCount(0);
   await expect(page.locator("input[type=password]")).toHaveCount(0);

@@ -4,14 +4,22 @@ import {
   type NativeZecUsdcMatcherDeploymentState,
 } from "../../src/lib/native-zec-usdc-matcher-manifest.ts";
 import {
+  NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT,
+  type NativeZecUsdtMatcherDeploymentState,
+} from "../../src/lib/native-zec-usdt-matcher-manifest.ts";
+import {
   matcherConfigurationHash,
   type PersistentMatcherConfiguration,
 } from "../../src/lib/persistent-matcher.ts";
 import { adapterIdentifier } from "../../src/lib/order-domain.ts";
 
+type NativeMatcherDeploymentState =
+  | NativeZecUsdcMatcherDeploymentState
+  | NativeZecUsdtMatcherDeploymentState;
+
 function sameMarket(
-  left: NativeZecUsdcMatcherDeploymentState["market"],
-  right: NativeZecUsdcMatcherDeploymentState["market"],
+  left: NativeMatcherDeploymentState["market"],
+  right: NativeMatcherDeploymentState["market"],
 ): boolean {
   return left.base.network === right.base.network
     && left.base.asset === right.base.asset
@@ -28,8 +36,8 @@ function sameMarket(
  * native ZEC/USDC deployment manifest. Any incomplete or inconsistent state
  * leaves the service unconfigured.
  */
-export function nativeZecUsdcMatcherPersistentConfiguration(
-  deployment: NativeZecUsdcMatcherDeploymentState = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+export function nativeMatcherPersistentConfiguration(
+  deployment: NativeMatcherDeploymentState,
 ): PersistentMatcherConfiguration | null {
   try {
     const expectedMatcher = deployment.expectedMatcher;
@@ -94,4 +102,31 @@ export function nativeZecUsdcMatcherPersistentConfiguration(
   } catch {
     return null;
   }
+}
+
+export function nativeMatcherDeploymentForRuntimeMarket(
+  marketId: string | null | undefined,
+): NativeMatcherDeploymentState | null {
+  if (marketId === "ZEC/USDC") return NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT;
+  if (marketId === "ZEC/USDT") return NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT;
+  return null;
+}
+
+export function nativeMatcherPersistentConfigurationForMarket(
+  marketId: string | null | undefined,
+): PersistentMatcherConfiguration | null {
+  const deployment = nativeMatcherDeploymentForRuntimeMarket(marketId);
+  return deployment ? nativeMatcherPersistentConfiguration(deployment) : null;
+}
+
+export function nativeZecUsdcMatcherPersistentConfiguration(
+  deployment: NativeZecUsdcMatcherDeploymentState = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+): PersistentMatcherConfiguration | null {
+  return nativeMatcherPersistentConfiguration(deployment);
+}
+
+export function nativeZecUsdtMatcherPersistentConfiguration(
+  deployment: NativeZecUsdtMatcherDeploymentState = NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT,
+): PersistentMatcherConfiguration | null {
+  return nativeMatcherPersistentConfiguration(deployment);
 }

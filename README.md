@@ -17,7 +17,7 @@ The target markets are:
 * `ZEC/USDC`
 * `ZEC/USDT`
 
-`ZEC` means native transparent ZEC on Zcash. It is not wrapped, minted, or represented as a Phlebas platform balance. Each quote market must name one exact EVM chain and one approved stablecoin contract. USDC is the first quote candidate. USDT remains disabled until an exact asset, contract, issuer model, and jurisdiction policy pass review.
+`ZEC` means native transparent ZEC on Zcash. It is not wrapped, minted, or represented as a Phlebas platform balance. Each quote market names Ethereum Mainnet and one exact stablecoin contract. USDC is bound to `0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`; USDT is bound to `0xdac17f958d2ee523a2206206994597c13d831ec7`. Both use 6 decimals. Their wallet actions remain disabled until the exact matcher and per-fill ConditionalLock deployment manifests are approved.
 
 Version 1 is transparent. It does not provide shielded settlement or transaction privacy.
 
@@ -97,7 +97,7 @@ New control ingress is marker-free and always becomes `eip712-v1` inside the mat
 
 The browser control workflow is implemented and fails closed. Cancellation review requires an immutable confirmed native buy artifact with an `open` or `partially-filled` receipt, plus fresh matcher health, account, wallet, and checkpoint state. Epoch review requires an immutable confirmed native buy artifact, then derives the next epoch as the fresh account epoch plus one.
 
-Confirmation repeats the matcher, account, checkpoint, and wallet checks, stops on drift, and requests only the reviewed EIP-712 typed-control signature. A known 4xx response is `rejected`; a network failure, 5xx response, unreadable or malformed response, or receipt mismatch is `receipt-unknown`. Retry revalidates the approved matcher identity and reposts exactly the original frozen body and idempotency key without signing again. These artifacts are session-only. After reload, the retry artifact is unavailable, and account-scoped open-order recovery is not implemented.
+Confirmation repeats the matcher, account, checkpoint, and wallet checks, stops on drift, and requests only the reviewed EIP-712 typed-control signature. A known 4xx response is `rejected`; a network failure, 5xx response, unreadable or malformed response, or receipt mismatch is `receipt-unknown`. Retry revalidates the approved matcher identity and reposts exactly the original frozen body and idempotency key without signing again. These control artifacts are session-only, so a retry artifact is unavailable after reload. A separate account-scoped open-order recovery client is implemented with a fresh single-use EIP-712 authorization for every page, strict cursor and checkpoint continuity, and no signature retention. The current terminal does not expose recovery while both tracked matcher manifests remain disabled.
 
 The tracked native matcher deployment manifest remains disabled and no-value. These controls do not activate a production matcher or enable a wallet, contract, chain, or asset-moving path.
 
@@ -188,12 +188,13 @@ npm run matcher
 Set these only on a machine that should reach the loopback processes:
 
 ```text
-PHLEBAS_MATCHER_URL=http://127.0.0.1:8788
+PHLEBAS_MATCHER_USDC_URL=http://127.0.0.1:8788
+PHLEBAS_MATCHER_USDT_URL=http://127.0.0.1:8789
 ```
 
-Do not set that variable on Vercel. See [services/README.md](services/README.md) for the isolated Compose workflow.
+Do not set those variables on Vercel. See [services/README.md](services/README.md) for the isolated Compose workflow.
 
-The Arbitrum Sepolia deployment procedure is documented in [contracts/README.md](contracts/README.md). `infra/testnet/arbitrum-sepolia.json` must remain `"deployed": false` until a real deployment is authorized, executed, and recorded. Local wallet submission remains disabled unless `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1` is set for an approved Testnet run.
+The retired Arbitrum Sepolia artifacts are retained only as historical test and contract-development records. The prior browser transaction submitter, public activation flag, and package activation command have been removed. They are not a supported wallet or deployment path.
 
 ## Wallet boundary
 

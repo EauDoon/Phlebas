@@ -1,6 +1,6 @@
 import { hashTypedOrder, type OrderDomain, type TypedOrderIntent } from "./eip712-order.ts";
 import { keccak256Text } from "./keccak.ts";
-import { assertZcashTransparentAccount } from "./zcash-address.ts";
+import { assertZcashTransparentAccount, assertZcashTransparentP2pkhAccount } from "./zcash-address.ts";
 import {
   UINT64_MAX,
   UINT256_MAX,
@@ -167,7 +167,11 @@ export function assertSettlementAccountRoles(
 ): void {
   if (side === 0) {
     assertEvmAccount(accounts.sourceAccount, pair.quote.network, `${label} buyer source account`);
-    assertZcashTransparentAccount(accounts.recipientAccount, pair.base.environment, `${label} buyer recipient account`);
+    assertZcashTransparentP2pkhAccount(
+      accounts.recipientAccount,
+      pair.base.environment,
+      `${label} buyer recipient account`,
+    );
   } else {
     assertZcashTransparentAccount(accounts.sourceAccount, pair.base.environment, `${label} seller source account`);
     assertEvmAccount(accounts.recipientAccount, pair.quote.network, `${label} seller recipient account`);

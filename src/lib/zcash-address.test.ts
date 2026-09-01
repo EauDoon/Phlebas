@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   assertZcashTransparentAccount,
+  assertZcashTransparentP2pkhAccount,
   canonicalZcashTransparentAccount,
   decodeZcashTransparentAccount,
   decodeAddress,
@@ -104,6 +105,20 @@ test("transparent account validation binds the canonical environment and address
   assert.equal(isZcashTransparentAccount(account, "mainnet"), true);
   assert.equal(isZcashTransparentAccount(account, "testnet"), false);
   assert.doesNotThrow(() => assertZcashTransparentAccount(account, "mainnet", "recipient"));
+});
+
+test("P2PKH account validation accepts only the exact transparent address kind and network", () => {
+  const p2pkh = `zcash:mainnet:${MAINNET_P2PKH}`;
+  const p2sh = `zcash:mainnet:${MAINNET_P2SH}`;
+  assert.doesNotThrow(() => assertZcashTransparentP2pkhAccount(p2pkh, "mainnet", "recipient"));
+  assert.throws(
+    () => assertZcashTransparentP2pkhAccount(p2sh, "mainnet", "recipient"),
+    /transparent P2PKH mainnet Zcash account.*not P2PKH/,
+  );
+  assert.throws(
+    () => assertZcashTransparentP2pkhAccount(p2pkh, "testnet", "recipient"),
+    /transparent P2PKH testnet Zcash account.*wrong network/,
+  );
 });
 
 test("transparent account validation rejects non-transparent, non-canonical, and wrong-network values", () => {

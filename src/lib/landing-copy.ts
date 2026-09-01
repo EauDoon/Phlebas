@@ -2,7 +2,7 @@ export const LANDING_HERO = {
   eyebrow: "Transparent ZEC markets",
   heading: "Native ZEC. Native stables. No platform balance.",
   supporting:
-    "Phlebas matches ZEC/USDC and ZEC/USDT as a professional order book. Each fill settles with one Zcash lock and one exact-token EVM lock, funded from the parties’ wallets. Claim and refund are mutually exclusive. The matcher never holds the assets.",
+    "Phlebas is a prelaunch order-book design for native transparent ZEC against Ethereum Mainnet USDC and USDT. Each future fill is designed to use one Zcash lock and one exact-token EVM lock, funded from the parties’ wallets. Contracts are not deployed, and the matcher never holds the assets.",
   primaryAction: "Open terminal",
   primaryHref: "/trade?view=trade",
   secondaryAction: "How settlement works",
@@ -13,7 +13,7 @@ export const LANDING_HERO = {
 export const LANDING_BANNER = {
   label: "Product disclosure",
   kicker: "Public preview",
-  body: "Wallets stay off. Contracts are not deployed. This is not a live exchange.",
+  body: "Ethereum Mainnet wallet connection is available. Signing, submission, and value movement are disabled. Contracts are not deployed. This is not a live exchange.",
 } as const;
 
 export const LANDING_HEADER_STATUS = "Public preview";
@@ -41,7 +41,7 @@ export const LANDING_LEDGER_PILL = "Public preview";
 export const LANDING_LEDGER = [
   { label: "Product", value: "Public preview" },
   { label: "Market data", value: "Illustrative" },
-  { label: "Wallets", value: "Off" },
+  { label: "Wallet connection", value: "Ethereum Mainnet connection only" },
   { label: "Contracts", value: "Not deployed" },
   { label: "Custody", value: "None" },
   { label: "Mainnet", value: "Not cleared" },
@@ -63,22 +63,22 @@ export const LANDING_SKIP_LINKS = [
 
 export const LANDING_MARKETS_INTRO = {
   eyebrow: "Two markets",
-  heading: "ZEC/USDC first. ZEC/USDT waiting.",
-  supporting: "USDT0 is abandoned. It is not a listed settlement asset.",
+  heading: "ZEC/USDC and ZEC/USDT, exactly identified.",
+  supporting: "Quote assets use the exact issuer contracts on Ethereum Mainnet. USDT0 is abandoned and is not a listed settlement asset.",
 } as const;
 
 export const LANDING_MARKETS = [
   {
     kicker: "First settlement target",
     title: "ZEC / USDC",
-    body: "Native ZEC against native USDC.",
+    body: "Native transparent ZEC against exact Ethereum Mainnet USDC. Value-moving settlement remains disabled.",
     href: "/trade?view=settlement",
     action: "How settlement works",
   },
   {
-    kicker: "Awaiting exact token identity",
+    kicker: "Exact mainnet quote asset",
     title: "ZEC / USDT",
-    body: "Settlement stays closed until one exact USDT token identity is approved.",
+    body: "Native transparent ZEC against exact Ethereum Mainnet USDT. Value-moving settlement remains disabled.",
     href: "/trade?view=settlement",
     action: "Read settlement",
   },

@@ -15,16 +15,18 @@ test("status payload never claims live funds or custody", async () => {
   const status = simulationStatus();
   assert.equal(status.liveFunds, false);
   assert.equal(status.custody, "none");
-  assert.equal(status.deposits, "historical-tour-only");
-  assert.equal(status.wallets, "off");
-  assert.equal(status.sepoliaSubmit, "flag-off");
+  assert.equal(status.deposits, "disabled-fill-specific-wallet-locks");
+  assert.equal(status.withdrawals, "disabled-claim-or-refund-only");
+  assert.equal(status.wallets, "eip-6963-ethereum-mainnet");
+  assert.equal(status.mainnetTransactions, "disabled-until-deployment-evidence");
   assert.equal(status.matcher, "in-browser");
   assert.equal(status.matcherService, "off");
   assert.equal(status.matcherTarget, "persistent-signed-order-v1");
   assert.equal(status.matcherExecution, "blocked-no-value-swap-plans");
   assert.equal(status.solverLiquidity, "wallet-held-signed-quotes");
   assert.equal(status.authoritativeJournal, "off-vercel");
-  assert.equal(status.contracts, "source-undeployed");
+  assert.equal(status.contracts, "conditional-lock-undeployed");
+  assert.equal(status.network, "zcash-mainnet-and-ethereum-mainnet");
   assert.equal(status.mode, "preview");
   assert.equal(status.marketData, "illustrative");
   assert.equal(status.countryAccess, "deny-default");
@@ -40,6 +42,7 @@ test("vercel.json does not assign operator URLs", async () => {
   }
   const vercel = await readFile(vercelPath, "utf8");
   assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_URL\s*[:=]/);
+  assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_(?:USDC|USDT)_URL\s*[:=]/);
 });
 
 test("status exposes matcher fields only for loopback operator URLs", () => {
@@ -53,5 +56,11 @@ test("status exposes matcher fields only for loopback operator URLs", () => {
     PHLEBAS_MATCHER_URL: "http://127.0.0.1:8788",
   });
   assert.equal(loopback.sequenceRoot, null);
-  assert.equal(loopback.matcherService, "persistent-native-v1-loopback");
+  assert.equal(loopback.matcherService, "persistent-native-v1-loopback-usdc");
+
+  const both = simulationStatus({
+    PHLEBAS_MATCHER_USDC_URL: "http://127.0.0.1:8788",
+    PHLEBAS_MATCHER_USDT_URL: "http://127.0.0.1:8789",
+  });
+  assert.equal(both.matcherService, "persistent-native-v1-loopback-both");
 });

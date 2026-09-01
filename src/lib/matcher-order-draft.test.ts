@@ -7,15 +7,21 @@ import {
   computeNativeZecUsdcMatcherConfigurationHash,
   parseNativeZecUsdcMatcherManifest,
 } from "./native-zec-usdc-matcher-manifest.ts";
+import {
+  NATIVE_ZEC_USDT_MATCHER_MANIFEST,
+  computeNativeZecUsdtMatcherConfigurationHash,
+  parseNativeZecUsdtMatcherManifest,
+} from "./native-zec-usdt-matcher-manifest.ts";
 import { buildMatcherBuyOrderDraft, type MatcherBuyOrderDraftInput } from "./matcher-order-draft.ts";
 import { evmAuthorizedSignerId } from "./matcher-auth.ts";
 import { hashTypedOrder } from "./eip712-order.ts";
-import { hash160Value, p2shAddress } from "./zcash-address.ts";
+import { hash160Value, p2pkhAddress, p2shAddress } from "./zcash-address.ts";
 
 const NOW = 1_800_000_000n;
 const WALLET = `0x${"11".repeat(20)}`;
 const CONTRACT = `0x${"22".repeat(20)}`;
-const RECIPIENT = p2shAddress(hash160Value(new TextEncoder().encode("matcher-order-draft")), "mainnet");
+const RECIPIENT = p2pkhAddress(hash160Value(new TextEncoder().encode("matcher-order-draft")), "mainnet");
+const P2SH_RECIPIENT = p2shAddress(hash160Value(new TextEncoder().encode("matcher-order-draft-p2sh")), "mainnet");
 
 function activatedDeployment() {
   const manifest = JSON.parse(JSON.stringify(NATIVE_ZEC_USDC_MATCHER_MANIFEST)) as {
@@ -31,13 +37,30 @@ function activatedDeployment() {
   return parseNativeZecUsdcMatcherManifest(manifest);
 }
 
+function activatedUsdtDeployment() {
+  const manifest = JSON.parse(JSON.stringify(NATIVE_ZEC_USDT_MATCHER_MANIFEST)) as {
+    deployed: boolean;
+    submissionEnabled: boolean;
+    evm: { verifyingContract: string | null };
+    configurationHash: string | null;
+  };
+  manifest.deployed = true;
+  manifest.submissionEnabled = true;
+  manifest.evm.verifyingContract = CONTRACT;
+  manifest.configurationHash = computeNativeZecUsdtMatcherConfigurationHash(CONTRACT);
+  return parseNativeZecUsdtMatcherManifest(manifest);
+}
+
 function validInput(overrides: Partial<MatcherBuyOrderDraftInput> = {}): MatcherBuyOrderDraftInput {
-  const deployment = activatedDeployment();
-  const makerAccountId = evmAuthorizedSignerId(deployment.orderDomain!.chainId, WALLET);
-  const configurationHash = deployment.configurationHash!;
+  const deployment = overrides.deployment ?? activatedDeployment();
+  const configuredDeployment = deployment.orderDomain === null
+    ? deployment.manifest.market.id === "ZEC/USDT" ? activatedUsdtDeployment() : activatedDeployment()
+    : deployment;
+  const makerAccountId = evmAuthorizedSignerId(configuredDeployment.orderDomain!.chainId, WALLET);
+  const configurationHash = configuredDeployment.configurationHash!;
   return {
     deployment,
-    selectedMarket: "ZEC/USDC",
+    selectedMarket: deployment.manifest.market.id,
     connectedEvmWallet: WALLET,
     zcashRecipient: RECIPIENT,
     matcherHealth: {
@@ -79,10 +102,10 @@ test("fails closed when the native matcher manifest is disabled", () => {
   assert.throws(() => buildMatcherBuyOrderDraft(input), /not enabled/);
 });
 
-test("rejects every market except ZEC/USDC and only constructs the buy-side CLOB GTC order", () => {
+test("requires the exact selected manifest market and only constructs the buy-side CLOB GTC order", () => {
   assert.throws(
     () => buildMatcherBuyOrderDraft(validInput({ selectedMarket: "ZEC/USDT" })),
-    /exact ZEC\/USDC market/,
+    /exact selected ZEC\/USDC or ZEC\/USDT market/,
   );
 
   const draft = buildMatcherBuyOrderDraft(validInput());
@@ -92,10 +115,26 @@ test("rejects every market except ZEC/USDC and only constructs the buy-side CLOB
   assert.equal(draft.order.allowedVenues, 1);
 });
 
+test("builds an exact ZEC/USDT draft without substituting USDC identity", () => {
+  const deployment = activatedUsdtDeployment();
+  const draft = buildMatcherBuyOrderDraft(validInput({ deployment }));
+  assert.equal(deployment.manifest.market.id, "ZEC/USDT");
+  assert.equal(draft.order.quoteChainId, deployment.orderPair.quoteChainId);
+  assert.equal(draft.order.quoteAssetId, deployment.orderPair.quoteAssetId);
+  assert.equal(draft.order.settlementAdapterId, deployment.settlementAdapterId);
+});
+
 test("rejects a non-canonical or non-mainnet transparent Zcash recipient", () => {
   assert.throws(
     () => buildMatcherBuyOrderDraft(validInput({ zcashRecipient: "t1not-a-zcash-address" })),
     /base58|Zcash|address/i,
+  );
+});
+
+test("rejects a mainnet P2SH buyer recipient that the Zcash spend adapter cannot pay", () => {
+  assert.throws(
+    () => buildMatcherBuyOrderDraft(validInput({ zcashRecipient: P2SH_RECIPIENT })),
+    /buyer recipient account must be a transparent P2PKH mainnet Zcash account/,
   );
 });
 
@@ -122,7 +161,7 @@ test("builds a deterministic, fully reviewed draft from an activated manifest cl
   assert.equal(deployment.configurationHash, computeNativeZecUsdcMatcherConfigurationHash(CONTRACT));
   assert.equal(draft.healthConfigurationHash, deployment.configurationHash);
   assert.equal(draft.order.accountEpoch, 7n);
-  assert.equal(draft.accounts.sourceAccount, `eip155:42161:${WALLET}`);
+  assert.equal(draft.accounts.sourceAccount, `eip155:1:${WALLET}`);
   assert.equal(draft.accounts.recipientAccount, `zcash:mainnet:${RECIPIENT}`);
   assert.equal(draft.requestId, `order-${hashTypedOrder(deployment.orderDomain!, draft.order).slice(2)}`);
   assert.deepEqual(draft.typedOrderData.message.accountEpoch, "7");

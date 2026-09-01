@@ -1,7 +1,8 @@
-import { ARBITRUM_SEPOLIA_CHAIN_ID } from "./eip712.ts";
+import {
+  ETHEREUM_MAINNET_CHAIN_HEX,
+  ETHEREUM_MAINNET_CHAIN_ID,
+} from "./mainnet-assets.ts";
 import type { Market } from "./market-data.ts";
-
-export const ARBITRUM_SEPOLIA_HEX = `0x${ARBITRUM_SEPOLIA_CHAIN_ID.toString(16)}`;
 
 export type Eip1193Provider = {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>;
@@ -45,26 +46,26 @@ export function publicWalletConnectionError(error: unknown): string {
   return "Wallet connection failed.";
 }
 
-export function publicTestnetSigningError(error: unknown): string {
+export function publicWalletSigningError(error: unknown): string {
   if (isRejectedProviderRequest(error)) return "Wallet signature request was rejected.";
-  if (error instanceof Error && error.message === "Switch to Arbitrum Sepolia before signing.") {
+  if (error instanceof Error && error.message === "Switch to Ethereum Mainnet before signing.") {
     return error.message;
   }
   if (error instanceof Error && error.message === "Provider did not return a signature") {
     return "The wallet did not return a valid signature.";
   }
   if (error instanceof Error && /^Matcher rejected the signed order \(\d{3}\)\.$/.test(error.message)) {
-    return "The Testnet matcher rejected the signed order.";
+    return "The matcher rejected the signed order.";
   }
-  return "Testnet signing failed.";
+  return "Wallet signing failed.";
 }
 
 export function missingProviderCopy(settlementPair: Market["settlementPair"]): string {
-  return walletConnectFailureCopy("No injected EVM wallet. Arbitrum Sepolia only.", settlementPair);
+  return walletConnectFailureCopy("No compatible EVM wallet was found. Ethereum Mainnet only.", settlementPair);
 }
 
 export function isMissingProviderCopy(copy: string): boolean {
-  return copy.startsWith("No injected EVM wallet.");
+  return copy.startsWith("No compatible EVM wallet was found.");
 }
 
 const SETTLEMENT_PAIRS = ["ZEC-USDC", "ZEC-USDT"] as const satisfies ReadonlyArray<Market["settlementPair"]>;
@@ -97,16 +98,12 @@ export function walletDisconnectLabel(
   return `Disconnect ${address.slice(0, 6)}…${address.slice(-4)}. Settled as ${settlementPair}.`;
 }
 
-export function walletOffTitle(settlementPair: Market["settlementPair"]): string {
-  return `Wallets are off. Optional Sepolia connect is not started. Settled as ${settlementPair}.`;
-}
-
 export function walletConnectIdleTitle(settlementPair: Market["settlementPair"]): string {
-  return `Connect an injected EVM wallet on Arbitrum Sepolia. Settled as ${settlementPair}.`;
+  return `Connect MetaMask or Rabby on Ethereum Mainnet. Settled as ${settlementPair}.`;
 }
 
 export function walletConnectBusyTitle(settlementPair: Market["settlementPair"]): string {
-  return `Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as ${settlementPair}.`;
+  return `Connecting an EVM wallet on Ethereum Mainnet. Settled as ${settlementPair}.`;
 }
 
 export function walletConnectTitle(
@@ -129,41 +126,33 @@ export function getInjectedProvider(): Eip1193Provider | null {
   return provider ?? null;
 }
 
-export async function connectTestnetWallet(provider: Eip1193Provider): Promise<WalletState> {
+export async function connectMainnetWallet(provider: Eip1193Provider): Promise<WalletState> {
   const accounts = await provider.request({ method: "eth_requestAccounts" }) as string[];
   const address = accounts[0];
   if (!address) {
     return { ...disconnectedWallet, error: "No account returned by the injected provider." };
   }
   const chainId = await provider.request({ method: "eth_chainId" }) as string;
-  if (chainId.toLowerCase() !== ARBITRUM_SEPOLIA_HEX) {
-    try {
-      await provider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: ARBITRUM_SEPOLIA_HEX }],
-      });
-    } catch {
-      await provider.request({
-        method: "wallet_addEthereumChain",
-        params: [{
-          chainId: ARBITRUM_SEPOLIA_HEX,
-          chainName: "Arbitrum Sepolia",
-          nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-          rpcUrls: ["https://sepolia-rollup.arbitrum.io/rpc"],
-          blockExplorerUrls: ["https://sepolia.arbiscan.io"],
-        }],
-      });
-    }
+  if (chainId.toLowerCase() !== ETHEREUM_MAINNET_CHAIN_HEX) {
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: ETHEREUM_MAINNET_CHAIN_HEX }],
+    });
   }
   const connectedChain = await provider.request({ method: "eth_chainId" }) as string;
-  if (connectedChain.toLowerCase() !== ARBITRUM_SEPOLIA_HEX) {
+  if (typeof connectedChain !== "string" || connectedChain.toLowerCase() !== ETHEREUM_MAINNET_CHAIN_HEX) {
     return {
       address: address.toLowerCase(),
       chainId: connectedChain,
-      error: "Switch to Arbitrum Sepolia. Mainnet signing is blocked.",
+      error: "Switch to Ethereum Mainnet. Other chains are blocked.",
     };
   }
-  return { address: address.toLowerCase(), chainId: connectedChain, error: null };
+  const currentAccounts = await provider.request({ method: "eth_accounts" });
+  if (!Array.isArray(currentAccounts) || typeof currentAccounts[0] !== "string"
+    || currentAccounts[0].toLowerCase() !== address.toLowerCase()) {
+    return { ...disconnectedWallet, chainId: connectedChain, error: "Wallet account changed while connecting." };
+  }
+  return { address: address.toLowerCase(), chainId: ETHEREUM_MAINNET_CHAIN_HEX, error: null };
 }
 
 export async function signTypedData(
@@ -172,8 +161,8 @@ export async function signTypedData(
   typedData: unknown,
 ): Promise<string> {
   const chainId = await provider.request({ method: "eth_chainId" });
-  if (typeof chainId !== "string" || chainId.toLowerCase() !== ARBITRUM_SEPOLIA_HEX) {
-    throw new Error("Switch to Arbitrum Sepolia before signing.");
+  if (typeof chainId !== "string" || BigInt(chainId) !== ETHEREUM_MAINNET_CHAIN_ID) {
+    throw new Error("Switch to Ethereum Mainnet before signing.");
   }
   const signature = await provider.request({
     method: "eth_signTypedData_v4",
@@ -222,7 +211,7 @@ async function signReviewedTypedData(
   expectedAddress: string,
   expectedChainId: bigint,
   typedData: unknown,
-  signatureLabel: "order" | "matcher control",
+  signatureLabel: "order" | "matcher control" | "matcher account recovery",
 ): Promise<string> {
   const address = await assertConnectedWalletAuthority(provider, expectedAddress, expectedChainId);
   const signature = await provider.request({
@@ -242,6 +231,21 @@ export function signTypedOrderIntent(
   orderTypedData: unknown,
 ): Promise<string> {
   return signReviewedTypedData(provider, expectedAddress, expectedChainId, orderTypedData, "order");
+}
+
+export function signTypedMatcherAccountRecovery(
+  provider: Eip1193Provider,
+  expectedAddress: string,
+  expectedChainId: bigint,
+  recoveryTypedData: unknown,
+): Promise<string> {
+  return signReviewedTypedData(
+    provider,
+    expectedAddress,
+    expectedChainId,
+    recoveryTypedData,
+    "matcher account recovery",
+  );
 }
 
 export function signTypedMatcherControl(

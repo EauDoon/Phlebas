@@ -90,10 +90,13 @@ test("unsafe evidence disables claim", () => {
   assert.equal(claim.label, "Record USDC claim");
 });
 
-test("USDT stays settlement-disabled until an exact token identity exists", () => {
+test("USDT keeps its exact mainnet identity while deployment remains disabled", () => {
+  assert.match(USDT_SETTLEMENT_DISABLED.reason, /0xdac17f958d2ee523a2206206994597c13d831ec7/);
+  assert.match(USDT_SETTLEMENT_DISABLED.reason, /6 decimals/);
   assert.match(USDT_SETTLEMENT_DISABLED.reason, /USDT0 is abandoned/);
-  assert.match(USDT_SETTLEMENT_DISABLED.headline, /USDT is not USDT0/);
-  assert.match(USDT_SETTLEMENT_DISABLED.title, /unresolved/i);
+  assert.match(USDT_SETTLEMENT_DISABLED.reason, /matcher and per-fill ConditionalLock remain undeployed/);
+  assert.match(USDT_SETTLEMENT_DISABLED.headline, /Exact Ethereum Mainnet USDT identity/);
+  assert.match(USDT_SETTLEMENT_DISABLED.title, /undeployed/i);
 });
 
 test("settlement ticket copy has no operational walkthrough labels", async () => {

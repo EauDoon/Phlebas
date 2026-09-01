@@ -4,7 +4,6 @@ import {
   expect,
   LANDING_HERO_HEADING,
   OPEN_TERMINAL_CTA,
-  ORDER_COMPLETE_COPY,
   PREVIEW_CHIP,
   test,
 } from "./fixtures";

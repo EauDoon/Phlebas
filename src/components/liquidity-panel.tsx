@@ -554,8 +554,8 @@ export function LiquidityPanel({
                 <dt>Leaves the session</dt>
                 <dd>
                   {review.kind === "mint"
-                    ? `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} on Arbitrum Sepolia`
-                    : `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC on Arbitrum Sepolia`}
+                    ? `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} from local preview balances`
+                    : `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC from the local preview balance`}
                 </dd>
               </div>
               <div>
@@ -563,7 +563,7 @@ export function LiquidityPanel({
                 <dd>
                   {review.kind === "mint"
                     ? `${review.shares.toString()} local LP shares for ${selectedPool.id}`
-                    : `${review.swapOut} ${selectedPool.quote} on Arbitrum Sepolia`}
+                    : `${review.swapOut} ${selectedPool.quote} in the local preview balance`}
                 </dd>
               </div>
               <div>
@@ -588,7 +588,7 @@ export function LiquidityPanel({
               </div>
             </dl>
             <p className={styles.inlineNotice}>
-              Transparent Zcash and this Arbitrum LP action are publicly linkable.
+              Any future transparent Zcash and Ethereum Mainnet LP-related activity would be publicly linkable. This local preview makes no chain transaction.
               LPs also face stablecoin risk, smart-contract risk, impermanent loss, and toxic flow from the order book.
             </p>
             <p className={styles.inlineNotice}>

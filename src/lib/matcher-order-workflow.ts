@@ -2,7 +2,6 @@ import type { Eip1193Provider } from "./evm-wallet.ts";
 import { hashTypedOrder } from "./eip712-order.ts";
 import { evmAuthorizedSignerId } from "./matcher-auth.ts";
 import {
-  MATCHER_API_PATH,
   assertMatcherAccountIdentity,
   assertMatcherHealthIdentity,
   assertMatcherOrderReceipt,
@@ -11,13 +10,13 @@ import {
   type VerifiedMatcherAccount,
   type VerifiedMatcherOrderReceipt,
 } from "./matcher-client.ts";
+import { matcherApiPathForMarket, type MatcherMarketDeployment } from "./matcher-market-routing.ts";
 import {
   buildMatcherBuyOrderDraft,
   type MatcherBuyOrderDraft,
   type MatcherBuyOrderDraftInput,
 } from "./matcher-order-draft.ts";
 import { connectMatcherWallet, type MatcherWalletConnection } from "./matcher-wallet.ts";
-import type { NativeZecUsdcMatcherDeploymentState } from "./native-zec-usdc-matcher-manifest.ts";
 import type { Hex32 } from "./order-domain.ts";
 import { signTypedOrderIntent } from "./evm-wallet.ts";
 
@@ -29,7 +28,7 @@ export type MatcherOrderFetch = (
 export type ReviewMatcherBuyOrderInput = Readonly<{
   fetch: MatcherOrderFetch;
   provider: Eip1193Provider;
-  deployment: NativeZecUsdcMatcherDeploymentState;
+  deployment: MatcherMarketDeployment;
   selectedMarket: string;
   zcashRecipient: string;
   priceTicks: bigint;
@@ -41,7 +40,7 @@ export type ReviewMatcherBuyOrderInput = Readonly<{
 }>;
 
 export type ReviewedMatcherBuyOrder = Readonly<{
-  deployment: NativeZecUsdcMatcherDeploymentState;
+  deployment: MatcherMarketDeployment;
   wallet: MatcherWalletConnection;
   makerAccountId: Hex32;
   draft: MatcherBuyOrderDraft;
@@ -103,7 +102,7 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-function assertEnabledDeployment(deployment: NativeZecUsdcMatcherDeploymentState): void {
+function assertEnabledDeployment(deployment: MatcherMarketDeployment): void {
   if (deployment.enabled !== true
     || deployment.deployed !== true
     || deployment.submissionEnabled !== true
@@ -145,26 +144,26 @@ async function jsonResponse(
   }
 }
 
-function healthPath(): typeof MATCHER_API_PATH {
-  return MATCHER_API_PATH;
+function healthPath(deployment: MatcherMarketDeployment): string {
+  return matcherApiPathForMarket(deployment.manifest.market.id);
 }
 
-function accountPath(makerAccountId: string): string {
-  return `${MATCHER_API_PATH}?account=${encodeURIComponent(makerAccountId)}`;
+function accountPath(deployment: MatcherMarketDeployment, makerAccountId: string): string {
+  return `${healthPath(deployment)}&account=${encodeURIComponent(makerAccountId)}`;
 }
 
 async function reviewedMatcherState(
   fetcher: MatcherOrderFetch,
-  deployment: NativeZecUsdcMatcherDeploymentState,
+  deployment: MatcherMarketDeployment,
   makerAccountId: Hex32,
 ): Promise<Readonly<{ health: unknown; account: VerifiedMatcherAccount }>> {
   const expectedMatcher = deployment.expectedMatcher;
   if (expectedMatcher === null) {
     throw new MatcherOrderWorkflowError("before-sign", "Native matcher order review is disabled by the deployment manifest");
   }
-  const health = await jsonResponse(fetcher, healthPath(), { method: "GET", cache: "no-store" });
+  const health = await jsonResponse(fetcher, healthPath(deployment), { method: "GET", cache: "no-store" });
   assertMatcherHealthIdentity(health, expectedMatcher);
-  const accountValue = await jsonResponse(fetcher, accountPath(makerAccountId), { method: "GET", cache: "no-store" });
+  const accountValue = await jsonResponse(fetcher, accountPath(deployment, makerAccountId), { method: "GET", cache: "no-store" });
   const account = assertMatcherAccountIdentity(accountValue, expectedMatcher, makerAccountId);
   return deepFreeze({ health, account });
 }
@@ -297,10 +296,10 @@ async function postSignedMatcherOrder(signed: SignedMatcherOrderPost, fetcher: M
 export async function reviewMatcherBuyOrder(input: ReviewMatcherBuyOrderInput): Promise<ReviewedMatcherBuyOrder> {
   assertEnabledDeployment(input.deployment);
   try {
-    const health = await jsonResponse(input.fetch, healthPath(), { method: "GET", cache: "no-store" });
+    const health = await jsonResponse(input.fetch, healthPath(input.deployment), { method: "GET", cache: "no-store" });
     const wallet = await connectMatcherWallet(input.provider, input.deployment);
     const makerAccountId = evmAuthorizedSignerId(input.deployment.orderDomain!.chainId, wallet.address);
-    const account = await jsonResponse(input.fetch, accountPath(makerAccountId), { method: "GET", cache: "no-store" });
+    const account = await jsonResponse(input.fetch, accountPath(input.deployment, makerAccountId), { method: "GET", cache: "no-store" });
     const draftInput: MatcherBuyOrderDraftInput = {
       deployment: input.deployment,
       selectedMarket: input.selectedMarket,

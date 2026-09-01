@@ -186,7 +186,7 @@ export function formatSignedChange(changeBps: number): string {
 // The exports below are pure functions over the matcher's live
 // MatcherOperator, exposed by the /ticker, /trades, /depth, and
 // /markets HTTP endpoints. The two surfaces never share state; the
-// fixtures stay frozen until a real Sepolia deployment is recorded.
+// fixtures stay frozen until an approved mainnet deployment is recorded.
 // ---------------------------------------------------------------------------
 
 import type { Book, Fill, RestingOrder } from "./matcher.ts";

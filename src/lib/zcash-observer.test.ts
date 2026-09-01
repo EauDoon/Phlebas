@@ -26,6 +26,7 @@ const REDEEM_SCRIPT = buildHtlcRedeemScript({
 });
 const REDEEM_SCRIPT_HEX = bytesToHex(REDEEM_SCRIPT);
 const TESTNET_ADDRESS = htlcP2shAddress(REDEEM_SCRIPT, "testnet");
+const MAINNET_ADDRESS = htlcP2shAddress(REDEEM_SCRIPT, "mainnet");
 
 function canonicalPush(data: Uint8Array): Uint8Array {
   if (data.length === 0) return Uint8Array.of(0x00);
@@ -91,11 +92,14 @@ function poll(
     blockHeight?: bigint;
     fromHeight?: bigint;
     address?: string;
+    network?: "testnet" | "mainnet";
     expectedRedeemScriptHex?: string;
   }> = {},
 ) {
-  const address = options.address ?? TESTNET_ADDRESS;
+  const network = options.network ?? "testnet";
+  const address = options.address ?? (network === "mainnet" ? MAINNET_ADDRESS : TESTNET_ADDRESS);
   return pollZcashOnce({
+    network,
     addresses: [address],
     fromHeight: options.fromHeight ?? 0n,
     source: makeSource(spend, options.blockHeight, address),
@@ -124,6 +128,15 @@ test("pollZcashOnce classifies a refund from its exact branch and CLTV evidence,
   assert.equal(events[0].kind, "refunded");
 });
 
+test("pollZcashOnce classifies exact mainnet P2SH claim and refund spend vectors", async () => {
+  const claim = await poll(spentEvidence(claimInput()), { network: "mainnet" });
+  const refund = await poll(spentEvidence(refundInput(), 150), { network: "mainnet" });
+  assert.equal(claim[0]?.address, MAINNET_ADDRESS);
+  assert.equal(claim[0]?.kind, "claimed");
+  assert.equal(refund[0]?.address, MAINNET_ADDRESS);
+  assert.equal(refund[0]?.kind, "refunded");
+});
+
 test("pollZcashOnce aggregates explicitly unspent outpoints across addresses", async () => {
   const source: ZcashEventSource = {
     fetchAddressOutpoints: async (address) => {
@@ -133,14 +146,14 @@ test("pollZcashOnce aggregates explicitly unspent outpoints across addresses", a
     },
     fetchSpend: async () => ({ spent: false, spendTxid: null }),
   };
-  const events = await pollZcashOnce({ addresses: ["t2abc", "t2def"], fromHeight: 0n, source });
+  const events = await pollZcashOnce({ network: "testnet", addresses: ["t2abc", "t2def"], fromHeight: 0n, source });
   assert.equal(events.length, 2);
 });
 
 test("pollZcashOnce fails closed when a spent outpoint has no expected redeem script", async () => {
   const source = makeSource(spentEvidence(claimInput()));
   await assert.rejects(
-    pollZcashOnce({ addresses: [TESTNET_ADDRESS], fromHeight: 0n, source }),
+    pollZcashOnce({ network: "testnet", addresses: [TESTNET_ADDRESS], fromHeight: 0n, source }),
     /no expected redeemScript is configured/,
   );
 });
@@ -217,10 +230,22 @@ test("pollZcashOnce rejects a refund transaction whose locktime is too early", a
   );
 });
 
-test("pollZcashOnce rejects a mainnet address even when it hashes the expected script", async () => {
+test("pollZcashOnce rejects an address from the other configured network", async () => {
   await assert.rejects(
     poll(spentEvidence(claimInput()), { address: htlcP2shAddress(REDEEM_SCRIPT, "mainnet") }),
     /watched address is not the testnet P2SH address/,
+  );
+  await assert.rejects(
+    poll(spentEvidence(claimInput()), { address: TESTNET_ADDRESS, network: "mainnet" }),
+    /watched address is not the mainnet P2SH address/,
+  );
+});
+
+test("pollZcashOnce rejects a missing or unsupported network before polling", async () => {
+  const source = makeSource({ spent: false, spendTxid: null });
+  await assert.rejects(
+    pollZcashOnce({ network: "regtest" as "testnet", addresses: [TESTNET_ADDRESS], fromHeight: 0n, source }),
+    /exactly testnet or mainnet/,
   );
 });
 

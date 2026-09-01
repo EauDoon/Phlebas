@@ -62,7 +62,7 @@ test("landing hero uses the shipped pre-launch product copy", () => {
   assert.equal(LANDING_HERO.heading, "Native ZEC. Native stables. No platform balance.");
   assert.equal(
     LANDING_HERO.supporting,
-    "Phlebas matches ZEC/USDC and ZEC/USDT as a professional order book. Each fill settles with one Zcash lock and one exact-token EVM lock, funded from the parties’ wallets. Claim and refund are mutually exclusive. The matcher never holds the assets.",
+    "Phlebas is a prelaunch order-book design for native transparent ZEC against Ethereum Mainnet USDC and USDT. Each future fill is designed to use one Zcash lock and one exact-token EVM lock, funded from the parties’ wallets. Contracts are not deployed, and the matcher never holds the assets.",
   );
   assert.equal(LANDING_HERO.primaryAction, "Open terminal");
   assert.equal(LANDING_HERO.primaryHref, "/trade?view=trade");
@@ -81,15 +81,16 @@ test("landing ledger names the public preview bounds", () => {
     [
       ["Product", "Public preview"],
       ["Market data", "Illustrative"],
-      ["Wallets", "Off"],
+      ["Wallet connection", "Ethereum Mainnet connection only"],
       ["Contracts", "Not deployed"],
       ["Custody", "None"],
       ["Mainnet", "Not cleared"],
       ["Country access", "Deny by default"],
     ],
   );
-  assert.equal(LANDING_LEDGER[2]?.value, "Off");
-  assert.doesNotMatch(corpus(LANDING_LEDGER), /Unavailable|Illustrative fixtures|No-value preview/i);
+  assert.equal(LANDING_LEDGER[2]?.value, "Ethereum Mainnet connection only");
+  assert.match(LANDING_BANNER.body, /Signing, submission, and value movement are disabled/);
+  assert.doesNotMatch(corpus(LANDING_LEDGER), /Unavailable|Illustrative fixtures|No-value preview|Sepolia|Arbitrum/i);
 });
 
 test("landing skip links follow the shipped section ids", () => {
@@ -111,11 +112,14 @@ test("landing skip links follow the shipped section ids", () => {
   assert.equal(LANDING_SKIP_LINKS.some((link) => /pZEC|deposit/i.test(link.href + link.label)), false);
 });
 
-test("two markets name ZEC/USDC first and abandon USDT0", () => {
+test("two markets bind native ZEC to exact Ethereum Mainnet quote assets", () => {
   assert.equal(LANDING_MARKETS[0]?.title, "ZEC / USDC");
   assert.match(LANDING_MARKETS[0].kicker, /First settlement target/i);
+  assert.match(LANDING_MARKETS[0].body, /native transparent ZEC/i);
+  assert.match(LANDING_MARKETS[0].body, /exact Ethereum Mainnet USDC/i);
   assert.equal(LANDING_MARKETS[1]?.title, "ZEC / USDT");
-  assert.match(LANDING_MARKETS[1].kicker, /exact token identity/i);
+  assert.match(LANDING_MARKETS[1].kicker, /Exact mainnet quote asset/i);
+  assert.match(LANDING_MARKETS[1].body, /exact Ethereum Mainnet USDT/i);
   assert.match(LANDING_MARKETS_INTRO.supporting, /USDT0 is abandoned/);
   assert.doesNotMatch(corpus(LANDING_MARKETS), /USDT0/);
 });

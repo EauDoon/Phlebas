@@ -14,7 +14,6 @@ import { TERMINAL_MODE_STORAGE_KEY } from "../../src/lib/terminal-mode.ts";
 export const PREVIEW_CHIP = "Public preview · illustrative data · no mainnet funds";
 export const LANDING_HERO_HEADING = "Native ZEC. Native stables. No platform balance.";
 export const OPEN_TERMINAL_CTA = "Open terminal";
-export const ORDER_COMPLETE_COPY = "Nothing was signed or submitted.";
 
 const host = "127.0.0.1";
 

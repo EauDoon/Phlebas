@@ -10,6 +10,12 @@ import {
   parseNativeZecUsdcMatcherManifest,
 } from "./native-zec-usdc-matcher-manifest.ts";
 import {
+  NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT,
+  computeNativeZecUsdtMatcherConfigurationHash,
+  parseNativeZecUsdtMatcherManifest,
+} from "./native-zec-usdt-matcher-manifest.ts";
+import type { MatcherMarketDeployment } from "./matcher-market-routing.ts";
+import {
   MatcherOrderWorkflowError,
   confirmMatcherBuyOrder,
   retryMatcherBuyOrder,
@@ -18,7 +24,7 @@ import {
   type ReviewedMatcherBuyOrder,
   type ReviewMatcherBuyOrderInput,
 } from "./matcher-order-workflow.ts";
-import { hash160Value, p2shAddress } from "./zcash-address.ts";
+import { hash160Value, p2pkhAddress } from "./zcash-address.ts";
 
 const NOW = 1_800_000_000n;
 const CONTRACT = `0x${"11".repeat(20)}`;
@@ -26,7 +32,7 @@ const WALLET = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
 const PRIVATE_KEY = BigInt("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
 const CURVE_ORDER = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
 const CURVE_GX = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798n;
-const RECIPIENT = p2shAddress(hash160Value(new TextEncoder().encode("matcher-order-workflow")), "mainnet");
+const RECIPIENT = p2pkhAddress(hash160Value(new TextEncoder().encode("matcher-order-workflow")), "mainnet");
 
 function mod(value: bigint, modulus: bigint): bigint {
   const remainder = value % modulus;
@@ -57,7 +63,19 @@ function deployment() {
   return parseNativeZecUsdcMatcherManifest(manifest);
 }
 
-function health(active = deployment()) {
+function usdtDeployment() {
+  const source = NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT.manifest;
+  const manifest = {
+    ...source,
+    deployed: true,
+    submissionEnabled: true,
+    evm: { ...source.evm, verifyingContract: CONTRACT },
+    configurationHash: computeNativeZecUsdtMatcherConfigurationHash(CONTRACT),
+  };
+  return parseNativeZecUsdtMatcherManifest(manifest);
+}
+
+function health(active: MatcherMarketDeployment = deployment()) {
   return {
     ok: true,
     matcher: "persistent-native-v1",
@@ -70,7 +88,7 @@ function health(active = deployment()) {
   };
 }
 
-function account(active = deployment(), sequence = "9") {
+function account(active: MatcherMarketDeployment = deployment(), sequence = "9") {
   const makerAccountId = evmAuthorizedSignerId(active.orderDomain!.chainId, WALLET);
   const recordHash = sequence === "9" ? `0x${"33".repeat(32)}` : `0x${"55".repeat(32)}`;
   return {
@@ -94,7 +112,7 @@ function json(value: unknown, status = 200): Response {
 }
 
 function reviewInput(
-  active: ReturnType<typeof deployment>,
+  active: MatcherMarketDeployment,
   provider: Eip1193Provider,
   fetcher: MatcherOrderFetch,
 ): ReviewMatcherBuyOrderInput {
@@ -102,7 +120,7 @@ function reviewInput(
     deployment: active,
     provider,
     fetch: fetcher,
-    selectedMarket: "ZEC/USDC",
+    selectedMarket: active.manifest.market.id,
     zcashRecipient: RECIPIENT,
     priceTicks: 650_000n,
     sizeAtoms: 100_000_000n,
@@ -118,7 +136,7 @@ function provider(calls: string[], review: () => ReviewedMatcherBuyOrder | null)
     async request({ method, params }) {
       calls.push(method);
       if (method === "eth_requestAccounts" || method === "eth_accounts") return [WALLET.toUpperCase().replace("0X", "0x")];
-      if (method === "eth_chainId") return "0xa4b1";
+      if (method === "eth_chainId") return "0x1";
       if (method === "eth_signTypedData_v4") {
         const current = review();
         assert.ok(current);
@@ -187,8 +205,8 @@ test("review fetches no-store matcher state, connects the manifest wallet, and f
   const maker = evmAuthorizedSignerId(active.orderDomain!.chainId, WALLET);
   const fetcher: MatcherOrderFetch = async (path, init) => {
     fetchCalls.push({ path: String(path), init });
-    if (String(path) === "/api/matcher") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(active));
     throw new Error(String(path));
   };
   let reviewed: ReviewedMatcherBuyOrder | null = null;
@@ -198,10 +216,29 @@ test("review fetches no-store matcher state, connects the manifest wallet, and f
   assert.equal(reviewed.draft.order.accountEpoch, 7n);
   assert.equal(Object.isFrozen(reviewed), true);
   assert.deepEqual(fetchCalls.map(({ path, init }) => [path, init?.method, init?.cache]), [
-    ["/api/matcher", "GET", "no-store"],
-    [`/api/matcher?account=${maker}`, "GET", "no-store"],
+    ["/api/matcher?market=ZEC%2FUSDC", "GET", "no-store"],
+    [`/api/matcher?market=ZEC%2FUSDC&account=${maker}`, "GET", "no-store"],
   ]);
   assert.deepEqual(providerCalls, ["eth_requestAccounts", "eth_chainId", "eth_chainId", "eth_accounts"]);
+});
+
+test("review routes an exact enabled ZEC/USDT manifest only to the USDT matcher", async () => {
+  const active = usdtDeployment();
+  const maker = evmAuthorizedSignerId(active.orderDomain!.chainId, WALLET);
+  const fetchCalls: string[] = [];
+  const fetcher: MatcherOrderFetch = async (path) => {
+    fetchCalls.push(String(path));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDT") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDT&account=${maker}`) return json(account(active));
+    throw new Error(String(path));
+  };
+  const reviewed = await reviewMatcherBuyOrder(reviewInput(active, provider([], () => null), fetcher));
+  assert.equal(reviewed.deployment.manifest.market.id, "ZEC/USDT");
+  assert.equal(reviewed.draft.order.quoteAssetId, active.orderPair.quoteAssetId);
+  assert.deepEqual(fetchCalls, [
+    "/api/matcher?market=ZEC%2FUSDT",
+    `/api/matcher?market=ZEC%2FUSDT&account=${maker}`,
+  ]);
 });
 
 test("confirmation rejects matcher-account drift before it signs or posts", async () => {
@@ -210,8 +247,8 @@ test("confirmation rejects matcher-account drift before it signs or posts", asyn
   let accountReads = 0;
   let postCalls = 0;
   const fetcher: MatcherOrderFetch = async (path, init) => {
-    if (String(path) === "/api/matcher") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) {
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) {
       accountReads += 1;
       return json(account(active, accountReads === 1 ? "9" : "10"));
     }
@@ -242,9 +279,9 @@ test("confirmation signs only the reviewed EIP-712 order, posts exact bytes, and
   const postHeaders: unknown[] = [];
   let reviewed: ReviewedMatcherBuyOrder | null = null;
   const fetcher: MatcherOrderFetch = async (path, init) => {
-    if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active));
-    if (String(path) === "/api/matcher" && init?.method === "POST") {
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "GET") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(active));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "POST") {
       postBodies.push(init.body as string);
       postHeaders.push(init.headers);
       return json(receipt(reviewed!, reviewed!.draft.occurredAt + 2n));
@@ -272,9 +309,9 @@ test("definite POST rejection and unknown signed receipt retain a safe exact ret
   let postAttempt = 0;
   const postBodies: string[] = [];
   const fetcher: MatcherOrderFetch = async (path, init) => {
-    if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active));
-    if (String(path) === "/api/matcher" && init?.method === "POST") {
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "GET") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(active));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "POST") {
       postAttempt += 1;
       postBodies.push(init.body as string);
       if (postAttempt === 1) return json({ ok: false, reason: "matcher-rejected-order" }, 422);

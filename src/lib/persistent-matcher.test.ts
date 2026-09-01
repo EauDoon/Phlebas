@@ -19,7 +19,7 @@ import {
   type PersistentMatcherState,
 } from "./persistent-matcher.ts";
 import { hashSolverQuote, type SolverQuote } from "./solver-quotes.ts";
-import { hash160Value, p2shAddress } from "./zcash-address.ts";
+import { hash160Value, p2pkhAddress } from "./zcash-address.ts";
 
 const now = 1_800_000_000n;
 const domain = createOrderDomain(42161n, "0x1111111111111111111111111111111111111111");
@@ -68,7 +68,7 @@ const configuration: PersistentMatcherConfiguration = {
 const verifier: MatcherSignatureVerifier = { verify() {} };
 
 function zcashAccount(name: string): string {
-  const address = p2shAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
+  const address = p2pkhAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
   return `zcash:mainnet:${address}`;
 }
 

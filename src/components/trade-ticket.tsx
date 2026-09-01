@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as Reac
 
 import { custodyRedemptionCopy, publicLinkabilityCopy } from "@/lib/review-copy";
 import { retargetSettlementCopy } from "@/lib/evm-wallet";
-import { parseExpiryUnix } from "@/lib/ticket-order";
+import { parseExpiryUnix } from "@/lib/ticket-expiry";
 import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import { interpretRovingKey } from "@/lib/roving-keys";

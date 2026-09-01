@@ -31,7 +31,7 @@ export default function StatusPage() {
         <div role="listitem"><dt>Deposits</dt><dd>{status.deposits}</dd></div>
         <div role="listitem"><dt>Withdrawals</dt><dd>{status.withdrawals}</dd></div>
         <div role="listitem"><dt>Wallets</dt><dd>{status.wallets}</dd></div>
-        <div role="listitem"><dt>Sepolia submit</dt><dd>{status.sepoliaSubmit}</dd></div>
+        <div role="listitem"><dt>Mainnet transactions</dt><dd>{status.mainnetTransactions}</dd></div>
         <div role="listitem"><dt>Contracts</dt><dd>{status.contracts}</dd></div>
         <div role="listitem"><dt>Network</dt><dd>{status.network}</dd></div>
         <div role="listitem"><dt>Market data</dt><dd>{status.marketData}</dd></div>

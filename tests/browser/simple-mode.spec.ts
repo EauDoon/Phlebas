@@ -4,6 +4,21 @@ import { parseAtomicUnits, PRICE_DECIMALS, worstPriceTicks, ZEC_DECIMALS } from 
 
 import { expect, test } from "./fixtures";
 
+function expectedMarketBuyCopy() {
+  const book = seedBook("ZEC/USDC");
+  const slippageHundredths = parseAtomicUnits("0.50", PRICE_DECIMALS, { allowZero: true });
+  return describeSubmit(
+    submitOrder(book, {
+      id: "user-preview",
+      side: "buy",
+      tif: "IOC",
+      priceTicks: worstPriceTicks(book.lastTicks, "buy", slippageHundredths),
+      sizeAtoms: parseAtomicUnits("1", ZEC_DECIMALS),
+    }),
+    "ZEC/USDC",
+  );
+}
+
 async function expectNoHorizontalOverflow(page: {
   evaluate: (fn: () => { body: number; document: number }) => Promise<{ body: number; document: number }>;
 }) {
@@ -55,23 +70,15 @@ test("Max fills a positive size and Switch flips side", async ({ page }) => {
 });
 
 test("simple Review confirm completes an IOC market fill", async ({ page }) => {
-  const book = seedBook("ZEC/USDC");
-  const slippageHundredths = parseAtomicUnits("0.50", PRICE_DECIMALS, { allowZero: true });
-  const market = submitOrder(book, {
-    id: "user-preview",
-    side: "buy",
-    tif: "IOC",
-    priceTicks: worstPriceTicks(book.lastTicks, "buy", slippageHundredths),
-    sizeAtoms: parseAtomicUnits("1", ZEC_DECIMALS),
-  });
-
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
   await page.getByRole("button", { name: "Complete buy" }).click();
-  await expect(page.getByText(describeSubmit(market, "ZEC/USDC"))).toBeVisible();
+  await expect(page.locator("#order-ticket").getByText(expectedMarketBuyCopy(), { exact: true })).toBeVisible();
+  await expect(page.getByRole("table", { name: /Recent ZEC\/USDC trades settled as ZEC-USDC/ })
+    .getByRole("row", { name: /^Buy 52\.91 1\.00 / })).toBeVisible();
 });
 
 test("simple Review is disabled when the feed gate blocks it", async ({ page }) => {

@@ -203,8 +203,11 @@ test("shipped modules carry the pre-launch product vocabulary", async () => {
   assert.match(liquidity, /historical-amm/);
   assert.match(await readFile(join(root, "src/lib/fees.ts"), "utf8"), /Not deducted in this preview/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/fees.ts"), "utf8"), /simulation/);
-  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletOffTitle/);
-  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /walletConnectEnabled/);
+  const walletBar = await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8");
+  assert.match(walletBar, /discoverEip6963Providers/);
+  assert.match(walletBar, /connectMainnetWallet/);
+  assert.match(walletBar, /Ethereum Mainnet/);
+  assert.doesNotMatch(walletBar, /walletOffTitle|walletConnectEnabled|Sepolia/);
   assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Phlebas is not a live exchange and not an offer of financial services/);
 });
 
@@ -215,7 +218,7 @@ test("status payload cannot be read as live funds or custody", async () => {
   assert.equal(status.liveFunds, false);
   assert.equal(status.mode, "preview");
   assert.equal(status.custody, "none");
-  assert.equal(status.contracts, "source-undeployed");
+  assert.equal(status.contracts, "conditional-lock-undeployed");
   assert.equal(status.marketData, "illustrative");
   assert.equal(status.incidents, "architecture-demonstration");
 });
@@ -279,7 +282,7 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.doesNotMatch(await readFile(join(root, "src/lib/session.ts"), "utf8"), /availablePzec/);
   assert.match(
     await readFile(join(root, "src/lib/encoding.test.ts"), "utf8"),
-    /2d3360d350d50a83e69a46f50a4fedcfc77a610dc91fe0d80fee67616acb38ca/,
+    /aa1bdf8c7374fd894cad16abede66833f88629a057d820c3c8526a2962f8b969/,
   );
   assert.match(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /nothing was minted/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /pZEC/);
@@ -358,8 +361,11 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(terminal), /trustless bridge/i);
   assert.match(chip, /no mainnet funds/);
-  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /Wallet connection rejection/);
-  assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /No injected EVM wallet/);
+  const walletBar = await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8");
+  assert.match(walletBar, /Wallet connection rejection/);
+  assert.match(walletBar, /discoverEip6963Providers/);
+  assert.match(walletBar, /connectMainnetWallet/);
+  assert.match(walletBar, /Ethereum Mainnet/);
   assert.match(await readFile(join(root, "src/lib/settlement-ticket-copy.ts"), "utf8"), /not trustless/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /custodyRedemptionCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicLinkabilityCopy/);
@@ -791,11 +797,13 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
   const education = await readFile(join(root, "src/lib/preview-education.ts"), "utf8");
   assert.match(education, /This public preview uses illustrative data/);
-  assert.match(education, /No chain is connected/);
+  assert.match(education, /Ethereum Mainnet wallet can connect for identity/);
+  assert.match(education, /does not sign or submit a transaction/);
   assert.match(education, /Pairs are native ZEC against USDC and USDT/);
   assert.match(education, /not live settlement/i);
   assert.match(education, /Actions stay in this browser/);
-  assert.match(education, /wallets and contracts are enabled/);
+  assert.match(education, /Contracts are not deployed/);
+  assert.match(education, /no signing, submission, or asset movement is enabled/);
   assert.doesNotMatch(education, /pZEC would depend on custody/);
   assert.doesNotMatch(education, /I agree/);
   assert.doesNotMatch(education, /Enter simulation/);
@@ -836,6 +844,7 @@ test("vercel.json does not assign operator URLs", async () => {
   }
   const vercel = await readFile(vercelPath, "utf8");
   assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_URL\s*[:=]/);
+  assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_(?:USDC|USDT)_URL\s*[:=]/);
 });
 
 test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", async () => {
@@ -863,6 +872,13 @@ test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", asy
     assert.match(`${vercelHit.stdout}${vercelHit.stderr}`, /vercel-operator-matcher/);
     await rm(join(dir, "vercel.json"));
 
+    await writeFile(join(dir, ".env"), "PHLEBAS_MATCHER_USDT_URL=http://127.0.0.1:8789\n");
+    await execFileAsync("git", ["add", "-A"], { cwd: dir });
+    const marketMatcherHit = await scanSecrets(dir);
+    assert.notEqual(marketMatcherHit.code, 0);
+    assert.match(`${marketMatcherHit.stdout}${marketMatcherHit.stderr}`, /vercel-operator-market-matcher/);
+    await rm(join(dir, ".env"));
+
     await mkdir(join(dir, ".vercel"));
     await writeFile(join(dir, ".vercel", "project.json"), "PHLEBAS_GATEWAY_URL=http://example.com:8787\n");
     await execFileAsync("git", ["add", "-A"], { cwd: dir });
@@ -873,7 +889,7 @@ test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", asy
 
     await writeFile(
       join(dir, "readme.md"),
-      "PHLEBAS_GATEWAY_URL=http://example.com\nPHLEBAS_MATCHER_URL=http://example.com\n",
+      "PHLEBAS_GATEWAY_URL=http://example.com\nPHLEBAS_MATCHER_URL=http://example.com\nPHLEBAS_MATCHER_USDC_URL=http://example.com\n",
     );
     await execFileAsync("git", ["add", "-A"], { cwd: dir });
     const ignored = await scanSecrets(dir);
@@ -970,7 +986,8 @@ test("simulation-label ADR is explicitly superseded by wallet-controlled settlem
   assert.match(adr2, /legacy fixtures/);
   const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
   assert.match(journeys, /Section ID: `pairs`/);
-  assert.match(journeys, /Native labels are simulation names, not live settlement/);
+  assert.match(journeys, /Those pairs are native ZEC against native USDC or native USDT/);
+  assert.match(journeys, /must not claim live native-ZEC execution/);
   const threat = await readFile(join(root, "docs/THREAT_MODEL.md"), "utf8");
   assert.match(threat, /retained as historical simulation evidence/);
   assert.match(threat, /does not define the production target/);
@@ -1091,7 +1108,6 @@ test("canonical settlement and wallet modules cannot import the diagnostic proje
     "src/lib/evm-wallet.ts",
     "src/lib/matcher-operator.ts",
     "src/lib/settlement-accounting.ts",
-    "src/lib/sepolia-submit.ts",
     "src/components/trade-ticket.tsx",
     "src/components/native-swap-panel.tsx",
     "src/components/settlement-ticket.tsx",

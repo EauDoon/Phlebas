@@ -26,7 +26,8 @@ import {
   type MatcherControlFetch,
   type ReviewedMatcherOrderControl,
 } from "./matcher-order-controls.ts";
-import { hash160Value, p2shAddress } from "./zcash-address.ts";
+import { hash160Value, p2pkhAddress } from "./zcash-address.ts";
+import type { MatcherMarketDeployment } from "./matcher-market-routing.ts";
 
 const NOW = 1_800_000_000n;
 const CONTRACT = `0x${"11".repeat(20)}`;
@@ -34,7 +35,7 @@ const WALLET = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
 const PRIVATE_KEY = BigInt("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
 const CURVE_ORDER = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
 const CURVE_GX = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798n;
-const RECIPIENT = p2shAddress(hash160Value(new TextEncoder().encode("matcher-order-controls")), "mainnet");
+const RECIPIENT = p2pkhAddress(hash160Value(new TextEncoder().encode("matcher-order-controls")), "mainnet");
 
 function mod(value: bigint, modulus: bigint): bigint {
   const remainder = value % modulus;
@@ -63,7 +64,7 @@ function deployment() {
   });
 }
 
-function health(active = deployment()) {
+function health(active: MatcherMarketDeployment = deployment()) {
   return {
     ok: true,
     matcher: "persistent-native-v1",
@@ -76,7 +77,7 @@ function health(active = deployment()) {
   };
 }
 
-function account(active = deployment(), sequence = "9", epoch = "7") {
+function account(active: MatcherMarketDeployment = deployment(), sequence = "9", epoch = "7") {
   const makerAccountId = evmAuthorizedSignerId(active.orderDomain!.chainId, WALLET);
   return {
     ok: true,
@@ -111,7 +112,7 @@ function provider(calls: string[], control: () => ReviewedMatcherOrderControl | 
     async request({ method, params }) {
       calls.push(method);
       if (method === "eth_requestAccounts" || method === "eth_accounts") return [WALLET];
-      if (method === "eth_chainId") return "0xa4b1";
+      if (method === "eth_chainId") return "0x1";
       if (method === "eth_signTypedData_v4") {
         const review = control();
         assert.ok(review);
@@ -123,17 +124,18 @@ function provider(calls: string[], control: () => ReviewedMatcherOrderControl | 
   };
 }
 
-async function reviewedOrder(active = deployment()): Promise<ReviewedMatcherBuyOrder> {
+async function reviewedOrder(active: MatcherMarketDeployment = deployment()): Promise<ReviewedMatcherBuyOrder> {
   const maker = evmAuthorizedSignerId(active.orderDomain!.chainId, WALLET);
   const fetcher: MatcherOrderFetch = async (path) => {
-    if (String(path) === "/api/matcher") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active));
+    const basePath = `/api/matcher?market=${encodeURIComponent(active.manifest.market.id)}`;
+    if (String(path) === basePath) return json(health(active));
+    if (String(path) === `${basePath}&account=${maker}`) return json(account(active));
     throw new Error(String(path));
   };
   const injected: Eip1193Provider = {
     async request({ method }) {
       if (method === "eth_requestAccounts" || method === "eth_accounts") return [WALLET];
-      if (method === "eth_chainId") return "0xa4b1";
+      if (method === "eth_chainId") return "0x1";
       throw new Error(`unexpected provider RPC ${method}`);
     },
   };
@@ -141,7 +143,7 @@ async function reviewedOrder(active = deployment()): Promise<ReviewedMatcherBuyO
     deployment: active,
     provider: injected,
     fetch: fetcher,
-    selectedMarket: "ZEC/USDC",
+    selectedMarket: active.manifest.market.id,
     zcashRecipient: RECIPIENT,
     priceTicks: 650_000n,
     sizeAtoms: 100_000_000n,
@@ -159,9 +161,9 @@ async function confirmedOrder(
   const orderHash = hashTypedOrder(order.deployment.orderDomain!, order.draft.order);
   const maker = order.makerAccountId;
   const fetcher: MatcherOrderFetch = async (path, init) => {
-    if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(order.deployment));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(order.deployment));
-    if (String(path) === "/api/matcher" && init?.method === "POST") {
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "GET") return json(health(order.deployment));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(order.deployment));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "POST") {
       return json({
         ok: true,
         replayed: false,
@@ -195,7 +197,7 @@ async function confirmedOrder(
   const injected: Eip1193Provider = {
     async request({ method, params }) {
       if (method === "eth_accounts") return [WALLET];
-      if (method === "eth_chainId") return "0xa4b1";
+      if (method === "eth_chainId") return "0x1";
       if (method === "eth_signTypedData_v4") {
         assert.deepEqual(JSON.parse(params?.[1] as string), order.draft.typedOrderData);
         return signDigest(orderHash);
@@ -279,8 +281,8 @@ test("cancellation review derives a frozen control only from a confirmed open or
   const fetchCalls: Array<readonly [string, string | undefined, RequestCache | undefined]> = [];
   const fetcher: MatcherControlFetch = async (path, init) => {
     fetchCalls.push([String(path), init?.method, init?.cache]);
-    if (String(path) === "/api/matcher") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active, "10"));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(active, "10"));
     throw new Error(String(path));
   };
   let review: ReviewedMatcherOrderControl | null = null;
@@ -298,8 +300,8 @@ test("cancellation review derives a frozen control only from a confirmed open or
   assert.equal(Object.isFrozen(review), true);
   assert.match(review.requestId, /^cancel-[0-9a-f]{64}-1800000001$/);
   assert.deepEqual(fetchCalls, [
-    ["/api/matcher", "GET", "no-store"],
-    [`/api/matcher?account=${maker}`, "GET", "no-store"],
+    ["/api/matcher?market=ZEC%2FUSDC", "GET", "no-store"],
+    [`/api/matcher?market=ZEC%2FUSDC&account=${maker}`, "GET", "no-store"],
   ]);
   assert.deepEqual(providerCalls, ["eth_requestAccounts", "eth_chainId", "eth_chainId", "eth_accounts"]);
   await assert.rejects(
@@ -319,8 +321,8 @@ test("epoch review reads fresh no-store matcher health, account, and checkpoint"
   const calls: Array<readonly [string, string | undefined, RequestCache | undefined]> = [];
   const fetcher: MatcherControlFetch = async (path, init) => {
     calls.push([String(path), init?.method, init?.cache]);
-    if (String(path) === "/api/matcher") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active, "10"));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(active, "10"));
     throw new Error(String(path));
   };
   let review: ReviewedMatcherOrderControl | null = null;
@@ -330,8 +332,8 @@ test("epoch review reads fresh no-store matcher health, account, and checkpoint"
   assert.equal(review.control.currentEpoch, 7n);
   assert.equal(review.control.nextEpoch, 8n);
   assert.deepEqual(calls, [
-    ["/api/matcher", "GET", "no-store"],
-    [`/api/matcher?account=${maker}`, "GET", "no-store"],
+    ["/api/matcher?market=ZEC%2FUSDC", "GET", "no-store"],
+    [`/api/matcher?market=ZEC%2FUSDC&account=${maker}`, "GET", "no-store"],
   ]);
   assert.deepEqual(providerCalls, ["eth_requestAccounts", "eth_chainId", "eth_chainId", "eth_accounts"]);
 });
@@ -343,8 +345,8 @@ test("confirmation rejects account checkpoint drift before wallet signing or POS
   let accountReads = 0;
   let posts = 0;
   const fetcher: MatcherControlFetch = async (path, init) => {
-    if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) {
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "GET") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) {
       accountReads += 1;
       return json(account(active, accountReads === 1 ? "10" : "11"));
     }
@@ -378,9 +380,9 @@ test("confirmation signs only typed controls, posts exact bytes, and validates b
   const source = await reviewedOrder(active);
   const maker = source.makerAccountId;
   const fetcher = (review: () => ReviewedMatcherOrderControl): MatcherControlFetch => async (path, init) => {
-    if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active, "10"));
-    if (String(path) === "/api/matcher" && init?.method === "POST") return json(controlReceipt(review()));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "GET") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(active, "10"));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC&action=cancel-order" && init?.method === "POST") return json(controlReceipt(review()));
     throw new Error(String(path));
   };
   let cancellation: ReviewedMatcherOrderControl | null = null;
@@ -404,9 +406,9 @@ test("confirmation signs only typed controls, posts exact bytes, and validates b
 
   let epoch: ReviewedMatcherOrderControl | null = null;
   const epochFetcher: MatcherControlFetch = async (path, init) => {
-    if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active, "10"));
-    if (String(path) === "/api/matcher" && init?.method === "POST") return json(controlReceipt(epoch!));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "GET") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(active, "10"));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC&action=advance-epoch" && init?.method === "POST") return json(controlReceipt(epoch!));
     throw new Error(String(path));
   };
   const epochCalls: string[] = [];
@@ -426,9 +428,9 @@ test("rejections and uncertain receipts preserve exact signed retry bytes after 
   const postPaths: string[] = [];
   let postAttempt = 0;
   const fetcher: MatcherControlFetch = async (path, init) => {
-    if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active, "10"));
-    if (String(path) === "/api/matcher" && init?.method === "POST") {
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "GET") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(active, "10"));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC&action=cancel-order" && init?.method === "POST") {
       postAttempt += 1;
       postPaths.push(String(path));
       bodies.push(String(init.body));
@@ -458,7 +460,11 @@ test("rejections and uncertain receipts preserve exact signed retry bytes after 
   assert.equal(confirmed.receipt.replayed, true);
   assert.equal(confirmed.receipt.receiptCheckpoint.sequence, 11n);
   assert.equal(confirmed.receipt.checkpoint.sequence, 12n);
-  assert.deepEqual(postPaths, ["/api/matcher", "/api/matcher", "/api/matcher"]);
+  assert.deepEqual(postPaths, [
+    "/api/matcher?market=ZEC%2FUSDC&action=cancel-order",
+    "/api/matcher?market=ZEC%2FUSDC&action=cancel-order",
+    "/api/matcher?market=ZEC%2FUSDC&action=cancel-order",
+  ]);
   assert.deepEqual(bodies, [bodies[0], bodies[0], bodies[0]]);
   assert.deepEqual(idempotencyKeys, [review.requestId, review.requestId, review.requestId]);
   assert.equal(calls.filter((call) => call === "eth_signTypedData_v4").length, 1);
@@ -498,7 +504,7 @@ test("only confirmed open or partially-filled orders can enter cancellation revi
   let review: ReviewedMatcherOrderControl | null = null;
   review = await reviewMatcherOrderCancellation({
     artifact: partiallyFilled,
-    fetch: async (path) => String(path) === "/api/matcher"
+    fetch: async (path) => String(path) === "/api/matcher?market=ZEC%2FUSDC"
       ? json(health(source.deployment))
       : json(account(source.deployment, "10")),
     provider: provider([], () => review),

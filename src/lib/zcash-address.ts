@@ -490,6 +490,21 @@ export function assertZcashTransparentAccount(
   }
 }
 
+export function assertZcashTransparentP2pkhAccount(
+  account: string,
+  environment: ZcashNetwork,
+  label = "Zcash account",
+): void {
+  try {
+    const decoded = decodeZcashTransparentAccount(account);
+    if (decoded.environment !== environment) throw new RangeError("wrong network");
+    if (decoded.kind !== "p2pkh") throw new TypeError("address is not P2PKH");
+  } catch (error) {
+    const reason = error instanceof Error ? `: ${error.message}` : "";
+    throw new Error(`${label} must be a transparent P2PKH ${environment} Zcash account${reason}`);
+  }
+}
+
 export function isZcashTransparentAccount(value: string, environment?: ZcashNetwork): boolean {
   try {
     const decoded = decodeZcashTransparentAccount(value);

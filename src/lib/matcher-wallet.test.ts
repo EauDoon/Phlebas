@@ -3,10 +3,10 @@ import test from "node:test";
 
 import type { Eip1193Provider } from "./evm-wallet.ts";
 import {
-  ARBITRUM_ONE_HEX,
   connectMatcherWallet,
   publicMatcherWalletError,
 } from "./matcher-wallet.ts";
+import { ETHEREUM_MAINNET_CHAIN_HEX } from "./mainnet-assets.ts";
 import {
   NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
   computeNativeZecUsdcMatcherConfigurationHash,
@@ -43,14 +43,14 @@ test("refuses wallet access while the native matcher deployment is disabled", as
   assert.deepEqual(calls, []);
 });
 
-test("switches to Arbitrum One and rechecks the active account without transaction RPC", async () => {
+test("switches to Ethereum Mainnet and rechecks the active account without transaction RPC", async () => {
   const calls: string[] = [];
   const provider: Eip1193Provider = {
     async request({ method }) {
       calls.push(method);
       if (method === "eth_requestAccounts" || method === "eth_accounts") return [ADDRESS.toUpperCase().replace("0X", "0x")];
       if (method === "eth_chainId") {
-        return calls.filter((value) => value === "eth_chainId").length === 1 ? "0x1" : ARBITRUM_ONE_HEX;
+        return calls.filter((value) => value === "eth_chainId").length === 1 ? "0xa4b1" : ETHEREUM_MAINNET_CHAIN_HEX;
       }
       if (method === "wallet_switchEthereumChain") return null;
       throw new Error(method);
@@ -59,7 +59,7 @@ test("switches to Arbitrum One and rechecks the active account without transacti
 
   assert.deepEqual(await connectMatcherWallet(provider, enabledDeployment()), {
     address: ADDRESS,
-    chainId: ARBITRUM_ONE_HEX,
+    chainId: ETHEREUM_MAINNET_CHAIN_HEX,
   });
   assert.deepEqual(calls, [
     "eth_requestAccounts",
@@ -77,7 +77,7 @@ test("does not add a chain after a switch rejection", async () => {
     async request({ method }) {
       calls.push(method);
       if (method === "eth_requestAccounts") return [ADDRESS];
-      if (method === "eth_chainId") return "0x1";
+      if (method === "eth_chainId") return "0xa4b1";
       if (method === "wallet_switchEthereumChain") throw Object.assign(new Error("rejected"), { code: 4001 });
       throw new Error(method);
     },
@@ -91,7 +91,7 @@ test("fails when the account changes during connection", async () => {
   const provider: Eip1193Provider = {
     async request({ method }) {
       if (method === "eth_requestAccounts") return [ADDRESS];
-      if (method === "eth_chainId") return "0xA4B1";
+      if (method === "eth_chainId") return ETHEREUM_MAINNET_CHAIN_HEX;
       if (method === "eth_accounts") return ["0x1111111111111111111111111111111111111111"];
       throw new Error(method);
     },

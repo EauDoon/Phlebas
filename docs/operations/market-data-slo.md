@@ -14,5 +14,5 @@ the reason for the change.
 
 The initial SLO is intentionally conservative. The matcher
 operator's in-memory state is the only bottleneck; the network
-round-trip is excluded from the budget. A future PR will tighten
-the latency budget after a real Sepolia deployment is recorded.
+round-trip is excluded from the budget. A future PR may tighten
+the latency budget only after an enabled production matcher has measured evidence.

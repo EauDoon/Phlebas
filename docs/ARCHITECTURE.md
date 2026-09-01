@@ -3,7 +3,7 @@
 Status: native-settlement target, no-value simulation
 Updated: 01-09-2026
 
-Phlebas is being built as a non-custodial exchange for native transparent ZEC against USDC and USDT. The current public application is a no-value browser simulation. The current integration target is a signed USDC buy-side order submitted to an accepting no-value matcher. ZEC sell-side submission remains disabled until a Zcash-wallet authorization format is integrated. The optional wallet connector is limited to undeployed Arbitrum Sepolia terms. No local TEX issuance or custody gateway is part of the current runtime. The matcher is never hosted on Vercel and cannot move funds.
+Phlebas is being built as a non-custodial exchange for native transparent ZEC against USDC and USDT. The current public application is a no-value browser simulation. Its EVM wallet boundary discovers MetaMask and Rabby through EIP-6963, connects only to Ethereum Mainnet, and invalidates identity on provider or chain drift. The current order integration supports exact ZEC/USDC and ZEC/USDT buy-side drafts, but both tracked matcher manifests remain disabled. ZEC sell-side submission remains disabled until a qualified Zcash-wallet authorization format is integrated. No local TEX issuance or custody gateway is part of the current runtime. The matcher is never hosted on Vercel and cannot move funds.
 
 No Phlebas contract is deployed. No Zcash node, production signer, reserve account, custody process, transaction, or real asset is connected. Every balance, order, trade, pool, price, and transaction shown by the public application is simulated. Missing live-value gates keep wallet actions, chain broadcast, and production settlement disabled.
 
@@ -30,12 +30,12 @@ The current repository contains a Next.js no-value simulation, undeployed Arbitr
 | --- | --- | --- |
 | Web application | Vercel-hosted no-value simulation | Public interface and unsigned transaction preparation |
 | Market data | Illustrative fixtures plus session fills | Signed and independently monitored public feeds |
-| Order book | In-browser matcher plus a persistent loopback no-value matcher. Current integration target: signed USDC buy-side submission | Privately hosted signed-order matcher with receipts after release approval |
+| Order book | In-browser matcher plus isolated persistent loopback no-value matchers for ZEC/USDC and ZEC/USDT. Browser submission and recovery stay unavailable while the tracked manifests are disabled | Privately hosted signed-order matcher with receipts after release approval |
 | Settlement | Local inventory updates and undeployed legacy Sepolia contracts | One two-chain atomic swap per fill |
 | Zcash path | Key-independent transparent HTLC and unsigned-artifact lab, plus a historical state tour. ZEC sell-side submission is disabled pending a Zcash-wallet authorization format | Wallet-reviewed P2SH fund, claim, and refund transactions |
-| EVM path | Signed USDC buy-side order integration target and optional Sepolia wallet flow against an undeployed legacy manifest | Exact-token conditional-lock contract |
+| EVM path | Ethereum Mainnet wallet identity plus unsigned exact-token approval and conditional-lock action planning. No transaction submission, deployed lock, or enabled matcher | Audited, exactly identified Ethereum Mainnet conditional-lock deployment |
 | Liquidity | Superseded pZEC AMM and LP previews | Wallet-held maker and solver quotes |
-| Wallets | Optional EIP-1193 testnet flow; no native swap adapter | Explicit adapters that keep every key in the wallet |
+| Wallets | Ethereum Mainnet EIP-6963 identity connection for MetaMask and Rabby; declared but unqualified transparent-ZEC capability boundary; no asset-moving adapter | Qualified explicit adapters that keep every key in the wallet |
 | Observers | Atomic-swap reference domain, not a running mint-attestation service | Independent read-only Zcash and EVM evidence |
 | Coordinator | None | Persistent state, recovery, and safe-action policy |
 

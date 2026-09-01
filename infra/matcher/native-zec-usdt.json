@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": "1.0.0",
+  "manifestType": "native-zec-usdt-matcher-deployment",
+  "deployed": false,
+  "submissionEnabled": false,
+  "orderDomain": {
+    "name": "Phlebas Order Intent",
+    "version": "1"
+  },
+  "evm": {
+    "network": "eip155:1",
+    "chainId": 1,
+    "verifyingContract": null
+  },
+  "market": {
+    "id": "ZEC/USDT",
+    "settlementPair": "ZEC-USDT",
+    "base": {
+      "network": "bip122:00040fe8ec8471911baa1db1266ea15d",
+      "asset": "bip122:00040fe8ec8471911baa1db1266ea15d/slip44:133",
+      "environment": "mainnet",
+      "decimals": 8
+    },
+    "quote": {
+      "network": "eip155:1",
+      "asset": "eip155:1/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "environment": "mainnet",
+      "decimals": 6
+    }
+  },
+  "configurationHash": null,
+  "settlement": {
+    "protocolVersion": "transparent-htlc-v1",
+    "adapterId": "0x4a706303b18927143cae2eea9b380287fad8a427661b0c1e89d44d359629127d",
+    "stablecoinRefundDelaySeconds": "3600",
+    "zcashRefundSafetyDeltaSeconds": "7200",
+    "zcashRequiredConfirmations": 10,
+    "quoteRequiredConfirmations": 65
+  },
+  "limits": {
+    "minimumBaseAmountAtoms": "1",
+    "maximumBaseAmountAtoms": "10000000000",
+    "maximumAcceptedOrders": 1000,
+    "maximumOpenOrders": 100,
+    "maximumOpenOrdersPerAccount": 10,
+    "maximumSolverQuotes": 100,
+    "maximumRouteFills": 16,
+    "maximumSolverFills": 8,
+    "maximumOrderLifetimeSeconds": "10000",
+    "maximumSolverLifetimeSeconds": "10000",
+    "maximumSolverCapacityBaseAtoms": "10000000000",
+    "maximumSolverFeeBps": "0",
+    "maximumSolverSlippageBps": "2000"
+  }
+}

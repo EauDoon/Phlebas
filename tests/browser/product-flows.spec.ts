@@ -1,5 +1,6 @@
 import { blotterEmptyOrdersCopy } from "../../src/lib/blotter-copy.ts";
 import { DEPOSIT_TOUR } from "../../src/lib/deposit-tour.ts";
+import { missingProviderCopy } from "../../src/lib/evm-wallet.ts";
 import { markets } from "../../src/lib/market-data.ts";
 import { submitOrder } from "../../src/lib/matcher.ts";
 import { NATIVE_MATCHER_DISABLED_COPY } from "../../src/lib/native-matcher-order-action.ts";
@@ -89,11 +90,9 @@ test("wallet connect without a provider names the rejection while the native mat
   const nativeMatcher = page.locator("#native-matcher-order-action");
   await expect(nativeMatcher).toContainText(NATIVE_MATCHER_DISABLED_COPY);
   await expect(nativeMatcher).toHaveAttribute("data-native-matcher-state", "manifest-disabled");
-  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
-  await expect(connect).toBeDisabled();
-  await expect(connect).toHaveAttribute(
-    "title",
-    "Wallets are off. Optional Sepolia connect is not started. Settled as ZEC-USDC.",
+  await page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" }).click();
+  await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(
+    missingProviderCopy(markets["ZEC/USDC"].settlementPair),
   );
   await expect(page.getByText(/seed phrase|spending key|spend key|viewing key/i)).toHaveCount(0);
   await expect(page.locator("input[type=password]")).toHaveCount(0);
@@ -156,16 +155,20 @@ test("GTC remainder can be cancelled, IOC cancels remainder, and FOK rejects a m
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review buy" }).click();
   await page.getByRole("button", { name: "Complete buy" }).click();
-  await expect(page.getByText(describeSubmit(rest, "ZEC/USDC"))).toBeVisible();
+  await expect(page.getByText(describeSubmit(rest, "ZEC/USDC"), { exact: true })).toBeVisible();
+  const openOrders = page.getByRole("tabpanel", { name: "Open orders" });
+  await expect(openOrders.getByRole("row", { name: "Buy 50.00 1 ZEC-USDC Cancel" })).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.getByText(blotterEmptyOrdersCopy(markets["ZEC/USDC"].settlementPair))).toBeVisible();
+  await expect(openOrders.getByText(blotterEmptyOrdersCopy(markets["ZEC/USDC"].settlementPair))).toBeVisible();
 
   await page.getByRole("button", { name: "IOC" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review buy" }).click();
   await page.getByRole("button", { name: "Complete buy" }).click();
-  await expect(page.getByText(describeSubmit(ioc, "ZEC/USDC"))).toBeVisible();
+  await expect(page.getByText(describeSubmit(ioc, "ZEC/USDC"), { exact: true })).toBeVisible();
+  await expect(openOrders.getByText(blotterEmptyOrdersCopy(markets["ZEC/USDC"].settlementPair))).toBeVisible();
+  await expect(openOrders.getByRole("button", { name: "Cancel", exact: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "FOK" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("52.91");
@@ -191,8 +194,14 @@ test("market IOC confirm fills against the fixture book", async ({ page }) => {
   await page.getByRole("button", { name: "Market" }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review buy" }).click();
-  await expect(page.getByText("Worst price", { exact: true })).toBeVisible();
-  await expect(page.getByText("IOC", { exact: true })).toBeVisible();
+  const ticket = page.locator("#order-ticket");
+  const worstPrice = ticket.getByText("Worst price", { exact: true }).locator("..");
+  await expect(worstPrice).toContainText("53.11 USDC");
+  await expect(ticket.getByText("IOC", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Complete buy" }).click();
-  await expect(page.getByText(describeSubmit(market, "ZEC/USDC"))).toBeVisible();
+  await expect(ticket.getByText(describeSubmit(market, "ZEC/USDC"), { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Fills" }).click();
+  const fills = page.getByRole("tabpanel", { name: "Fills" });
+  await expect(fills.getByRole("table", { name: "Session fills for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
+  await expect(fills.getByRole("row").filter({ hasText: "Buy52.911ZEC-USDC" })).toBeVisible();
 });

@@ -10,7 +10,7 @@ import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier 
 import { VENUE_CLOB, VENUE_SOLVER } from "./order-policy.ts";
 import type { SequencedOrder } from "./price-time.ts";
 import { acceptSolverQuote, type SolverQuote, type SolverQuotePolicy } from "./solver-quotes.ts";
-import { hash160Value, p2shAddress } from "./zcash-address.ts";
+import { hash160Value, p2pkhAddress } from "./zcash-address.ts";
 
 const now = 1_800_000_000n;
 const baseNetwork = "bip122:00040fe8ec8471911baa1db1266ea15d";
@@ -44,7 +44,7 @@ const solverPolicy: SolverQuotePolicy = {
 const verifier: MatcherSignatureVerifier = { verify() {} };
 
 function zcashAccount(name: string): string {
-  const address = p2shAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
+  const address = p2pkhAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
   return `zcash:mainnet:${address}`;
 }
 

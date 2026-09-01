@@ -12,7 +12,7 @@ export type CanonicalOrder = {
   recipient: "session";
   maximumFeeBps: "30";
   allowedVenues: "clob" | "amm" | "clob,amm";
-  chainId: "42161";
+  chainId: "1";
   verifyingContract: "not-deployed";
 };
 

@@ -7,13 +7,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { createOrderDomain, hashOrderDomain, type TypedOrderIntent } from "../../src/lib/eip712-order.ts";
+import { createOrderDomain, hashOrderDomain, hashTypedOrder, type TypedOrderIntent } from "../../src/lib/eip712-order.ts";
 import { keccak256Text } from "../../src/lib/keccak.ts";
 import type { MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
 import { MATCHER_CONFIGURATION_HEADER } from "../../src/lib/matcher-http.ts";
 import { matcherConfigurationHash, type PersistentMatcherConfiguration, type PersistentMatcherEvent } from "../../src/lib/persistent-matcher.ts";
 import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier } from "../../src/lib/order-domain.ts";
-import { hash160Value, p2shAddress } from "../../src/lib/zcash-address.ts";
+import { hash160Value, p2pkhAddress } from "../../src/lib/zcash-address.ts";
 import { VENUE_CLOB } from "../../src/lib/order-policy.ts";
 import { serializePersistentMatcherEvent } from "./persistent-store.ts";
 import { startMatcher } from "./server.ts";
@@ -73,7 +73,7 @@ function mutationHeaders(requestId: string): Record<string, string> {
 }
 
 function zcashAccount(name: string): string {
-  const address = p2shAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
+  const address = p2pkhAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
   return `zcash:mainnet:${address}`;
 }
 
@@ -243,6 +243,124 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
     assert.equal((await json(await fetch(`${origin}/health`))).sequence, "2");
   } finally {
     if (server.listening) await close(server);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("recovers a bounded signature-free account page through a single-use challenge", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-recovery-"));
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: directory,
+    configuration,
+    verifier,
+    clockSeconds: () => now,
+  });
+  const origin = await listen(server);
+  try {
+    const accepted = event("recover-order");
+    assert.equal((await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: mutationHeaders(accepted.requestId),
+      body: JSON.stringify(payload(accepted)),
+    })).status, 201);
+    const before = await json(await fetch(`${origin}/health`));
+    const challengeResponse = await fetch(`${origin}/v1/account-order-challenges`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        [MATCHER_CONFIGURATION_HEADER]: matcherConfigurationHash(configuration),
+      },
+      body: JSON.stringify({
+        version: 1,
+        makerAccountId: accepted.submission.order.makerAccountId,
+        afterSequence: "0",
+        limit: 10,
+      }),
+    });
+    assert.equal(challengeResponse.status, 200);
+    const challenge = await json(challengeResponse);
+    assert.match(String(challenge.challenge), /^0x[0-9a-f]{64}$/);
+    assert.equal(challenge.issuedAtSeconds, now.toString());
+    assert.equal(challenge.expiresAtSeconds, (now + 60n).toString());
+    const checkpoint = challenge.checkpoint as Record<string, unknown>;
+    const recoveryBody = {
+      version: 1,
+      makerAccountId: challenge.makerAccountId,
+      configurationHash: challenge.configurationHash,
+      checkpointSequence: checkpoint.sequence,
+      checkpointRecordHash: checkpoint.recordHash,
+      checkpointStateRoot: checkpoint.stateRoot,
+      afterSequence: challenge.afterSequence,
+      limit: challenge.limit,
+      challenge: challenge.challenge,
+      expiresAtSeconds: challenge.expiresAtSeconds,
+      signature: `0x${"11".repeat(65)}`,
+    };
+
+    const malformedSignature = await fetch(`${origin}/v1/account-open-orders`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        [MATCHER_CONFIGURATION_HEADER]: matcherConfigurationHash(configuration),
+      },
+      body: JSON.stringify({ ...recoveryBody, signature: "0x00" }),
+    });
+    assert.equal(malformedSignature.status, 401);
+
+    const recoveredResponse = await fetch(`${origin}/v1/account-open-orders`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        [MATCHER_CONFIGURATION_HEADER]: matcherConfigurationHash(configuration),
+      },
+      body: JSON.stringify(recoveryBody),
+    });
+    assert.equal(recoveredResponse.status, 200);
+    const recovered = await json(recoveredResponse);
+    assert.deepEqual(recovered, {
+      ok: true,
+      makerAccountId: accepted.submission.order.makerAccountId,
+      configurationHash: matcherConfigurationHash(configuration),
+      accountEpoch: "0",
+      afterSequence: "0",
+      nextAfter: "2",
+      hasMore: false,
+      checkpoint,
+      orders: [{
+        version: 1,
+        orderHash: hashTypedOrder(domain, accepted.submission.order),
+        acceptedSequence: "2",
+        makerAccountId: accepted.submission.order.makerAccountId,
+        authorizedSignerId: accepted.submission.order.authorizedSignerId,
+        accountEpoch: "0",
+        nonce: "1",
+        currentStatus: "open",
+        baseAmountAtoms: "100000000",
+        remainingBaseAtoms: "100000000",
+        limitPriceTicks: "5000",
+        expiry: (now + 5_000n).toString(),
+      }],
+    });
+    assert.doesNotMatch(
+      JSON.stringify(recovered),
+      /sourceAccount|recipientAccount|signature|salt|swapPlanIds|route|fills|counterparty/,
+    );
+    assert.equal((await fetch(`${origin}/v1/account-open-orders`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        [MATCHER_CONFIGURATION_HEADER]: matcherConfigurationHash(configuration),
+      },
+      body: JSON.stringify(recoveryBody),
+    })).status, 401);
+    const after = await json(await fetch(`${origin}/health`));
+    assert.equal(after.sequence, before.sequence);
+    assert.equal(after.stateRoot, before.stateRoot);
+    assert.deepEqual(after.checkpoint, before.checkpoint);
+  } finally {
+    await close(server);
     await rm(directory, { recursive: true, force: true });
   }
 });

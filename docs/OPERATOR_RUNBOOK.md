@@ -2,13 +2,14 @@
 
 Status: isolated loopback Compose only. No live funds. No mainnet TEX. Vercel is not an operator host.
 
-Do not set `PHLEBAS_MATCHER_URL` on Vercel.
+Do not set `PHLEBAS_MATCHER_URL`, `PHLEBAS_MATCHER_USDC_URL`, or `PHLEBAS_MATCHER_USDT_URL` on Vercel.
 
 ## What this runs
 
 | Process | Host bind | Health | Role |
 | --- | --- | --- | --- |
-| matcher | `127.0.0.1:8788` | `GET /health` | Persistent native-order and solver domain, no-value only |
+| matcher-usdc | `127.0.0.1:8788` | `GET /health` | ZEC/USDC persistent native-order and solver domain, no-value only |
+| matcher-usdt | `127.0.0.1:8789` | `GET /health` | ZEC/USDT persistent native-order and solver domain, no-value only |
 
 Compose publishes those ports on loopback only. Inside the container `PHLEBAS_BIND=0.0.0.0`; the host mapping remains `127.0.0.1`.
 
@@ -32,6 +33,7 @@ Each process defaults to `127.0.0.1`. Direct `npm run` processes refuse `PHLEBAS
 
 ```bash
 curl http://127.0.0.1:8788/health
+curl http://127.0.0.1:8789/health
 ```
 
 Expect a direct matcher start to report `matcher: persistent-native-v1`, `configured: false`, `acceptingMutations: false`, `mode: no-value`, and `custody: false`. An embedding operator can inject an immutable configuration and verifier for local validation. A configured matcher also reports its sequence, state root, configuration hash, and exact checkpoint.
@@ -66,7 +68,7 @@ One request ID cannot be reused for a different matcher command. A matching repl
 
 New cancel and epoch requests cannot supply an authorization-scheme field. Ingress assigns `eip712-v1`, and the journal persists it explicitly. Stores created by this release commit a system-managed authorization-cutover event before user mutations. A legacy v1 store first replays its existing prefix, appends the same event, checkpoints it, then writes the canonical v2 initialization marker. Unmarked raw controls replay only before the committed event. A restored v1 marker does not widen that boundary. System request IDs use a reserved namespace, while exact historical system-prefixed requests remain replayable.
 
-The browser control workflow is implemented. Cancellation review accepts only an immutable confirmed native buy artifact with an `open` or `partially-filled` receipt, then refreshes matcher health, account state, wallet identity, and checkpoint. Epoch review accepts an immutable confirmed native buy artifact and derives the control from the fresh account epoch plus one. Confirmation repeats those matcher, account, checkpoint, and wallet checks, stops on drift, and signs only the reviewed EIP-712 typed control. A known 4xx response is `rejected`; transport failure, 5xx, unreadable or malformed response, and receipt mismatch are `receipt-unknown`. Retry checks the approved matcher identity, then posts exactly the original frozen body and idempotency key without another signature. The artifacts are session-only. After reload, the browser cannot retry from the old artifact, and account-scoped open-order recovery is not implemented.
+The browser control workflow is implemented. Cancellation review accepts only an immutable confirmed native buy artifact with an `open` or `partially-filled` receipt, then refreshes matcher health, account state, wallet identity, and checkpoint. Epoch review accepts an immutable confirmed native buy artifact and derives the control from the fresh account epoch plus one. Confirmation repeats those matcher, account, checkpoint, and wallet checks, stops on drift, and signs only the reviewed EIP-712 typed control. A known 4xx response is `rejected`; transport failure, 5xx, unreadable or malformed response, and receipt mismatch are `receipt-unknown`. Retry checks the approved matcher identity, then posts exactly the original frozen body and idempotency key without another signature. The control artifacts are session-only, so the browser cannot retry an old artifact after reload. Account-scoped open-order recovery uses a separate fresh single-use EIP-712 authorization for every page and fails closed on cursor, checkpoint, duplicate-order, configuration, or wallet drift. The current terminal does not expose that client while both tracked matcher manifests remain disabled.
 
 The tracked native matcher manifest remains disabled and no-value. This runbook does not authorize activation, a hosted production matcher, wallet execution, contract deployment, chain access, or live funds.
 
@@ -75,7 +77,8 @@ See [ADR 0003](adr/0003-persistent-native-matcher.md) for exact semantics and un
 Local Next.js only:
 
 ```bash
-set PHLEBAS_MATCHER_URL=http://127.0.0.1:8788
+set PHLEBAS_MATCHER_USDC_URL=http://127.0.0.1:8788
+set PHLEBAS_MATCHER_USDT_URL=http://127.0.0.1:8789
 ```
 
 ## Stop
