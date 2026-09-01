@@ -60,23 +60,11 @@ async function previewAnOrder(page: Page) {
   if (await buy.count()) {
     await buy.click();
   }
-  const limit = page.getByRole("button", { name: /^Limit$/ });
-  const market = page.getByRole("button", { name: /^Market$/ });
-  if (await limit.count()) {
-    await limit.click();
-  } else if (await market.count()) {
-    await market.click();
-  }
-  const size = page.getByRole("textbox", { name: /size/i });
-  if (await size.count()) {
-    await size.fill("1");
-  }
-  await page.getByRole("button", { name: /Review/i }).click();
-  const confirm = page.getByRole("button", { name: /Confirm|Complete/i });
-  if (await confirm.count()) {
-    await confirm.click();
-  }
-  await expect(page.getByText(ORDER_COMPLETE_COPY)).toBeVisible();
+  const size = page.getByRole("textbox", { name: /Order size in ZEC|size/i }).first();
+  await size.fill("1");
+  await page.getByRole("button", { name: /^Review buy$/ }).click();
+  await page.getByRole("button", { name: /^Complete buy$/ }).click();
+  await expect(page.getByText(/Nothing was signed or submitted/)).toBeVisible();
 }
 
 for (const viewport of viewports) {

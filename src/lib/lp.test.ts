@@ -264,7 +264,7 @@ test("LP swap notice names the settlement pair from a real mint then swap", () =
   const outputLabel = formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2);
   assert.equal(
     lpSwapNoticeCopy(outputLabel, pools[0].quote, markets["ZEC/USDC"].settlementPair),
-    `Simulated ZEC→USDC swap. Output ${outputLabel} USDC. Local preview only. Settled as ZEC-USDC.`,
+    `ZEC→USDC swap. Output ${outputLabel} USDC. Local preview only. Settled as ZEC-USDC.`,
   );
   assert.match(
     lpSwapNoticeCopy(outputLabel, pools[1].quote, markets["ZEC/USDT"].settlementPair),
@@ -291,7 +291,7 @@ test("LP swap notice names ZEC-USDT from a real USDT mint then swap", () => {
   const outputLabel = formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2);
   assert.equal(
     lpSwapNoticeCopy(outputLabel, pools[1].quote, markets["ZEC/USDT"].settlementPair),
-    `Simulated ZEC→USDT swap. Output ${outputLabel} USDT. Local preview only. Settled as ZEC-USDT.`,
+    `ZEC→USDT swap. Output ${outputLabel} USDT. Local preview only. Settled as ZEC-USDT.`,
   );
   assert.doesNotMatch(
     lpSwapNoticeCopy(outputLabel, pools[1].quote, markets["ZEC/USDT"].settlementPair),

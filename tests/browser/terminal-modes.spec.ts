@@ -115,7 +115,7 @@ test("terminal mode radios support roving focus and arrow navigation", async ({ 
 test("primary CTAs on landing trade and liquidity change visible state", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
   await expectHonestPreview(page);
-  await page.locator("main").getByRole("link", { name: OPEN_TERMINAL_CTA }).click();
+  await page.locator("main").getByRole("link", { name: OPEN_TERMINAL_CTA }).first().click();
   await expect(page).toHaveURL(/\/trade/);
   await expect(page.getByRole("heading", { name: "Order entry" })).toBeVisible();
 
@@ -131,9 +131,9 @@ test("primary CTAs on landing trade and liquidity change visible state", async (
 
   await page.goto("/liquidity", { waitUntil: "networkidle" });
   await expectHonestPreview(page);
-  await expect(page.getByRole("button", { name: "Confirm simulated mint" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Review simulated mint" }).click();
-  await expect(page.getByRole("button", { name: "Confirm simulated mint" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete mint" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Review mint" }).click();
+  await expect(page.getByRole("button", { name: "Complete mint" })).toBeVisible();
 });
 
 test("ZEC TEX reject shielded destination and sends nothing", async ({ page }) => {
