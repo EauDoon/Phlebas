@@ -1,4 +1,4 @@
-# Per-PR summary
+# Per-PR summary (appendix)
 
 This document summarizes each of the seven PRs that delivered
 the key-independent components of the native-ZEC atomic swap
@@ -90,6 +90,10 @@ This historical PR is superseded by `docs/ZCASH_TRANSACTION_LAB.md`. Its transac
 | Aspect | Detail |
 | --- | --- |
 | Branch | `feat/skip-nav-wrap` |
+| Stack base | `main` at `9367044` |
 | Files | TBD |
 | Insertions | TBD |
-| Surface | Skip-nav wrap at 320px, activation state, docs, runbook, SLO, threat model section, architecture, sources |
+| Surface | Skip-nav wrap at 320px, activation state via data-skip-nav-state, lib/skip-nav-state state machine, Playwright tests, docs/adr/0010, docs/runbooks/a11y-test.md, docs/operations/a11y-slo.md, docs/audit/a11y-checklist.md, threat model section 24, architecture section, sources |
+| Verifications | `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:browser` (in CI) |
+| Out of scope | full accessibility audit, screen reader testing, skip-nav wiring in trading-terminal.tsx |
+| Skipped steps | none (no keys or tokens touched) |
