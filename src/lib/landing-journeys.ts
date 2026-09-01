@@ -28,7 +28,7 @@ export const LANDING_JOURNEYS = [
     id: "withdrawal",
     tab: "Withdrawal",
     description: "See how a pZEC burn could create a transparent native ZEC payout claim.",
-    href: "/trade?view=bridge",
+    href: "/trade?view=bridge&journey=withdrawal",
     action: "Preview withdrawal states",
   },
 ] as const;
