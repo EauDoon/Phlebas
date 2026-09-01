@@ -25,6 +25,7 @@ const patterns = [
   { name: "tex-address", regex: /\btex1[0-9a-z]{20,}\b/ },
   { name: "vercel-operator-gateway", regex: /PHLEBAS_GATEWAY_URL\s*[:=]/ },
   { name: "vercel-operator-matcher", regex: /PHLEBAS_MATCHER_URL\s*[:=]/ },
+  { name: "vercel-operator-market-matcher", regex: /PHLEBAS_MATCHER_(?:USDC|USDT)_URL\s*[:=]/ },
 ];
 
 const { stdout } = await execFile("git", ["ls-files", "-z"], { cwd: root, maxBuffer: 4 * 1024 * 1024 });

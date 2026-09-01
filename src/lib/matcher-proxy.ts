@@ -1,6 +1,6 @@
 import { fetchLoopbackOperator, isLoopbackOperatorUrl, operatorUnavailable } from "./operator-url.ts";
-import { NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT } from "./native-zec-usdc-matcher-manifest.ts";
 import { MATCHER_CONFIGURATION_HEADER } from "./matcher-http.ts";
+import { ETHEREUM_MAINNET_USDC_ASSET, ETHEREUM_MAINNET_USDT_ASSET } from "./mainnet-assets.ts";
 
 const REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const HEX32 = /^0x[0-9a-f]{64}$/;
@@ -50,8 +50,16 @@ export type MatcherIngressDeployment = Readonly<{
 
 export type MatcherMutationAction = keyof typeof MUTATION_ACTIONS;
 
-function matcherUrl(env: Record<string, string | undefined>): string | null {
-  const value = env.PHLEBAS_MATCHER_URL;
+function matcherUrl(
+  env: Record<string, string | undefined>,
+  deployment: MatcherIngressDeployment,
+): string | null {
+  const quoteAsset = deployment.expectedMatcher?.market.quote.asset;
+  const value = quoteAsset === ETHEREUM_MAINNET_USDC_ASSET
+    ? env.PHLEBAS_MATCHER_USDC_URL ?? env.PHLEBAS_MATCHER_URL
+    : quoteAsset === ETHEREUM_MAINNET_USDT_ASSET
+      ? env.PHLEBAS_MATCHER_USDT_URL
+      : undefined;
   return isLoopbackOperatorUrl(value) ? value : null;
 }
 
@@ -474,18 +482,14 @@ function healthResponse(body: string): Response {
   });
 }
 
-async function approvedMutationRuntime(
-  baseUrl: string,
+function approvedRuntimeHealthMatches(
+  health: JsonRecord,
   deployment: MatcherIngressDeployment,
-): Promise<boolean> {
+): boolean {
   const expected = deployment.expectedMatcher;
-  if (!deployment.enabled || expected === null) return false;
-  const response = await fetchLoopbackOperator(new URL("/health", baseUrl));
-  if (!response || response.status !== 200) return false;
-  const checked = healthResponse(response.body);
-  if (checked.status !== 200) return false;
-  const health = await checked.json() as JsonRecord;
-  if (health.acceptingMutations !== true || health.configurationHash !== expected.configurationHash) return false;
+  if (!deployment.enabled || expected === null
+    || health.acceptingMutations !== true
+    || health.configurationHash !== expected.configurationHash) return false;
   const market = record(health.market);
   const sameAsset = (actual: JsonRecord | null, approved: MatcherIngressAsset) => actual !== null
     && actual.network === approved.network
@@ -497,25 +501,44 @@ async function approvedMutationRuntime(
     && sameAsset(record(market.quote), expected.market.quote);
 }
 
+async function approvedRuntimeHealth(
+  baseUrl: string,
+  deployment: MatcherIngressDeployment,
+): Promise<JsonRecord | null> {
+  if (!deployment.enabled || deployment.expectedMatcher === null) return null;
+  const response = await fetchLoopbackOperator(new URL("/health", baseUrl));
+  if (!response || response.status !== 200) return null;
+  const checked = healthResponse(response.body);
+  if (checked.status !== 200) return null;
+  const health = await checked.json() as JsonRecord;
+  return approvedRuntimeHealthMatches(health, deployment) ? health : null;
+}
+
+async function approvedMutationRuntime(
+  baseUrl: string,
+  deployment: MatcherIngressDeployment,
+): Promise<boolean> {
+  return await approvedRuntimeHealth(baseUrl, deployment) !== null;
+}
+
 export async function matcherHealthProxy(
   env: Record<string, string | undefined> = process.env,
-  deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+  deployment: MatcherIngressDeployment | null = null,
 ) {
-  if (!deployment.enabled || deployment.expectedMatcher === null) return unavailable();
-  const baseUrl = matcherUrl(env);
+  if (!deployment || !deployment.enabled || deployment.expectedMatcher === null) return unavailable();
+  const baseUrl = matcherUrl(env, deployment);
   if (!baseUrl) return unavailable();
-  const response = await fetchLoopbackOperator(new URL("/health", baseUrl));
-  if (!response || response.status !== 200) return unavailable();
-  return healthResponse(response.body);
+  const health = await approvedRuntimeHealth(baseUrl, deployment);
+  return health ? noStoreJson(health) : unavailable();
 }
 
 export async function matcherAccountProxy(
   makerAccountId: string,
   env: Record<string, string | undefined> = process.env,
-  deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+  deployment: MatcherIngressDeployment | null = null,
 ) {
-  if (!deployment.enabled || deployment.expectedMatcher === null) return unavailable();
-  const baseUrl = matcherUrl(env);
+  if (!deployment || !deployment.enabled || deployment.expectedMatcher === null) return unavailable();
+  const baseUrl = matcherUrl(env, deployment);
   if (!baseUrl) return unavailable();
   if (!HEX32.test(makerAccountId)) {
     return noStoreJson({ ok: false, reason: "maker-account-id-invalid" }, 400);
@@ -526,6 +549,7 @@ export async function matcherAccountProxy(
   const checkpoint = safeCheckpoint(account?.checkpoint);
   if (!account || account.ok !== true || account.makerAccountId !== makerAccountId
     || typeof account.configurationHash !== "string" || !HEX32.test(account.configurationHash)
+    || account.configurationHash !== deployment.expectedMatcher.configurationHash
     || typeof account.accountEpoch !== "string" || !DECIMAL.test(account.accountEpoch)
     || typeof account.sequence !== "string" || !DECIMAL.test(account.sequence)
     || !checkpoint
@@ -563,10 +587,10 @@ async function recoveryRequestBody(request: Request): Promise<string | Response>
 export async function matcherRecoveryChallengeProxy(
   request: Request,
   env: Record<string, string | undefined> = process.env,
-  deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+  deployment: MatcherIngressDeployment | null = null,
 ) {
-  if (!deployment.enabled || deployment.expectedMatcher === null) return unavailable();
-  const baseUrl = matcherUrl(env);
+  if (!deployment || !deployment.enabled || deployment.expectedMatcher === null) return unavailable();
+  const baseUrl = matcherUrl(env, deployment);
   if (!baseUrl) return unavailable();
   const bodyOrResponse = await recoveryRequestBody(request);
   if (bodyOrResponse instanceof Response) return bodyOrResponse;
@@ -618,10 +642,10 @@ export async function matcherRecoveryChallengeProxy(
 export async function matcherRecoveryOrdersProxy(
   request: Request,
   env: Record<string, string | undefined> = process.env,
-  deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+  deployment: MatcherIngressDeployment | null = null,
 ) {
-  if (!deployment.enabled || deployment.expectedMatcher === null) return unavailable();
-  const baseUrl = matcherUrl(env);
+  if (!deployment || !deployment.enabled || deployment.expectedMatcher === null) return unavailable();
+  const baseUrl = matcherUrl(env, deployment);
   if (!baseUrl) return unavailable();
   const bodyOrResponse = await recoveryRequestBody(request);
   if (bodyOrResponse instanceof Response) return bodyOrResponse;
@@ -700,10 +724,10 @@ export async function matcherMutationProxy(
   request: Request,
   requestedAction: string | null,
   env: Record<string, string | undefined> = process.env,
-  deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+  deployment: MatcherIngressDeployment | null = null,
 ) {
-  if (!deployment.enabled || deployment.expectedMatcher === null) return unavailable();
-  const baseUrl = matcherUrl(env);
+  if (!deployment || !deployment.enabled || deployment.expectedMatcher === null) return unavailable();
+  const baseUrl = matcherUrl(env, deployment);
   if (!baseUrl) return unavailable();
   const expectedAction = requestedAction === null ? null : matcherMutationAction(requestedAction);
   if (requestedAction !== null && !expectedAction) return noStoreJson({ ok: false, reason: "matcher-action-invalid" }, 400);
@@ -780,7 +804,7 @@ export async function matcherMutationProxy(
 export async function matcherOrderProxy(
   request: Request,
   env: Record<string, string | undefined> = process.env,
-  deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+  deployment: MatcherIngressDeployment | null = null,
 ) {
   return matcherMutationProxy(request, "accept-order", env, deployment);
 }

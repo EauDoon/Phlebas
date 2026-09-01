@@ -188,10 +188,11 @@ npm run matcher
 Set these only on a machine that should reach the loopback processes:
 
 ```text
-PHLEBAS_MATCHER_URL=http://127.0.0.1:8788
+PHLEBAS_MATCHER_USDC_URL=http://127.0.0.1:8788
+PHLEBAS_MATCHER_USDT_URL=http://127.0.0.1:8789
 ```
 
-Do not set that variable on Vercel. See [services/README.md](services/README.md) for the isolated Compose workflow.
+Do not set those variables on Vercel. See [services/README.md](services/README.md) for the isolated Compose workflow.
 
 The Arbitrum Sepolia deployment procedure is documented in [contracts/README.md](contracts/README.md). `infra/testnet/arbitrum-sepolia.json` must remain `"deployed": false` until a real deployment is authorized, executed, and recorded. Local wallet submission remains disabled unless `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1` is set for an approved Testnet run.
 

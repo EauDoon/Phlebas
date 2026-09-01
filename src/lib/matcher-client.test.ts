@@ -6,7 +6,6 @@ import { createOrderDomain, hashOrderDomain, hashTypedOrder, type TypedOrderInte
 import { evmAuthorizedSignerId, hashMatcherControl } from "./matcher-auth.ts";
 import {
   MATCHER_ACCOUNT_EPOCH_OPERATION,
-  MATCHER_API_PATH,
   MATCHER_BUY_ONLY_REASON,
   MATCHER_IDEMPOTENCY_HEADER,
   MATCHER_ORDER_CANCELLATION_OPERATION,
@@ -50,16 +49,15 @@ import { hash160Value, p2shAddress } from "./zcash-address.ts";
 import { serializePersistentMatcherEvent } from "../../services/matcher/persistent-store.ts";
 
 const NOW = 1_800_000_000n;
-const CHAIN_ID = 421_614n;
+const CHAIN_ID = 1n;
 const SIGNER = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
-const SIGNATURE = "0xac14f0e6c59ffb853f21cf338a836705e68850f44f371eab0b06169856c8a7b86df9706894f19e865330d47237bf726503a8704e617920c5a23011b22ad850ba1c";
 const PRIVATE_KEY = BigInt("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
 const CURVE_ORDER = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
 const CURVE_GX = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798n;
 const BASE_NETWORK = "bip122:00040fe8ec8471911baa1db1266ea15d";
 const BASE_ASSET = `${BASE_NETWORK}/slip44:133`;
 const QUOTE_NETWORK = `eip155:${CHAIN_ID}`;
-const QUOTE_ASSET = `${QUOTE_NETWORK}/erc20:0x2222222222222222222222222222222222222222`;
+const QUOTE_ASSET = `${QUOTE_NETWORK}/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`;
 const PROTOCOL = "transparent-htlc-v1";
 const SOURCE_ACCOUNT = `${QUOTE_NETWORK}:${SIGNER}`;
 const RECIPIENT_ACCOUNT = `zcash:mainnet:${p2shAddress(new Uint8Array(20).fill(0xaa), "mainnet")}`;
@@ -154,6 +152,7 @@ const order: TypedOrderIntent = {
   allowedVenues: VENUE_CLOB,
   settlementAdapterId: adapterIdentifier(PROTOCOL),
 };
+const SIGNATURE = signControlDigest(hashTypedOrder(domain, order));
 
 function input(overrides: Partial<MatcherOrderSubmissionInput> = {}): MatcherOrderSubmissionInput {
   return {
@@ -257,7 +256,7 @@ test("builds stable proxy bytes that round-trip through the native matcher seria
   };
   const native = serializePersistentMatcherEvent(configuration, event);
 
-  assert.equal(request.path, MATCHER_API_PATH);
+  assert.equal(request.path, "/api/matcher?market=ZEC%2FUSDC");
   assert.equal(request.method, "POST");
   assert.equal(request.operation, MATCHER_ORDER_OPERATION);
   assert.equal(request.requestId, value.requestId);
@@ -295,7 +294,7 @@ test("builds exact signed order-cancellation bytes that round-trip through the n
     controlAuthorizationScheme: EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME,
   };
 
-  assert.equal(request.path, MATCHER_API_PATH);
+  assert.equal(request.path, "/api/matcher?market=ZEC%2FUSDC&action=cancel-order");
   assert.equal(request.operation, MATCHER_ORDER_CANCELLATION_OPERATION);
   assert.equal(request.controlHash, hashMatcherControl(domain, control));
   assert.deepEqual(request.headers, {
@@ -332,7 +331,7 @@ test("builds exact signed account-epoch bytes that round-trip through the native
     controlAuthorizationScheme: EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME,
   };
 
-  assert.equal(request.path, MATCHER_API_PATH);
+  assert.equal(request.path, "/api/matcher?market=ZEC%2FUSDC&action=advance-epoch");
   assert.equal(request.operation, MATCHER_ACCOUNT_EPOCH_OPERATION);
   assert.equal(request.controlHash, hashMatcherControl(domain, control));
   const persisted = serializePersistentMatcherEvent(configuration, event).payload as Record<string, unknown>;

@@ -46,7 +46,7 @@ import { UINT64_MAX, assetIdentifier, chainIdentifier, normalizeHex32, type Hex3
 import { hashTypedOrder, type TypedOrderIntent } from "../../src/lib/eip712-order.ts";
 import { activeAccountEpoch } from "../../src/lib/order-lifecycle.ts";
 import { listenHost } from "../../src/lib/operator-url.ts";
-import { nativeZecUsdcMatcherPersistentConfiguration } from "./native-zec-usdc-configuration.ts";
+import { nativeMatcherPersistentConfigurationForMarket } from "./native-zec-usdc-configuration.ts";
 import type { JournalCheckpoint, JournalValue } from "./journal.ts";
 import {
   PersistentMatcherStore,
@@ -595,7 +595,10 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
     1_000_000,
   );
   const clockSeconds = options.clockSeconds ?? (() => BigInt(Math.floor(Date.now() / 1_000)));
-  const configured = persistenceOptions(options, options.configuration ?? nativeZecUsdcMatcherPersistentConfiguration());
+  const configured = persistenceOptions(
+    options,
+    options.configuration ?? nativeMatcherPersistentConfigurationForMarket(process.env.PHLEBAS_MATCHER_MARKET_ID),
+  );
   let metricsState: MetricsState = defineCounter(emptyMetricsState(), "requests_total", "Total HTTP requests");
   let sloState: SloState = emptySloState();
   let rateLimit: RateLimitMiddleware = emptyRateLimitMiddleware({ capacity: 60n, refillPerSecond: 1n });

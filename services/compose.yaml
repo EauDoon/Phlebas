@@ -1,10 +1,10 @@
 # Isolated local infra. Host ports bind 127.0.0.1 only.
-# Do not set PHLEBAS_MATCHER_URL on Vercel.
+# Do not set any PHLEBAS_MATCHER*_URL on Vercel.
 
 name: phlebas-local
 
 services:
-  matcher:
+  matcher-usdc:
     build:
       context: ..
       dockerfile: services/Dockerfile
@@ -12,11 +12,28 @@ services:
     environment:
       PHLEBAS_BIND: "0.0.0.0"
       PHLEBAS_ALLOW_NON_LOOPBACK: "1"
+      PHLEBAS_MATCHER_MARKET_ID: "ZEC/USDC"
       PHLEBAS_PORT: "8788"
     ports:
       - "127.0.0.1:8788:8788"
     volumes:
-      - matcher-data:/app/services/matcher/.data
+      - matcher-usdc-data:/app/services/matcher/.data
+
+  matcher-usdt:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+    command: ["node", "--experimental-strip-types", "services/matcher/server.ts"]
+    environment:
+      PHLEBAS_BIND: "0.0.0.0"
+      PHLEBAS_ALLOW_NON_LOOPBACK: "1"
+      PHLEBAS_MATCHER_MARKET_ID: "ZEC/USDT"
+      PHLEBAS_PORT: "8789"
+    ports:
+      - "127.0.0.1:8789:8789"
+    volumes:
+      - matcher-usdt-data:/app/services/matcher/.data
 
 volumes:
-  matcher-data:
+  matcher-usdc-data:
+  matcher-usdt-data:

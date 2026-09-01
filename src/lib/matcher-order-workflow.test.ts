@@ -187,8 +187,8 @@ test("review fetches no-store matcher state, connects the manifest wallet, and f
   const maker = evmAuthorizedSignerId(active.orderDomain!.chainId, WALLET);
   const fetcher: MatcherOrderFetch = async (path, init) => {
     fetchCalls.push({ path: String(path), init });
-    if (String(path) === "/api/matcher") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(active));
     throw new Error(String(path));
   };
   let reviewed: ReviewedMatcherBuyOrder | null = null;
@@ -198,8 +198,8 @@ test("review fetches no-store matcher state, connects the manifest wallet, and f
   assert.equal(reviewed.draft.order.accountEpoch, 7n);
   assert.equal(Object.isFrozen(reviewed), true);
   assert.deepEqual(fetchCalls.map(({ path, init }) => [path, init?.method, init?.cache]), [
-    ["/api/matcher", "GET", "no-store"],
-    [`/api/matcher?account=${maker}`, "GET", "no-store"],
+    ["/api/matcher?market=ZEC%2FUSDC", "GET", "no-store"],
+    [`/api/matcher?market=ZEC%2FUSDC&account=${maker}`, "GET", "no-store"],
   ]);
   assert.deepEqual(providerCalls, ["eth_requestAccounts", "eth_chainId", "eth_chainId", "eth_accounts"]);
 });
@@ -210,8 +210,8 @@ test("confirmation rejects matcher-account drift before it signs or posts", asyn
   let accountReads = 0;
   let postCalls = 0;
   const fetcher: MatcherOrderFetch = async (path, init) => {
-    if (String(path) === "/api/matcher") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) {
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) {
       accountReads += 1;
       return json(account(active, accountReads === 1 ? "9" : "10"));
     }
@@ -242,9 +242,9 @@ test("confirmation signs only the reviewed EIP-712 order, posts exact bytes, and
   const postHeaders: unknown[] = [];
   let reviewed: ReviewedMatcherBuyOrder | null = null;
   const fetcher: MatcherOrderFetch = async (path, init) => {
-    if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active));
-    if (String(path) === "/api/matcher" && init?.method === "POST") {
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "GET") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(active));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "POST") {
       postBodies.push(init.body as string);
       postHeaders.push(init.headers);
       return json(receipt(reviewed!, reviewed!.draft.occurredAt + 2n));
@@ -272,9 +272,9 @@ test("definite POST rejection and unknown signed receipt retain a safe exact ret
   let postAttempt = 0;
   const postBodies: string[] = [];
   const fetcher: MatcherOrderFetch = async (path, init) => {
-    if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active));
-    if (String(path) === "/api/matcher" && init?.method === "POST") {
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "GET") return json(health(active));
+    if (String(path) === `/api/matcher?market=ZEC%2FUSDC&account=${maker}`) return json(account(active));
+    if (String(path) === "/api/matcher?market=ZEC%2FUSDC" && init?.method === "POST") {
       postAttempt += 1;
       postBodies.push(init.body as string);
       if (postAttempt === 1) return json({ ok: false, reason: "matcher-rejected-order" }, 422);

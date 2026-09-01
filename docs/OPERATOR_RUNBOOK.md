@@ -2,13 +2,14 @@
 
 Status: isolated loopback Compose only. No live funds. No mainnet TEX. Vercel is not an operator host.
 
-Do not set `PHLEBAS_MATCHER_URL` on Vercel.
+Do not set `PHLEBAS_MATCHER_URL`, `PHLEBAS_MATCHER_USDC_URL`, or `PHLEBAS_MATCHER_USDT_URL` on Vercel.
 
 ## What this runs
 
 | Process | Host bind | Health | Role |
 | --- | --- | --- | --- |
-| matcher | `127.0.0.1:8788` | `GET /health` | Persistent native-order and solver domain, no-value only |
+| matcher-usdc | `127.0.0.1:8788` | `GET /health` | ZEC/USDC persistent native-order and solver domain, no-value only |
+| matcher-usdt | `127.0.0.1:8789` | `GET /health` | ZEC/USDT persistent native-order and solver domain, no-value only |
 
 Compose publishes those ports on loopback only. Inside the container `PHLEBAS_BIND=0.0.0.0`; the host mapping remains `127.0.0.1`.
 
@@ -32,6 +33,7 @@ Each process defaults to `127.0.0.1`. Direct `npm run` processes refuse `PHLEBAS
 
 ```bash
 curl http://127.0.0.1:8788/health
+curl http://127.0.0.1:8789/health
 ```
 
 Expect a direct matcher start to report `matcher: persistent-native-v1`, `configured: false`, `acceptingMutations: false`, `mode: no-value`, and `custody: false`. An embedding operator can inject an immutable configuration and verifier for local validation. A configured matcher also reports its sequence, state root, configuration hash, and exact checkpoint.
@@ -75,7 +77,8 @@ See [ADR 0003](adr/0003-persistent-native-matcher.md) for exact semantics and un
 Local Next.js only:
 
 ```bash
-set PHLEBAS_MATCHER_URL=http://127.0.0.1:8788
+set PHLEBAS_MATCHER_USDC_URL=http://127.0.0.1:8788
+set PHLEBAS_MATCHER_USDT_URL=http://127.0.0.1:8789
 ```
 
 ## Stop

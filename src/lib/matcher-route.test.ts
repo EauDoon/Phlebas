@@ -33,8 +33,8 @@ const market = {
     decimals: 8,
   },
   quote: {
-    network: "eip155:42161",
-    asset: "eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+    network: "eip155:1",
+    asset: "eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
     environment: "mainnet",
     decimals: 6,
   },
@@ -44,6 +44,19 @@ const enabledDeployment: MatcherIngressDeployment = {
   expectedMatcher: {
     configurationHash: CONFIGURATION_HASH,
     market,
+  },
+};
+const enabledUsdtDeployment: MatcherIngressDeployment = {
+  enabled: true,
+  expectedMatcher: {
+    configurationHash: CONFIGURATION_HASH,
+    market: {
+      ...market,
+      quote: {
+        ...market.quote,
+        asset: "eip155:1/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7",
+      },
+    },
   },
 };
 const orderBody = JSON.stringify({
@@ -87,12 +100,35 @@ const healthBody = JSON.stringify({
 });
 
 const originalMatcherUrl = process.env.PHLEBAS_MATCHER_URL;
+const originalUsdcMatcherUrl = process.env.PHLEBAS_MATCHER_USDC_URL;
+const originalUsdtMatcherUrl = process.env.PHLEBAS_MATCHER_USDT_URL;
 const originalFetch = globalThis.fetch;
 
 test.afterEach(() => {
   if (originalMatcherUrl === undefined) delete process.env.PHLEBAS_MATCHER_URL;
   else process.env.PHLEBAS_MATCHER_URL = originalMatcherUrl;
+  if (originalUsdcMatcherUrl === undefined) delete process.env.PHLEBAS_MATCHER_USDC_URL;
+  else process.env.PHLEBAS_MATCHER_USDC_URL = originalUsdcMatcherUrl;
+  if (originalUsdtMatcherUrl === undefined) delete process.env.PHLEBAS_MATCHER_USDT_URL;
+  else process.env.PHLEBAS_MATCHER_USDT_URL = originalUsdtMatcherUrl;
   globalThis.fetch = originalFetch;
+});
+
+test("ZEC/USDT never falls back to the legacy USDC runtime or accepts its market", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
+  delete process.env.PHLEBAS_MATCHER_USDT_URL;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response(healthBody, { status: 200 });
+  }) as typeof fetch;
+
+  assert.equal((await matcherHealthProxy(process.env, enabledUsdtDeployment)).status, 503);
+  assert.equal(calls, 0);
+
+  process.env.PHLEBAS_MATCHER_USDT_URL = "http://127.0.0.1:8789";
+  assert.equal((await matcherHealthProxy(process.env, enabledUsdtDeployment)).status, 503);
+  assert.equal(calls, 1);
 });
 
 test("matcher route stays unavailable without an exact loopback operator URL", async () => {

@@ -7,7 +7,6 @@ import {
   typedMatcherControlData,
 } from "./matcher-auth.ts";
 import {
-  MATCHER_API_PATH,
   assertMatcherAccountIdentity,
   assertMatcherControlReceipt,
   assertMatcherHealthIdentity,
@@ -21,6 +20,7 @@ import {
   type VerifiedMatcherAccount,
   type VerifiedMatcherControlReceipt,
 } from "./matcher-client.ts";
+import { matcherApiPathForMarket } from "./matcher-market-routing.ts";
 import {
   assertConfirmedMatcherOrderArtifact,
   type ConfirmedMatcherOrderArtifact,
@@ -171,12 +171,12 @@ function sameCheckpoint(
     && left.configurationHash === right.configurationHash;
 }
 
-function healthPath(): typeof MATCHER_API_PATH {
-  return MATCHER_API_PATH;
+function healthPath(deployment: NativeZecUsdcMatcherDeploymentState): string {
+  return matcherApiPathForMarket(deployment.manifest.market.id);
 }
 
-function accountPath(makerAccountId: Hex32): string {
-  return `${MATCHER_API_PATH}?account=${encodeURIComponent(makerAccountId)}`;
+function accountPath(deployment: NativeZecUsdcMatcherDeploymentState, makerAccountId: Hex32): string {
+  return `${healthPath(deployment)}&account=${encodeURIComponent(makerAccountId)}`;
 }
 
 async function jsonResponse(
@@ -213,9 +213,9 @@ async function reviewedMatcherState(
   if (expectedMatcher === null) {
     throw new MatcherOrderControlWorkflowError("before-sign", "Native matcher order control is disabled by the deployment manifest");
   }
-  const health = await jsonResponse(fetcher, healthPath(), { method: "GET", cache: "no-store" });
+  const health = await jsonResponse(fetcher, healthPath(deployment), { method: "GET", cache: "no-store" });
   assertMatcherHealthIdentity(health, expectedMatcher);
-  const accountValue = await jsonResponse(fetcher, accountPath(makerAccountId), { method: "GET", cache: "no-store" });
+  const accountValue = await jsonResponse(fetcher, accountPath(deployment, makerAccountId), { method: "GET", cache: "no-store" });
   const account = assertMatcherAccountIdentity(accountValue, expectedMatcher, makerAccountId);
   return deepFreeze({ health, account });
 }
@@ -390,13 +390,13 @@ export async function reviewMatcherOrderCancellation(
   try {
     const review = orderArtifactReview(input.artifact, true);
     const deployment = review.deployment;
-    const health = await jsonResponse(input.fetch, healthPath(), { method: "GET", cache: "no-store" });
+    const health = await jsonResponse(input.fetch, healthPath(deployment), { method: "GET", cache: "no-store" });
     const wallet = await connectMatcherWallet(input.provider, deployment);
     const makerAccountId = evmAuthorizedSignerId(deployment.orderDomain!.chainId, wallet.address);
     if (makerAccountId !== review.makerAccountId || wallet.address !== review.wallet.address) {
       throw new Error("Connected wallet does not match the confirmed matcher order artifact");
     }
-    const accountValue = await jsonResponse(input.fetch, accountPath(makerAccountId), { method: "GET", cache: "no-store" });
+    const accountValue = await jsonResponse(input.fetch, accountPath(deployment, makerAccountId), { method: "GET", cache: "no-store" });
     const account = assertMatcherAccountIdentity(accountValue, deployment.expectedMatcher!, makerAccountId);
     assertMatcherHealthIdentity(health, deployment.expectedMatcher!);
     if (account.accountEpoch !== review.draft.order.accountEpoch) {
@@ -432,13 +432,13 @@ export async function reviewMatcherAccountEpochAdvance(
   try {
     const prior = orderArtifactReview(input.artifact, false);
     const deployment = prior.deployment;
-    const health = await jsonResponse(input.fetch, healthPath(), { method: "GET", cache: "no-store" });
+    const health = await jsonResponse(input.fetch, healthPath(deployment), { method: "GET", cache: "no-store" });
     const wallet = await connectMatcherWallet(input.provider, deployment);
     const makerAccountId = evmAuthorizedSignerId(deployment.orderDomain!.chainId, wallet.address);
     if (makerAccountId !== prior.makerAccountId || wallet.address !== prior.wallet.address) {
       throw new Error("Connected wallet does not match the confirmed matcher order artifact");
     }
-    const accountValue = await jsonResponse(input.fetch, accountPath(makerAccountId), { method: "GET", cache: "no-store" });
+    const accountValue = await jsonResponse(input.fetch, accountPath(deployment, makerAccountId), { method: "GET", cache: "no-store" });
     const account = assertMatcherAccountIdentity(accountValue, deployment.expectedMatcher!, makerAccountId);
     assertMatcherHealthIdentity(health, deployment.expectedMatcher!);
     const control = createMatcherAccountEpochAdvanceControl({
@@ -506,7 +506,7 @@ export async function retryMatcherOrderControl(
     assertEnabledDeployment(confirmation.review.deployment);
     const expectedMatcher = confirmation.review.deployment.expectedMatcher;
     if (expectedMatcher === null) throw new Error("Native matcher order control is disabled by the deployment manifest");
-    const health = await jsonResponse(fetcher, healthPath(), { method: "GET", cache: "no-store" });
+    const health = await jsonResponse(fetcher, healthPath(confirmation.review.deployment), { method: "GET", cache: "no-store" });
     assertMatcherHealthIdentity(health, expectedMatcher);
     signed = signedPost(confirmation.review, confirmation.signature, health);
     if (canonicalJson(signed.request) !== canonicalJson(confirmation.request)) {
