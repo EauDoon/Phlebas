@@ -262,17 +262,65 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /transition: none !important;/);
   assert.match(landingCss, /line-height: 1\.3;/);
   assert.match(terminalCss, /line-height: 1\.3;/);
-  assert.match(terminalCss, /max-height: calc\(100vh - min\(40vh, 17\.5rem\) - 12px\)/);
+  assert.match(terminalCss, /max-height: calc\(100vh - min\(40vh, 17\.5rem\) - 16px\)/);
   assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?position: sticky;/);
-  assert.match(terminalCss, /scroll-padding-top: 8px;/);
-  assert.match(terminalCss, /scroll-padding-bottom: 8px;/);
-  assert.match(terminalCss, /scroll-margin-top: 8px;/);
+  assert.match(terminalCss, /scroll-padding-top: 12px;/);
+  assert.match(terminalCss, /scroll-padding-bottom: 12px;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?scroll-margin-top: 12px;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button \{[\s\S]*?flex-shrink: 0;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button:disabled \{[\s\S]*?min-height: 44px;/);
   assert.match(terminalCss, /padding-bottom: 8px;/);
   assert.match(terminalCss, /flex-direction: column;/);
   assert.match(terminalCss, /margin-top: auto;/);
   assert.match(terminalCss, /outline: 2px solid #f4c95d;/);
+  assert.match(terminalCss, /padding-top: 24px;/);
+  assert.match(terminalCss, /z-index: 2;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?overflow: visible;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?min-height: 44px;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?min-width: 44px;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?display: flex;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?align-items: center;/);
+  assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(
+    terminalCss,
+    /\.educationDialog h2 \{\r?\n  display: flex;\r?\n  align-items: center;\r?\n  box-sizing: border-box;\r?\n  min-width: 44px;\r?\n  min-height: 44px;/,
+  );
+  assert.match(terminalCss, /\.educationDialog \{[\s\S]*?overflow: visible;/);
+  assert.match(terminalCss, /\.educationDialog \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(terminalCss, /padding: 24px 18px 16px;/);
+  assert.match(
+    terminalCss,
+    /\.educationDialog \.tourNav \{\r?\n  box-sizing: border-box;\r?\n  display: flex;\r?\n  align-items: center;\r?\n  width: 100%;\r?\n  min-height: 44px;\r?\n  flex-shrink: 0;/,
+  );
+  assert.match(terminalCss, /\.educationDialog \{[\s\S]*?scroll-padding-top: 12px;/);
+  assert.match(terminalCss, /padding-bottom: 12px;/);
+  assert.match(terminalCss, /max-height: calc\(100vh - 32px\)/);
+  assert.match(terminalCss, /max-width: 820px\) and \(max-height: 700px\)/);
+  assert.match(terminalCss, /margin-top: min\(24vh, 8rem\)/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?overflow: visible;/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?padding: 12px;/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav \{[\s\S]*?width: 100%;/);
+  assert.match(terminalCss, /\.educationDialog \.tourNav button \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(terminalCss, /\.simpleMain a \{[\s\S]*?flex-shrink: 0;/);
+  assert.match(terminalCss, /\.simpleMain a \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(terminalCss, /\.tourNav a \{[\s\S]*?box-sizing: border-box;/);
+  assert.match(terminalCss, /\.educationDialog \{[\s\S]*?padding-bottom: 8px;/);
+  assert.match(terminalCss, /min-width: 44px;\s*flex-shrink: 0;/);
+  assert.match(terminalCss, /\.skipLink:last-child \{[\s\S]*?min-width: 44px;/);
+  assert.match(landingCss, /\.skipLink:last-child \{[\s\S]*?min-width: 44px;/);
+  assert.match(
+    terminalCss,
+    /\.skipLink:last-child \{\r?\n  box-sizing: border-box;\r?\n  min-width: 44px;\r?\n  min-height: 44px;\r?\n  flex-shrink: 0;/,
+  );
+  assert.match(
+    landingCss,
+    /\.skipLink:last-child \{\r?\n  box-sizing: border-box;\r?\n  min-width: 44px;\r?\n  min-height: 44px;\r?\n  flex-shrink: 0;/,
+  );
+  assert.match(terminalCss, /\.skipLink:last-child \{[\s\S]*?flex-shrink: 0;/);
+  assert.match(landingCss, /\.skipLink:last-child \{[\s\S]*?flex-shrink: 0;/);
+  assert.match(terminalCss, /\.skipLink:last-child:nth-child\(odd\) \{[\s\S]*?flex-shrink: 0;/);
+  assert.match(landingCss, /\.skipLink:last-child:nth-child\(odd\) \{[\s\S]*?flex-shrink: 0;/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button:focus,/);
   assert.match(terminalCss, /\.educationDialog \.tourNav button:focus-visible \{/);
   assert.match(landingCss, /scrollbar-gutter: stable;/);
@@ -501,8 +549,11 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(globalError, /id="retry-copy"/);
   assert.match(globalError, /id="main-content"/);
   assert.match(globalError, /flex-wrap: wrap/);
+  assert.match(globalError, /width: 100%/);
   assert.match(globalError, /flex: 1 1 calc\(50% - 4px\)/);
   assert.match(globalError, /outline: 2px solid #15140d/);
+  assert.match(globalError, /a:last-child/);
+  assert.match(globalError, /flex-shrink: 0/);
   assert.doesNotMatch(globalError, /is a live exchange/);
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
   const education = await readFile(join(root, "src/lib/preview-education.ts"), "utf8");

@@ -4,7 +4,8 @@
 
 ## Current checkpoint
 
-- Active integration branch: `feat/remove-custodial-gateway`.
+- Active product-UI branch: `feat/product-ui-education-a11y` (PR #26). Education dialog, leftover skip links, and in-page controls stay at least 44px through 1440px. No operator URLs and no `--mark-deployed`.
+- Prior integration: custodial gateway runtime removed from `main`.
 - Product boundary: no-value production preview. The public application does not accept deposits, issue a receiver, mint or burn a redeemable asset, sign transactions, broadcast transactions, or move funds.
 - Release boundary: production use with live funds remains blocked. Testnet and mainnet activation require separate evidence, review, and explicit authorization.
 - The custody-capable TEX gateway and the legacy mint/reserve-attestation observer have been removed from the active runtime.
