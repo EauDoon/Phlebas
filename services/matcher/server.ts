@@ -13,6 +13,30 @@ import {
   type MatcherOperator,
 } from "../../src/lib/matcher-operator.ts";
 import { listenHost } from "../../src/lib/operator-url.ts";
+import {
+  depthFromBook,
+  marketsFromOperator,
+  tickerFromOperator,
+  tradesFromReceipts,
+} from "../../src/lib/market-data.ts";
+import { buildPublicSnapshot } from "../../src/lib/market-data-snapshot.ts";
+import { emptyMetricsState, defineCounter, incCounter, renderPrometheusText, type MetricsState } from "../../src/lib/metrics.ts";
+import {
+  emptySloState,
+  recordSample,
+  sloVerdict,
+  type SloSample,
+  type SloState,
+  type SloTarget,
+} from "../../src/lib/slo-tracker.ts";
+import {
+  checkRateLimit,
+  emptyRateLimitMiddleware,
+  extractClientKey,
+  sendRateLimitExceeded,
+  sendRateLimitHeaders,
+  type RateLimitMiddleware,
+} from "../../src/lib/rate-limit-http.ts";
 import { TESTNET } from "../../src/lib/testnet.ts";
 import { atomicWriteFile } from "../durable-file.ts";
 import { readOperator, writeOperator } from "./persist.ts";
@@ -63,8 +87,8 @@ function parseOrder(body: Record<string, unknown>): TypedOrder & { tif: "GTC" | 
 export function createMatcherService(verifyingContract?: string, lastTicks = 5291n): MatcherOperator {
   const settlement = verifyingContract ?? (TESTNET.deployed ? TESTNET.settlement : ZERO);
   return createMatcherOperator(sepoliaDomain(settlement), lastTicks, {
-    baseAsset: TESTNET.pzec,
-    quoteAssets: [TESTNET.usdc, TESTNET.usdt0],
+    baseAsset: TESTNET.zec,
+    quoteAssets: [TESTNET.usdc, TESTNET.usdt],
   });
 }
 
@@ -78,6 +102,16 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
   const host = listenHost(options.host);
   const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8788);
   const persistPath = options.persistPath ?? dataPath;
+  let metricsState: MetricsState = defineCounter(emptyMetricsState(), "requests_total", "Total HTTP requests");
+  let sloState: SloState = emptySloState();
+  let rateLimit: RateLimitMiddleware = emptyRateLimitMiddleware({ capacity: 60n, refillPerSecond: 1n });
+  const availabilityTarget: SloTarget = {
+    service: "matcher",
+    metric: "availability",
+    windowSeconds: 86_400n,
+    threshold: 0.995,
+    comparison: "ge",
+  };
   const initializedPath = `${persistPath}.initialized`;
   const startedAt = Date.now();
   let lastSequenceAt = startedAt;
@@ -116,6 +150,15 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
 
   const server = createServer((request, response) => {
     void (async () => {
+      const now = BigInt(Math.floor(Date.now() / 1000));
+      const clientKey = extractClientKey(request);
+      const rl = checkRateLimit(rateLimit, clientKey, now);
+      rateLimit = { state: rl.state, config: rateLimit.config };
+      if (!rl.allowed) {
+        sendRateLimitExceeded(response, rl.remaining, rl.retryAfterSeconds);
+        return;
+      }
+      sendRateLimitHeaders(response, rl.remaining, 0n);
       await ready;
       if (!operator) throw new Error("Matcher failed to initialize");
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
@@ -155,6 +198,79 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
       }
       if (request.method === "GET" && url.pathname === "/book") {
         send(response, 200, operator.book);
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/ticker") {
+        const now = Math.floor(Date.now() / 1000);
+        const t = tickerFromOperator(operator.book, operator.receipts, BigInt(now));
+        send(response, 200, t);
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/trades") {
+        const limit = Number(url.searchParams.get("limit") ?? "50");
+        if (!Number.isInteger(limit) || limit < 0 || limit > 1000) {
+          send(response, 400, { ok: false, reason: "limit-must-be-an-integer-between-0-and-1000" });
+          return;
+        }
+        const now = Math.floor(Date.now() / 1000);
+        const snap = tradesFromReceipts(operator.receipts, limit, BigInt(now));
+        send(response, 200, snap);
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/depth") {
+        const levels = Number(url.searchParams.get("levels") ?? "20");
+        if (!Number.isInteger(levels) || levels < 0 || levels > 200) {
+          send(response, 400, { ok: false, reason: "levels-must-be-an-integer-between-0-and-200" });
+          return;
+        }
+        const now = Math.floor(Date.now() / 1000);
+        const snap = depthFromBook(operator.book, levels, BigInt(now));
+        send(response, 200, snap);
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/markets") {
+        const m = marketsFromOperator(operator.baseAsset, operator.quoteAssets, operator.book);
+        send(response, 200, m);
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/version") {
+        send(response, 200, { ok: true, service: "matcher", version: "0.1.0" });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/metrics") {
+        metricsState = incCounter(metricsState, "requests_total", { route: "/metrics" });
+        response.writeHead(200, { "content-type": "text/plain; version=0.0.4" });
+        response.end(renderPrometheusText(metricsState));
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/slo") {
+        const now = BigInt(Math.floor(Date.now() / 1000));
+        const sample: SloSample = {
+          service: "matcher",
+          metric: "availability",
+          observedAt: now,
+          value: 1,
+          success: response.statusCode === 200,
+        };
+        sloState = recordSample(sloState, sample);
+        const verdict = sloVerdict(sloState, availabilityTarget, now);
+        send(response, 200, { ok: true, verdict });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/snapshot") {
+        const depthLevels = Number(url.searchParams.get("depth") ?? "20");
+        const tradeLimit = Number(url.searchParams.get("trades") ?? "50");
+        if (!Number.isInteger(depthLevels) || depthLevels < 0 || depthLevels > 200) {
+          send(response, 400, { ok: false, reason: "depth-must-be-an-integer-between-0-and-200" });
+          return;
+        }
+        if (!Number.isInteger(tradeLimit) || tradeLimit < 0 || tradeLimit > 1000) {
+          send(response, 400, { ok: false, reason: "trades-must-be-an-integer-between-0-and-1000" });
+          return;
+        }
+        const now = Math.floor(Date.now() / 1000);
+        const snap = buildPublicSnapshot(operator.book, operator.receipts, BigInt(now), depthLevels, tradeLimit);
+        send(response, 200, snap);
         return;
       }
       if (request.method === "POST" && url.pathname === "/orders") {

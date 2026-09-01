@@ -31,7 +31,7 @@ One matched fill produces one immutable swap plan:
 6. After the EVM claim reaches the signed finality policy, the stablecoin seller uses that preimage to claim ZEC.
 7. If the swap stops, each funder retains a wallet-controlled refund path after the applicable deadline.
 
-The matcher can sequence, omit, delay, or stop orders. It cannot settle a fill, redirect funds, or sign for either party. Read-only observers report chain facts. The coordinator derives state from a replayable journal and recommends the next safe wallet action.
+The matcher can sequence, omit, delay, or stop orders. It cannot settle a fill, redirect funds, or sign for either party. The target coordinator derives state only from verified evidence committed to a replayable journal. The older Fill observer service is an untrusted no-value diagnostic and cannot authorize wallet actions; replacing it with the journal-backed adapter remains a release gate.
 
 Native ZEC and an EVM token cannot share one Uniswap v2 contract state. Phlebas therefore uses wallet-held maker and solver inventory instead of passive cross-chain LP shares. A solver may price inventory with a constant-product curve, but its assets remain in its own wallets until a specific swap is authorized.
 

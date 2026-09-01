@@ -4,6 +4,8 @@ Date: 31-08-2026
 Status: Accepted for key-independent development
 Production status: Not approved
 
+Related: [ADR 0003](0003-evm-conditional-lock.md), [ADR 0004](0004-atomic-swap-state-machine.md), [ADR 0005](0005-zcash-p2sh-atomic-swap.md), [ADR 0006](0006-atomic-swap-observer.md), [ADR 0007](0007-public-market-data.md), [ADR 0008](0008-operations-hardening.md), [ADR 0009](0009-final-integration-audit.md)
+
 ## Context
 
 Phlebas is intended to become a non-custodial exchange for native transparent ZEC against USDC and USDT. Users must keep unilateral control of their keys. Phlebas must not mint a ZEC receipt, maintain a customer balance, control a payout key, or depend on an operator promise to redeem ZEC.
@@ -111,3 +113,10 @@ Mainnet and real assets require a separate decision after testnet evidence, inde
 Phlebas can pursue native-ZEC settlement without custody-backed `pZEC`. Trading has cross-chain latency and one workflow per fill. Solver liquidity replaces passive pooled LP shares. Shielded ZEC atomic swaps are outside version 1 because the selected conditional-lock path uses the transparent pool.
 
 ADR 0001 remains useful as a historical simulation record. Its mint, reserve, burn, deposit, withdrawal, and custody design is no longer the active target.
+
+## Implementation cross-references
+
+- [ADR 0003](0003-evm-conditional-lock.md) — the EVM half of the swap.
+- [ADR 0004](0004-atomic-swap-state-machine.md) — the offchain state machine and the read-only `/swap` view.
+- [ADR 0005](0005-zcash-p2sh-atomic-swap.md) — the ZEC half of the swap.
+- [ADR 0005 implementation notes](0005-impl-notes.md) — the operational cross-references for the ZEC half.

@@ -5,10 +5,14 @@ interface Vm {
     function addr(uint256 privateKey) external returns (address);
     function sign(uint256 privateKey, bytes32 digest) external pure returns (uint8 v, bytes32 r, bytes32 s);
     function prank(address msgSender) external;
+    function startPrank(address msgSender) external;
+    function stopPrank() external;
+    function warp(uint256 newTimestamp) external;
     function expectRevert() external;
     function expectRevert(bytes4) external;
     function expectRevert(bytes calldata) external;
     function envAddress(string calldata name) external view returns (address);
+    function startBroadcast() external;
     function startBroadcast(address signer) external;
     function stopBroadcast() external;
     function serializeAddress(string calldata objectKey, string calldata valueKey, address value)
@@ -27,11 +31,23 @@ contract TestBase {
         require(left == right, "bytes32 neq");
     }
 
-    function assertGt(uint256 left, uint256 right) internal pure {
-        require(left > right, "not gt");
+    function assertEq(string memory left, string memory right) internal pure {
+        require(keccak256(bytes(left)) == keccak256(bytes(right)), "string neq");
     }
 
     function assertEq(address left, address right) internal pure {
         require(left == right, "address neq");
+    }
+
+    function assertGt(uint256 left, uint256 right) internal pure {
+        require(left > right, "not gt");
+    }
+
+    function assertTrue(bool value) internal pure {
+        require(value, "not true");
+    }
+
+    function assertFalse(bool value) internal pure {
+        require(!value, "not false");
     }
 }

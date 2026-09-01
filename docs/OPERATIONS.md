@@ -54,7 +54,7 @@ Zebra RPC endpoints remain private and must not be exposed to the public interne
 | Order receipt log | Append-only, monotonic, hash-rooted, externally checkpointed |
 | Trade index | Rebuildable from Arbitrum logs and signed receipts |
 | Deposit ledger | Exact outpoint identity, integer zatoshis, observer evidence, single-use status |
-| Liability ledger | pZEC supply plus pending deposit refunds and unpaid burn claims |
+| Liability ledger | tZEC supply plus pending deposit refunds and unpaid burn claims |
 | Withdrawal journal | Immutable state transitions and linked native transaction |
 | Compliance case store | Encrypted, access-logged, retained only under approved policy |
 | Governance registry | Proposed action, delay, approvers, execution, and public hash |
@@ -66,7 +66,7 @@ The customer-liability ledger is authoritative for operations but must be indepe
 ### Public indicators
 
 - Confirmed controlled reserve `A`, exact claim-matched in-transit principal `T`, excluded unresolved principal `U`, and excluded unconfirmed change `C`
-- pZEC supply and each pending customer-liability class
+- tZEC supply and each pending customer-liability class
 - Controlled coverage `A / (L - T + B)` and total matched coverage `(A + T) / (L + B)`, with numerator, denominator, proof timestamp, and `not applicable` when a denominator is zero
 - Observer agreement and latest accepted Zcash height
 - Deposit and withdrawal queue age
@@ -80,7 +80,7 @@ The public display labels `T` as non-reusable settlement in transit and labels `
 
 Page immediately for:
 
-- Any reserve or liability mismatch at one zatoshi or one pZEC atom
+- Any reserve or liability mismatch at one zatoshi or one tZEC atom
 - Coverage below the policy buffer
 - Observer quorum disagreement or threshold reorg
 - Duplicate outpoint, mint authorization, burn claim, or payout detection
@@ -94,11 +94,11 @@ Page immediately for:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Normal | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Trading pause | No | No | Policy choice | Yes | No | Yes | Yes when gateway healthy | Yes when gateway healthy |
-| Gateway pause | Yes for existing pZEC | Yes | Yes | Yes | No | No | No | Existing valid claims under incident policy |
+| Gateway pause | Yes for existing tZEC | Yes | Yes | Yes | No | No | No | Existing valid claims under incident policy |
 | Reserve deficit | No | No | No | Yes if safe | No | No | No | Existing valid claims under recovery policy |
 | Contract incident | No | No | Affected pool no | Unaffected pools yes | No | No | No | Existing valid claims only when safe |
 
-A redemption request is reversible and leaves pZEC user-controlled until the user authorizes the final burn transaction. It cannot become a finalized burn unless the gateway can commit the exact payable and payout. If that commitment is unavailable, new burns are blocked and already finalized claims remain liabilities. Emergency powers can pause, but not unpause, seize, upgrade, change fees, or transfer reserves. Recovery and unpause require the governance quorum and delay unless a narrowly documented safety exception has been independently approved before launch.
+A redemption request is reversible and leaves tZEC user-controlled until the user authorizes the final burn transaction. It cannot become a finalized burn unless the gateway can commit the exact payable and payout. If that commitment is unavailable, new burns are blocked and already finalized claims remain liabilities. Emergency powers can pause, but not unpause, seize, upgrade, change fees, or transfer reserves. Recovery and unpause require the governance quorum and delay unless a narrowly documented safety exception has been independently approved before launch.
 
 ## 6. Key management
 
@@ -120,7 +120,7 @@ The reference design starts from four-of-seven independent mint attesters and fi
 6. Deploy to no-value testnet, then a bounded canary if eligible.
 7. Verify current bytes, runtime configuration, event behavior, and rollback controls.
 
-Core pZEC, settlement, AMM pair, and router contracts are intended to be non-upgradeable. A new version is a new deployment and explicit user migration, not a proxy implementation change.
+Core tZEC, settlement, AMM pair, and router contracts are intended to be non-upgradeable. A new version is a new deployment and explicit user migration, not a proxy implementation change.
 
 ## 8. Incident response
 
@@ -142,6 +142,6 @@ No service resumes merely because a metric returns to normal. Resumption require
 
 ## 9. Capacity and limits
 
-Testnet begins with synthetic assets only. A restricted-mainnet canary, if ever approved, must set per-deposit, per-withdrawal, per-wallet, per-day, total pZEC supply, pool TVL, and aggregate reserve limits below the demonstrated operating and insurance capacity.
+Testnet begins with synthetic assets only. A restricted-mainnet canary, if ever approved, must set per-deposit, per-withdrawal, per-wallet, per-day, total tZEC supply, pool TVL, and aggregate reserve limits below the demonstrated operating and insurance capacity.
 
 Limits can decrease immediately under emergency policy. Increasing any public-funds limit requires a delayed governance action, updated risk evidence, and legal clearance.

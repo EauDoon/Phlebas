@@ -16,10 +16,10 @@ if (manifest.deployed && manifest.chainId !== Number(ARBITRUM_SEPOLIA_CHAIN_ID))
 export const TESTNET = {
   chainId: ARBITRUM_SEPOLIA_CHAIN_ID,
   networkName: "Arbitrum Sepolia",
-  deployed: manifest.deployed,
-  pzec: configuredAddress(manifest.contracts.PZec, "0x0000000000000000000000000000000000000001", "PZec"),
+  deployed: false,
+  zec: configuredAddress(manifest.contracts.Zec, "0x0000000000000000000000000000000000000001", "Zec"),
   usdc: configuredAddress(manifest.contracts.TUsdc, "0x0000000000000000000000000000000000000002", "TUsdc"),
-  usdt0: configuredAddress(manifest.contracts.TUsdt0, "0x0000000000000000000000000000000000000003", "TUsdt0"),
+  usdt: configuredAddress(manifest.contracts.TUsdt, "0x0000000000000000000000000000000000000003", "TUsdt"),
   settlement: configuredAddress(
     manifest.contracts.Settlement,
     "0x0000000000000000000000000000000000000000",
@@ -27,6 +27,6 @@ export const TESTNET = {
   ),
 } as const;
 
-export function quoteTokenAddress(quote: "USDC" | "USDT0"): string {
-  return quote === "USDT0" ? TESTNET.usdt0 : TESTNET.usdc;
+export function quoteTokenAddress(quote: "USDC" | "USDT"): string {
+  return quote === "USDT" ? TESTNET.usdt : TESTNET.usdc;
 }

@@ -7,7 +7,7 @@ The public app now includes an in-browser matcher, integer seed books, legacy AM
 
 ## Objective
 
-Build Phlebas into a live, non-custodial exchange for native transparent ZEC against USDC and USDT. The product needs a professional order-book interface, wallet-held maker and solver liquidity, two-chain atomic settlement, complete wallet journeys, persistent services, security controls, tests, and operations.
+Build Phlebas into a non-custodial exchange for native transparent ZEC against native USDC and native USDT. Settlement pairs are `ZEC-USDC` and `ZEC-USDT`. USDT0 is abandoned. The product needs a professional order-book interface, wallet-held maker and solver liquidity, two-chain atomic settlement, complete wallet journeys, persistent services, security controls, tests, and operations.
 
 The current Vercel site remains a no-value simulation. Development continues through every key-independent milestone. A missing key blocks only the exact signing, broadcast, or deployment action that needs it.
 
@@ -152,7 +152,7 @@ Acceptance:
 Deliverables:
 
 * non-upgradeable local contracts for exact-token locks, claim, and refund;
-* USDC-first configuration with unresolved assets disabled;
+* USDC-first configuration; native USDT listed in product copy, USDT0 abandoned, exact USDT contract disabled until approved;
 * SafeERC20 handling and reentrancy protection;
 * deterministic deployment manifest schema;
 * unit, fuzz, invariant, role, and token-behavior tests;

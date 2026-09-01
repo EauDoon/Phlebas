@@ -7,7 +7,7 @@ import { compareVenues, quoteClob, quoteSplitRoute } from "./router.ts";
 import { seedBook } from "./session.ts";
 
 const usdcPool = {
-  reservePzecAtoms: pools[0].reserveZecAtoms,
+  reserveZecAtoms: pools[0].reserveZecAtoms,
   reserveQuoteAtoms: pools[0].reserveQuoteAtoms,
 };
 
@@ -49,7 +49,7 @@ test("split uses CLOB while it is cheaper, then the AMM remainder", () => {
     side: "buy",
     sizeAtoms: 3_00000000n,
     limitTicks: 10_000n,
-    reservePzecAtoms: 10_000_00000000n,
+    reserveZecAtoms: 10_000_00000000n,
     reserveQuoteAtoms: 500_000_000000n,
   });
 
@@ -63,7 +63,7 @@ test("split uses CLOB while it is cheaper, then the AMM remainder", () => {
     side: "buy",
     sizeAtoms: 3_00000000n,
     limitTicks: 10_000n,
-    reservePzecAtoms: 10_000_00000000n,
+    reserveZecAtoms: 10_000_00000000n,
     reserveQuoteAtoms: 500_000_000000n,
   });
   assert.equal(comparison.better, "split");
@@ -155,7 +155,7 @@ test("split preview aggregates CLOB fragments with buy-side rounding", () => {
     side: "buy",
     sizeAtoms: 4n,
     limitTicks: 10_000n,
-    reservePzecAtoms: 100n,
+    reserveZecAtoms: 100n,
     reserveQuoteAtoms: 10_000n,
   });
   assert.equal(split.clobFilledAtoms, 4n);
@@ -177,7 +177,7 @@ test("split preview follows matcher dust blocking", () => {
     side: "buy",
     sizeAtoms: 2n,
     limitTicks: 10_000n,
-    reservePzecAtoms: 100n,
+    reserveZecAtoms: 100n,
     reserveQuoteAtoms: 10_000n,
   });
   assert.equal(split.clobFilledAtoms, 0n);
@@ -198,7 +198,7 @@ test("venue comparison returns none when every route is incomplete", () => {
     side: "buy",
     sizeAtoms: 300n,
     limitTicks: 10_000n,
-    reservePzecAtoms: 100_000n,
+    reserveZecAtoms: 100_000n,
     reserveQuoteAtoms: 1_000_000_000n,
   });
   assert.equal(comparison.clob.complete, false);

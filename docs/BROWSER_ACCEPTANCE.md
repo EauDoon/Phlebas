@@ -1,6 +1,6 @@
 # Browser acceptance
 
-Phlebas uses a locked Playwright test suite against the production Next.js build. It covers the public no-value previews only. The checks do not connect a wallet, build or sign a transaction, call a chain or protocol service, accept funds, or qualify any Zcash wallet.
+Phlebas runs its locked Playwright suite against the production Next.js build. The browser checks cover the public no-value simulation. They do not connect a wallet, call a chain, accept funds, qualify a Zcash wallet, or authorize deployment.
 
 ## Run locally
 
@@ -12,34 +12,39 @@ npx playwright install chromium
 npm run check:browser
 ```
 
-`check:browser` runs lint, TypeScript checks, unit tests, the production build, and the Chromium acceptance suite. The test fixture starts the production Next.js application on `127.0.0.1` with an OS-assigned free port and stops it after the run. It uses an explicit temporary browser profile under `test-results/` and removes the profile when the worker closes.
+`check:browser` runs lint, TypeScript checks, unit tests, the production build, and Chromium acceptance tests. The fixture starts the built application on `127.0.0.1` with an OS-assigned port and stops it after the run. Temporary browser profiles and failure artifacts are written under `test-results/`, which is ignored by Git.
 
-Linux CI installs the required system packages with `npx playwright install --with-deps chromium` before running the same command.
+Linux CI installs Chromium and its required system packages before running the same gate.
 
-## Covered behavior
+## Native settlement coverage
 
-The suite checks `/`, `/trade`, `/trade?view=settlement&market=ZEC/USDC`, and `/liquidity` at 320, 390, 768, and 1440 CSS pixels. It also checks `/status`, `/legal`, `/security`, a 404 route, local matcher fills with a review-and-confirm step, GTC cancel and epoch invalidation, IOC/FOK and market-IOC outcomes, session expiry on review, past-expiry rejected panel, blotter event-log expiry, blotter tabpanels, LP mint review-and-confirm, LP pause-and-burn, LP IL-versus-hold preview, payout-tour stub claims, empty and loading feeds, stale-feed review gating, venue comparison copy, testnet TEX issuance without a gateway, destination inspection, and a visible wallet-provider rejection. Each width covers:
+The native-settlement tests cover:
 
-- Successful production-route responses and the expected simulation disclosure.
-- Landing-to-liquidity navigation and terminal view navigation.
-- Keyboard activation of responsive navigation, terminal tabs, pool tabs, and the LP amount field.
-- Skip-link visibility, focus styling, and focus transfer to the main landmark.
-- Reduced-motion media handling with all required content still visible.
-- Zero page-level horizontal overflow.
-- Zero browser console errors, uncaught page errors, or Next.js error overlays.
+- `/trade?view=settlement&market=ZEC/USDC`.
+- Deterministic happy-path and refund walkthroughs.
+- Observer disagreement, reorganization, and contract-mismatch states that disable progression.
+- The unresolved ZEC/USDT listing gate, which exposes no fixture funding action.
+- Keyboard navigation through Trade, Settlement, and Liquidity tabs.
+- Focus transfer from the settlement skip link to the walkthrough heading.
+- 320px layout and touch-target behavior.
+- The absence of wallet connection, signing, RPC, service, and broadcast controls.
 
-The native settlement cases use deterministic in-memory projections from the swap domain APIs. They cover:
+These checks establish only the behavior of the no-value fixture. They do not validate the native-settlement authority, contract deployment, observer correctness, cross-chain commitments, or wallet interoperability.
 
-- The ZEC/USDC matched, terms-accepted, ZEC-lock, USDC-lock, shared-preimage claim, and settled path.
-- Early-refund gating, the shorter USDC refund, the later ZEC refund, and the refunded terminal state.
-- Stale observer, conflicting observer, claim reorganization, and contract-identity mismatch disputes with funding and claim disabled.
-- Reset behavior, keyboard activation, focus movement to the new state heading, `aria-current` progress, and polite state announcements.
-- The unresolved ZEC/USDT listing gate, with USDT and USDT0 kept separate and all fixture actions disabled.
-- Absence of wallet controls, pZEC inputs, and gateway, matcher, observer, RPC, or wallet requests throughout the native walkthrough.
-- Honest separation between the native target and the legacy pZEC trade, liquidity, and gateway simulations.
+## Simulation coverage
 
-Failure screenshots and traces are written to `test-results/`, which is ignored by Git.
+The broader matrix exercises `/`, `/trade`, `/liquidity`, `/status`, `/legal`, `/security`, error routes, and status APIs at 320, 390, 768, and 1440 CSS pixels. It covers:
+
+- Honest simulation and legacy-surface disclosures.
+- Landing navigation, native-pair cards, journey tabs, evidence, and launch gates.
+- Order ticket, order-book, chart, blotter, matcher, gateway, payout, and liquidity fixtures.
+- Empty, loading, stale, unavailable, country-blocked, and render-failure states.
+- Keyboard operation, skip links, visible focus, 44px targets, reduced motion, and narrow-layout overflow.
+- Market-specific copy, review and confirm steps, cancellation, expiry, IOC/FOK behavior, and fixture-only LP flows.
+- Runtime errors, console errors, Next.js overlays, and production-route responses.
+
+Tests covering the gateway, reserve, payout, AMM, and older deposit or withdrawal journeys exercise legacy simulations or testnet fixtures only. They are not evidence that native ZEC settlement is live.
 
 ## Limits
 
-The automated suite uses Chromium. It does not replace manual assistive-technology review, Firefox and WebKit coverage, deployed Vercel verification, JavaScript-disabled review, protocol integration, chain observation, or wallet interoperability testing. Those checks remain separate release gates. Fixture deadlines and identities are examples, not approvals. No test result authorizes testnet or mainnet activity.
+The automated suite uses Chromium. It does not replace manual assistive-technology review, Firefox and WebKit coverage, deployed Vercel verification, JavaScript-disabled review, contract audit, chain observation, or wallet interoperability testing. Those remain separate fail-closed release gates. No browser result authorizes testnet or mainnet activity.

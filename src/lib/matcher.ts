@@ -19,6 +19,7 @@ export type Fill = {
   makerId: string;
   takerSide: OrderSide;
   priceTicks: bigint;
+  /** 8-decimal ZEC atoms. Named sizeAtoms because the matcher is pair-agnostic. */
   sizeAtoms: bigint;
 };
 

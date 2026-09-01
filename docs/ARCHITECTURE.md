@@ -1,6 +1,6 @@
 # Phlebas Architecture
 
-Status: native-settlement target, simulation implementation
+Status: native-settlement target, no-value simulation
 Updated: 01-09-2026
 
 Phlebas is being built as a non-custodial exchange for native transparent ZEC against USDC and USDT. The current public application is a no-value browser simulation. Optional loopback stubs exist for a textest gateway, matcher, and observer, and an optional wallet connector is limited to undeployed Arbitrum Sepolia terms. Those services are never hosted on Vercel and do not move mainnet funds.

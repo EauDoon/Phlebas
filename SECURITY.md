@@ -1,6 +1,6 @@
 # Security Policy
 
-> Status as of 31-08-2026: Phlebas is a no-value simulation with undeployed Sepolia contract sources and optional local testnet services. It is not a deployed exchange, bridge, automated market maker, or custody service. It must not be used with real funds or mainnet TEX.
+> Status as of 01-09-2026: Phlebas is a no-value simulation with undeployed contract sources and optional local Testnet services. It is not a deployed exchange, bridge, automated market maker, or custody service. It must not be used with real funds or mainnet TEX.
 
 ## Supported versions
 
@@ -54,7 +54,7 @@ The proposed architecture is documented in [docs/THREAT_MODEL.md](docs/THREAT_MO
 - ZEC funds first. EVM funding follows policy-qualified ZEC finality, and its refund deadline precedes the ZEC refund deadline by the signed safety margin.
 - Claim and refund are mutually exclusive. Reorganizations, stale evidence, observer disagreement, and replay suspend progression.
 - Wallets retain signing and unilateral refund authority. Phlebas never holds a standing ZEC reserve or depends on an operator redemption promise.
-- pZEC gateway, reserve, custody, and automated market maker components are legacy simulations, not the native settlement target.
+- pZEC/tZEC receipt, gateway, reserve, custody, and automated market maker components are legacy simulations, not the native settlement target.
 - Vercel may host a public interface, but it must never host keys, authoritative journals, node credentials, signing, claim, refund, or custody services.
 
 The custody-backed pZEC design remains documented only as the superseded ADR 0001 simulation. The repository exercises parts of the native design in local code and tests. They are not deployed or audited properties.

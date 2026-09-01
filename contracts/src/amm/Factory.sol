@@ -5,9 +5,9 @@ import {Pair} from "./Pair.sol";
 
 /// @notice Creates only the two approved testnet pairs. No fee switch. Non-upgradeable.
 contract Factory {
-    address public immutable pzec;
+    address public immutable zec;
     address public immutable usdc;
-    address public immutable usdt0;
+    address public immutable usdt;
 
     mapping(address => mapping(address => address)) public getPair;
     address[2] public allPairs;
@@ -17,27 +17,27 @@ contract Factory {
     error PairNotAllowed();
     error ZeroAddress();
 
-    event PairCreated(address indexed pzec, address indexed quote, address pair, uint256 pairCount);
+    event PairCreated(address indexed zec, address indexed quote, address pair, uint256 pairCount);
 
-    constructor(address pzec_, address usdc_, address usdt0_) {
+    constructor(address zec_, address usdc_, address usdt_) {
         if (
-            pzec_ == address(0) || usdc_ == address(0) || usdt0_ == address(0) || pzec_.code.length == 0
-                || usdc_.code.length == 0 || usdt0_.code.length == 0
+            zec_ == address(0) || usdc_ == address(0) || usdt_ == address(0) || zec_.code.length == 0
+                || usdc_.code.length == 0 || usdt_.code.length == 0
         ) revert ZeroAddress();
-        if (pzec_ == usdc_ || pzec_ == usdt0_ || usdc_ == usdt0_) revert PairNotAllowed();
-        pzec = pzec_;
+        if (zec_ == usdc_ || zec_ == usdt_ || usdc_ == usdt_) revert PairNotAllowed();
+        zec = zec_;
         usdc = usdc_;
-        usdt0 = usdt0_;
+        usdt = usdt_;
     }
 
     function createPair(address quote) external returns (address pair) {
-        if (quote != usdc && quote != usdt0) revert PairNotAllowed();
-        if (getPair[pzec][quote] != address(0)) revert PairExists();
-        pair = address(new Pair(pzec, quote));
-        getPair[pzec][quote] = pair;
-        getPair[quote][pzec] = pair;
+        if (quote != usdc && quote != usdt) revert PairNotAllowed();
+        if (getPair[zec][quote] != address(0)) revert PairExists();
+        pair = address(new Pair(zec, quote));
+        getPair[zec][quote] = pair;
+        getPair[quote][zec] = pair;
         allPairs[allPairsLength] = pair;
         allPairsLength += 1;
-        emit PairCreated(pzec, quote, pair, allPairsLength);
+        emit PairCreated(zec, quote, pair, allPairsLength);
     }
 }

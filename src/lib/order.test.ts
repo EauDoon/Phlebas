@@ -4,10 +4,12 @@ import test from "node:test";
 import {
   calculatePreviewNotional,
   calculateWorstPrice,
-  formatPzecPreviewAmount,
+  formatZecPreviewAmount,
+  marketOrderConstraintCopy,
+  sideControlCopy,
   formatQuotePreviewAmount,
   parseStrictDecimal,
-  PZEC_ATOMIC_RULE,
+  ZEC_ATOMIC_RULE,
   QUOTE_PRICE_ATOMIC_RULE,
   QUOTE_TOKEN_ATOM,
   QUOTE_TOKEN_ATOMIC_RULE,
@@ -30,14 +32,14 @@ test("calculates a positive preview notional", () => {
 
 test("enforces exact order-input atomic precision", () => {
   assert.equal(parseStrictDecimal("0.01", { atomicRule: QUOTE_PRICE_ATOMIC_RULE }), 0.01);
-  assert.equal(parseStrictDecimal("0.00000001", { atomicRule: PZEC_ATOMIC_RULE }), 0.00000001);
+  assert.equal(parseStrictDecimal("0.00000001", { atomicRule: ZEC_ATOMIC_RULE }), 0.00000001);
   assert.equal(parseStrictDecimal("0.000001", { atomicRule: QUOTE_TOKEN_ATOMIC_RULE }), 0.000001);
   assert.throws(
     () => parseStrictDecimal("0.001", { atomicRule: QUOTE_PRICE_ATOMIC_RULE }),
     /no more than 2 decimal places/,
   );
   assert.throws(
-    () => parseStrictDecimal("0.000000001", { atomicRule: PZEC_ATOMIC_RULE }),
+    () => parseStrictDecimal("0.000000001", { atomicRule: ZEC_ATOMIC_RULE }),
     /no more than 8 decimal places/,
   );
   assert.throws(
@@ -65,9 +67,9 @@ test("rejects underflow, sub-tick price, sub-atom size, and sub-atom quote notio
 });
 
 test("never formats accepted atomic amounts as zero", () => {
-  assert.equal(formatPzecPreviewAmount(0.00000001), "0.00000001");
+  assert.equal(formatZecPreviewAmount(0.00000001), "0.00000001");
   assert.equal(formatQuotePreviewAmount(QUOTE_TOKEN_ATOM), "0.000001");
-  assert.throws(() => formatPzecPreviewAmount(0.000000001), /at least 0.00000001/);
+  assert.throws(() => formatZecPreviewAmount(0.000000001), /at least 0.00000001/);
 });
 
 test("caps a market buy above the reference price", () => {
@@ -83,6 +85,25 @@ test("rounds market caps conservatively to the quote-price tick", () => {
   assert.equal(calculateWorstPrice(52.84, "sell", 0.5), 52.57);
   assert.equal(calculateWorstPrice(52.84, "buy", 0.001), 52.85);
   assert.equal(calculateWorstPrice(52.84, "sell", 0.001), 52.83);
+});
+
+test("side control copy names Buy and Sell without color-only selection", () => {
+  assert.equal(sideControlCopy("buy", false), "Buy");
+  assert.equal(sideControlCopy("sell", false), "Sell");
+  assert.equal(sideControlCopy("buy", true), "Buy selected");
+  assert.equal(sideControlCopy("sell", true), "Sell selected");
+  assert.notEqual(sideControlCopy("buy", true), sideControlCopy("sell", true));
+  assert.match(sideControlCopy("buy", true), /Buy/);
+  assert.match(sideControlCopy("sell", true), /Sell/);
+  assert.doesNotMatch(sideControlCopy("buy", true), /pZEC/);
+});
+
+test("market-order constraint copy names IOC and a signed worst price", () => {
+  assert.match(marketOrderConstraintCopy(), /IOC with a signed worst price/);
+  assert.match(marketOrderConstraintCopy(), /no unbounded market instruction/);
+  assert.match(marketOrderConstraintCopy(), /not live settlement/);
+  assert.doesNotMatch(marketOrderConstraintCopy(), /pZEC/);
+  assert.doesNotMatch(marketOrderConstraintCopy(), /trustless/);
 });
 
 test("rejects an unsafe slippage percentage", () => {

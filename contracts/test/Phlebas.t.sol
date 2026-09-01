@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {TestBase} from "./TestBase.sol";
-import {PZec} from "../src/token/PZec.sol";
+import {Zec} from "../src/token/Zec.sol";
 import {QuoteToken} from "../src/token/QuoteToken.sol";
 import {Factory} from "../src/amm/Factory.sol";
 import {Pair} from "../src/amm/Pair.sol";
@@ -14,9 +14,9 @@ contract PhlebasTest is TestBase {
     uint256 internal constant TAKER_KEY = 0xB0B;
     uint256 internal constant CURVE_ORDER = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141;
 
-    PZec internal pzec;
+    Zec internal zec;
     QuoteToken internal usdc;
-    QuoteToken internal usdt0;
+    QuoteToken internal usdt;
     Factory internal factory;
     Pair internal pair;
     Router internal router;
@@ -27,18 +27,18 @@ contract PhlebasTest is TestBase {
     function setUp() public {
         maker = vm.addr(MAKER_KEY);
         taker = vm.addr(TAKER_KEY);
-        pzec = new PZec(address(this), address(this), address(this));
+        zec = new Zec(address(this), address(this), address(this));
         usdc = new QuoteToken("Phlebas Testnet USDC", "tUSDC");
-        usdt0 = new QuoteToken("Phlebas Testnet USDT0", "tUSDT0");
-        factory = new Factory(address(pzec), address(usdc), address(usdt0));
+        usdt = new QuoteToken("Phlebas Testnet USDT", "tUSDT");
+        factory = new Factory(address(zec), address(usdc), address(usdt));
         pair = Pair(factory.createPair(address(usdc)));
-        factory.createPair(address(usdt0));
+        factory.createPair(address(usdt));
         router = new Router(factory, address(this), address(this));
         settlement =
-            new Settlement(address(pzec), address(usdc), address(usdt0), address(this), address(this), address(this));
-        pzec.mint(maker, 100e8);
-        pzec.mint(taker, 100e8);
-        pzec.mint(address(this), 50e8);
+            new Settlement(address(zec), address(usdc), address(usdt), address(this), address(this), address(this));
+        zec.mint(maker, 100e8);
+        zec.mint(taker, 100e8);
+        zec.mint(address(this), 50e8);
         vm.prank(maker);
         usdc.faucet(10_000e6);
         vm.prank(taker);
@@ -86,21 +86,40 @@ contract PhlebasTest is TestBase {
         assertEq(uint256(uint32(selector)), uint256(0xce5594a1));
     }
 
-    function testPzecMinterAndPauseBoundaries() public {
+    function testZecTokenNameAndSymbol() public view {
+        assertEq(zec.name(), "Phlebas Testnet ZEC");
+        assertEq(zec.symbol(), "tZEC");
+        assertEq(uint256(zec.decimals()), 8);
+    }
+
+    function testLpTokenSymbolIsTlp() public view {
+        assertEq(pair.name(), "Phlebas Testnet LP");
+        assertEq(pair.symbol(), "tLP");
+        assertEq(uint256(pair.decimals()), 18);
+    }
+
+    function testFactorySettlementAndRouterExposeZec() public view {
+        assertEq(factory.zec(), address(zec));
+        assertEq(settlement.zec(), address(zec));
+        assertEq(router.zec(), address(zec));
+        assertEq(pair.zec(), address(zec));
+    }
+
+    function testZecMinterAndPauseBoundaries() public {
         vm.prank(taker);
-        vm.expectRevert(PZec.NotMinter.selector);
-        pzec.mint(taker, 1);
-        pzec.pauseMint();
-        vm.expectRevert(PZec.MintPaused.selector);
-        pzec.mint(taker, 1);
+        vm.expectRevert(Zec.NotMinter.selector);
+        zec.mint(taker, 1);
+        zec.pauseMint();
+        vm.expectRevert(Zec.MintPaused.selector);
+        zec.mint(taker, 1);
         vm.prank(taker);
-        vm.expectRevert(PZec.NotGovernor.selector);
-        pzec.unpauseMint();
-        pzec.unpauseMint();
-        pzec.mint(taker, 1);
-        uint256 maxSupply = pzec.MAX_SUPPLY();
-        vm.expectRevert(PZec.SupplyCap.selector);
-        pzec.mint(taker, maxSupply);
+        vm.expectRevert(Zec.NotGovernor.selector);
+        zec.unpauseMint();
+        zec.unpauseMint();
+        zec.mint(taker, 1);
+        uint256 maxSupply = zec.MAX_SUPPLY();
+        vm.expectRevert(Zec.SupplyCap.selector);
+        zec.mint(taker, maxSupply);
     }
 
     function testFactoryRejectsThirdPair() public {
@@ -112,8 +131,8 @@ contract PhlebasTest is TestBase {
     }
 
     function testFactoryCountsPairsIndependentOfCreationOrder() public {
-        Factory fresh = new Factory(address(pzec), address(usdc), address(usdt0));
-        address first = fresh.createPair(address(usdt0));
+        Factory fresh = new Factory(address(zec), address(usdc), address(usdt));
+        address first = fresh.createPair(address(usdt));
         assertEq(fresh.allPairsLength(), 1);
         assertEq(fresh.allPairs(0), first);
         fresh.createPair(address(usdc));
@@ -121,25 +140,25 @@ contract PhlebasTest is TestBase {
     }
 
     function testAmmMintSwapBurnAndK() public {
-        pzec.approve(address(router), type(uint256).max);
+        zec.approve(address(router), type(uint256).max);
         usdc.approve(address(router), type(uint256).max);
         uint256 shares = router.addLiquidity(address(usdc), 10e8, 5_291e6, 1, address(this), block.timestamp + 60);
         assertGt(shares, 0);
         assertEq(pair.balanceOf(pair.MINIMUM_LIQUIDITY_HOLDER()), pair.MINIMUM_LIQUIDITY());
-        uint256 out = router.swapExactIn(address(pzec), address(usdc), 1e8, 1, address(this), block.timestamp + 60);
+        uint256 out = router.swapExactIn(address(zec), address(usdc), 1e8, 1, address(this), block.timestamp + 60);
         assertGt(out, 0);
-        (uint256 reservePzec, uint256 reserveQuote) = pair.getReserves();
-        assertGt(reservePzec * reserveQuote, 10e8 * 5_291e6);
+        (uint256 reserveZec, uint256 reserveQuote) = pair.getReserves();
+        assertGt(reserveZec * reserveQuote, 10e8 * 5_291e6);
         pair.approve(address(router), shares / 2);
-        (uint256 backPzec,) =
+        (uint256 backZec,) =
             router.removeLiquidity(address(usdc), shares / 2, 1, 1, address(this), block.timestamp + 60);
-        assertGt(backPzec, 0);
-        assertEq(pzec.balanceOf(address(router)), 0);
+        assertGt(backZec, 0);
+        assertEq(zec.balanceOf(address(router)), 0);
         assertEq(usdc.balanceOf(address(router)), 0);
     }
 
     function testAmmMintUsesBothAssetsAndEnforcesMinimumShares() public {
-        pzec.approve(address(router), type(uint256).max);
+        zec.approve(address(router), type(uint256).max);
         usdc.approve(address(router), type(uint256).max);
         vm.expectRevert(Router.Slippage.selector);
         router.addLiquidity(address(usdc), 10e8, 5_291e6, type(uint256).max, address(this), block.timestamp + 60);
@@ -150,38 +169,38 @@ contract PhlebasTest is TestBase {
     }
 
     function testAmmBurnIncludesDirectDonations() public {
-        pzec.approve(address(router), type(uint256).max);
+        zec.approve(address(router), type(uint256).max);
         usdc.approve(address(router), type(uint256).max);
         uint256 shares = router.addLiquidity(address(usdc), 10e8, 5_291e6, 1, address(this), block.timestamp + 60);
-        pzec.transfer(address(pair), 1e8);
+        zec.transfer(address(pair), 1e8);
         usdc.transfer(address(pair), 100e6);
         pair.approve(address(router), shares);
-        (uint256 outPzec, uint256 outQuote) =
+        (uint256 outZec, uint256 outQuote) =
             router.removeLiquidity(address(usdc), shares, 1, 1, address(this), block.timestamp + 60);
-        assertGt(outPzec, 10e8);
+        assertGt(outZec, 10e8);
         assertGt(outQuote, 5_291e6);
     }
 
     function testAmmSyncAccountsForDirectDonations() public {
-        pzec.approve(address(router), type(uint256).max);
+        zec.approve(address(router), type(uint256).max);
         usdc.approve(address(router), type(uint256).max);
         router.addLiquidity(address(usdc), 10e8, 5_291e6, 1, address(this), block.timestamp + 60);
-        pzec.transfer(address(pair), 1e8);
+        zec.transfer(address(pair), 1e8);
         pair.sync();
-        (uint256 reservePzec, uint256 reserveQuote) = pair.getReserves();
-        assertEq(reservePzec, 11e8);
+        (uint256 reserveZec, uint256 reserveQuote) = pair.getReserves();
+        assertEq(reserveZec, 11e8);
         assertEq(reserveQuote, 5_291e6);
     }
 
     function testFuzzAmmSwapNeverLowersK(uint96 rawAmount) public {
-        pzec.approve(address(router), type(uint256).max);
+        zec.approve(address(router), type(uint256).max);
         usdc.approve(address(router), type(uint256).max);
         router.addLiquidity(address(usdc), 10e8, 5_291e6, 1, address(this), block.timestamp + 60);
-        (uint256 beforePzec, uint256 beforeQuote) = pair.getReserves();
+        (uint256 beforeZec, uint256 beforeQuote) = pair.getReserves();
         uint256 amount = (uint256(rawAmount) % 10e8) + 1;
-        router.swapExactIn(address(pzec), address(usdc), amount, 1, address(this), block.timestamp + 60);
-        (uint256 afterPzec, uint256 afterQuote) = pair.getReserves();
-        require(afterPzec * afterQuote >= beforePzec * beforeQuote, "k decreased");
+        router.swapExactIn(address(zec), address(usdc), amount, 1, address(this), block.timestamp + 60);
+        (uint256 afterZec, uint256 afterQuote) = pair.getReserves();
+        require(afterZec * afterQuote >= beforeZec * beforeQuote, "k decreased");
     }
 
     function testFuzzQuoteRoundingConserves(uint128 size, uint128 ticks) public view {
@@ -195,14 +214,14 @@ contract PhlebasTest is TestBase {
     }
 
     function testLiquidityRemovalStaysAvailableDuringTradingPause() public {
-        pzec.approve(address(router), type(uint256).max);
+        zec.approve(address(router), type(uint256).max);
         usdc.approve(address(router), type(uint256).max);
         uint256 shares = router.addLiquidity(address(usdc), 10e8, 5_291e6, 1, address(this), block.timestamp + 60);
         pair.approve(address(router), shares);
         router.pause();
-        (uint256 outPzec, uint256 outQuote) =
+        (uint256 outZec, uint256 outQuote) =
             router.removeLiquidity(address(usdc), shares, 1, 1, address(this), block.timestamp + 60);
-        assertGt(outPzec, 0);
+        assertGt(outZec, 0);
         assertGt(outQuote, 0);
     }
 
@@ -210,7 +229,7 @@ contract PhlebasTest is TestBase {
         Settlement.Order memory sell = _order(maker, 1, 2e8, 5291, 1);
         Settlement.Order memory buy = _order(taker, 0, 2e8, 5300, 2);
         vm.prank(maker);
-        pzec.approve(address(settlement), type(uint256).max);
+        zec.approve(address(settlement), type(uint256).max);
         vm.prank(taker);
         usdc.approve(address(settlement), type(uint256).max);
 
@@ -218,11 +237,11 @@ contract PhlebasTest is TestBase {
         uint256 sellerQuoteBefore = usdc.balanceOf(maker);
         uint256 buyerQuoteBefore = usdc.balanceOf(taker);
         uint256 feeQuoteBefore = usdc.balanceOf(address(this));
-        uint256 buyerPzecBefore = pzec.balanceOf(taker);
+        uint256 buyerZecBefore = zec.balanceOf(taker);
         settlement.settle(
             sell, _sign(MAKER_KEY, settlement.digest(sell)), buy, _sign(TAKER_KEY, settlement.digest(buy)), fill
         );
-        assertEq(pzec.balanceOf(taker) - buyerPzecBefore, fill);
+        assertEq(zec.balanceOf(taker) - buyerZecBefore, fill);
         assertEq(usdc.balanceOf(maker) - sellerQuoteBefore, 52_883_545);
         assertEq(buyerQuoteBefore - usdc.balanceOf(taker), 52_989_365);
         assertEq(usdc.balanceOf(address(this)) - feeQuoteBefore, 105_820);
@@ -254,7 +273,7 @@ contract PhlebasTest is TestBase {
         Settlement.Order memory ioc = _order(taker, 0, 2e8, 5291, 2);
         ioc.timeInForce = settlement.TIF_IOC();
         vm.prank(maker);
-        pzec.approve(address(settlement), type(uint256).max);
+        zec.approve(address(settlement), type(uint256).max);
         vm.prank(taker);
         usdc.approve(address(settlement), type(uint256).max);
         settlement.settle(
@@ -272,7 +291,7 @@ contract PhlebasTest is TestBase {
 
     function testContractConstructorsRejectBrokenTrustBoundaries() public {
         vm.expectRevert(Settlement.InvalidConfiguration.selector);
-        new Settlement(address(0), address(usdc), address(usdt0), address(this), address(this), address(this));
+        new Settlement(address(0), address(usdc), address(usdt), address(this), address(this), address(this));
         vm.expectRevert(Router.InvalidConfiguration.selector);
         new Router(Factory(address(0)), address(this), address(this));
         vm.expectRevert(Pair.InvalidConfiguration.selector);
@@ -289,7 +308,7 @@ contract PhlebasTest is TestBase {
         Settlement.Order memory sell = _order(maker, 1, 1e8, 5291, 9);
         Settlement.Order memory buy = _order(taker, 0, 1e8, 5291, 10);
         vm.prank(maker);
-        pzec.approve(address(settlement), type(uint256).max);
+        zec.approve(address(settlement), type(uint256).max);
         vm.prank(taker);
         usdc.approve(address(settlement), type(uint256).max);
         vm.prank(maker);
@@ -314,7 +333,7 @@ contract PhlebasTest is TestBase {
         settlement.unpause();
         router.pause();
         vm.expectRevert(Router.Paused.selector);
-        router.swapExactIn(address(pzec), address(usdc), 1, 1, taker, block.timestamp + 1);
+        router.swapExactIn(address(zec), address(usdc), 1, 1, taker, block.timestamp + 1);
     }
 
     function testQuoteRoundingBuyerUpSellerDown() public view {
@@ -332,7 +351,7 @@ contract PhlebasTest is TestBase {
         return Settlement.Order({
             maker: who,
             side: side,
-            baseAsset: address(pzec),
+            baseAsset: address(zec),
             quoteAsset: address(usdc),
             baseAmount: amount,
             limitPriceTicks: ticks,

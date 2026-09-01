@@ -142,7 +142,7 @@ export function NativeSwapPanel({
         <div className={styles.panelHeader}>
           <div>
             <span className={styles.eyebrow}>Fixture only</span>
-            <h2 id="native-swap-title">Native ZEC atomic swap</h2>
+            <h2 id="native-swap-title" ref={phaseHeading} tabIndex={-1}>Native ZEC atomic swap</h2>
           </div>
           <span className={styles.warningPill}>No value</span>
         </div>

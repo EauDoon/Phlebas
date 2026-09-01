@@ -1,7 +1,16 @@
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
+import {
+  bookSideControlCopy,
+  depthEmptyCopy,
+  depthSessionLastCopy,
+  feedSurface,
+  feedWithheldCopy,
+  orderBookCaptionCopy,
+  type FeedStatus,
+} from "@/lib/market-state";
 import { levelsFromBook, type Book } from "@/lib/matcher";
-import { PRICE_DECIMALS, PZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
+import { PRICE_DECIMALS, ZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
@@ -9,14 +18,17 @@ export function OrderBook({
   marketId,
   book,
   onPriceSelect,
+  feedStatus = "illustrative",
 }: {
   marketId: MarketId;
   book: Book;
   onPriceSelect: (priceTicks: bigint) => void;
+  feedStatus?: FeedStatus;
 }) {
   const market = markets[marketId];
-  const asks = levelsFromBook(book, "sell");
-  const bids = levelsFromBook(book, "buy");
+  const surface = feedSurface(feedStatus);
+  const asks = surface.showFixtures ? levelsFromBook(book, "sell") : [];
+  const bids = surface.showFixtures ? levelsFromBook(book, "buy") : [];
   const askRows = [...asks].reverse();
   const maxAtoms = [...asks, ...bids].reduce((max, level) => (
     level.totalAtoms > max ? level.totalAtoms : max
@@ -24,27 +36,33 @@ export function OrderBook({
   const spreadTicks = asks[0] && bids[0] ? asks[0].priceTicks - bids[0].priceTicks : null;
 
   return (
-    <section className={styles.panel} aria-labelledby="order-book-title">
+    <section id="order-book" tabIndex={-1} className={styles.panel} aria-labelledby="order-book-title">
       <div className={styles.panelHeader}>
         <h2 id="order-book-title">Order book</h2>
-        <span className={styles.miniLabel}>0.01 tick · local book</span>
+        <span className={styles.miniLabel}>
+          {surface.showFixtures ? "0.01 tick · local book" : surface.heading}
+        </span>
       </div>
       <table className={styles.dataTable}>
         <caption className={styles.srOnly}>
-          Local {marketId} order book. Totals are cumulative pZEC depth from the best price. Click a price to copy it into the ticket.
+          {orderBookCaptionCopy(marketId)}
         </caption>
         <thead>
           <tr>
             <th scope="col">Price {market.quote}</th>
-            <th scope="col">Size pZEC</th>
-            <th scope="col">Total pZEC</th>
+            <th scope="col">Size ZEC</th>
+            <th scope="col">Total ZEC</th>
           </tr>
         </thead>
         <tbody aria-label="Asks">
           {askRows.length === 0 && bids.length === 0 && (
             <tr>
               <td colSpan={3}>
-                <p className={styles.emptyState}>No resting depth. The local book is empty.</p>
+                <p className={styles.emptyState}>
+                  {surface.showFixtures || feedStatus === "empty"
+                    ? depthEmptyCopy(market.settlementPair)
+                    : feedWithheldCopy(feedStatus, market.settlementPair)}
+                </p>
               </td>
             </tr>
           )}
@@ -62,8 +80,10 @@ export function OrderBook({
               <div className={styles.midPrice}>
                 <strong>{formatAtomicUnits(book.lastTicks, PRICE_DECIMALS, 2)}</strong>
                 <span>
-                  session last
-                  {spreadTicks !== null ? ` · spread ${formatAtomicUnits(spreadTicks, PRICE_DECIMALS, 2)}` : ""}
+                  {depthSessionLastCopy(
+                    market.settlementPair,
+                    spreadTicks !== null ? formatAtomicUnits(spreadTicks, PRICE_DECIMALS, 2) : null,
+                  )}
                 </span>
               </div>
             </td>
@@ -97,7 +117,8 @@ function BookRow({
   onPriceSelect: (priceTicks: bigint) => void;
 }) {
   const depthPercent = Number((level.totalAtoms * 1000n) / maxAtoms) / 10;
-  const label = side === "buy" ? "Bid" : "Ask";
+  const bookSide = side === "buy" ? "bid" : "ask";
+  const priceLabel = formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2);
 
   return (
     <tr>
@@ -115,12 +136,11 @@ function BookRow({
           className={styles.bookButton}
           onClick={() => onPriceSelect(level.priceTicks)}
         >
-          <span className={styles.srOnly}>{label} </span>
-          {formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}
+          {bookSideControlCopy(bookSide, priceLabel)}
         </button>
       </th>
-      <td>{formatAtomicUnits(level.sizeAtoms, PZEC_DECIMALS, 2)}</td>
-      <td>{formatAtomicUnits(level.totalAtoms, PZEC_DECIMALS, 2)}</td>
+      <td>{formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS, 2)}</td>
+      <td>{formatAtomicUnits(level.totalAtoms, ZEC_DECIMALS, 2)}</td>
     </tr>
   );
 }

@@ -5,7 +5,7 @@ Status: superseded custody model
 The pZEC reserve, mint, burn, deposit, and withdrawal model below is retained as historical design evidence. [ADR 0002](adr/0002-native-zec-atomic-settlement.md) replaces it with per-swap conditional-lock accounting for the target product. Do not extend this model into a live path.
 
 Status: Simulation only
-As of: 30-08-2026
+As of: 01-09-2026
 
 Phlebas has no real assets, customer accounts, reserve wallets, deployed tokens, bridge ledger, or operational custody today. The current application uses sample values. This document defines a candidate accounting model for review and testing. It does not authorize deposits, minting, trading, or withdrawals.
 
@@ -17,21 +17,21 @@ Native ZEC is the asset recorded on the Zcash blockchain. Phlebas's candidate ga
 
 The deposit interface would use ZIP 320 `tex...` addresses. [ZIP 320](https://zips.z.cash/zip-0320) requires conforming wallets to fund these outputs with transparent UTXOs, but the restriction is not a consensus rule. The bridge must validate the final transaction itself.
 
-### pZEC
+### Settlement ZEC (`tZEC`)
 
-`pZEC` means Phlebas ZEC. It is a proposed custody-backed ERC-20 representation of transparent native ZEC.
+`tZEC` is the undeployed 8-decimal Arbitrum receipt symbol for the displayed native ZEC market. The Solidity type is `Zec`. Product copy labels this native ZEC. [ADR 0001](adr/0001-arbitrum-and-pzec.md) historically named the same custody-backed ERC-20 claim `pZEC`; that name is not the current listed form.
 
-One `pZEC` would represent a contractual redemption claim for one ZEC, subject to the published withdrawal rules. `pZEC` would have 8 decimals to preserve ZEC's zatoshi unit. It would not provide Zcash shielding, native Zcash finality, trustless redemption, or protection from custody failure.
+One `tZEC` would represent a contractual redemption claim for one ZEC, subject to the published withdrawal rules. `tZEC` would have 8 decimals to preserve ZEC's zatoshi unit. It would not provide Zcash shielding, native Zcash finality, trustless redemption, or protection from custody failure.
 
-`pZEC` is only a display and simulation label today. No token contract exists.
+`tZEC` is only an undeployed contract source and a simulation label today. No token contract is deployed. This is not live native-ZEC execution.
 
 ### USDC
 
 The candidate USDC quote asset is native Circle USDC on Arbitrum One. Circle lists the current Arbitrum mainnet address in its [official USDC contract registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). No address is approved for Phlebas configuration until the mainnet gate revalidates it.
 
-### USDT0
+### USDT
 
-The interface uses `USDT0` as the candidate settlement label for the displayed `ZEC/USDT` market. The [USDT0 deployment registry](https://docs.usdt0.to/technical-documentation/deployments) lists the Arbitrum One token and OFT integration addresses. No address is approved for Phlebas configuration until the mainnet gate revalidates the token, OFT path, decimals, bytecode, and control structure.
+The interface uses native `USDT` as the candidate settlement label for the displayed `ZEC/USDT` market. USDT0 is abandoned. No address is approved for Phlebas configuration until the mainnet gate revalidates issuer-native USDT, decimals, bytecode, and control structure.
 
 ### LP shares
 
@@ -44,9 +44,9 @@ All ledger and contract amounts use unsigned integers in the asset's smallest un
 | Asset | Candidate decimals | Smallest unit |
 | --- | ---: | --- |
 | Native ZEC | 8 | zatoshi |
-| `pZEC` | 8 | pzatoshi, equal in scale to one zatoshi |
+| Settlement ZEC (`tZEC`) | 8 | zatoshi, equal in scale to native ZEC |
 | USDC | 6 | token base unit |
-| USDT0 | 6 | token base unit |
+| USDT | 6 | token base unit |
 | LP share | Contract-defined | token base unit |
 
 Floating-point numbers are prohibited for balances, fills, fees, reserves, minting, burns, and withdrawals. Display rounding never changes the ledger amount.
@@ -62,19 +62,19 @@ The bridge ledger uses double-entry accounting. Blockchain data is evidence for 
 | Unconfirmed custody change | Asset, excluded from coverage | Debit | Change to an approved custody script that is signed, broadcast, or mined but not yet confirmed and spendable |
 | Unresolved withdrawal principal | Memorandum, excluded from coverage | None | Principal in an invalid, stale, conflicted, or reorganized committed transaction awaiting proof-gated recovery |
 | Provisional ZEC deposit | Memorandum | None | Observed deposits below the confirmation threshold |
-| Confirmed deposit entitlement | Liability | Credit | Confirmed ZEC received but not yet represented by `pZEC` |
-| Outstanding pZEC | Liability | Credit | Total redeemable `pZEC` supply |
+| Confirmed deposit entitlement | Liability | Credit | Confirmed ZEC received but not yet represented by `tZEC` |
+| Outstanding tZEC | Liability | Credit | Total redeemable `tZEC` supply |
 | Native withdrawal payable | Liability | Credit | Finalized burns awaiting native ZEC payment |
 | ZEC network fee expense | Expense | Debit | Native network cost paid by the operator, if not passed through |
 | Withdrawal fee revenue | Revenue | Credit | Disclosed service fee, if approved |
 | Custody surplus | Equity or operator liability | Credit | Operator-owned ZEC that is not customer backing |
 | Reconciliation suspense | Liability | Credit | Unresolved difference that blocks bridge operations |
 
-Pool reserves and user token balances remain on Arbitrum in the candidate design. Indexers maintain derived views, but contract balances and events are the settlement record for trading. The bridge ledger remains the record for the native ZEC reserve and `pZEC` redemption obligation.
+Pool reserves and user token balances remain on Arbitrum in the candidate design. Indexers maintain derived views, but contract balances and events are the settlement record for trading. The bridge ledger remains the record for the native ZEC reserve and `tZEC` redemption obligation.
 
 ## Core quantity model
 
-All terms below are integer zatoshis or pzatoshis at the same 8-decimal scale.
+All terms below are integer zatoshis at the same 8-decimal scale. Native ZEC and `tZEC` share that scale.
 
 * `A` is confirmed native ZEC in controlled, spendable, and uncommitted custody UTXOs. Once a transaction is committed, the full selected input value leaves `A`.
 * `T` is customer payout principal in valid signed, broadcast, or mined withdrawal transactions that have not reached the close threshold. Every unit in `T` must be matched one-to-one to the same open payable in `W`. It is settlement in transit, not reusable reserve.
@@ -83,7 +83,7 @@ All terms below are integer zatoshis or pzatoshis at the same 8-decimal scale.
 * `I` is the full value of custody inputs selected for one committed withdrawal transaction.
 * `P` is that transaction's customer payout principal and exact increase in matched `T`.
 * `N` is that transaction's network fee.
-* `S` is total outstanding `pZEC` supply.
+* `S` is total outstanding `tZEC` supply.
 * `D` is confirmed deposit entitlement not yet minted.
 * `W` is finalized burn value owed through native withdrawals.
 * `O` is any other customer ZEC liability.
@@ -157,13 +157,13 @@ Credit Confirmed deposit entitlement
 
 ### Minted
 
-Minting requires a unique authorization bound to the confirmed outpoint, amount, recipient, Arbitrum chain ID, `pZEC` contract, and expiry. The same outpoint cannot authorize a second mint.
+Minting requires a unique authorization bound to the confirmed outpoint, amount, recipient, Arbitrum chain ID, `tZEC` contract, and expiry. The same outpoint cannot authorize a second mint.
 
 After the Arbitrum mint event reaches its configured finality condition:
 
 ```text
 Debit  Confirmed deposit entitlement
-Credit Outstanding pZEC
+Credit Outstanding tZEC
 ```
 
 The ledger compares the event amount with the authorized amount. A difference enters reconciliation suspense and stops the bridge.
@@ -177,7 +177,7 @@ The candidate withdrawal state machine uses the canonical names in [PRODUCT_SPEC
 | burn submitted | burn_observed | Unfinalized Arbitrum burn event |
 | transaction_prepared | (unnamed) | Unsigned native payout after `payable` |
 | closed | closed | Ledger close after `confirmed` |
-| refunded | refunded | Pre-signature pZEC restoration after the payable is cancelled |
+| refunded | refunded | Pre-signature tZEC restoration after the payable is cancelled |
 
 ```text
 requested -> screened -> burn submitted -> burn finalized -> payable
@@ -195,13 +195,13 @@ unresolved -> verified input restoration -> payable
 A withdrawal begins from one unique Arbitrum burn event. The first implementation does not use escrow to create a payout liability. Native ZEC is not released from an unfinalized event.
 
 ```text
-Debit  Outstanding pZEC
+Debit  Outstanding tZEC
 Credit Native withdrawal payable
 ```
 
 This transition lowers token supply but preserves the customer obligation until native payment closes it.
 
-An unrecoverable failure before signature commitment may restore pZEC through one single-use refund authorization. The refund permanently cancels the native payable before restoration. Once a native transaction is signed, restoration is forbidden because the signed payout may later be broadcast. A withdrawal claim can never be both refunded and paid.
+An unrecoverable failure before signature commitment may restore `tZEC` through one single-use refund authorization. The refund permanently cancels the native payable before restoration. Once a native transaction is signed, restoration is forbidden because the signed payout may later be broadcast. A withdrawal claim can never be both refunded and paid.
 
 ### Native withdrawal signed and broadcast
 
@@ -270,7 +270,7 @@ The order record contains:
 * fee limit and signature;
 * cancellation and fill state.
 
-A fill transfers quote and base assets between users through the settlement contract. It does not change `pZEC` total supply or native ZEC reserves. Partial-fill arithmetic rounds in the direction defined by the contract and never creates a negative remaining quantity.
+A fill transfers quote and base assets between users through the settlement contract. It does not change `tZEC` total supply or native ZEC reserves. Partial-fill arithmetic rounds in the direction defined by the contract and never creates a negative remaining quantity.
 
 The matching service cannot create balances. Derived order-book views reconcile to accepted orders, cancellations, expiries, and settlement events.
 
@@ -282,9 +282,9 @@ Each pool has two token reserves and one LP share supply. For a pool with reserv
 x * y >= k_before
 ```
 
-The inequality accounts for fees retained by the pool. Contract code must use integer arithmetic with explicit rounding. The current interface's fee, TVL, volume, and reserve figures are simulations.
+The inequality accounts for fees retained by the pool. Contract code must use integer arithmetic with explicit rounding. The current interface's fee, TVL, volume, and reserve figures are simulations. The illustrative price chart maps integer tick fixtures to SVG pixel coordinates; those pixel positions may be IEEE floats. Axis labels remain integer ticks. That is a display exception, not a financial conversion.
 
-Adding liquidity transfers both assets into the pool and mints LP shares. Removing liquidity burns shares and transfers the proportional reserves. Neither action changes `pZEC` supply or the native reserve obligation.
+Adding liquidity transfers both assets into the pool and mints LP shares. Removing liquidity burns shares and transfers the proportional reserves. Neither action changes `tZEC` supply or the native reserve obligation.
 
 ## Fees
 
@@ -306,7 +306,7 @@ The bridge runs these checks before each mint and single-claim withdrawal transa
 
 1. Derive confirmed reserve UTXOs from two agreeing Zebra observers.
 2. Reconcile every reserve outpoint to the custody ledger.
-3. Read `pZEC` total supply from the configured Arbitrum contract and finalized block.
+3. Read `tZEC` total supply from the configured Arbitrum contract and finalized block.
 4. Reconcile all confirmed deposit entitlements and native withdrawal payables.
 5. Confirm every selected input is removed from `A` in full and every transaction satisfies `I = P + C + N`.
 6. Confirm every in-transit principal is matched to its exact payable, all unconfirmed change remains excluded, `0 <= T <= W`, `A >= S + D + (W - T) + O + B`, and `A + T >= S + D + W + O + B`.
@@ -322,7 +322,7 @@ Transparent Zcash makes reserve outpoints observable, but observation alone does
 
 * published reserve addresses or outpoints;
 * a signed proof of control using an approved method;
-* published `pZEC` supply and bridge liabilities at the same cutoff height;
+* published `tZEC` supply and bridge liabilities at the same cutoff height;
 * treatment of pending deposits and withdrawals;
 * an independent attestation process;
 * a clear statement that an attestation is not a guarantee against future loss.
@@ -333,13 +333,13 @@ No Phlebas proof of reserves or attestation exists today.
 
 Before any mainnet interaction, the interface must state:
 
-* `pZEC` is custody-backed and is not native ZEC;
+* `tZEC` is a custody-backed Arbitrum receipt and is not live native ZEC;
 * deposits and withdrawals support transparent Zcash only;
 * transparent Zcash activity is public;
 * redemption depends on the custody operator, signer availability, chain operation, and approved withdrawal policy;
 * deposits may wait for more confirmations based on value or network conditions;
 * contracts may include approved pause or recovery powers, with the exact powers disclosed;
-* USDC and USDT0 remain subject to their issuers and contract controls;
+* USDC and USDT remain subject to their issuers and contract controls. USDT0 is abandoned;
 * the current application is a simulation until the mainnet gate passes.
 
 ## Mainnet accounting gate
@@ -354,5 +354,5 @@ Real assets remain prohibited until the following exist and have explicit approv
 * value-based confirmation and withdrawal limits;
 * reorganization, insolvency, key-loss, and contract-incident procedures;
 * reserve disclosure and independent attestation terms;
-* a migration and redemption plan if `pZEC` is paused or retired;
+* a migration and redemption plan if `tZEC` is paused or retired;
 * explicit authority to create reserve wallets, deploy contracts, and take custody.

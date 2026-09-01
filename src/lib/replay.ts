@@ -17,7 +17,7 @@ export type LoggedSubmit = {
   tif: TimeInForce;
   priceTicks: bigint;
   sizeAtoms: bigint;
-  expiryUnix?: bigint;
+  expiryUnix: bigint;
 };
 
 export type LoggedCancel = {
@@ -94,6 +94,17 @@ export function replayLog(events: readonly SessionLogEvent[]): {
   return state;
 }
 
+export function describeSessionLogEvent(event: SessionLogEvent): string {
+  if (event.kind === "submit") {
+    const expiry = event.expiryUnix === 0n ? "none" : event.expiryUnix.toString();
+    return `${event.side} ${event.tif} ${event.id} expiry ${expiry}`;
+  }
+  if (event.kind === "cancel") {
+    return event.orderId;
+  }
+  return "session reset";
+}
+
 export function snapshotKey(state: ReturnType<typeof replayLog>): string {
   const markets: MarketId[] = ["ZEC/USDC", "ZEC/USDT"];
   return markets.map((marketId) => {
@@ -102,6 +113,6 @@ export function snapshotKey(state: ReturnType<typeof replayLog>): string {
     const rest = [...book.bids, ...book.asks]
       .map((order) => `${order.id}:${order.side}:${order.priceTicks}:${order.remainingAtoms}`)
       .join(",");
-    return `${marketId}|${book.lastTicks}|${rest}|${account.pzecAtoms}|${account.quoteAtoms}|${account.reservedPzecAtoms}|${account.reservedQuoteAtoms}`;
+    return `${marketId}|${book.lastTicks}|${rest}|${account.zecAtoms}|${account.quoteAtoms}|${account.reservedZecAtoms}|${account.reservedQuoteAtoms}`;
   }).join(";");
 }
