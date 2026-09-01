@@ -22,3 +22,7 @@ export function withdrawalTourStep(index: number): (typeof WITHDRAWAL_TOUR)[numb
   const bounded = Math.min(Math.max(index, 0), WITHDRAWAL_TOUR.length - 1);
   return WITHDRAWAL_TOUR[bounded];
 }
+
+export function unresolvedWithdrawalTourIndex(): number {
+  return WITHDRAWAL_TOUR.findIndex((step) => step.id === "unresolved");
+}
