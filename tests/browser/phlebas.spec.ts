@@ -4158,6 +4158,21 @@ test("native settlement skip link transfers focus to the walkthrough", async ({ 
   await expect(page.getByRole("heading", { name: "Native ZEC atomic swap" })).toBeFocused();
 });
 
+test("skip-nav returns data-skip-nav-state to visible when a child skip link is refocused after activation", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  const nav = page.getByRole("navigation", { name: "Skip links" });
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to main content" });
+  await skip.click();
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "hidden-after-activation");
+  // focus any link inside the nav so the focusin handler fires (focusin bubbles)
+  const secondLink = nav.getByRole("link").nth(1);
+  await secondLink.focus();
+  await expect(nav).toHaveAttribute("data-skip-nav-state", "visible");
+});
+});
+
 test("native settlement refund path stays early, then recovers both fixture legs", async ({ page }) => {
   await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
   await page.getByRole("combobox", { name: "Fixture scenario" }).selectOption("refund");
