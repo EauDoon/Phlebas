@@ -389,7 +389,7 @@ test("architecture keeps demo=incidents when the market changes", async ({ page 
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page).toHaveURL(/USDT/);
-  await expect(page.getByText("settles pZEC-USDT0")).toBeVisible();
+  await expect(page.getByText("legacy simulation: pZEC-USDT0")).toBeVisible();
   await expect(page.getByText("architecture-demonstration")).toBeVisible();
 });
 
