@@ -90,7 +90,7 @@ test("wallet connect without a provider names the rejection while the native mat
   const nativeMatcher = page.locator("#native-matcher-order-action");
   await expect(nativeMatcher).toContainText(NATIVE_MATCHER_DISABLED_COPY);
   await expect(nativeMatcher).toHaveAttribute("data-native-matcher-state", "manifest-disabled");
-  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
+  await page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" }).click();
   await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(
     missingProviderCopy(markets["ZEC/USDC"].settlementPair),
   );

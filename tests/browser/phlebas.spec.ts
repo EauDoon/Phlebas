@@ -832,37 +832,37 @@ test("architecture view keeps Vercel off the matcher", async ({ page }) => {
 
 test("connect wallet without a provider shows a visible rejection", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await expect(page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" })).toHaveAttribute(
+  await expect(page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" })).toHaveAttribute(
     "title",
-    "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDC.",
+    "Connect MetaMask or Rabby on Ethereum Mainnet. Settled as ZEC-USDC.",
   );
-  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
-  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as ZEC-USDC.")).toBeVisible();
+  await page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" }).click();
+  await expect(page.getByText("No compatible EVM wallet was found. Ethereum Mainnet only. Settled as ZEC-USDC.")).toBeVisible();
 });
 
 test("connect wallet without a provider names ZEC-USDT after switching market", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
-  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  const connect = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
   await expect(connect).toHaveAttribute(
     "title",
-    "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDT.",
+    "Connect MetaMask or Rabby on Ethereum Mainnet. Settled as ZEC-USDT.",
   );
   await connect.click();
   await expect(
-    page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as ZEC-USDT.", { exact: true }),
+    page.getByText("No compatible EVM wallet was found. Ethereum Mainnet only. Settled as ZEC-USDT.", { exact: true }),
   ).toBeVisible();
 });
 
 test("missing-provider error keeps settlement after switching market", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  const connect = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
   await connect.click();
   await expect(
-    page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as ZEC-USDC.", { exact: true }),
+    page.getByText("No compatible EVM wallet was found. Ethereum Mainnet only. Settled as ZEC-USDC.", { exact: true }),
   ).toBeVisible();
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
-  const retargeted = "No injected EVM wallet. Arbitrum Sepolia only. Settled as ZEC-USDT.";
+  const retargeted = "No compatible EVM wallet was found. Ethereum Mainnet only. Settled as ZEC-USDT.";
   await expect(page.getByText(retargeted, { exact: true })).toBeVisible();
   await expect(connect).toHaveAttribute("title", retargeted);
 });
@@ -882,7 +882,7 @@ test("rejected connect error keeps settlement after switching market", async ({ 
     });
   });
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  const connect = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
   await connect.click();
   await expect(
     page.getByText("Wallet request was rejected. Settled as ZEC-USDC.", { exact: true }),
@@ -906,13 +906,13 @@ test("connecting wallet title keeps the settlement pair", async ({ page }) => {
     });
   });
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  const connect = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
   await connect.click();
   await expect(connect).toHaveText("Connecting");
   await expect(connect).toBeDisabled();
   await expect(connect).toHaveAttribute(
     "title",
-    "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDC.",
+    "Connecting an EVM wallet on Ethereum Mainnet. Settled as ZEC-USDC.",
   );
 });
 
@@ -929,19 +929,19 @@ test("connecting wallet title keeps settlement after switching market", async ({
     });
   });
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  const connect = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
   await connect.click();
   await expect(connect).toHaveText("Connecting");
   await expect(connect).toHaveAttribute(
     "title",
-    "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDC.",
+    "Connecting an EVM wallet on Ethereum Mainnet. Settled as ZEC-USDC.",
   );
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(connect).toHaveText("Connecting");
   await expect(connect).toBeDisabled();
   await expect(connect).toHaveAttribute(
     "title",
-    "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDT.",
+    "Connecting an EVM wallet on Ethereum Mainnet. Settled as ZEC-USDT.",
   );
 });
 
@@ -965,7 +965,7 @@ test("connecting wallet title after rejected connect hang keeps settlement", asy
     });
   });
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  const connect = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
   await connect.click();
   const rejectUsdc = "Wallet request was rejected. Settled as ZEC-USDC.";
   await expect(page.getByText(rejectUsdc, { exact: true })).toBeVisible();
@@ -973,7 +973,7 @@ test("connecting wallet title after rejected connect hang keeps settlement", asy
   await expect(connect).toHaveText("Connecting");
   await expect(connect).toHaveAttribute(
     "title",
-    "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDC.",
+    "Connecting an EVM wallet on Ethereum Mainnet. Settled as ZEC-USDC.",
   );
   await expect(page.getByText(rejectUsdc, { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
@@ -981,7 +981,7 @@ test("connecting wallet title after rejected connect hang keeps settlement", asy
   await expect(connect).toBeDisabled();
   await expect(connect).toHaveAttribute(
     "title",
-    "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDT.",
+    "Connecting an EVM wallet on Ethereum Mainnet. Settled as ZEC-USDT.",
   );
   await expect(
     page.getByText("Wallet request was rejected. Settled as ZEC-USDT.", { exact: true }),
@@ -990,17 +990,17 @@ test("connecting wallet title after rejected connect hang keeps settlement", asy
 
 test("idle Connect wallet title keeps settlement after switching market", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  const connect = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
   await expect(connect).toHaveText("Connect wallet");
   await expect(connect).toHaveAttribute(
     "title",
-    "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDC.",
+    "Connect MetaMask or Rabby on Ethereum Mainnet. Settled as ZEC-USDC.",
   );
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(connect).toHaveText("Connect wallet");
   await expect(connect).toHaveAttribute(
     "title",
-    "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDT.",
+    "Connect MetaMask or Rabby on Ethereum Mainnet. Settled as ZEC-USDT.",
   );
 });
 
@@ -1010,7 +1010,7 @@ test("ticket signing stays disabled while the settlement contract is undeployed"
       configurable: true,
       value: {
         request(args: { method: string }) {
-          if (args.method === "eth_requestAccounts") {
+          if (args.method === "eth_requestAccounts" || args.method === "eth_accounts") {
             return Promise.resolve(["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]);
           }
           if (args.method === "eth_chainId") {
@@ -1018,11 +1018,13 @@ test("ticket signing stays disabled while the settlement contract is undeployed"
           }
           return Promise.reject(new Error(args.method));
         },
+        on() {},
+        removeListener() {},
       },
     });
   }, ETHEREUM_MAINNET_CHAIN_HEX);
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
+  await page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" }).click();
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDC." })).toBeVisible();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
@@ -1043,7 +1045,7 @@ test("market switching cannot enable undeployed testnet signing", async ({ page 
       configurable: true,
       value: {
         request(args: { method: string }) {
-          if (args.method === "eth_requestAccounts") {
+          if (args.method === "eth_requestAccounts" || args.method === "eth_accounts") {
             return Promise.resolve(["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]);
           }
           if (args.method === "eth_chainId") {
@@ -1051,11 +1053,13 @@ test("market switching cannot enable undeployed testnet signing", async ({ page 
           }
           return Promise.reject(new Error(args.method));
         },
+        on() {},
+        removeListener() {},
       },
     });
   }, ETHEREUM_MAINNET_CHAIN_HEX);
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
+  await page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" }).click();
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDC." })).toBeVisible();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
@@ -1073,7 +1077,7 @@ test("wallet disconnect accessible name keeps settlement after switching market"
       configurable: true,
       value: {
         request(args: { method: string }) {
-          if (args.method === "eth_requestAccounts") {
+          if (args.method === "eth_requestAccounts" || args.method === "eth_accounts") {
             return Promise.resolve(["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]);
           }
           if (args.method === "eth_chainId") {
@@ -1081,11 +1085,13 @@ test("wallet disconnect accessible name keeps settlement after switching market"
           }
           return Promise.reject(new Error(args.method));
         },
+        on() {},
+        removeListener() {},
       },
     });
   }, ETHEREUM_MAINNET_CHAIN_HEX);
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
+  await page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" }).click();
   const connectedUsdc = page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDC." });
   await expect(connectedUsdc).toHaveText("0xf39f…2266");
   await expect(connectedUsdc).toHaveAttribute(
@@ -1100,7 +1106,7 @@ test("wallet disconnect accessible name keeps settlement after switching market"
     "Disconnect 0xf39f…2266. Settled as ZEC-USDT.",
   );
   await connectedUsdt.click();
-  const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+  const connect = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
   await expect(connect).toHaveText("Connect wallet");
   await expect(connect).toBeEnabled();
 });
@@ -2057,7 +2063,7 @@ test("market feed connect chart range and ticket side stay 44px on desktop", asy
   const targets = [
     page.getByRole("radio", { name: "ZEC / USDC" }),
     page.getByRole("radio", { name: "Illustrative" }),
-    page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }),
+    page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" }),
     page.getByRole("radio", { name: "4H" }),
     page.getByRole("group", { name: "Order side" }).getByRole("button", { name: /^Buy/ }),
   ];
@@ -2279,7 +2285,7 @@ test("ticket notice wallet rejection and simulation banner stay 44px on desktop"
   await expect(notice).toBeVisible();
   expect((await notice.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
-  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
+  await page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" }).click();
   const rejection = page.getByRole("status", { name: "Wallet connection rejection" });
   await expect(rejection).toBeVisible();
   expect((await rejection.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);

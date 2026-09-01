@@ -24,6 +24,29 @@ export type WalletSessionSubscription = Readonly<{
   isValid(): boolean;
 }>;
 
+export const WALLET_SESSION_EVENTS_REQUIRED_COPY =
+  "Wallet cannot monitor account and network changes.";
+
+export function supportsWalletSessionEvents(value: unknown): value is Eip1193SessionProvider {
+  try {
+    if (value === null || typeof value !== "object") return false;
+    const provider = value as Partial<Eip1193SessionProvider>;
+    return typeof provider.on === "function" && typeof provider.removeListener === "function";
+  } catch {
+    return false;
+  }
+}
+
+export function walletSessionInvalidationCopy(invalidation: WalletSessionInvalidation): string {
+  if (invalidation.reason === "account-changed") {
+    return "Wallet account changed. Reconnect to review again.";
+  }
+  if (invalidation.reason === "chain-changed") {
+    return "Wallet left Ethereum Mainnet. Reconnect on Ethereum Mainnet.";
+  }
+  return "Wallet disconnected. Reconnect to continue.";
+}
+
 function canonicalAccount(value: unknown, label: string): string {
   if (typeof value !== "string" || !/^0x[0-9a-fA-F]{40}$/.test(value)) {
     throw new TypeError(`${label} must be a 20-byte EVM address`);

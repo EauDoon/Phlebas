@@ -41,7 +41,7 @@ test.describe("desktop operating density", () => {
     const ticket = page.locator("#order-ticket");
     const tape = page.locator("#recent-trades");
     const blotter = page.locator("#session-blotter");
-    const wallet = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+    const wallet = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
 
     await expectIntersectingViewport(chart, "price chart");
     await expectIntersectingViewport(book, "order book");
@@ -102,7 +102,7 @@ test.describe("desktop operating density", () => {
     const mint = page.getByRole("button", { name: "Review simulated mint" });
     const burn = page.getByRole("button", { name: "Burn session shares" });
     const swap = page.getByRole("button", { name: "Review simulated swap" });
-    const wallet = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
+    const wallet = page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
 
     await expectIntersectingViewport(pools, "pool tabs");
     await expectIntersectingViewport(stats, "pool stats");

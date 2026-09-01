@@ -156,7 +156,7 @@ test("ZEC TEX reject shielded destination and sends nothing", async ({ page }) =
 test("EVM connect without provider names the rejection and has no seed field", async ({ page }) => {
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
   await expectHonestSimulation(page);
-  await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
+  await page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" }).click();
   await expect(page.getByRole("status", { name: "Wallet connection rejection" })).toHaveText(
     missingProviderCopy(markets["ZEC/USDC"].settlementPair),
   );

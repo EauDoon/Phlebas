@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  WALLET_SESSION_EVENTS_REQUIRED_COPY,
   subscribeReviewedWalletSession,
+  supportsWalletSessionEvents,
+  walletSessionInvalidationCopy,
   type Eip1193SessionProvider,
   type WalletSessionEventListener,
   type WalletSessionEventName,
@@ -143,4 +146,30 @@ test("rejects an invalid reviewed session before registering listeners", () => {
     /chain 0x1/,
   );
   assert.equal(provider.listenerCount(), 0);
+});
+
+test("detects event-capable providers without invoking provider accessors", () => {
+  const provider = new EventProvider();
+  assert.equal(supportsWalletSessionEvents(provider), true);
+  assert.equal(supportsWalletSessionEvents({ request() {} }), false);
+  assert.equal(supportsWalletSessionEvents(null), false);
+  assert.equal(supportsWalletSessionEvents(Object.defineProperty({}, "on", {
+    get() { throw new Error("provider diagnostic"); },
+  })), false);
+});
+
+test("session invalidation copy is allowlisted and contains no provider diagnostics", () => {
+  assert.equal(
+    walletSessionInvalidationCopy({ event: "accountsChanged", reason: "account-changed" }),
+    "Wallet account changed. Reconnect to review again.",
+  );
+  assert.equal(
+    walletSessionInvalidationCopy({ event: "chainChanged", reason: "chain-changed" }),
+    "Wallet left Ethereum Mainnet. Reconnect on Ethereum Mainnet.",
+  );
+  assert.equal(
+    walletSessionInvalidationCopy({ event: "disconnect", reason: "provider-disconnected" }),
+    "Wallet disconnected. Reconnect to continue.",
+  );
+  assert.equal(WALLET_SESSION_EVENTS_REQUIRED_COPY, "Wallet cannot monitor account and network changes.");
 });

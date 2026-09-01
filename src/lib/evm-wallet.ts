@@ -140,7 +140,7 @@ export async function connectMainnetWallet(provider: Eip1193Provider): Promise<W
     });
   }
   const connectedChain = await provider.request({ method: "eth_chainId" }) as string;
-  if (connectedChain.toLowerCase() !== ETHEREUM_MAINNET_CHAIN_HEX) {
+  if (typeof connectedChain !== "string" || connectedChain.toLowerCase() !== ETHEREUM_MAINNET_CHAIN_HEX) {
     return {
       address: address.toLowerCase(),
       chainId: connectedChain,
@@ -152,7 +152,7 @@ export async function connectMainnetWallet(provider: Eip1193Provider): Promise<W
     || currentAccounts[0].toLowerCase() !== address.toLowerCase()) {
     return { ...disconnectedWallet, chainId: connectedChain, error: "Wallet account changed while connecting." };
   }
-  return { address: address.toLowerCase(), chainId: connectedChain, error: null };
+  return { address: address.toLowerCase(), chainId: ETHEREUM_MAINNET_CHAIN_HEX, error: null };
 }
 
 export async function signTypedData(
