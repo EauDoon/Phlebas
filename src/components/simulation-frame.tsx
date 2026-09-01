@@ -1,9 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import Link from "next/link";
 
 import { activateSkipLink } from "@/lib/skip-link";
+import { useSkipNavController } from "@/lib/use-skip-nav-controller.ts";
 
 import styles from "./terminal.module.css";
 
@@ -16,9 +17,17 @@ export function SimulationFrame({
   children: ReactNode;
   skipTo?: { href: string; label: string };
 }) {
+  const skipNavRef = useRef<HTMLElement | null>(null);
+  useSkipNavController(skipNavRef);
+
   return (
     <div className={styles.shell}>
-      <nav className={styles.skipNav} aria-label="Skip links">
+      <nav
+        ref={skipNavRef}
+        className={styles.skipNav}
+        aria-label="Skip links"
+        data-skip-nav-state="hidden"
+      >
         <a className={styles.skipLink} href="#main-content" onClick={activateSkipLink}>Skip to main content</a>
         {skipTo ? <a className={styles.skipLink} href={skipTo.href} onClick={activateSkipLink}>{skipTo.label}</a> : null}
       </nav>
