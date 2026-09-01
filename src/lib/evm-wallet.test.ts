@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  WALLET_CONNECT_ARIA_LABEL,
   assertConnectedWalletAuthority,
   connectMainnetWallet,
   isMissingProviderCopy,
@@ -18,6 +20,7 @@ import {
   walletConnectIdleTitle,
   walletConnectTitle,
   walletDisconnectLabel,
+  walletSigningDisabledCopy,
   walletStateWithSettlement,
   type Eip1193Provider,
 } from "./evm-wallet.ts";
@@ -170,6 +173,7 @@ test("disconnect label names the settlement pair from a connected address", () =
 });
 
 test("idle connect title names the settlement pair", () => {
+  assert.equal(WALLET_CONNECT_ARIA_LABEL, "Connect Ethereum Mainnet wallet");
   assert.equal(
     walletConnectIdleTitle(markets["ZEC/USDC"].settlementPair),
     "Connect MetaMask or Rabby on Ethereum Mainnet. Settled as ZEC-USDC.",
@@ -178,7 +182,6 @@ test("idle connect title names the settlement pair", () => {
     walletConnectIdleTitle(markets["ZEC/USDT"].settlementPair),
     "Connect MetaMask or Rabby on Ethereum Mainnet. Settled as ZEC-USDT.",
   );
-  assert.doesNotMatch(walletConnectIdleTitle("ZEC-USDC"), /native ZEC/);
 });
 
 test("connecting title keeps the settlement pair", () => {
@@ -308,4 +311,39 @@ test("refuses stale matcher wallet state before requesting a signature", async (
     /account changed after order review/,
   );
   assert.equal(calls.includes("eth_signTypedData_v4"), false);
+});
+
+test("wallet signing disabled copy never asks for a seed, spend key, or Sepolia submit path", () => {
+  const copy = walletSigningDisabledCopy();
+  assert.match(copy, /undeployed/);
+  assert.match(copy, /signing and broadcast remain disabled/i);
+  assert.doesNotMatch(copy, /seed|spend(?:ing)? key|viewing key/i);
+  assert.doesNotMatch(copy, /\blive funds\b/i);
+  assert.doesNotMatch(copy, /sepolia|arbitrum|submit/i);
+});
+
+test("public wallet copy has no Sepolia submit path", () => {
+  const copies = [
+    WALLET_CONNECT_ARIA_LABEL,
+    walletSigningDisabledCopy(),
+    missingProviderCopy("ZEC-USDC"),
+    missingProviderCopy("ZEC-USDT"),
+    walletConnectIdleTitle("ZEC-USDC"),
+    walletConnectIdleTitle("ZEC-USDT"),
+    walletConnectBusyTitle("ZEC-USDC"),
+    walletConnectFailureCopy("Wallet connection failed", "ZEC-USDT"),
+    walletDisconnectLabel("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266", "ZEC-USDC"),
+    publicWalletConnectionError(new Error("private provider detail")),
+    publicWalletSigningError(new Error("private provider detail")),
+  ];
+  for (const copy of copies) {
+    assert.doesNotMatch(copy, /sepolia|arbitrum|walletOffTitle|walletConnectEnabled|NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT/i);
+  }
+});
+
+test("wallet helpers never request a broadcast or name a Sepolia submit path", async () => {
+  const source = await readFile(new URL("./evm-wallet.ts", import.meta.url), "utf8");
+  assert.match(source, /WALLET_CONNECT_ARIA_LABEL = "Connect Ethereum Mainnet wallet"/);
+  assert.match(source, /Ethereum Mainnet signing and broadcast remain disabled/);
+  assert.doesNotMatch(source, /eth_sendTransaction|sepolia|arbitrum|walletOffTitle|walletConnectEnabled/i);
 });

@@ -60,6 +60,12 @@ export function publicWalletSigningError(error: unknown): string {
   return "Wallet signing failed.";
 }
 
+export const WALLET_CONNECT_ARIA_LABEL = "Connect Ethereum Mainnet wallet";
+
+export function walletSigningDisabledCopy(): string {
+  return "Settlement contract is undeployed. Ethereum Mainnet signing and broadcast remain disabled.";
+}
+
 export function missingProviderCopy(settlementPair: Market["settlementPair"]): string {
   return walletConnectFailureCopy("No compatible EVM wallet was found. Ethereum Mainnet only.", settlementPair);
 }
