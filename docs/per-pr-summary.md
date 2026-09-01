@@ -76,11 +76,20 @@ This historical PR is superseded by `docs/ZCASH_TRANSACTION_LAB.md`. Its transac
 | Insertions | TBD |
 | Surface | Release readiness gate, audit checklist, evidence pack, final integration report, ADR 0009, threat model section 23 |
 
-## PR 8 — Rate limiter wiring (TBD commits)
+## PR 8 — Rate limiter wiring (7 commits)
 
 | Aspect | Detail |
 | --- | --- |
 | Branch | `feat/rate-limit-wiring` |
+| Files | 12 |
+| Insertions | 408 |
+| Surface | Per-IP rate limiter middleware, wiring into matcher and observer services, tests, audit checklist updates |
+
+## PR 9 — 320px skip-nav wrap (TBD commits)
+
+| Aspect | Detail |
+| --- | --- |
+| Branch | `feat/skip-nav-wrap` |
 | Files | TBD |
 | Insertions | TBD |
-| Surface | Per-IP rate limiter middleware, wiring into matcher and observer services, tests, audit checklist updates |
+| Surface | Skip-nav wrap at 320px, activation state, docs, runbook, SLO, threat model section, architecture, sources |
