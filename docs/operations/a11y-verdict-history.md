@@ -18,3 +18,4 @@ the release readiness gate.
 - architecture skip-nav section added
 - verdict: 3/3 new Playwright tests pass on CI; 5/5 unit tests pass locally
 - notes: local Playwright run is skipped because it requires chromium and a production server; the suite runs in CI on every PR
+- follow-up: extract the skip-nav controller into a shared component and wire it into `trading-terminal.tsx`
