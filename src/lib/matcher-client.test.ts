@@ -10,6 +10,7 @@ import {
   MATCHER_IDEMPOTENCY_HEADER,
   MATCHER_ORDER_OPERATION,
   MatcherOrderClientError,
+  assertMatcherAccountIdentity,
   assertMatcherHealthIdentity,
   buildMatcherOrderRequest,
   serializeMatcherOrderSubmission,
@@ -96,6 +97,20 @@ const matcherHealth = {
   configurationHash: expectedMatcher.configurationHash,
   sequence: "7",
   stateRoot: `0x${"ab".repeat(32)}`,
+};
+const matcherAccount = {
+  ok: true,
+  makerAccountId: evmAuthorizedSignerId(CHAIN_ID, SIGNER),
+  configurationHash: expectedMatcher.configurationHash,
+  accountEpoch: "0",
+  sequence: "7",
+  checkpoint: {
+    version: 1,
+    sequence: "7",
+    recordHash: `0x${"bc".repeat(32)}`,
+    stateRoot: `0x${"ab".repeat(32)}`,
+    configurationHash: expectedMatcher.configurationHash,
+  },
 };
 const order: TypedOrderIntent = {
   makerAccountId: accountIdentifier(SOURCE_ACCOUNT),
@@ -264,6 +279,36 @@ test("derives and returns the exact domain, pair, quote, adapter, and configurat
   });
   assert.equal(identity.market.quote.asset, QUOTE_ASSET);
   assert.equal(identity.settlementAdapterId, adapterIdentifier(PROTOCOL));
+});
+
+test("binds the authoritative account epoch to the reviewed maker and matcher checkpoint", () => {
+  const account = assertMatcherAccountIdentity(matcherAccount, expectedMatcher, order.makerAccountId);
+  assert.equal(account.makerAccountId, order.makerAccountId);
+  assert.equal(account.accountEpoch, 0n);
+  assert.equal(account.sequence, 7n);
+  assert.equal(account.configurationHash, expectedMatcher.configurationHash);
+  assert.equal(account.checkpoint.configurationHash, expectedMatcher.configurationHash);
+  assert.equal(Object.isFrozen(account.checkpoint), true);
+
+  assert.throws(
+    () => assertMatcherAccountIdentity({ ...matcherAccount, accountEpoch: "01" }, expectedMatcher, order.makerAccountId),
+    /canonical decimal/,
+  );
+  assert.throws(
+    () => assertMatcherAccountIdentity({ ...matcherAccount, makerAccountId: `0x${"99".repeat(32)}` }, expectedMatcher, order.makerAccountId),
+    /does not match the reviewed maker/,
+  );
+  assert.throws(
+    () => assertMatcherAccountIdentity({ ...matcherAccount, configurationHash: `0x${"99".repeat(32)}` }, expectedMatcher, order.makerAccountId),
+    /does not match the approved matcher/,
+  );
+  assert.throws(
+    () => assertMatcherAccountIdentity({
+      ...matcherAccount,
+      checkpoint: { ...matcherAccount.checkpoint, sequence: "6" },
+    }, expectedMatcher, order.makerAccountId),
+    /does not bind the account view/,
+  );
 });
 
 test("fails closed for absent, unhealthy, live-value, custodial, or differently configured matcher health", () => {

@@ -73,6 +73,20 @@ export type VerifiedMatcherIdentity = Readonly<{
   settlementAdapterId: Hex32;
 }>;
 
+export type VerifiedMatcherAccount = Readonly<{
+  makerAccountId: Hex32;
+  configurationHash: Hex32;
+  accountEpoch: bigint;
+  sequence: bigint;
+  checkpoint: Readonly<{
+    version: 1;
+    sequence: bigint;
+    recordHash: Hex32;
+    stateRoot: Hex32;
+    configurationHash: Hex32;
+  }>;
+}>;
+
 export type MatcherOrderSubmissionInput = Readonly<{
   matcherHealth: unknown;
   expectedMatcher: ExpectedMatcherIdentity;
@@ -277,6 +291,68 @@ function canonicalOccurredAtSeconds(value: bigint): bigint {
     throw new RangeError("Matcher event time must be a uint64 bigint");
   }
   return value;
+}
+
+function canonicalDecimalUint64(value: unknown, label: string): bigint {
+  if (typeof value !== "string" || !/^(?:0|[1-9][0-9]*)$/.test(value)) {
+    throw new TypeError(`${label} must be a canonical decimal string`);
+  }
+  const parsed = BigInt(value);
+  if (parsed > UINT64_MAX) throw new RangeError(`${label} must fit uint64`);
+  return parsed;
+}
+
+export function assertMatcherAccountIdentity(
+  accountValue: unknown,
+  expected: ExpectedMatcherIdentity,
+  expectedMakerAccountId: Hex32,
+): VerifiedMatcherAccount {
+  const identity = canonicalExpectedIdentity(expected);
+  const makerAccountId = normalizeHex32(expectedMakerAccountId, "Expected maker account ID");
+  const account = objectValue(accountValue, "Matcher account");
+  assertExactKeys(
+    account,
+    ["ok", "makerAccountId", "configurationHash", "accountEpoch", "sequence", "checkpoint"],
+    "Matcher account",
+  );
+  if (account.ok !== true) throw new Error("Matcher account is not available");
+  if (canonicalHex32(account.makerAccountId, "Matcher maker account ID") !== makerAccountId) {
+    throw new Error("Matcher account does not match the reviewed maker");
+  }
+  const configurationHash = canonicalHex32(account.configurationHash, "Matcher account configuration hash");
+  if (configurationHash !== identity.configurationHash) {
+    throw new Error("Matcher account configuration does not match the approved matcher");
+  }
+  const accountEpoch = canonicalDecimalUint64(account.accountEpoch, "Matcher account epoch");
+  const sequence = canonicalDecimalUint64(account.sequence, "Matcher account sequence");
+  const checkpointValue = objectValue(account.checkpoint, "Matcher account checkpoint");
+  assertExactKeys(
+    checkpointValue,
+    ["version", "sequence", "recordHash", "stateRoot", "configurationHash"],
+    "Matcher account checkpoint",
+  );
+  if (checkpointValue.version !== 1) throw new Error("Matcher account checkpoint version is unsupported");
+  const checkpointSequence = canonicalDecimalUint64(checkpointValue.sequence, "Matcher checkpoint sequence");
+  const checkpointConfigurationHash = canonicalHex32(
+    checkpointValue.configurationHash,
+    "Matcher checkpoint configuration hash",
+  );
+  if (checkpointSequence !== sequence || checkpointConfigurationHash !== configurationHash) {
+    throw new Error("Matcher account checkpoint does not bind the account view");
+  }
+  return deepFreeze({
+    makerAccountId,
+    configurationHash,
+    accountEpoch,
+    sequence,
+    checkpoint: {
+      version: 1,
+      sequence: checkpointSequence,
+      recordHash: canonicalHex32(checkpointValue.recordHash, "Matcher checkpoint record hash"),
+      stateRoot: canonicalHex32(checkpointValue.stateRoot, "Matcher checkpoint state root"),
+      configurationHash: checkpointConfigurationHash,
+    },
+  });
 }
 
 function canonicalSignature(value: string): string {
