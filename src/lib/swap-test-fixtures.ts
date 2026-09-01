@@ -1,4 +1,4 @@
-import { keccak256Text } from "./keccak.ts";
+import { bytesToHex, hexToBytes, keccak256Text } from "./keccak.ts";
 import {
   ETHEREUM_MAINNET_NETWORK,
   ETHEREUM_MAINNET_USDC_ASSET,
@@ -29,6 +29,8 @@ import {
   type SpendEvidence,
   type SwapState,
 } from "./swap-state.ts";
+import { buildHtlcRedeemScript } from "./zcash-htlc.ts";
+import { hash160 } from "./zcash-transparent.ts";
 
 export const hex20 = (byte: string) => `0x${byte.repeat(40)}` as `0x${string}`;
 
@@ -118,6 +120,22 @@ export const sampleSwapTerms: SwapTermsV1 = {
   zecFinalityPolicyId: hashSwapFinalityPolicy(sampleEvidencePolicies.zecFinality),
   evmFinalityPolicyId: hashSwapFinalityPolicy(sampleEvidencePolicies.evmFinality),
 };
+
+export function canonicalMainnetSwapTerms(
+  overrides: Partial<SwapTermsV1> = {},
+): SwapTermsV1 {
+  const values = { ...sampleSwapTerms, ...overrides };
+  const redeemScript = buildHtlcRedeemScript({
+    digest: hexToBytes(values.secretHash),
+    claimPkh: hexToBytes(values.zcashClaimPubKeyHash),
+    refundPkh: hexToBytes(values.zcashRefundPubKeyHash),
+    lock: { type: "timestamp", value: Number(values.zecRefundTime) },
+  });
+  return {
+    ...values,
+    zcashLockScriptHash: `0x${bytesToHex(hash160(redeemScript))}`,
+  };
+}
 
 export const fixturePreimage = `0x${"42".repeat(32)}` as const;
 export const fixtureSecretHash = "0x425ed4e4a36b30ea21b90e21c712c649e8214c29b7eaf68089d1039c6e55384c" as const;

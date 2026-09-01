@@ -1,29 +1,13 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 
-import { bytesToHex, hexToBytes } from "./keccak.ts";
 import { ETHEREUM_MAINNET_USDT_ASSET } from "./mainnet-assets.ts";
-import { sampleSwapTerms } from "./swap-test-fixtures.ts";
-import { buildHtlcRedeemScript } from "./zcash-htlc.ts";
+import { canonicalMainnetSwapTerms, sampleSwapTerms } from "./swap-test-fixtures.ts";
 import { projectZcashSwapTerms } from "./zcash-swap-projection.ts";
-import { decodeTransparentAddress, hash160 } from "./zcash-transparent.ts";
-
-function exactTerms(overrides: Partial<typeof sampleSwapTerms> = {}) {
-  const values = { ...sampleSwapTerms, ...overrides };
-  const redeemScript = buildHtlcRedeemScript({
-    digest: hexToBytes(values.secretHash),
-    claimPkh: hexToBytes(values.zcashClaimPubKeyHash),
-    refundPkh: hexToBytes(values.zcashRefundPubKeyHash),
-    lock: { type: "timestamp", value: Number(values.zecRefundTime) },
-  });
-  return {
-    ...values,
-    zcashLockScriptHash: `0x${bytesToHex(hash160(redeemScript))}` as typeof sampleSwapTerms.zcashLockScriptHash,
-  };
-}
+import { decodeTransparentAddress } from "./zcash-transparent.ts";
 
 test("projects exact Mainnet swap terms into one immutable Zcash HTLC", () => {
-  const projection = projectZcashSwapTerms(exactTerms());
+  const projection = projectZcashSwapTerms(canonicalMainnetSwapTerms());
   assert.equal(projection.network, "mainnet");
   assert.equal(projection.amountZatoshis, sampleSwapTerms.zecAmountZatoshis.toString());
   assert.equal(projection.refundTimeSeconds, sampleSwapTerms.zecRefundTime.toString());
@@ -34,17 +18,17 @@ test("projects exact Mainnet swap terms into one immutable Zcash HTLC", () => {
 });
 
 test("supports only exact Ethereum Mainnet USDC and USDT quotes", () => {
-  assert.equal(projectZcashSwapTerms(exactTerms()).quoteAsset.endsWith("a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"), true);
-  assert.equal(projectZcashSwapTerms(exactTerms({ quoteAsset: ETHEREUM_MAINNET_USDT_ASSET })).quoteAsset, ETHEREUM_MAINNET_USDT_ASSET);
+  assert.equal(projectZcashSwapTerms(canonicalMainnetSwapTerms()).quoteAsset.endsWith("a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"), true);
+  assert.equal(projectZcashSwapTerms(canonicalMainnetSwapTerms({ quoteAsset: ETHEREUM_MAINNET_USDT_ASSET })).quoteAsset, ETHEREUM_MAINNET_USDT_ASSET);
   assert.throws(
-    () => projectZcashSwapTerms(exactTerms({ quoteAsset: "eip155:1/erc20:0x1111111111111111111111111111111111111111" })),
+    () => projectZcashSwapTerms(canonicalMainnetSwapTerms({ quoteAsset: "eip155:1/erc20:0x1111111111111111111111111111111111111111" })),
     /exact Ethereum Mainnet USDC or USDT/,
   );
 });
 
 test("rejects a script hash or CLTV value not committed by the signed terms", () => {
   assert.throws(() => projectZcashSwapTerms(sampleSwapTerms), /signed lock script hash/);
-  const valid = exactTerms();
+  const valid = canonicalMainnetSwapTerms();
   assert.throws(
     () => projectZcashSwapTerms({ ...valid, zecRefundTime: 499_999_999n }),
     /timestamp-style uint32/,
@@ -56,12 +40,12 @@ test("rejects a script hash or CLTV value not committed by the signed terms", ()
 });
 
 test("binds every Zcash effecting field to a distinct projection", () => {
-  const baseline = projectZcashSwapTerms(exactTerms());
+  const baseline = projectZcashSwapTerms(canonicalMainnetSwapTerms());
   for (const changed of [
-    exactTerms({ secretHash: `0x${"12".repeat(32)}` }),
-    exactTerms({ zcashClaimPubKeyHash: `0x${"13".repeat(20)}` }),
-    exactTerms({ zcashRefundPubKeyHash: `0x${"14".repeat(20)}` }),
-    exactTerms({ zecRefundTime: sampleSwapTerms.zecRefundTime + 1n }),
+    canonicalMainnetSwapTerms({ secretHash: `0x${"12".repeat(32)}` }),
+    canonicalMainnetSwapTerms({ zcashClaimPubKeyHash: `0x${"13".repeat(20)}` }),
+    canonicalMainnetSwapTerms({ zcashRefundPubKeyHash: `0x${"14".repeat(20)}` }),
+    canonicalMainnetSwapTerms({ zecRefundTime: sampleSwapTerms.zecRefundTime + 1n }),
   ]) {
     const projection = projectZcashSwapTerms(changed);
     assert.notEqual(projection.termsHash, baseline.termsHash);
