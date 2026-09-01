@@ -211,6 +211,31 @@ function signedPost(
   return deepFreeze({ review, signature, request });
 }
 
+function approvedMatcherHealth(review: ReviewedMatcherBuyOrder): unknown {
+  const expectedMatcher = review.deployment.expectedMatcher;
+  if (expectedMatcher === null) throw new Error("Native matcher order review is disabled by the deployment manifest");
+  return {
+    ok: true,
+    matcher: "persistent-native-v1",
+    configured: true,
+    acceptingMutations: true,
+    mode: "no-value",
+    custody: false,
+    market: expectedMatcher.market,
+    configurationHash: expectedMatcher.configurationHash,
+  };
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value === "string" || typeof value === "boolean" || typeof value === "number") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (typeof value !== "object") throw new TypeError("Signed matcher retry artifact is not serializable");
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
+}
+
 async function postSignedMatcherOrder(signed: SignedMatcherOrderPost, fetcher: MatcherOrderFetch): Promise<MatcherOrderConfirmation> {
   let response: Response;
   try {
@@ -245,7 +270,6 @@ async function postSignedMatcherOrder(signed: SignedMatcherOrderPost, fetcher: M
       expectedMatcher,
       requestId: signed.request.requestId,
       subjectHash: hashTypedOrder(domain, signed.review.draft.order),
-      occurredAtSeconds: signed.review.draft.occurredAt,
     });
     return deepFreeze({ kind: "confirmed", receipt, ...signed });
   } catch {
@@ -325,9 +349,20 @@ export async function retryMatcherBuyOrder(
   confirmation: Exclude<MatcherOrderConfirmation, { kind: "confirmed" }>,
   fetcher: MatcherOrderFetch,
 ): Promise<MatcherOrderConfirmation> {
-  return postSignedMatcherOrder({
-    review: confirmation.review,
-    signature: confirmation.signature,
-    request: confirmation.request,
-  }, fetcher);
+  let signed: SignedMatcherOrderPost;
+  try {
+    assertEnabledDeployment(confirmation.review.deployment);
+    signed = signedPost(
+      confirmation.review,
+      confirmation.signature,
+      approvedMatcherHealth(confirmation.review),
+    );
+    if (canonicalJson(signed.request) !== canonicalJson(confirmation.request)) {
+      throw new Error("Signed matcher retry artifact changed after submission");
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Signed matcher retry artifact is invalid";
+    throw new MatcherOrderWorkflowError("before-post", message);
+  }
+  return postSignedMatcherOrder(signed, fetcher);
 }

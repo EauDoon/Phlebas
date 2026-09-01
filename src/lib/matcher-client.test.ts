@@ -479,10 +479,10 @@ test("binds a matcher receipt to the reviewed request, signed order, and configu
     expectedMatcher,
     requestId: "order:testnet:0001",
     subjectHash,
-    occurredAtSeconds: NOW,
   });
   assert.equal(verified.receipt.sequence, 8n);
   assert.equal(verified.receipt.status, "open");
+  assert.equal(verified.receipt.occurredAtSeconds, NOW);
   assert.equal(verified.checkpoint.configurationHash, expectedMatcher.configurationHash);
   assert.equal(Object.isFrozen(verified), true);
   assert.equal(Object.isFrozen(verified.receipt), true);
@@ -515,7 +515,6 @@ test("rejects matcher receipts that do not bind the reviewed no-value order", ()
     expectedMatcher,
     requestId: "order:testnet:0001",
     subjectHash,
-    occurredAtSeconds: NOW,
   };
 
   assert.throws(
@@ -526,10 +525,11 @@ test("rejects matcher receipts that do not bind the reviewed no-value order", ()
     () => assertMatcherOrderReceipt({ ...base, receipt: { ...base.receipt, subjectHash: `0x${"11".repeat(32)}` } }, expectation),
     /signed order/,
   );
-  assert.throws(
-    () => assertMatcherOrderReceipt({ ...base, receipt: { ...base.receipt, occurredAtSeconds: (NOW + 1n).toString() } }, expectation),
-    /event time/,
-  );
+  const serverStamped = assertMatcherOrderReceipt({
+    ...base,
+    receipt: { ...base.receipt, occurredAtSeconds: (NOW + 1n).toString() },
+  }, expectation);
+  assert.equal(serverStamped.receipt.occurredAtSeconds, NOW + 1n);
   assert.throws(
     () => assertMatcherOrderReceipt({ ...base, receipt: { ...base.receipt, status: "cancelled" } }, expectation),
     /status is unsupported/,

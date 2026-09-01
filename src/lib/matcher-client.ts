@@ -168,7 +168,6 @@ export type MatcherOrderReceiptExpectation = Readonly<{
   expectedMatcher: ExpectedMatcherIdentity;
   requestId: string;
   subjectHash: Hex32;
-  occurredAtSeconds: bigint;
 }>;
 
 type PreparedSubmission = Readonly<{
@@ -557,7 +556,6 @@ export function assertMatcherOrderReceipt(
   const expectedIdentity = canonicalExpectedIdentity(expectation.expectedMatcher);
   const expectedRequestId = canonicalRequestId(expectation.requestId);
   const expectedSubjectHash = normalizeHex32(expectation.subjectHash, "Expected order hash");
-  const expectedOccurredAt = canonicalOccurredAtSeconds(expectation.occurredAtSeconds);
   const result = objectValue(value, "Matcher order response");
   assertExactKeys(result, ["ok", "replayed", "receipt", "checkpoint"], "Matcher order response");
   if (result.ok !== true || typeof result.replayed !== "boolean") {
@@ -578,7 +576,6 @@ export function assertMatcherOrderReceipt(
   const subjectHash = canonicalHex32(receipt.subjectHash, "Matcher receipt order hash");
   if (subjectHash !== expectedSubjectHash) throw new Error("Matcher receipt does not match the signed order");
   const occurredAtSeconds = canonicalDecimalUint64(receipt.occurredAtSeconds, "Matcher receipt event time");
-  if (occurredAtSeconds !== expectedOccurredAt) throw new Error("Matcher receipt event time does not match the reviewed request");
   const status = receipt.status;
   if (typeof status !== "string" || !MATCHER_ORDER_STATUSES.has(status as VerifiedMatcherOrderReceipt["receipt"]["status"])) {
     throw new Error("Matcher order receipt status is unsupported");

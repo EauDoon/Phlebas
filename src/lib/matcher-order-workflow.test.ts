@@ -130,7 +130,7 @@ function provider(calls: string[], review: () => ReviewedMatcherBuyOrder | null)
   };
 }
 
-function receipt(review: ReviewedMatcherBuyOrder) {
+function receipt(review: ReviewedMatcherBuyOrder, occurredAtSeconds = review.draft.occurredAt) {
   const subjectHash = hashTypedOrder(review.deployment.orderDomain!, review.draft.order);
   return {
     ok: true,
@@ -142,7 +142,7 @@ function receipt(review: ReviewedMatcherBuyOrder) {
       kind: "accept-order",
       status: "open",
       subjectHash,
-      occurredAtSeconds: review.draft.occurredAt.toString(),
+      occurredAtSeconds: occurredAtSeconds.toString(),
     },
     checkpoint: {
       version: 1,
@@ -236,7 +236,7 @@ test("confirmation signs only the reviewed EIP-712 order, posts exact bytes, and
     if (String(path) === "/api/matcher" && init?.method === "POST") {
       postBodies.push(init.body as string);
       postHeaders.push(init.headers);
-      return json(receipt(reviewed!));
+      return json(receipt(reviewed!, reviewed!.draft.occurredAt + 2n));
     }
     throw new Error(String(path));
   };
@@ -246,6 +246,7 @@ test("confirmation signs only the reviewed EIP-712 order, posts exact bytes, and
   const confirmed = await confirmMatcherBuyOrder({ fetch: fetcher, provider: injected, review: reviewed });
   assert.equal(confirmed.kind, "confirmed");
   assert.equal(confirmed.receipt.receipt.subjectHash, hashTypedOrder(active.orderDomain!, reviewed.draft.order));
+  assert.equal(confirmed.receipt.receipt.occurredAtSeconds, reviewed.draft.occurredAt + 2n);
   assert.equal(postBodies.length, 1);
   assert.equal(postBodies[0], confirmed.request.body);
   assert.deepEqual(postHeaders[0], confirmed.request.headers);
@@ -280,6 +281,17 @@ test("definite POST rejection and unknown signed receipt retain a safe exact ret
 
   const unknown = await retryMatcherBuyOrder(rejected, fetcher);
   assert.equal(unknown.kind, "receipt-unknown");
+  await assert.rejects(
+    () => retryMatcherBuyOrder({
+      ...unknown,
+      request: { ...unknown.request, body: `${unknown.request.body} ` },
+    }, async () => {
+      throw new Error("must not fetch a changed retry artifact");
+    }),
+    (error: unknown) => error instanceof MatcherOrderWorkflowError
+      && error.phase === "before-post"
+      && /changed after submission/.test(error.message),
+  );
   const retried = await retryMatcherBuyOrder(unknown, fetcher);
   assert.equal(retried.kind, "confirmed");
   assert.equal(postBodies[0], postBodies[1]);
