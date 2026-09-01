@@ -22,9 +22,9 @@ exchange.
 The seven PRs cover every key-independent component of the
 native-ZEC atomic swap exchange:
 
-* **EVM leg**: ConditionalLock contract, EIP-712 typed orders,
-  EIP-712 verifying contract, pauser and governor roles,
-  Foundry test suite.
+* **EVM leg**: one non-upgradeable, exact-token ConditionalLock
+  with immutable swap terms, no administrative roles or pause
+  path, and a Foundry test suite.
 * **ZEC leg**: transparent P2SH lock script, ZIP-300 atomic-swap
   script, preimage primitive, wallet adapter with
   `buildFundTransaction`, `buildClaimTransaction`,
@@ -52,19 +52,9 @@ signing surface is the only gated step.
 
 ## Test coverage
 
-The project ships 612 node tests, all passing. The test
-breakdown by surface:
-
-* `src/lib/`: 540 tests across the lib surface
-* `services/matcher/`: 26 tests across the matcher service
-* `services/atomic-swap-observer/`: 10 tests across the observer
-  service
-* `services/observer/`: 1 test for the mint attestation stub
-* `services/gateway/`: 5 tests for the gateway stub
-
-The Foundry test suite is in `contracts/test/`; the suite is
-run in CI and is `skip` locally. The suite covers the
-ConditionalLock contract.
+The exact test counts are emitted by `npm run check` and the
+GitHub Verify workflow. The Foundry suite in `contracts/test/`
+runs both locally and in CI and covers ConditionalLock.
 
 ## Documentation
 
@@ -93,8 +83,9 @@ After this PR, the only remaining work is the production
 deployment, which is intentionally out of scope. The production
 deployment requires:
 
-* a real Arbitrum Sepolia deployment of the ConditionalLock
-  contract with the verified deployment manifest;
+* a separately authorized no-value test-network deployment of
+  the exact reviewed ConditionalLock commit, recorded in the
+  verified deployment manifest;
 * a real Zcash testnet connection for the observer;
 * the PagerDuty / Slack integration for the alert router;
 * the Prometheus remote-write adapter for the metrics counter;

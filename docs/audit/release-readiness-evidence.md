@@ -11,9 +11,10 @@ release.
 | --- | --- | --- |
 | lint | pass | 0 errors, 0 warnings |
 | typecheck | pass | 0 errors |
-| tests | pass | 612 node tests pass |
-| contracts | skip | Foundry not installed locally; CI runs the suite |
-| secret-scan | pass | 355 files clean |
+| tests | pass | exact count emitted by the current run |
+| manifests | pass | schema, semantics, Git-tree evidence, and undeployed boundary pass |
+| contracts | pass | format, exact-target build, and Foundry tests pass |
+| secret-scan | pass | exact file count emitted by the current run |
 | build | pass | Next.js production build succeeds |
 | audit-checklist-required-incomplete | 5 of 26 items incomplete |
 | audit-checklist-blocked | 0 items blocked |
@@ -23,10 +24,6 @@ release.
 The current verdict is **not ready**. The five incomplete items
 in the audit checklist are:
 
-* contracts-1, contracts-2: the contract deployment to Arbitrum
-  Sepolia is a deployment-time concern. The contract sources are
-  in `contracts/src/swap/`; the deployment manifest is in
-  `infra/testnet/`.
 * operations-7: the PagerDuty / Slack integration is not wired.
   The alert router is in `src/lib/alert-router.ts`; the
   integration is an operator-time concern.
@@ -49,16 +46,19 @@ The gates are reproducible from the project root:
 
 ```sh
 npm run lint
+npm run lint:contracts
 npm run typecheck
 npm test
+npm run test:manifests
+npm run build:contracts
+npm run test:contracts
 npm run scan:secrets
 npm run build
 ```
 
-The `contracts` gate is `skip` locally and `pass` in CI. The
-CI run is at `.github/workflows/contracts.yml`; the workflow
-installs Foundry, runs `forge test --root contracts`, and
-reports the result to the release readiness gate.
+The GitHub Verify workflow is in `.github/workflows/ci.yml`.
+It pins Foundry 1.8.1, runs `npm run check`, and then runs the
+full Chromium acceptance suite. No skipped gate counts as ready.
 
 The `audit-checklist-*` gates are derived from
 `docs/audit/audit-checklist.md` and the

@@ -10,13 +10,14 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, "..");
+const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
 function runGate(name, command, args) {
   const result = spawnSync(command, args, {
     cwd: projectRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
-    shell: true,
+    shell: false,
   });
   if (result.status === 0) {
     return { name, status: "pass", detail: "ok" };
@@ -25,12 +26,15 @@ function runGate(name, command, args) {
 }
 
 const gates = [];
-gates.push(runGate("lint", "npm.cmd", ["run", "lint"]));
-gates.push(runGate("typecheck", "npm.cmd", ["run", "typecheck"]));
-gates.push(runGate("tests", "npm.cmd", ["test"]));
-gates.push(runGate("secret-scan", "npm.cmd", ["run", "scan:secrets"]));
-gates.push(runGate("build", "npm.cmd", ["run", "build"]));
-gates.push({ name: "contracts", status: existsSync("contracts") ? "skip" : "skip", detail: "Forge not installed locally" });
+gates.push(runGate("lint", npmCommand, ["run", "lint"]));
+gates.push(runGate("contract-format", npmCommand, ["run", "lint:contracts"]));
+gates.push(runGate("typecheck", npmCommand, ["run", "typecheck"]));
+gates.push(runGate("tests", npmCommand, ["test"]));
+gates.push(runGate("manifests", npmCommand, ["run", "test:manifests"]));
+gates.push(runGate("contract-build", npmCommand, ["run", "build:contracts"]));
+gates.push(runGate("contracts", npmCommand, ["run", "test:contracts"]));
+gates.push(runGate("secret-scan", npmCommand, ["run", "scan:secrets"]));
+gates.push(runGate("build", npmCommand, ["run", "build"]));
 gates.push(readAuditChecklistGate());
 
 function readAuditChecklistGate() {

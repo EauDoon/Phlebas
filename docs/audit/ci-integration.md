@@ -6,12 +6,18 @@ single source of truth for the CI surface.
 
 ## Pipeline
 
-1. The CI runner pulls the latest commit on `main`.
-2. The CI runner runs the release readiness script:
-   `node scripts/release-readiness.mjs`.
-3. The script prints the release verdict as a JSON document.
-4. The CI runner fails the build if the verdict is `not ready`.
-5. The CI runner posts the verdict to the deploy channel.
+1. The CI runner checks out the exact pull-request or `main`
+   commit without persisting credentials.
+2. The runner installs locked Node dependencies, Foundry
+   1.8.1, and Playwright Chromium.
+3. The runner executes `npm run check` and then
+   `npm run test:browser`.
+4. Any failed application, manifest, contract, secret-scan,
+   build, or browser gate fails the Verify workflow.
+5. `node scripts/release-readiness.mjs` is a separate operator
+   aggregation. It runs the automated gates again, includes the
+   audit checklist, and remains not ready while required audit
+   items are open.
 
 ## Gates
 
@@ -20,18 +26,21 @@ The release readiness script runs the following gates:
 | Gate | Command | Pass criteria |
 | --- | --- | --- |
 | lint | `npm run lint` | 0 errors |
+| contract-format | `npm run lint:contracts` | Foundry formatting is exact |
 | typecheck | `npm run typecheck` | 0 errors |
 | tests | `npm test` | all node tests pass |
+| manifests | `npm run test:manifests` | undeployed and deployment evidence fail closed |
+| contract-build | `npm run build:contracts` | exact target builds within size limits |
 | secret-scan | `npm run scan:secrets` | no findings |
 | build | `npm run build` | Next.js production build succeeds |
-| contracts | CI runs `forge test` | all Foundry tests pass |
+| contracts | `npm run test:contracts` | all Foundry tests pass |
 | audit-checklist | parses `docs/audit/audit-checklist.md` | all required items `done` |
 
-## Local skip
+## Local requirements
 
-The `contracts` gate is `skip` locally and `pass` in CI. The
-`skip` status indicates that the gate was not run locally; the
-CI workflow installs Foundry and runs the gate.
+The aggregation does not treat a missing contract toolchain as
+ready. Node 24, locked dependencies, and Foundry 1.8.1 must be
+available or their gates fail.
 
 ## On-call sign-off
 

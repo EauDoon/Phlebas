@@ -9,11 +9,11 @@ is the input to the release readiness gate.
 
 | ID | Item | Required | Owner | Status |
 | --- | --- | --- | --- | --- |
-| contracts-1 | ConditionalLock contract is deployed to Arbitrum Sepolia with the verified deployment manifest | yes | contracts | todo |
-| contracts-2 | ConditionalLock contract is verified on the block explorer | yes | contracts | todo |
+| contracts-1 | ConditionalLock undeployed manifest is network-neutral and rejects deployment evidence until separately recorded | yes | contracts | done |
+| contracts-2 | ConditionalLock manifest keeps all network actions disabled, including after deployment evidence is recorded | yes | contracts | done |
 | contracts-3 | Foundry test suite passes in CI | yes | contracts | done |
 | contracts-4 | Contract sources have no upgradeable proxies or admin transfer paths | yes | contracts | done |
-| contracts-5 | Pause and unpause flows are covered by Foundry tests | yes | contracts | done |
+| contracts-5 | ConditionalLock has no owner, governor, pauser, unpause, upgrade, or rescue authority | yes | contracts | done |
 | contracts-6 | Refund path is covered by Foundry tests | yes | contracts | done |
 | contracts-7 | Zcash P2SH lock scripts are validated against canonical ZIP-300 vectors | yes | contracts | done |
 | contracts-8 | Zcash script builder is deterministic and round-trips through the parser | yes | contracts | done |
@@ -60,7 +60,7 @@ is the input to the release readiness gate.
 
 | ID | Item | Required | Owner | Status |
 | --- | --- | --- | --- | --- |
-| keys-1 | Project deploy key is stored in a dedicated keystore | yes | security | done |
+| keys-1 | This undeployed workstream requires and stores no deployment key | yes | security | done |
 | keys-2 | Project deploy key has no production keys; production deploys use a separate key | yes | security | todo |
 | keys-3 | User wallets never connect to the production services; the production services are read-only on the user side | yes | security | done |
 | keys-4 | Wallet adapter signing surface is not active in the testnet | yes | security | done |
