@@ -10,6 +10,7 @@ import {
   publicTestnetSigningError,
   publicWalletConnectionError,
   retargetSettlementCopy,
+  signTypedMatcherControl,
   signTypedOrderIntent,
   signTypedData,
   walletConnectBarTitle,
@@ -259,6 +260,31 @@ test("binds matcher signing to the reviewed account and chain without a transact
   assert.deepEqual(calls.slice(0, 2).sort(), ["eth_accounts", "eth_chainId"]);
   assert.equal(calls[2], "eth_signTypedData_v4");
   assert.equal(calls.includes("eth_sendTransaction"), false);
+});
+
+test("clear-signs matcher controls with EIP-712 only", async () => {
+  const address = "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf";
+  const signature = `0x${"22".repeat(65)}`;
+  const calls: Array<Readonly<{ method: string; params?: unknown[] }>> = [];
+  const provider: Eip1193Provider = {
+    async request(input) {
+      calls.push(input);
+      if (input.method === "eth_chainId") return "0xa4b1";
+      if (input.method === "eth_accounts") return [address];
+      if (input.method === "eth_signTypedData_v4") return signature;
+      throw new Error(input.method);
+    },
+  };
+  const typedData = { domain: { name: "Phlebas Matcher Control" }, primaryType: "CancelOrder" };
+
+  assert.equal(await signTypedMatcherControl(provider, address, 42161n, typedData), signature);
+  assert.deepEqual(calls.slice(0, 2).map((call) => call.method).sort(), ["eth_accounts", "eth_chainId"]);
+  assert.deepEqual(calls[2], {
+    method: "eth_signTypedData_v4",
+    params: [address, JSON.stringify(typedData)],
+  });
+  assert.equal(calls.some((call) => call.method === "eth_sign" || call.method === "personal_sign"), false);
+  assert.equal(calls.some((call) => call.method === "eth_sendTransaction"), false);
 });
 
 test("refuses stale matcher wallet state before requesting a signature", async () => {

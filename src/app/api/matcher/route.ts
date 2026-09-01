@@ -1,4 +1,9 @@
-import { matcherAccountProxy, matcherHealthProxy, matcherOrderProxy } from "@/lib/matcher-proxy";
+import {
+  matcherAccountProxy,
+  matcherHealthProxy,
+  matcherMutationAction,
+  matcherMutationProxy,
+} from "@/lib/matcher-proxy";
 
 export function GET(request: Request) {
   const search = new URL(request.url).searchParams;
@@ -11,5 +16,14 @@ export function GET(request: Request) {
 }
 
 export function POST(request: Request) {
-  return matcherOrderProxy(request);
+  const search = new URL(request.url).searchParams;
+  if (search.size === 0) return matcherMutationProxy(request, null);
+  if (search.size !== 1) {
+    return Response.json({ ok: false, reason: "matcher-action-invalid" }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  }
+  const action = matcherMutationAction(search.get("action"));
+  if (!action) {
+    return Response.json({ ok: false, reason: "matcher-action-invalid" }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  }
+  return matcherMutationProxy(request, action);
 }

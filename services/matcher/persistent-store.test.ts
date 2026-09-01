@@ -5,15 +5,32 @@ import { join } from "node:path";
 import test from "node:test";
 
 import type { TypedOrderIntent } from "../../src/lib/eip712-order.ts";
-import { createOrderDomain, hashOrderDomain } from "../../src/lib/eip712-order.ts";
+import { createOrderDomain, hashOrderDomain, hashTypedOrder } from "../../src/lib/eip712-order.ts";
 import { keccak256Text } from "../../src/lib/keccak.ts";
-import type { MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
-import { matcherStateRoot, type PersistentMatcherConfiguration, type PersistentMatcherEvent } from "../../src/lib/persistent-matcher.ts";
+import { hashLegacyMatcherControlForReplay, type MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
+import {
+  EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME,
+  MATCHER_SYSTEM_REQUEST_ID_PREFIX,
+  applyPersistentMatcherEvent,
+  createPersistentMatcher,
+  matcherControlAuthorizationCutoverRequestId,
+  matcherConfigurationHash,
+  matcherStateRoot,
+  type PersistentMatcherConfiguration,
+  type PersistentMatcherEvent,
+} from "../../src/lib/persistent-matcher.ts";
 import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier, UINT64_MAX } from "../../src/lib/order-domain.ts";
 import { VENUE_CLOB } from "../../src/lib/order-policy.ts";
 import type { SolverQuote } from "../../src/lib/solver-quotes.ts";
 import { hash160Value, p2shAddress } from "../../src/lib/zcash-address.ts";
-import { canonicalJournalJson, type JournalCheckpoint } from "./journal.ts";
+import {
+  JOURNAL_GENESIS_HASH,
+  canonicalJournalJson,
+  hashJournalRecord,
+  type JournalCheckpoint,
+  type JournalRecord,
+  type JournalValue,
+} from "./journal.ts";
 import {
   PersistentMatcherStore,
   deserializePersistentMatcherEvent,
@@ -205,12 +222,391 @@ async function withDirectory(run: (directory: string) => Promise<void>): Promise
   }
 }
 
+function journalRecord(
+  sequence: bigint,
+  previousRecordHash: `0x${string}`,
+  event: Readonly<Record<string, JournalValue>>,
+): JournalRecord {
+  return {
+    version: 1,
+    sequence: sequence.toString(),
+    previousRecordHash,
+    event,
+    recordHash: hashJournalRecord(sequence, previousRecordHash, event),
+  };
+}
+
+function legacyControlEvent(payload: Readonly<Record<string, JournalValue>>): Readonly<Record<string, JournalValue>> {
+  return {
+    type: "persistent-matcher-event",
+    configurationHash: matcherConfigurationHash(configuration),
+    payload,
+  };
+}
+
+async function writeLegacyControlJournal(directory: string): Promise<readonly JournalRecord[]> {
+  const firstOrder = orderEvent("legacy-order", 1n);
+  const epochOrder = orderEvent("legacy-epoch-order", 3n);
+  const events: Readonly<Record<string, JournalValue>>[] = [
+    serializePersistentMatcherEvent(configuration, firstOrder),
+    legacyControlEvent({
+      version: 1,
+      requestId: "legacy-cancel",
+      occurredAtSeconds: (now + 2n).toString(),
+      kind: "cancel-order",
+      orderHash: hashTypedOrder(domain, firstOrder.submission.order),
+      signature: "legacy-cancel-signature",
+    }),
+    serializePersistentMatcherEvent(configuration, epochOrder),
+    legacyControlEvent({
+      version: 1,
+      requestId: "legacy-epoch",
+      occurredAtSeconds: (now + 4n).toString(),
+      kind: "advance-epoch",
+      makerAccountId: epochOrder.submission.order.makerAccountId,
+      nextEpoch: "1",
+      authorizedSignerId: epochOrder.submission.order.authorizedSignerId,
+      signature: "legacy-epoch-signature",
+    }),
+  ];
+  const records: JournalRecord[] = [];
+  let previous = JOURNAL_GENESIS_HASH;
+  for (const [index, event] of events.entries()) {
+    const record = journalRecord(BigInt(index + 1), previous, event);
+    records.push(record);
+    previous = record.recordHash;
+  }
+  await writeFile(join(directory, "events.jsonl"), `${records.map(canonicalJournalJson).join("\n")}\n`);
+  await writeFile(join(directory, "checkpoint.json"), `${canonicalJournalJson({
+    version: 1,
+    sequence: "0",
+    recordHash: JOURNAL_GENESIS_HASH,
+    stateRoot: matcherStateRoot(createPersistentMatcher(configuration)),
+    configurationHash: matcherConfigurationHash(configuration),
+  })}\n`);
+  return records;
+}
+
+function genesisCheckpoint(): JournalCheckpoint {
+  return {
+    version: 1,
+    sequence: "0",
+    recordHash: JOURNAL_GENESIS_HASH,
+    stateRoot: matcherStateRoot(createPersistentMatcher(configuration)),
+    configurationHash: matcherConfigurationHash(configuration),
+  };
+}
+
+test("recovers every exact crash state in fresh initialization", async () => {
+  await withDirectory(async (directory) => {
+    const baselineDirectory = join(directory, "baseline");
+    await mkdir(baselineDirectory, { recursive: true });
+    const baselinePaths = paths(baselineDirectory);
+    const baseline = await PersistentMatcherStore.open(baselinePaths);
+    await baseline.close();
+    const finalMarker = await readFile(baselinePaths.markerPath, "utf8");
+    const cutoverJournal = await readFile(baselinePaths.journalPath, "utf8");
+    const cutoverCheckpoint = await readFile(baselinePaths.checkpointPath, "utf8");
+    const transition = `persistent-matcher-initializing-v2:${matcherConfigurationHash(configuration)}\n`;
+    const genesis = `${canonicalJournalJson(genesisCheckpoint())}\n`;
+    const states = [
+      { name: "marker-only", journal: null, checkpoint: null },
+      { name: "empty-journal", journal: "", checkpoint: null },
+      { name: "genesis", journal: "", checkpoint: genesis },
+      { name: "cutover-stale-checkpoint", journal: cutoverJournal, checkpoint: genesis },
+      { name: "cutover-current-checkpoint", journal: cutoverJournal, checkpoint: cutoverCheckpoint },
+    ] as const;
+
+    for (const crashState of states) {
+      const stateDirectory = join(directory, crashState.name);
+      await mkdir(stateDirectory, { recursive: true });
+      const statePaths = paths(stateDirectory);
+      await writeFile(statePaths.markerPath, transition);
+      if (crashState.journal !== null) await writeFile(statePaths.journalPath, crashState.journal);
+      if (crashState.checkpoint !== null) await writeFile(statePaths.checkpointPath, crashState.checkpoint);
+      const recovered = await PersistentMatcherStore.open(statePaths);
+      assert.equal(recovered.journal.sequence, 1n);
+      await recovered.close();
+      assert.equal(await readFile(statePaths.markerPath, "utf8"), finalMarker);
+      assert.equal(await readFile(statePaths.journalPath, "utf8"), cutoverJournal);
+      assert.equal(await readFile(statePaths.checkpointPath, "utf8"), cutoverCheckpoint);
+    }
+  });
+});
+
+test("rejects a transitional marker over non-initialization bytes without rewriting them", async () => {
+  await withDirectory(async (directory) => {
+    const options = paths(directory);
+    const store = await PersistentMatcherStore.open(options);
+    await store.mutate(orderEvent("mature-transition", 1n));
+    await store.close();
+    const transition = `persistent-matcher-initializing-v2:${matcherConfigurationHash(configuration)}\n`;
+    await writeFile(options.markerPath, transition);
+    const beforeJournal = await readFile(options.journalPath, "utf8");
+    const beforeCheckpoint = await readFile(options.checkpointPath, "utf8");
+    await assert.rejects(() => PersistentMatcherStore.open(options), /unsupported records/);
+    assert.equal(await readFile(options.markerPath, "utf8"), transition);
+    assert.equal(await readFile(options.journalPath, "utf8"), beforeJournal);
+    assert.equal(await readFile(options.checkpointPath, "utf8"), beforeCheckpoint);
+  });
+});
+
+test("rejects non-exact transitional cutover bytes without promoting them", async () => {
+  await withDirectory(async (directory) => {
+    const baselineDirectory = join(directory, "exact-cutover");
+    await mkdir(baselineDirectory, { recursive: true });
+    const baselinePaths = paths(baselineDirectory);
+    const baseline = await PersistentMatcherStore.open(baselinePaths);
+    await baseline.close();
+    const exactRecord = JSON.parse((await readFile(baselinePaths.journalPath, "utf8")).trimEnd()) as JournalRecord;
+    const payload = exactRecord.event.payload as Record<string, JournalValue>;
+    const alteredEvent = {
+      ...exactRecord.event,
+      payload: { ...payload, occurredAtSeconds: "1" },
+    };
+    const alteredRecord = journalRecord(1n, JOURNAL_GENESIS_HASH, alteredEvent);
+    const transition = `persistent-matcher-initializing-v2:${matcherConfigurationHash(configuration)}\n`;
+    const genesis = `${canonicalJournalJson(genesisCheckpoint())}\n`;
+    const variants = [
+      { name: "altered-time", journal: `${canonicalJournalJson(alteredRecord)}\n`, reason: /cutover journal is not canonical/ },
+      { name: "noncanonical-json", journal: ` ${canonicalJournalJson(exactRecord)}\n`, reason: /cutover journal is not canonical/ },
+    ] as const;
+
+    for (const variant of variants) {
+      const stateDirectory = join(directory, variant.name);
+      await mkdir(stateDirectory, { recursive: true });
+      const statePaths = paths(stateDirectory);
+      await writeFile(statePaths.markerPath, transition);
+      await writeFile(statePaths.journalPath, variant.journal);
+      await writeFile(statePaths.checkpointPath, genesis);
+      await assert.rejects(() => PersistentMatcherStore.open(statePaths), variant.reason);
+      assert.equal(await readFile(statePaths.markerPath, "utf8"), transition);
+      assert.equal(await readFile(statePaths.journalPath, "utf8"), variant.journal);
+      assert.equal(await readFile(statePaths.checkpointPath, "utf8"), genesis);
+    }
+  });
+});
+
+test("migrates a full legacy journal with a historical system request ID", async () => {
+  await withDirectory(async (directory) => {
+    const options = paths(directory);
+    const initialized = await PersistentMatcherStore.open(options);
+    await initialized.close();
+    await writeFile(options.markerPath, `persistent-matcher-v1:${matcherConfigurationHash(configuration)}\n`);
+    const historical = orderEvent("system:matcher-control-authorization:eip712-v1", 1n);
+    const record = journalRecord(
+      1n,
+      JOURNAL_GENESIS_HASH,
+      serializePersistentMatcherEvent(configuration, historical),
+    );
+    const legacyBytes = `${canonicalJournalJson(record)}\n`;
+    await writeFile(options.journalPath, legacyBytes);
+    await writeFile(options.checkpointPath, `${canonicalJournalJson(genesisCheckpoint())}\n`);
+    const maximumJournalBytes = Buffer.byteLength(legacyBytes, "utf8");
+    const migrationOptions = { ...options, clockSeconds: () => now + 10n };
+
+    let store = await PersistentMatcherStore.open({
+      ...migrationOptions,
+      maximumJournalRecords: 1,
+      maximumJournalBytes,
+    });
+    assert.equal(store.journal.sequence, 2n);
+    const historicalReplay = await store.mutate(historical);
+    assert.equal(historicalReplay.replayed, true);
+    assert.equal(historicalReplay.receipt.sequence, 1n);
+    assert.equal(historicalReplay.receiptCheckpoint.sequence, "1");
+    const cutoverReceipt = store.state.receipts[1];
+    assert.equal(cutoverReceipt?.kind, "control-authorization-cutover");
+    assert.ok(cutoverReceipt?.requestId.startsWith(`${MATCHER_SYSTEM_REQUEST_ID_PREFIX}matcher-control-authorization:eip712-v1:`));
+    assert.notEqual(cutoverReceipt?.requestId, historical.requestId);
+    await assert.rejects(
+      () => store.mutate(orderEvent("capacity-after-migration", 2n)),
+      /matcher-persistence-unavailable/,
+    );
+    const migratedBytes = await readFile(options.journalPath, "utf8");
+    const root = matcherStateRoot(store.state);
+    await store.close();
+
+    store = await PersistentMatcherStore.open({
+      ...migrationOptions,
+      maximumJournalRecords: 1,
+      maximumJournalBytes,
+    });
+    assert.equal(matcherStateRoot(store.state), root);
+    assert.equal(await readFile(options.journalPath, "utf8"), migratedBytes);
+    await store.close();
+    await assert.rejects(
+      () => PersistentMatcherStore.open({
+        ...migrationOptions,
+        maximumJournalRecords: 1,
+        maximumJournalBytes: maximumJournalBytes - 1,
+      }),
+      /user journal byte limit exceeded/,
+    );
+  });
+});
+
+test("reserves new system request IDs and derives the first free cutover ID", async () => {
+  await withDirectory(async (directory) => {
+    const store = await PersistentMatcherStore.open(paths(directory));
+    await assert.rejects(
+      () => store.mutate(orderEvent("system:new-user-request", 1n)),
+      /reserved system prefix/,
+    );
+    assert.equal(store.journal.sequence, 1n);
+    await store.close();
+  });
+
+  const priorHead = keccak256Text("cutover-collision-head");
+  let state = createPersistentMatcher(configuration);
+  const base = matcherControlAuthorizationCutoverRequestId(state, priorHead);
+  state = applyPersistentMatcherEvent(state, orderEvent(base, 1n), 1n, verifier).state;
+  assert.equal(matcherControlAuthorizationCutoverRequestId(state, priorHead), `${base}:1`);
+  state = applyPersistentMatcherEvent(state, orderEvent(`${base}:1`, 2n), 2n, verifier).state;
+  assert.equal(matcherControlAuthorizationCutoverRequestId(state, priorHead), `${base}:2`);
+});
+
+test("upgrades a byte-stable legacy journal to an immutable authorization cutover", async () => {
+  await withDirectory(async (directory) => {
+    const options = paths(directory);
+    const initialized = await PersistentMatcherStore.open(options);
+    await initialized.close();
+    await writeFile(options.markerPath, `persistent-matcher-v1:${matcherConfigurationHash(configuration)}\n`);
+    await writeLegacyControlJournal(directory);
+    const legacyBytes = await readFile(options.journalPath, "utf8");
+    const observedDigests = new Map<string, string>();
+    const replayVerifier: MatcherSignatureVerifier = {
+      verify(digest, signature) {
+        observedDigests.set(signature, digest);
+      },
+    };
+
+    let store = await PersistentMatcherStore.open({ ...options, verifier: replayVerifier });
+    assert.equal(store.state.sequence, 5n);
+    const migratedBytes = await readFile(options.journalPath, "utf8");
+    assert.equal(migratedBytes.slice(0, legacyBytes.length), legacyBytes);
+    const legacyRoot = matcherStateRoot(store.state);
+    const migratedRecords = migratedBytes.trimEnd().split("\n").map((line) => JSON.parse(line) as JournalRecord);
+    const markerBytes = await readFile(options.markerPath, "utf8");
+    const marker = JSON.parse(markerBytes) as {
+      version: number;
+      configurationHash: string;
+      legacyControlCutover: { sequence: string; recordHash: string; stateRoot: string };
+    };
+    assert.equal(marker.version, 2);
+    assert.equal(marker.configurationHash, matcherConfigurationHash(configuration));
+    assert.deepEqual(marker.legacyControlCutover, {
+      sequence: "5",
+      recordHash: migratedRecords[4]?.recordHash,
+      stateRoot: legacyRoot,
+    });
+    assert.equal(markerBytes, `${canonicalJournalJson(marker)}\n`);
+    const cancelledOrder = orderEvent("legacy-order", 1n).submission.order;
+    assert.equal(observedDigests.get("legacy-cancel-signature"), hashLegacyMatcherControlForReplay(domain, {
+      kind: "cancel-order",
+      orderHash: hashTypedOrder(domain, cancelledOrder),
+      makerAccountId: cancelledOrder.makerAccountId,
+      accountEpoch: cancelledOrder.accountEpoch,
+      nonce: cancelledOrder.nonce,
+      authorizedSignerId: cancelledOrder.authorizedSignerId,
+    }));
+    const epochOrder = orderEvent("legacy-epoch-order", 3n).submission.order;
+    assert.equal(observedDigests.get("legacy-epoch-signature"), hashLegacyMatcherControlForReplay(domain, {
+      kind: "advance-epoch",
+      makerAccountId: epochOrder.makerAccountId,
+      currentEpoch: 0n,
+      nextEpoch: 1n,
+      authorizedSignerId: epochOrder.authorizedSignerId,
+    }));
+    await store.close();
+
+    store = await PersistentMatcherStore.open({ ...options, verifier: replayVerifier });
+    assert.equal(matcherStateRoot(store.state), legacyRoot);
+    assert.equal(await readFile(options.markerPath, "utf8"), markerBytes);
+    await store.close();
+  });
+});
+
+test("rejects unmarked controls appended beyond the journal-bound cutover", async () => {
+  await withDirectory(async (directory) => {
+    const options = paths(directory);
+    const initialized = await PersistentMatcherStore.open(options);
+    await initialized.close();
+    await writeFile(options.markerPath, `persistent-matcher-v1:${matcherConfigurationHash(configuration)}\n`);
+    await writeLegacyControlJournal(directory);
+    const migrated = await PersistentMatcherStore.open(options);
+    await migrated.close();
+    await writeFile(options.markerPath, `persistent-matcher-v1:${matcherConfigurationHash(configuration)}\n`);
+
+    const contents = await readFile(options.journalPath, "utf8");
+    const records = contents.trimEnd().split("\n").map((line) => JSON.parse(line) as JournalRecord);
+    const unmarked = legacyControlEvent({
+      version: 1,
+      requestId: "post-cutover-raw",
+      occurredAtSeconds: (now + 5n).toString(),
+      kind: "cancel-order",
+      orderHash: keccak256Text("captured-legacy-order"),
+      signature: "captured-legacy-signature",
+    });
+    const appended = journalRecord(6n, records[4]!.recordHash, unmarked);
+    await writeFile(options.journalPath, `${contents}${canonicalJournalJson(appended)}\n`);
+    await assert.rejects(
+      () => PersistentMatcherStore.open(options),
+      /beyond the authorization cutover/,
+    );
+  });
+});
+
+test("persists new controls as EIP-712 and validates the v2 marker on restart", async () => {
+  await withDirectory(async (directory) => {
+    const options = paths(directory);
+    let store = await PersistentMatcherStore.open(options);
+    const marker = JSON.parse(await readFile(options.markerPath, "utf8")) as {
+      version: number;
+      legacyControlCutover: { sequence: string; recordHash: string; stateRoot: string };
+    };
+    assert.equal(marker.version, 2);
+    assert.equal(marker.legacyControlCutover.sequence, "1");
+
+    const accepted = orderEvent("eip-order", 1n);
+    await store.mutate(accepted);
+    await store.mutate({
+      version: 1,
+      requestId: "eip-cancel",
+      occurredAtSeconds: now + 2n,
+      kind: "cancel-order",
+      orderHash: hashTypedOrder(domain, accepted.submission.order),
+      signature: "eip-cancel-signature",
+      controlAuthorizationScheme: EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME,
+    });
+    const root = matcherStateRoot(store.state);
+    await store.close();
+
+    const records = (await readFile(options.journalPath, "utf8")).trimEnd().split("\n")
+      .map((line) => JSON.parse(line) as JournalRecord);
+    assert.equal(
+      (records[2]?.event.payload as Record<string, unknown>).controlAuthorizationScheme,
+      EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME,
+    );
+    store = await PersistentMatcherStore.open(options);
+    assert.equal(matcherStateRoot(store.state), root);
+    await store.close();
+
+    const tamperedMarker = {
+      ...marker,
+      legacyControlCutover: { ...marker.legacyControlCutover, stateRoot: keccak256Text("wrong-cutover-root") },
+    };
+    await writeFile(options.markerPath, `${canonicalJournalJson(tamperedMarker)}\n`);
+    await assert.rejects(() => PersistentMatcherStore.open(options), /cutover state root does not match replay/);
+  });
+});
+
 test("round-trips the exact persisted event representation", () => {
   const event = orderEvent("round-trip", 1n);
   const serialized = serializePersistentMatcherEvent(configuration, event);
-  assert.deepEqual(deserializePersistentMatcherEvent(configuration, serialized), event);
+  assert.deepEqual(deserializePersistentMatcherEvent(configuration, serialized, { source: "ingress" }), event);
   assert.throws(
-    () => deserializePersistentMatcherEvent(configuration, { ...serialized, ignored: true }),
+    () => deserializePersistentMatcherEvent(configuration, { ...serialized, ignored: true }, { source: "ingress" }),
     /missing or unsupported fields/,
   );
 
@@ -248,7 +644,64 @@ test("round-trips the exact persisted event representation", () => {
     signature: "solver-signature",
   };
   const serializedQuote = serializePersistentMatcherEvent(configuration, solverEvent);
-  assert.deepEqual(deserializePersistentMatcherEvent(configuration, serializedQuote), solverEvent);
+  assert.deepEqual(deserializePersistentMatcherEvent(configuration, serializedQuote, { source: "ingress" }), solverEvent);
+});
+
+test("separates marker-free EIP-712 ingress from bounded legacy journal replay", () => {
+  const payload: Record<string, JournalValue> = {
+    version: 1,
+    requestId: "control-source",
+    occurredAtSeconds: now.toString(),
+    kind: "cancel-order",
+    orderHash: keccak256Text("control-source-order"),
+    signature: "control-source-signature",
+  };
+  const wrapped = legacyControlEvent(payload);
+  const ingress = deserializePersistentMatcherEvent(configuration, wrapped, { source: "ingress" });
+  assert.equal(ingress.kind === "cancel-order" && ingress.controlAuthorizationScheme, EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME);
+  const legacy = deserializePersistentMatcherEvent(configuration, wrapped, {
+    source: "journal",
+    sequence: 1n,
+    legacyControlCutoverSequence: 1n,
+  });
+  assert.equal(legacy.kind === "cancel-order" && legacy.controlAuthorizationScheme, "legacy-raw-v1");
+  assert.throws(
+    () => deserializePersistentMatcherEvent(configuration, wrapped, {
+      source: "journal",
+      sequence: 2n,
+      legacyControlCutoverSequence: 1n,
+    }),
+    /beyond the authorization cutover/,
+  );
+  for (const key of ["controlAuthorizationScheme", "authorizationScheme", "scheme"] as const) {
+    assert.throws(
+      () => deserializePersistentMatcherEvent(configuration, legacyControlEvent({ ...payload, [key]: "eip712-v1" }), { source: "ingress" }),
+      /missing or unsupported fields/,
+    );
+  }
+  assert.throws(
+    () => deserializePersistentMatcherEvent(configuration, legacyControlEvent({
+      ...payload,
+      controlAuthorizationScheme: "legacy-raw-v1",
+    }), {
+      source: "journal",
+      sequence: 1n,
+      legacyControlCutoverSequence: 1n,
+    }),
+    /scheme is unsupported/,
+  );
+  assert.throws(
+    () => serializePersistentMatcherEvent(configuration, {
+      version: 1,
+      requestId: "legacy-serialize",
+      occurredAtSeconds: now,
+      kind: "cancel-order",
+      orderHash: keccak256Text("legacy-serialize-order"),
+      signature: "legacy-serialize-signature",
+      controlAuthorizationScheme: "legacy-raw-v1",
+    }),
+    /Only EIP-712 matcher controls may be persisted/,
+  );
 });
 
 test("restarts with an identical state root and idempotent receipt", async () => {
@@ -261,14 +714,44 @@ test("restarts with an identical state root and idempotent receipt", async () =>
     assert.equal(first.replayed, false);
     assert.equal(repeated.replayed, true);
     assert.equal(repeated.receipt.sequence, first.receipt.sequence);
-    assert.equal(store.journal.sequence, 1n);
+    assert.equal(store.journal.sequence, 2n);
     const root = matcherStateRoot(store.state);
     await store.close();
 
     store = await PersistentMatcherStore.open(options);
-    assert.equal(store.journal.sequence, 1n);
+    assert.equal(store.journal.sequence, 2n);
     assert.equal(matcherStateRoot(store.state), root);
     assert.equal(store.checkpoint.stateRoot, root);
+    await store.close();
+  });
+});
+
+test("recovers the historical receipt checkpoint after unrelated state advances and restart", async () => {
+  await withDirectory(async (directory) => {
+    const options = paths(directory);
+    const firstEvent = orderEvent("receipt-history", 1n);
+    let store = await PersistentMatcherStore.open(options);
+    const first = await store.mutate(firstEvent);
+    await store.mutate(orderEvent("receipt-history-unrelated", 2n));
+    const replayed = await store.mutate(firstEvent);
+    assert.equal(replayed.replayed, true);
+    assert.deepEqual(replayed.receiptCheckpoint, first.receiptCheckpoint);
+    assert.equal(replayed.receiptCheckpoint.sequence, "2");
+    assert.equal(replayed.checkpoint.sequence, "3");
+    await assert.rejects(
+      () => store.mutate({
+        ...firstEvent,
+        submission: { ...firstEvent.submission, signature: "different-signature" },
+      }),
+      /different command/,
+    );
+    await store.close();
+
+    store = await PersistentMatcherStore.open(options);
+    const restartedReplay = await store.mutate(firstEvent);
+    assert.equal(restartedReplay.replayed, true);
+    assert.deepEqual(restartedReplay.receiptCheckpoint, first.receiptCheckpoint);
+    assert.equal(restartedReplay.checkpoint.sequence, "3");
     await store.close();
   });
 });
@@ -286,7 +769,7 @@ test("rejects client timestamps beyond the trusted skew and persists trusted int
       /too far in the future/,
     );
     const valid = await store.mutate(orderEvent("after-future-rejection", 3n));
-    assert.equal(valid.receipt.sequence, 1n);
+    assert.equal(valid.receipt.sequence, 2n);
     await store.close();
 
     const permissive = await PersistentMatcherStore.open({ ...options, maximumFutureEventSeconds: 60n });
@@ -294,11 +777,15 @@ test("rejects client timestamps beyond the trusted skew and persists trusted int
     assert.equal(stamped.receipt.occurredAtSeconds, now);
     const lastRecord = permissive.journal.records[permissive.journal.records.length - 1];
     assert.ok(lastRecord);
-    const persisted = deserializePersistentMatcherEvent(configuration, lastRecord.event);
+    const persisted = deserializePersistentMatcherEvent(configuration, lastRecord.event, {
+      source: "journal",
+      sequence: BigInt(lastRecord.sequence),
+      legacyControlCutoverSequence: 0n,
+    });
     assert.equal(persisted.occurredAtSeconds, now);
     await permissive.close();
     const reopened = await PersistentMatcherStore.open(options);
-    assert.equal(reopened.state.sequence, 2n);
+    assert.equal(reopened.state.sequence, 3n);
     assert.equal(reopened.state.lastEventAtSeconds, now);
     await reopened.close();
   });
@@ -321,7 +808,7 @@ test("does not let an initially backdated event revive an expired order", async 
       () => store.mutate(backdatedExpired),
       /Order must have a future uint64 bigint expiry/,
     );
-    assert.equal(store.journal.sequence, 0n);
+    assert.equal(store.journal.sequence, 1n);
     await store.close();
   });
 });
@@ -336,8 +823,8 @@ test("fails closed when trusted time moves backward after an accepted event", as
       () => store.mutate(orderEvent("trusted-clock-two", 2n)),
       /moved backward/,
     );
-    assert.equal(store.state.sequence, 1n);
-    assert.equal(store.journal.sequence, 1n);
+    assert.equal(store.state.sequence, 2n);
+    assert.equal(store.journal.sequence, 2n);
     await store.close();
   });
 });
@@ -351,8 +838,8 @@ test("degrades after a checkpoint write fault and replays the appended event on 
     await mkdir(options.checkpointPath);
     const acceptedEvent = orderEvent("checkpoint-fault", 1n);
     await assert.rejects(() => store.mutate(acceptedEvent), /matcher-persistence-unavailable:checkpoint/);
-    assert.equal(store.journal.sequence, 1n);
-    assert.equal(store.state.sequence, 1n);
+    assert.equal(store.journal.sequence, 2n);
+    assert.equal(store.state.sequence, 2n);
     assert.equal(store.acceptingMutations, false);
     await assert.rejects(() => store.mutate(orderEvent("checkpoint-fault-later", 2n)), /matcher-persistence-unavailable/);
     await store.close();
@@ -360,11 +847,11 @@ test("degrades after a checkpoint write fault and replays the appended event on 
     await rm(options.checkpointPath, { recursive: true });
     await writeFile(options.checkpointPath, genesisCheckpoint);
     const recovered = await PersistentMatcherStore.open(options);
-    assert.equal(recovered.journal.sequence, 1n);
-    assert.equal(recovered.state.sequence, 1n);
+    assert.equal(recovered.journal.sequence, 2n);
+    assert.equal(recovered.state.sequence, 2n);
     const replayed = await recovered.mutate(acceptedEvent);
     assert.equal(replayed.replayed, true);
-    assert.equal(replayed.receipt.sequence, 1n);
+    assert.equal(replayed.receipt.sequence, 2n);
     await recovered.close();
   });
 });
@@ -381,7 +868,7 @@ test("latches journal durability failures and recovers after restart with a larg
     await store.close();
 
     const recovered = await PersistentMatcherStore.open({ ...constrained, maximumJournalRecords: 10 });
-    assert.equal(recovered.journal.sequence, 1n);
+    assert.equal(recovered.journal.sequence, 2n);
     assert.equal(recovered.acceptingMutations, true);
     await recovered.close();
   });
@@ -392,9 +879,9 @@ test("linearizes concurrent mutations into contiguous durable sequences", async 
     const store = await PersistentMatcherStore.open(paths(directory));
     const results = await Promise.all(Array.from({ length: 12 }, (_, index) =>
       store.mutate(orderEvent(`concurrent-${index}`, BigInt(index + 1)))));
-    assert.deepEqual(results.map((result) => result.receipt.sequence), Array.from({ length: 12 }, (_, index) => BigInt(index + 1)));
-    assert.equal(store.journal.sequence, 12n);
-    assert.equal(store.checkpoint.sequence, "12");
+    assert.deepEqual(results.map((result) => result.receipt.sequence), Array.from({ length: 12 }, (_, index) => BigInt(index + 2)));
+    assert.equal(store.journal.sequence, 13n);
+    assert.equal(store.checkpoint.sequence, "13");
     await store.close();
   });
 });
@@ -407,13 +894,13 @@ test("serializes concurrent takers against one solver quote without exceeding ca
       store.mutate(solverTakerEvent("solver-taker-one", 60n, 2n)),
       store.mutate(solverTakerEvent("solver-taker-two", 60n, 3n)),
     ]);
-    assert.deepEqual([first.receipt.sequence, second.receipt.sequence], [2n, 3n]);
+    assert.deepEqual([first.receipt.sequence, second.receipt.sequence], [3n, 4n]);
     assert.equal(first.receipt.routeKind, "solver");
     assert.equal(second.receipt.routeKind, "solver");
     assert.equal(first.receipt.remainingBaseAtoms, 0n);
     assert.equal(second.receipt.remainingBaseAtoms, 20n);
     assert.deepEqual(store.state.solverQuotes, {});
-    assert.equal(store.journal.sequence, 3n);
+    assert.equal(store.journal.sequence, 4n);
     await store.close();
   });
 });
@@ -464,7 +951,7 @@ test("replays a valid stale checkpoint to the journal head", async () => {
     await writeFile(options.checkpointPath, `${canonicalJournalJson(staleCheckpoint)}\n`);
 
     store = await PersistentMatcherStore.open(options);
-    assert.equal(store.checkpoint.sequence, "2");
+    assert.equal(store.checkpoint.sequence, "3");
     assert.equal(store.checkpoint.stateRoot, finalRoot);
     await store.close();
   });
@@ -474,11 +961,12 @@ test("never silently recreates initialized persistence or accepts partial record
   await withDirectory(async (directory) => {
     const options = paths(directory);
     let store = await PersistentMatcherStore.open(options);
+    const initializedJournal = await readFile(options.journalPath, "utf8");
     await store.close();
     await unlink(options.journalPath);
     await assert.rejects(() => PersistentMatcherStore.open(options), /persistence is missing/);
 
-    await writeFile(options.journalPath, "");
+    await writeFile(options.journalPath, initializedJournal);
     store = await PersistentMatcherStore.open(options);
     await store.mutate(orderEvent("partial", 1n));
     await store.close();

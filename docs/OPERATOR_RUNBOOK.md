@@ -56,7 +56,19 @@ A configured service exposes:
 | `GET /v1/executions?after=N&limit=L` | Return fills and blocked no-value swap plans |
 | `GET /v1/requests/{requestId}` | Resolve an idempotency receipt |
 
-Every mutation requires JSON, an `Idempotency-Key` header equal to the payload `requestId`, and the exact event kind for the route. The service rejects unknown, missing, duplicate, prototype-sensitive, oversized, excessive-depth, and excessive-node input. Default limits are 64 KiB per body, 64 admitted mutations, 120 mutations per remote address per minute, and 100 feed records per page.
+Every mutation requires JSON, an `Idempotency-Key` header equal to the payload `requestId`, the exact event kind for the route, and `x-phlebas-matcher-configuration` equal to the active configuration hash. A missing or stale configuration header fails closed. The service rejects unknown, missing, duplicate, prototype-sensitive, oversized, excessive-depth, and excessive-node input. Default limits are 64 KiB per body, 64 admitted mutations, 120 mutations per remote address per minute, and 100 feed records per page.
+
+### User-owned controls
+
+`cancel-order` and `advance-epoch` are EIP-712 typed controls in the distinct `Phlebas Matcher Control` domain. A cancellation is verified against the accepted order's signer, account epoch, and nonce. An epoch advance is verified for the account signer and invalidates that account's open orders. They cannot authorize transaction construction, signing, broadcast, custody, or asset movement.
+
+One request ID cannot be reused for a different matcher command. A matching replay returns its existing receipt and the historical `receiptCheckpoint` that accepted it, plus the current `checkpoint`. These checkpoints may differ after later activity. If their sequence is equal, their record hash and state root must also be equal. The receipt can be looked up through `GET /v1/requests/{requestId}`. The browser order flow preserves immutable signed order bytes for retry and reports `receipt-unknown` after an uncertain result.
+
+New cancel and epoch requests cannot supply an authorization-scheme field. Ingress assigns `eip712-v1`, and the journal persists it explicitly. Stores created by this release commit a system-managed authorization-cutover event before user mutations. A legacy v1 store first replays its existing prefix, appends the same event, checkpoints it, then writes the canonical v2 initialization marker. Unmarked raw controls replay only before the committed event. A restored v1 marker does not widen that boundary. System request IDs use a reserved namespace, while exact historical system-prefixed requests remain replayable.
+
+The browser control workflow is implemented. Cancellation review accepts only an immutable confirmed native buy artifact with an `open` or `partially-filled` receipt, then refreshes matcher health, account state, wallet identity, and checkpoint. Epoch review accepts an immutable confirmed native buy artifact and derives the control from the fresh account epoch plus one. Confirmation repeats those matcher, account, checkpoint, and wallet checks, stops on drift, and signs only the reviewed EIP-712 typed control. A known 4xx response is `rejected`; transport failure, 5xx, unreadable or malformed response, and receipt mismatch are `receipt-unknown`. Retry checks the approved matcher identity, then posts exactly the original frozen body and idempotency key without another signature. The artifacts are session-only. After reload, the browser cannot retry from the old artifact, and account-scoped open-order recovery is not implemented.
+
+The tracked native matcher manifest remains disabled and no-value. This runbook does not authorize activation, a hosted production matcher, wallet execution, contract deployment, chain access, or live funds.
 
 See [ADR 0003](adr/0003-persistent-native-matcher.md) for exact semantics and unresolved production gates.
 
@@ -76,9 +88,9 @@ Direct processes: interrupt the matcher Node job. Data directories under `servic
 
 ## Data
 
-Configured matcher state uses `services/matcher/.data/native-v1/events.jsonl`, `checkpoint.json`, `initialized`, and `writer.lock`. That path is gitignored. This runbook does not authorize inspection, deletion, or migration of any former gateway or legacy-observer data directory or key material.
+Configured matcher state uses `services/matcher/.data/native-v1/events.jsonl`, `checkpoint.json`, `initialized`, and `writer.lock`. The `initialized` file is a canonical v2 marker bound to the journaled authorization-cutover record and its replayed state root. Fresh creation first writes a configuration-bound transitional marker. Restart promotes it only from the exact canonical empty, genesis-checkpoint, or deterministic cutover crash states. Any other transitional bytes fail closed without promotion. That path is gitignored. This runbook does not authorize inspection, deletion, or migration of any former gateway or legacy-observer data directory or key material.
 
-Matcher events are appended and fsynced before state publication. Checkpoints and initialization markers use atomic replacement. Windows does not provide a portable directory-fsync barrier, so the implementation skips only that unsupported final barrier after file fsync and rename. Windows also ignores POSIX mode bits. Do not copy these directories into git or onto Vercel.
+Matcher events are appended and fsynced before state publication. Checkpoints and initialization markers use atomic replacement. The mandatory authorization-cutover record has separate reserved capacity and does not consume the configured user record or byte quota. Windows does not provide a portable directory-fsync barrier, so the implementation skips only that unsupported final barrier after file fsync and rename. Windows also ignores POSIX mode bits. Do not copy these directories into git or onto Vercel.
 
 One persistence directory allows one writer. Normal `SIGINT` and `SIGTERM` handling closes the store and removes its lock. If a lock remains, stop every candidate writer, identify the prior process, preserve the full directory, and validate the journal and checkpoint before recording an operator decision to remove a proven stale lock. Never delete initialized persistence or reset the sequence as recovery.
 

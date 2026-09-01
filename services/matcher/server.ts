@@ -733,7 +733,9 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
         }
         const receipt = findRequestReceipt(store.state, requestId);
         if (!receipt) throw new HttpError(404, "request-receipt-not-found");
-        send(response, 200, { checkpoint: store.checkpoint, receipt });
+        const receiptCheckpoint = store.receiptCheckpoint(requestId);
+        if (!receiptCheckpoint) throw new HttpError(503, "request-receipt-checkpoint-unavailable");
+        send(response, 200, { checkpoint: store.checkpoint, receiptCheckpoint, receipt });
         return;
       }
 
@@ -743,18 +745,16 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
         pendingMutations += 1;
         try {
           const body = await readJson(request, maximumBodyBytes, bodyReadTimeoutMilliseconds);
-          if (expectedKind === "accept-order") {
-            const expectedConfigurationHash = request.headers[MATCHER_CONFIGURATION_HEADER];
-            const activeConfigurationHash = matcherConfigurationHash(store.state.configuration);
-            if (typeof expectedConfigurationHash !== "string" || expectedConfigurationHash !== activeConfigurationHash) {
-              throw new HttpError(409, "matcher-configuration-does-not-match-request");
-            }
+          const expectedConfigurationHash = request.headers[MATCHER_CONFIGURATION_HEADER];
+          const activeConfigurationHash = matcherConfigurationHash(store.state.configuration);
+          if (typeof expectedConfigurationHash !== "string" || expectedConfigurationHash !== activeConfigurationHash) {
+            throw new HttpError(409, "matcher-configuration-does-not-match-request");
           }
           const event = deserializePersistentMatcherEvent(store.state.configuration, {
             type: "persistent-matcher-event",
             configurationHash: matcherConfigurationHash(store.state.configuration),
             payload: body,
-          });
+          }, { source: "ingress" });
           if (event.kind !== expectedKind) throw new HttpError(400, "matcher-event-kind-does-not-match-endpoint");
           const idempotencyKey = request.headers["idempotency-key"];
           if (typeof idempotencyKey !== "string" || idempotencyKey !== event.requestId) {

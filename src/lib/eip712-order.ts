@@ -16,11 +16,16 @@ export const ORDER_INTENT_TYPE = "OrderIntent(bytes32 makerAccountId,bytes32 aut
 export type OrderSideCode = 0 | 1;
 export type TimeInForceCode = 0 | 1 | 2;
 
-export type OrderDomain = Readonly<{
-  name: typeof ORDER_DOMAIN_NAME;
-  version: typeof ORDER_DOMAIN_VERSION;
+export type Eip712Domain = Readonly<{
+  name: string;
+  version: string;
   chainId: bigint;
   verifyingContract: HexAddress;
+}>;
+
+export type OrderDomain = Eip712Domain & Readonly<{
+  name: typeof ORDER_DOMAIN_NAME;
+  version: typeof ORDER_DOMAIN_VERSION;
 }>;
 
 export type TypedOrderIntent = Readonly<{
@@ -110,7 +115,7 @@ export function createOrderDomain(chainId: bigint, verifyingContract: string): O
   };
 }
 
-export function hashOrderDomain(domain: OrderDomain): Hex32 {
+export function hashOrderDomain(domain: Eip712Domain): Hex32 {
   const encoded = concatBytes(
     hexToBytes(keccak256Text(EIP712_DOMAIN_TYPE)),
     hexToBytes(keccak256Text(domain.name)),

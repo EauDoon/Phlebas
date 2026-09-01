@@ -66,22 +66,43 @@ export type SignedOrderSubmission = Readonly<{
   accounts: WalletSettlementAccounts;
 }>;
 
+export const EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME = "eip712-v1" as const;
+export const LEGACY_RAW_MATCHER_CONTROL_AUTHORIZATION_SCHEME = "legacy-raw-v1" as const;
+export const MATCHER_SYSTEM_REQUEST_ID_PREFIX = "system:" as const;
+export const MATCHER_CONTROL_AUTHORIZATION_CUTOVER_REQUEST_ID_PREFIX = `${MATCHER_SYSTEM_REQUEST_ID_PREFIX}matcher-control-authorization:eip712-v1:` as const;
+
+export type MatcherControlAuthorizationScheme =
+  | typeof EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME
+  | typeof LEGACY_RAW_MATCHER_CONTROL_AUTHORIZATION_SCHEME;
+
 export type PersistentMatcherEvent = Readonly<{
   version: typeof PERSISTENT_MATCHER_VERSION;
   requestId: string;
   occurredAtSeconds: bigint;
 }> & (
   | Readonly<{ kind: "accept-order"; submission: SignedOrderSubmission }>
-  | Readonly<{ kind: "cancel-order"; orderHash: Hex32; signature: string }>
+  | Readonly<{
+    kind: "cancel-order";
+    orderHash: Hex32;
+    signature: string;
+    controlAuthorizationScheme?: MatcherControlAuthorizationScheme;
+  }>
   | Readonly<{
     kind: "advance-epoch";
     makerAccountId: Hex32;
     nextEpoch: bigint;
     authorizedSignerId: Hex32;
     signature: string;
+    controlAuthorizationScheme?: MatcherControlAuthorizationScheme;
   }>
   | Readonly<{ kind: "accept-solver-quote"; quote: SolverQuote; signature: string }>
   | Readonly<{ kind: "cancel-solver-quote"; quoteHash: Hex32; signature: string }>
+  | Readonly<{
+    kind: "control-authorization-cutover";
+    legacyThroughSequence: bigint;
+    legacyThroughRecordHash: Hex32;
+    legacyThroughStateRoot: Hex32;
+  }>
 );
 
 export type MatcherMutationReceipt = Readonly<{
@@ -101,7 +122,8 @@ export type MatcherMutationReceipt = Readonly<{
     | "cancelled"
     | "epoch-advanced"
     | "solver-quote-open"
-    | "solver-quote-cancelled";
+    | "solver-quote-cancelled"
+    | "control-authorization-cutover";
   subjectHash?: Hex32;
   routeKind?: RouteCandidate["kind"];
   remainingBaseAtoms?: bigint;
@@ -250,8 +272,14 @@ export function matcherCommandHash(configuration: PersistentMatcherConfiguration
     );
   } else if (event.kind === "accept-solver-quote") {
     fields.push(`quoteHash=${hashSolverQuote(event.quote)}`, `signature=${event.signature}`);
-  } else {
+  } else if (event.kind === "cancel-solver-quote") {
     fields.push(`quoteHash=${normalizeHex32(event.quoteHash, "Solver quote hash")}`, `signature=${event.signature}`);
+  } else {
+    fields.push(
+      `legacyThroughSequence=${event.legacyThroughSequence}`,
+      `legacyThroughRecordHash=${normalizeHex32(event.legacyThroughRecordHash, "Legacy control cutover record hash")}`,
+      `legacyThroughStateRoot=${normalizeHex32(event.legacyThroughStateRoot, "Legacy control cutover state root")}`,
+    );
   }
   return keccak256Text(fields.join("\n"));
 }
@@ -261,7 +289,8 @@ export function findRequestReceipt(
   requestId: string,
   commandHash?: Hex32,
 ): MatcherMutationReceipt | null {
-  const receipt = state.requestIndex[canonicalRequestId(requestId)] ?? null;
+  const canonical = canonicalRequestId(requestId);
+  const receipt = Object.hasOwn(state.requestIndex, canonical) ? state.requestIndex[canonical] ?? null : null;
   if (receipt && commandHash && receipt.commandHash !== normalizeHex32(commandHash, "Command hash")) {
     throw new Error("Request ID was already used for a different command");
   }
@@ -479,6 +508,10 @@ function applyOrderCancellation(
     nonce: accepted.order.nonce,
     authorizedSignerId: accepted.order.authorizedSignerId,
   };
+  if ((event.controlAuthorizationScheme ?? EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME)
+    !== EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME) {
+    throw new Error("Legacy matcher control authorization is replay-only");
+  }
   verifyMatcherControl(verifier, state.configuration.domain, authorization, event.signature);
   const reference = applyOrderReferenceEvent(state.orderReference, {
     kind: "cancel-nonce",
@@ -500,6 +533,10 @@ function applyEpochAdvance(
   const authorizedSignerId = normalizeHex32(event.authorizedSignerId, "Authorized signer ID");
   if (state.accountSigners[makerAccountId] !== authorizedSignerId) throw new Error("Epoch signer is not bound to the maker account");
   const currentEpoch = activeAccountEpoch(state.orderReference.lifecycle, makerAccountId);
+  if ((event.controlAuthorizationScheme ?? EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME)
+    !== EIP712_MATCHER_CONTROL_AUTHORIZATION_SCHEME) {
+    throw new Error("Legacy matcher control authorization is replay-only");
+  }
   verifyMatcherControl(verifier, state.configuration.domain, {
     kind: "advance-epoch",
     makerAccountId,
@@ -595,6 +632,23 @@ function applySolverCancellation(
   };
 }
 
+function applyControlAuthorizationCutover(
+  state: PersistentMatcherState,
+  event: Extract<PersistentMatcherEvent, { kind: "control-authorization-cutover" }>,
+) {
+  if (event.requestId !== matcherControlAuthorizationCutoverRequestId(state, event.legacyThroughRecordHash)) {
+    throw new Error("Matcher control authorization cutover request ID is invalid");
+  }
+  if (event.legacyThroughSequence !== state.sequence) {
+    throw new Error("Matcher control authorization cutover sequence does not match prior state");
+  }
+  const stateRoot = matcherStateRoot(state);
+  if (normalizeHex32(event.legacyThroughStateRoot, "Legacy control cutover state root") !== stateRoot) {
+    throw new Error("Matcher control authorization cutover state root does not match prior state");
+  }
+  return { state, subjectHash: normalizeHex32(event.legacyThroughRecordHash, "Legacy control cutover record hash") };
+}
+
 export function applyPersistentMatcherEvent(
   state: PersistentMatcherState,
   event: PersistentMatcherEvent,
@@ -604,7 +658,7 @@ export function applyPersistentMatcherEvent(
   if (event.version !== PERSISTENT_MATCHER_VERSION) throw new Error("Matcher event version is unsupported");
   if (sequence !== state.sequence + 1n || sequence <= 0n || sequence > UINT64_MAX) throw new Error("Matcher event sequence is not contiguous");
   const requestId = canonicalRequestId(event.requestId);
-  if (state.requestIndex[requestId]) throw new Error("Request ID already has a matcher receipt");
+  if (Object.hasOwn(state.requestIndex, requestId)) throw new Error("Request ID already has a matcher receipt");
   if (typeof event.occurredAtSeconds !== "bigint" || event.occurredAtSeconds < state.lastEventAtSeconds || event.occurredAtSeconds > UINT64_MAX) {
     throw new RangeError("Matcher event time is invalid or moved backward");
   }
@@ -627,10 +681,14 @@ export function applyPersistentMatcherEvent(
     const result = applySolverAcceptance(state, event, sequence, verifier);
     changed = result.state;
     details = { status: "solver-quote-open", subjectHash: result.subjectHash, swapPlanIds: [] };
-  } else {
+  } else if (event.kind === "cancel-solver-quote") {
     const result = applySolverCancellation(state, event, verifier);
     changed = result.state;
     details = { status: "solver-quote-cancelled", subjectHash: result.subjectHash, swapPlanIds: [] };
+  } else {
+    const result = applyControlAuthorizationCutover(state, event);
+    changed = result.state;
+    details = { status: "control-authorization-cutover", subjectHash: result.subjectHash, swapPlanIds: [] };
   }
   changed = {
     ...changed,
@@ -661,7 +719,31 @@ export function replayPersistentMatcher(
   events: readonly PersistentMatcherEvent[],
   verifier: MatcherSignatureVerifier,
 ): PersistentMatcherState {
-  return events.reduce((state, event, index) => applyPersistentMatcherEvent(state, event, BigInt(index + 1), verifier).state, initial);
+  return events.reduce(
+    (state, event, index) => applyPersistentMatcherEvent(state, event, BigInt(index + 1), verifier).state,
+    initial,
+  );
+}
+
+export function matcherControlAuthorizationCutoverRequestId(
+  state: PersistentMatcherState,
+  legacyThroughRecordHash: Hex32,
+): string {
+  const base = `${MATCHER_CONTROL_AUTHORIZATION_CUTOVER_REQUEST_ID_PREFIX}${normalizeHex32(
+    legacyThroughRecordHash,
+    "Legacy control cutover record hash",
+  ).slice(2)}`;
+  let counter = 0;
+  const maximumCollisions = Object.keys(state.requestIndex).length;
+  while (counter <= maximumCollisions) {
+    const candidate = counter === 0
+      ? base
+      : `${base}:${counter}`;
+    canonicalRequestId(candidate);
+    if (!Object.hasOwn(state.requestIndex, candidate)) return candidate;
+    counter += 1;
+  }
+  throw new Error("Matcher control authorization cutover request ID space is exhausted");
 }
 
 export function matcherConfigurationHash(configuration: PersistentMatcherConfiguration): Hex32 {

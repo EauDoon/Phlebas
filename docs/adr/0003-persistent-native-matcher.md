@@ -24,7 +24,9 @@ Every accepted mutation follows this order:
 6. publish the derived state in memory;
 7. atomically write a checkpoint that binds the journal head, state root, and configuration hash.
 
-Restart replays every journal event from genesis. It verifies any checkpoint at its exact journal prefix and rewrites a valid stale checkpoint to the current head. Missing initialized files, partial records, sequence gaps, changed records, state-root mismatch, configuration drift, or an existing writer lock fails closed. Each writer lock carries a random ownership token, and shutdown refuses to remove a lock whose exact ownership bytes changed. The service never creates an empty replacement for initialized state.
+Restart replays every journal event from genesis. It verifies any checkpoint at its exact journal prefix and rewrites a valid stale checkpoint to the current head. The first current-format record is a system-managed authorization cutover. Its payload binds the prior journal sequence, record hash, and state root. Its prior-head-derived request ID is the first unused value in the reserved system namespace. The canonical v2 initialization marker binds the cutover record and its post-event state root. A restored v1 marker discovers the existing journal event and cannot move the legacy boundary forward.
+
+Unmarked cancel and epoch controls are legacy raw signatures only before the committed cutover. New ingress rejects every caller-supplied scheme field, assigns `eip712-v1` internally, and persists that marker. Fresh creation writes a configuration-bound transitional marker before persistence files, then promotes it only from exact canonical states that its own write order can produce. The cutover has reserved journal capacity outside the configured user quotas. Missing initialized files, partial or noncanonical transitional records, sequence gaps, changed records, state-root mismatch, configuration drift, or an existing writer lock fails closed. Each writer lock carries a random ownership token, and shutdown refuses to remove a lock whose exact ownership bytes changed. The service never creates an empty replacement for initialized state.
 
 ## Matching and authorization
 
@@ -80,7 +82,9 @@ Mutation routes are:
 | `POST /v1/solver-quotes` | `accept-solver-quote` |
 | `POST /v1/solver-quote-cancellations` | `cancel-solver-quote` |
 
-The body is the exact serialized event payload. All unsigned integers wider than a JSON safe integer use canonical unsigned decimal strings. Unknown, missing, duplicate, prototype-sensitive, excessive-depth, excessive-node, and oversized input fails closed.
+The body is the exact serialized ingress payload. Internal journal provenance fields are not accepted from HTTP callers. All unsigned integers wider than a JSON safe integer use canonical unsigned decimal strings. Unknown, missing, duplicate, prototype-sensitive, excessive-depth, excessive-node, and oversized input fails closed.
+
+Mutation responses carry two checkpoints. `receiptCheckpoint` is the immutable journal prefix that accepted the receipt. `checkpoint` is the current head when the response is returned. Exact idempotent replay can therefore recover an accepted receipt after unrelated mutations advance the matcher. Equal-sequence checkpoint tuples must match in full.
 
 Read routes are:
 

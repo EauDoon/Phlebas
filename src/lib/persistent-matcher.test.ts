@@ -120,6 +120,14 @@ function apply(state: PersistentMatcherState, event: PersistentMatcherEvent) {
   return applyPersistentMatcherEvent(state, event, state.sequence + 1n, verifier);
 }
 
+test("request receipt lookup ignores Object prototype names until they are explicitly recorded", () => {
+  let state = createPersistentMatcher(configuration);
+  assert.equal(findRequestReceipt(state, "constructor"), null);
+  assert.equal(findRequestReceipt(state, "toString"), null);
+  state = apply(state, acceptEvent("constructor", intent("constructor", 1, 100n, 5_000n, 0, 90n))).state;
+  assert.equal(findRequestReceipt(state, "constructor")?.requestId, "constructor");
+});
+
 function acceptSolverEvent(requestId: string, quote: SolverQuote, occurredAtSeconds = now): Extract<PersistentMatcherEvent, { kind: "accept-solver-quote" }> {
   return {
     version: 1,
