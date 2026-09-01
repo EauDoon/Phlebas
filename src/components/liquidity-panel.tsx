@@ -434,18 +434,6 @@ export function LiquidityPanel({
           </div>
         )}
 
-        {!gate.canReview && (
-          <p className={styles.gateNotice}>
-            <strong>{gate.heading}</strong>
-            {" "}
-            {gate.message}
-            {" "}
-            <button type="button" className={styles.textButton} onClick={() => { setReview(null); setFeedFocusId("illustrative"); onRetryFeed(); }}>
-              Retry illustrative feed
-            </button>
-          </p>
-        )}
-
         <div className={styles.depositStack}>
           <label className={styles.assetInput}>
             <span>ZEC amount</span>

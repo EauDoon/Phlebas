@@ -4,12 +4,12 @@ import { emptyShareCopy, lpFeedBlockCopy, lpRiskCopy } from "../../src/lib/lp.ts
 test("320px LP empty shares and toxic-flow risk copy", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Burn session shares" }).click();
   await expect(page.getByText(emptyShareCopy("ZEC/USDC"))).toBeVisible();
   await expect(page.getByText(lpRiskCopy())).toBeVisible();
-  await page.getByRole("button", { name: /ZEC\/USDT/ }).click();
-  await expect(page.getByText(emptyShareCopy("ZEC/USDT"))).toBeVisible();
+  await page.getByRole("radio", { name: "ZEC/USDT" }).click();
   await page.getByRole("button", { name: "Burn session shares" }).click();
-  await expect(page.getByText(emptyShareCopy("ZEC/USDT")).first()).toBeVisible();
+  await expect(page.getByText(emptyShareCopy("ZEC/USDT"))).toBeVisible();
 });
 
 test("320px LP unavailable feed disables mint and retries", async ({ page }) => {

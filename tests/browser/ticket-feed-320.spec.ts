@@ -7,7 +7,7 @@ test("320px ticket loading gate disables review and retries", async ({ page }) =
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?feed=loading", { waitUntil: "networkidle" });
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
-  await expect(page.getByText("Loading market data", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status", { name: "Ticket blocked" }).getByText("Loading market data", { exact: true })).toBeVisible();
   await expect(page.getByText(loadingGateCopy(SETTLEMENT_PAIR))).toBeVisible();
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeEnabled();
