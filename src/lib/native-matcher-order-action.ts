@@ -1,24 +1,21 @@
 import type { MarketId } from "./market-data.ts";
-import {
-  NATIVE_ZEC_USDC_MARKET_ID,
-  type NativeZecUsdcMatcherDeploymentState,
-} from "./native-zec-usdc-matcher-manifest.ts";
 
 export const NATIVE_MATCHER_UNAVAILABLE_HEADING = "Native matcher submission unavailable";
 export const NATIVE_MATCHER_DISABLED_COPY = "Native matcher submission is unavailable. The ZEC/USDC deployment manifest is undeployed and submission is disabled. No wallet connection, signature, token approval, or transaction will be requested.";
-export const NATIVE_MATCHER_UNSUPPORTED_MARKET_COPY = "Native matcher submission is unavailable for ZEC/USDT. No exact ZEC/USDT matcher manifest is approved. No wallet connection, signature, token approval, or transaction will be requested.";
+export const NATIVE_MATCHER_USDT_DISABLED_COPY = "Native matcher submission is unavailable. The ZEC/USDT deployment manifest is undeployed and submission is disabled. No wallet connection, signature, token approval, or transaction will be requested.";
+export const NATIVE_MATCHER_MARKET_MISMATCH_COPY = "Native matcher submission is unavailable. The selected market does not match the supplied deployment manifest. No wallet connection, signature, token approval, or transaction will be requested.";
 export const NATIVE_MATCHER_WORKFLOW_UNAVAILABLE_COPY = "Native matcher submission is unavailable in this terminal build. No wallet connection, signature, token approval, or transaction will be requested.";
 export const NATIVE_MATCHER_SELL_UNSUPPORTED_COPY = "Buy intents only. ZEC sell-side submission remains unavailable because no Zcash wallet authorization format is integrated.";
 
 export type NativeMatcherOrderActionState = Readonly<{
-  kind: "manifest-disabled" | "unsupported-market" | "workflow-unavailable";
+  kind: "manifest-disabled" | "manifest-mismatch" | "workflow-unavailable";
   heading: typeof NATIVE_MATCHER_UNAVAILABLE_HEADING;
   message: string;
   sellNotice: typeof NATIVE_MATCHER_SELL_UNSUPPORTED_COPY;
 }>;
 
 export type NativeMatcherOrderReviewInput = Readonly<{
-  marketId: typeof NATIVE_ZEC_USDC_MARKET_ID;
+  marketId: MarketId;
   side: "buy";
   priceTicks: bigint;
   sizeAtoms: bigint;
@@ -39,15 +36,28 @@ export type NativeMatcherOrderWorkflow = Readonly<{
   confirm(review: NativeMatcherOrderReview): Promise<void>;
 }>;
 
+export type NativeMatcherDeploymentState = Readonly<{
+  enabled: boolean;
+  deployed: boolean;
+  submissionEnabled: boolean;
+  manifest: Readonly<{
+    market: Readonly<{ id: MarketId }>;
+  }>;
+}>;
+
+function disabledCopy(marketId: MarketId): string {
+  return marketId === "ZEC/USDT" ? NATIVE_MATCHER_USDT_DISABLED_COPY : NATIVE_MATCHER_DISABLED_COPY;
+}
+
 export function nativeMatcherOrderActionState(
   marketId: MarketId,
-  deployment: NativeZecUsdcMatcherDeploymentState,
+  deployment: NativeMatcherDeploymentState,
 ): NativeMatcherOrderActionState {
-  if (marketId !== NATIVE_ZEC_USDC_MARKET_ID) {
+  if (marketId !== deployment.manifest.market.id) {
     return {
-      kind: "unsupported-market",
+      kind: "manifest-mismatch",
       heading: NATIVE_MATCHER_UNAVAILABLE_HEADING,
-      message: NATIVE_MATCHER_UNSUPPORTED_MARKET_COPY,
+      message: NATIVE_MATCHER_MARKET_MISMATCH_COPY,
       sellNotice: NATIVE_MATCHER_SELL_UNSUPPORTED_COPY,
     };
   }
@@ -57,8 +67,8 @@ export function nativeMatcherOrderActionState(
       kind: "manifest-disabled",
       heading: NATIVE_MATCHER_UNAVAILABLE_HEADING,
       message: deployment.deployed || deployment.submissionEnabled
-        ? "Native matcher submission is unavailable. The ZEC/USDC deployment manifest does not permit submission. No wallet connection, signature, token approval, or transaction will be requested."
-        : NATIVE_MATCHER_DISABLED_COPY,
+        ? `Native matcher submission is unavailable. The ${marketId} deployment manifest does not permit submission. No wallet connection, signature, token approval, or transaction will be requested.`
+        : disabledCopy(marketId),
       sellNotice: NATIVE_MATCHER_SELL_UNSUPPORTED_COPY,
     };
   }

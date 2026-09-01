@@ -4,12 +4,14 @@ import test from "node:test";
 
 import {
   NATIVE_MATCHER_DISABLED_COPY,
+  NATIVE_MATCHER_MARKET_MISMATCH_COPY,
   NATIVE_MATCHER_SELL_UNSUPPORTED_COPY,
   NATIVE_MATCHER_UNAVAILABLE_HEADING,
-  NATIVE_MATCHER_UNSUPPORTED_MARKET_COPY,
+  NATIVE_MATCHER_USDT_DISABLED_COPY,
   nativeMatcherOrderActionState,
 } from "./native-matcher-order-action.ts";
 import { NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT } from "./native-zec-usdc-matcher-manifest.ts";
+import { NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT } from "./native-zec-usdt-matcher-manifest.ts";
 
 test("tracked disabled manifest leaves the native action inert", () => {
   const state = nativeMatcherOrderActionState("ZEC/USDC", NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT);
@@ -23,13 +25,19 @@ test("tracked disabled manifest leaves the native action inert", () => {
   assert.match(state.message, /No wallet connection, signature, token approval, or transaction will be requested\./);
 });
 
-test("ZEC/USDT is explicitly unavailable without a matcher manifest", () => {
-  const state = nativeMatcherOrderActionState("ZEC/USDT", NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT);
+test("tracked USDT manifest leaves the ZEC/USDT action inert", () => {
+  const state = nativeMatcherOrderActionState("ZEC/USDT", NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT);
 
-  assert.equal(state.kind, "unsupported-market");
+  assert.equal(state.kind, "manifest-disabled");
   assert.equal(state.heading, NATIVE_MATCHER_UNAVAILABLE_HEADING);
-  assert.equal(state.message, NATIVE_MATCHER_UNSUPPORTED_MARKET_COPY);
+  assert.equal(state.message, NATIVE_MATCHER_USDT_DISABLED_COPY);
   assert.equal(state.sellNotice, NATIVE_MATCHER_SELL_UNSUPPORTED_COPY);
+});
+
+test("a deployment manifest cannot be reused for the other market", () => {
+  const state = nativeMatcherOrderActionState("ZEC/USDT", NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT);
+  assert.equal(state.kind, "manifest-mismatch");
+  assert.equal(state.message, NATIVE_MATCHER_MARKET_MISMATCH_COPY);
 });
 
 test("disabled native copy keeps the sell-side authorization boundary explicit", () => {

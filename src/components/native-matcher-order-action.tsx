@@ -3,15 +3,15 @@
 import type { MarketId } from "@/lib/market-data";
 import {
   nativeMatcherOrderActionState,
+  type NativeMatcherDeploymentState,
   type NativeMatcherOrderWorkflow,
 } from "@/lib/native-matcher-order-action";
-import type { NativeZecUsdcMatcherDeploymentState } from "@/lib/native-zec-usdc-matcher-manifest";
 
 import styles from "./terminal.module.css";
 
 export type NativeMatcherOrderActionProps = Readonly<{
   marketId: MarketId;
-  deployment: NativeZecUsdcMatcherDeploymentState;
+  deployment: NativeMatcherDeploymentState;
   workflow?: NativeMatcherOrderWorkflow;
 }>;
 

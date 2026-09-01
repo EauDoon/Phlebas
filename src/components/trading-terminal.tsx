@@ -30,6 +30,7 @@ import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
 import { MARKET_ID_LABELS, MARKET_IDS, nextMarketId } from "@/lib/market-ids";
 import { NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT } from "@/lib/native-zec-usdc-matcher-manifest";
+import { NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT } from "@/lib/native-zec-usdt-matcher-manifest";
 import {
   FEED_STATUS_LABELS,
   FEED_STATUSES,
@@ -737,7 +738,9 @@ export function TradingTerminal({
 
               <NativeMatcherOrderAction
                 marketId={marketId}
-                deployment={NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT}
+                deployment={marketId === "ZEC/USDT"
+                  ? NATIVE_ZEC_USDT_MATCHER_DEPLOYMENT
+                  : NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT}
               />
 
               <section id="recent-trades" tabIndex={-1} className={`${styles.panel} ${styles.tradesPanel}`} aria-labelledby="recent-trades-title">
