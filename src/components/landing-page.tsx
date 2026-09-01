@@ -16,6 +16,8 @@ import { LANDING_GATE_STATUS, LANDING_MAINNET_GATES } from "@/lib/landing-gates"
 import { LandingHeader } from "./landing-header";
 import { LandingJourneys } from "./landing-journeys";
 import { LandingTerminalPreview } from "./landing-terminal-preview";
+import { PreviewChip } from "./preview-chip";
+import { SiteFooter } from "./site-footer";
 import styles from "./landing.module.css";
 
 export function LandingPage() {
@@ -26,10 +28,7 @@ export function LandingPage() {
           <a className={styles.skipLink} href={link.href} key={link.href} onClick={activateSkipLink}>{link.label}</a>
         ))}
       </nav>
-      <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
-        <strong>Simulation only</strong>
-        <span>No-value simulation. Optional Sepolia wallet and local testnet services stay off until started. No mainnet funds.</span>
-      </div>
+      <PreviewChip />
       <LandingHeader />
 
       <main id="main-content" tabIndex={-1}>
@@ -183,17 +182,7 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className={styles.footer}>
-        <div className={styles.brand}><span className={styles.brandMark}>P</span><span>PHLEBAS</span></div>
-        <p>Phlebas is a protocol preview, not a live exchange or an offer of financial services.</p>
-        <nav aria-label="Footer">
-          <Link href="/trade?view=architecture">Architecture</Link>
-          <Link href="/legal">Legal and compliance</Link>
-          <a href="#launch-gates">Launch gates</a>
-          <Link href="/security">Security</Link>
-          <Link href="/status">Status</Link>
-        </nav>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

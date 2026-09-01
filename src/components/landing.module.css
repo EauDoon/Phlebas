@@ -212,6 +212,23 @@ a.skipLink:focus-visible {
   padding: 0 16px;
 }
 
+.headerSecondary {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 570;
+  white-space: nowrap;
+}
+
+.headerSecondary:hover {
+  color: var(--text);
+}
+
 .menuButton {
   display: none;
   min-width: 44px;
@@ -945,7 +962,8 @@ a.skipLink:focus-visible {
     text-align: left;
   }
 
-  .previewStatus {
+  .previewStatus,
+  .headerSecondary {
     display: none;
   }
 
@@ -1022,6 +1040,7 @@ a.skipLink:focus-visible {
 
   .desktopNav,
   .headerCta,
+  .headerSecondary,
   .previewStatus {
     display: none;
   }

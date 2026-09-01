@@ -8,7 +8,7 @@ import { isEducationForceQuery } from "@/lib/preview-education";
 import { parseTerminalModeQuery } from "@/lib/terminal-mode";
 
 export const metadata: Metadata = {
-  title: "Liquidity simulation",
+  title: "Liquidity",
   description: "Explore the no-value Phlebas ZEC liquidity simulation.",
 };
 

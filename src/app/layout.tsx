@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 const DESCRIPTION =
-  "No-value simulation and non-custodial protocol plan for native transparent ZEC against USDC and USDT. Legacy pZEC surfaces are simulation only. Not an exchange or an offer of financial services.";
+  "Public preview of a non-custodial protocol plan for native transparent ZEC against USDC and USDT. Illustrative data. No mainnet funds. Not an exchange or an offer of financial services.";
 
 export const metadata: Metadata = {
   title: {

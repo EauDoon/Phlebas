@@ -6,13 +6,12 @@ import { useRef, type MouseEvent } from "react";
 import styles from "./landing.module.css";
 
 const navigation = [
-  { href: "#terminal-preview", label: "Markets" },
-  { href: "#journeys", label: "Liquidity" },
-  { href: "#pairs", label: "Native settlement" },
-  { href: "/trade?view=architecture", label: "Architecture" },
-  { href: "#launch-gates", label: "Launch gates" },
+  { href: "#markets", label: "Markets" },
+  { href: "/trade?view=trade", label: "Terminal" },
+  { href: "/liquidity", label: "Liquidity" },
+  { href: "/trade?view=architecture", label: "Docs" },
   { href: "/status", label: "Status" },
-];
+] as const;
 
 export function LandingHeader() {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -45,12 +44,16 @@ export function LandingHeader() {
       </Link>
 
       <nav className={styles.desktopNav} aria-label="Landing navigation">
-        {navigation.map((item) => <a href={item.href} key={item.href}>{item.label}</a>)}
+        {navigation.map((item) => (
+          item.href.startsWith("#")
+            ? <a href={item.href} key={item.href}>{item.label}</a>
+            : <Link href={item.href} key={item.href}>{item.label}</Link>
+        ))}
       </nav>
 
       <div className={styles.headerActions}>
-        <span className={styles.previewStatus}><i />No-value preview</span>
-        <Link href="/trade?view=trade" className={styles.headerCta}>Enter simulation</Link>
+        <Link href="/trade?view=settlement" className={styles.headerSecondary}>How settlement works</Link>
+        <Link href="/trade?view=trade" className={styles.headerCta}>Open terminal</Link>
         <button type="button" className={styles.menuButton} onClick={openMenu}>Menu</button>
       </div>
 
@@ -61,9 +64,20 @@ export function LandingHeader() {
         </div>
         <nav aria-label="Mobile landing navigation">
           {navigation.map((item) => (
-            <a href={item.href} key={item.href} onClick={(event) => followHash(event, item.href)}>{item.label}</a>
+            item.href.startsWith("#")
+              ? (
+                <a href={item.href} key={item.href} onClick={(event) => followHash(event, item.href)}>
+                  {item.label}
+                </a>
+              )
+              : (
+                <Link href={item.href} key={item.href} onClick={closeMenu}>
+                  {item.label}
+                </Link>
+              )
           ))}
-          <Link href="/trade?view=trade" onClick={closeMenu}>Enter simulation</Link>
+          <Link href="/trade?view=settlement" onClick={closeMenu}>How settlement works</Link>
+          <Link href="/trade?view=trade" onClick={closeMenu}>Open terminal</Link>
         </nav>
       </dialog>
     </header>

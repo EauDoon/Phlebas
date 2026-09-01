@@ -132,12 +132,21 @@ test("status page links to legal and security without a live-funds claim", async
 test("landing and terminal banners stay simulation-only", async () => {
   const landing = await readFile(join(root, "src/components/landing-page.tsx"), "utf8");
   const terminal = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");
-  assert.match(landing, /Simulation only/);
-  assert.match(landing, /Simulation disclosure/);
+  const chip = await readFile(join(root, "src/lib/preview-chip.ts"), "utf8");
+  assert.match(chip, /Public preview · illustrative data · no mainnet funds/);
+  assert.match(landing, /PreviewChip/);
+  assert.doesNotMatch(landing, /Simulation only/);
+  assert.doesNotMatch(landing, /Simulation disclosure/);
   assert.match(terminal, /Simulation disclosure/);
-  assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Simulation disclosure/);
-  assert.match(await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8"), /Simulation disclosure/);
-  assert.match(landing, /No mainnet funds/);
+  assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /PreviewChip/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Simulation disclosure/);
+  assert.match(await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8"), /PreviewChip/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8"), /Simulation disclosure/);
+  assert.match(chip, /no mainnet funds/);
+  assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Phlebas is not a live exchange and not an offer of financial services/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /GitHub/);
+  assert.doesNotMatch(await readFile(join(root, "src/app/trade/page.tsx"), "utf8"), /Trading simulation/);
+  assert.doesNotMatch(await readFile(join(root, "src/app/liquidity/page.tsx"), "utf8"), /Liquidity simulation/);
   assert.match(landing, /Deny by default/);
   assert.match(landing, /no-value simulation/);
   assert.match(landing, /not a live exchange and not a shielded market/);
@@ -305,7 +314,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/order-book.tsx"), "utf8"), /id="order-book"/);
   assert.match(terminal, /id="recent-trades"/);
   assert.match(terminal, /Launch gates/);
-  assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Launch gates/);
+  assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Launch gates/);
+  assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /SiteFooter/);
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /Skip to status ledger/);
   const terminalCss = await readFile(join(root, "src/components/terminal.module.css"), "utf8");
   assert.match(terminalCss, /:global\(#main-content\)/);
@@ -489,7 +499,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/preview-education.tsx"), "utf8"), /Education, not consent/);
   assert.match(landing, /Open status details/);
   assert.match(landing, /aria-label="Current system"/);
-  assert.match(landing, /Legal and compliance/);
+  assert.match(landing, /SiteFooter/);
+  assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /label: "Legal"/);
   assert.match(landing, /Choose what to inspect/);
   assert.match(landing, /A working preview, bounded on purpose/);
   assert.match(landing, /What exists today/);
@@ -740,9 +751,12 @@ test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", asy
 
 test("Open Graph and Twitter cards stay labeled as a simulation", async () => {
   const layout = await readFile(join(root, "src/app/layout.tsx"), "utf8");
-  assert.match(layout, /No-value simulation and non-custodial protocol plan/);
+  assert.match(layout, /Public preview of a non-custodial protocol plan/);
+  assert.match(layout, /Illustrative data/);
+  assert.match(layout, /No mainnet funds/);
   assert.match(layout, /openGraph:/);
   assert.match(layout, /twitter:/);
+  assert.match(layout, /index: false/);
   assert.doesNotMatch(layout, /is a live exchange/);
   assert.doesNotMatch(layout, /payable|shielded|native-ZEC/);
 });

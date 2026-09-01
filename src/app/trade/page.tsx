@@ -13,7 +13,6 @@ import { isTerminalView } from "@/lib/terminal-views";
 import { isIncidentDemoQuery } from "@/lib/gateway-incidents";
 
 export const metadata: Metadata = {
-  title: "Trading simulation",
   description: "Explore the no-value Phlebas ZEC order book, native settlement walkthrough, and legacy liquidity simulation.",
 };
 

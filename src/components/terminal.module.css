@@ -380,10 +380,23 @@ a.skipLink:focus-visible {
   font-weight: 730;
 }
 
-.connectButton {
+.connectButton,
+.headerCta {
   min-width: 44px;
   min-height: 44px;
   padding: 0 15px;
+}
+
+.headerCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(45, 212, 191, 0.46);
+  border-radius: 7px;
+  color: var(--accent-fg);
+  background: var(--accent);
+  font-size: 12px;
+  font-weight: 730;
 }
 
 .connectButton:disabled,
@@ -2498,7 +2511,9 @@ a.skipLink:focus-visible {
 
   .brand,
   .nav button,
+  .nav a,
   .connectButton,
+  .headerCta,
   .marketSelectorWrap select,
   .selectorTabs button,
   .rangeTabs button,
