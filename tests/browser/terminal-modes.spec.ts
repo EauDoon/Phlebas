@@ -90,6 +90,28 @@ test("advanced click persists and simple query overrides", async ({ page }) => {
   await expect(page.locator("#order-book")).toBeHidden();
 });
 
+test("terminal mode radios support roving focus and arrow navigation", async ({ page }) => {
+  await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
+  const simple = page.getByRole("radio", { name: "Simple" });
+  const advanced = page.getByRole("radio", { name: "Advanced" });
+
+  await expect(simple).toHaveAttribute("tabindex", "0");
+  await expect(advanced).toHaveAttribute("tabindex", "-1");
+  await simple.focus();
+  await simple.press("End");
+  await expect(advanced).toBeFocused();
+  await expect(advanced).toHaveAttribute("aria-checked", "true");
+  await expect(advanced).toHaveAttribute("tabindex", "0");
+
+  await advanced.press("Home");
+  await expect(simple).toBeFocused();
+  await expect(simple).toHaveAttribute("aria-checked", "true");
+
+  await simple.press("ArrowRight");
+  await expect(advanced).toBeFocused();
+  await expect(advanced).toHaveAttribute("aria-checked", "true");
+});
+
 test("primary CTAs on landing trade and liquidity change visible state", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
   await expectHonestSimulation(page);

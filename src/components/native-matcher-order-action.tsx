@@ -37,7 +37,6 @@ export function NativeMatcherOrderAction({
         <span className={styles.statusDot}>Unavailable</span>
       </div>
       <div className={styles.ticketBlocked} role="status" aria-live="polite">
-        <strong>{state.heading}</strong>
         <p>{state.message}</p>
         <p>{state.sellNotice}</p>
       </div>

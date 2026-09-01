@@ -794,7 +794,12 @@ a.skipLink:focus-visible {
 
 .nativeMatcherPanel {
   grid-area: matcher;
-  padding-bottom: 14px;
+  padding-bottom: 0;
+}
+
+.nativeMatcherPanel .panelHeader {
+  min-height: 44px;
+  padding: 8px 12px;
 }
 
 .nativeMatcherPanel .ticketBlocked {
@@ -804,8 +809,9 @@ a.skipLink:focus-visible {
 }
 
 .nativeMatcherPanel .ticketBlocked p {
-  margin: 4px 0;
-  line-height: 1.35;
+  margin: 2px 0;
+  font-size: 11px;
+  line-height: 1.25;
 }
 
 .simpleTradeGrid {
