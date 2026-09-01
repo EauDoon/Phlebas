@@ -62,3 +62,20 @@ The secret scanner reads tracked bytes from `git ls-files`; it does not enumerat
 - Obtain separate authorization before any Testnet value movement, contract deployment, funded address, RPC credential, push, PR merge, Vercel deployment, or mainnet activation.
 
 Until those gates close, all public copy and actions must remain truthful about the no-value preview boundary.
+
+## Done this batch (PR 9 — skip-nav wrap)
+
+- Focused skip-nav wraps skip links at sub-820px so the nav stays a short row
+- Focused skip-nav stays hidden after a skip link is activated, including on a re-tab until Escape
+- Skip-nav state machine (src/lib/skip-nav-state.ts) is a pure function over a state record; the controller in src/components/simulation-frame.tsx is a thin DOM adapter
+- Skip-nav class helper (src/lib/skip-nav-restore.ts) maps the state to the existing class string
+- ADR 0010 captures the design and the trade-offs
+- Playwright asserts the data-skip-nav-state attribute cycles through hidden, visible, and hidden-after-activation on click, focusin (via a child skip link, since the <nav> is not focusable by default), and Escape
+- Threat model section 24 covers the skip-nav activation and the 320px wrap
+- Stack base is origin/main at 944c8b6 after the rebase absorbed the duplicate CSS, the duplicate Playwright tests, and the inline data-skip-nav-state controller from upstream while keeping the new state machine, the class helper, the per-attribute unit tests, the runbook addendum, and the threat-model section
+- Collateral: dropped the dead #pzec fallback in src/components/landing-page.tsx (the typecheck error was reachable on origin/main even though the branch was unreachable at runtime)
+- 1058 node tests pass, 507-file secret-pattern scan clean, production build clean locally; Playwright browser tests will run on CI
+
+## Branch
+
+eat/skip-nav-wrap off current main at 944c8b6. PR body: stacks on current main, no key or token touched.
