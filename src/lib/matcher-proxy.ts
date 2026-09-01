@@ -19,6 +19,7 @@ const EPOCH_RECEIPT_STATUSES = new Set(["epoch-advanced"]);
 const MATCHER_REQUEST_BYTES = 64 * 1024;
 const MAXIMUM_JSON_DEPTH = 32;
 const MAXIMUM_JSON_NODES = 10_000;
+const MAXIMUM_RECOVERY_PAGE_SIZE = 100;
 
 const MUTATION_ACTIONS = {
   "accept-order": { endpoint: "/v1/orders", receiptStatuses: ORDER_RECEIPT_STATUSES },
@@ -287,6 +288,106 @@ function safeCheckpoint(value: unknown): JsonRecord | null {
   };
 }
 
+function strictCheckpoint(value: StrictJsonValue | undefined): JsonRecord | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+  const checkpoint = value as StrictJsonRecord;
+  return exactKeys(checkpoint, ["version", "sequence", "recordHash", "stateRoot", "configurationHash"])
+    ? safeCheckpoint(checkpoint)
+    : null;
+}
+
+function validRecoveryChallengeBody(body: string): StrictJsonRecord | null {
+  const value = strictJsonRecord(body);
+  if (!value || !exactKeys(value, ["version", "makerAccountId", "afterSequence", "limit"])
+    || value.version !== 1
+    || typeof value.makerAccountId !== "string" || !HEX32.test(value.makerAccountId)
+    || typeof value.afterSequence !== "string" || !DECIMAL.test(value.afterSequence)
+    || typeof value.limit !== "number" || !Number.isSafeInteger(value.limit)
+    || value.limit <= 0 || value.limit > MAXIMUM_RECOVERY_PAGE_SIZE) {
+    return null;
+  }
+  return value;
+}
+
+const RECOVERY_PROOF_FIELDS = [
+  "version", "makerAccountId", "configurationHash", "checkpointSequence",
+  "checkpointRecordHash", "checkpointStateRoot", "afterSequence", "limit",
+  "challenge", "expiresAtSeconds", "signature",
+] as const;
+
+function validRecoveryProofBody(body: string): StrictJsonRecord | null {
+  const value = strictJsonRecord(body);
+  if (!value || !exactKeys(value, RECOVERY_PROOF_FIELDS)
+    || value.version !== 1
+    || typeof value.makerAccountId !== "string" || !HEX32.test(value.makerAccountId)
+    || typeof value.configurationHash !== "string" || !HEX32.test(value.configurationHash)
+    || typeof value.checkpointSequence !== "string" || !DECIMAL.test(value.checkpointSequence)
+    || typeof value.checkpointRecordHash !== "string" || !HEX32.test(value.checkpointRecordHash)
+    || typeof value.checkpointStateRoot !== "string" || !HEX32.test(value.checkpointStateRoot)
+    || typeof value.afterSequence !== "string" || !DECIMAL.test(value.afterSequence)
+    || typeof value.limit !== "number" || !Number.isSafeInteger(value.limit)
+    || value.limit <= 0 || value.limit > MAXIMUM_RECOVERY_PAGE_SIZE
+    || typeof value.challenge !== "string" || !HEX32.test(value.challenge)
+    || typeof value.expiresAtSeconds !== "string" || !DECIMAL.test(value.expiresAtSeconds)
+    || typeof value.signature !== "string" || !/^0x[0-9a-f]{130}$/.test(value.signature)) {
+    return null;
+  }
+  return value;
+}
+
+function safeRecoveryOrder(
+  input: StrictJsonValue,
+  makerAccountId: string,
+  accountEpoch: string,
+  afterSequence: bigint,
+  checkpointSequence: bigint,
+): JsonRecord | null {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) return null;
+  const order = input as StrictJsonRecord;
+  if (!exactKeys(order, [
+    "version", "orderHash", "acceptedSequence", "makerAccountId", "authorizedSignerId",
+    "accountEpoch", "nonce", "currentStatus", "baseAmountAtoms", "remainingBaseAtoms",
+    "limitPriceTicks", "expiry",
+  ])
+    || order.version !== 1
+    || typeof order.orderHash !== "string" || !HEX32.test(order.orderHash)
+    || typeof order.acceptedSequence !== "string" || !DECIMAL.test(order.acceptedSequence)
+    || order.makerAccountId !== makerAccountId || order.authorizedSignerId !== makerAccountId
+    || order.accountEpoch !== accountEpoch
+    || typeof order.nonce !== "string" || !DECIMAL.test(order.nonce)
+    || (order.currentStatus !== "open" && order.currentStatus !== "partially-filled")
+    || typeof order.baseAmountAtoms !== "string" || !DECIMAL.test(order.baseAmountAtoms)
+    || typeof order.remainingBaseAtoms !== "string" || !DECIMAL.test(order.remainingBaseAtoms)
+    || typeof order.limitPriceTicks !== "string" || !DECIMAL.test(order.limitPriceTicks)
+    || typeof order.expiry !== "string" || !DECIMAL.test(order.expiry)) {
+    return null;
+  }
+  const sequence = BigInt(order.acceptedSequence);
+  const baseAmount = BigInt(order.baseAmountAtoms);
+  const remaining = BigInt(order.remainingBaseAtoms);
+  if (sequence <= afterSequence || sequence > checkpointSequence
+    || baseAmount <= 0n || remaining <= 0n || remaining > baseAmount
+    || BigInt(order.limitPriceTicks) <= 0n
+    || (order.currentStatus === "open" && remaining !== baseAmount)
+    || (order.currentStatus === "partially-filled" && remaining >= baseAmount)) {
+    return null;
+  }
+  return {
+    version: 1,
+    orderHash: order.orderHash,
+    acceptedSequence: order.acceptedSequence,
+    makerAccountId,
+    authorizedSignerId: makerAccountId,
+    accountEpoch,
+    nonce: order.nonce,
+    currentStatus: order.currentStatus,
+    baseAmountAtoms: order.baseAmountAtoms,
+    remainingBaseAtoms: order.remainingBaseAtoms,
+    limitPriceTicks: order.limitPriceTicks,
+    expiry: order.expiry,
+  };
+}
+
 function unavailable() {
   return operatorUnavailable("matcher-unavailable", { matcher: "in-browser" });
 }
@@ -439,6 +540,159 @@ export async function matcherAccountProxy(
     accountEpoch: account.accountEpoch,
     sequence: account.sequence,
     checkpoint,
+  });
+}
+
+function recoveryRejected(status: number): Response {
+  if ([400, 401, 409, 413, 415, 422, 429].includes(status)) {
+    return noStoreJson({ ok: false, reason: "matcher-recovery-rejected" }, status);
+  }
+  return unavailable();
+}
+
+async function recoveryRequestBody(request: Request): Promise<string | Response> {
+  if (request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
+    return noStoreJson({ ok: false, reason: "content-type-must-be-application-json" }, 415);
+  }
+  const body = await readBoundedRequestBody(request);
+  return body === null
+    ? noStoreJson({ ok: false, reason: "request-body-too-large" }, 413)
+    : body;
+}
+
+export async function matcherRecoveryChallengeProxy(
+  request: Request,
+  env: Record<string, string | undefined> = process.env,
+  deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+) {
+  if (!deployment.enabled || deployment.expectedMatcher === null) return unavailable();
+  const baseUrl = matcherUrl(env);
+  if (!baseUrl) return unavailable();
+  const bodyOrResponse = await recoveryRequestBody(request);
+  if (bodyOrResponse instanceof Response) return bodyOrResponse;
+  const submitted = validRecoveryChallengeBody(bodyOrResponse);
+  if (!submitted) return noStoreJson({ ok: false, reason: "matcher-recovery-body-invalid" }, 400);
+  if (!await approvedMutationRuntime(baseUrl, deployment)) return unavailable();
+  const upstream = await fetchLoopbackOperator(new URL("/v1/account-order-challenges", baseUrl), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      [MATCHER_CONFIGURATION_HEADER]: deployment.expectedMatcher.configurationHash,
+    },
+    body: bodyOrResponse,
+  });
+  if (!upstream) return unavailable();
+  if (upstream.status !== 200) return recoveryRejected(upstream.status);
+  const result = strictJsonRecord(upstream.body);
+  if (!result || !exactKeys(result, [
+    "ok", "makerAccountId", "configurationHash", "checkpoint", "afterSequence",
+    "limit", "challenge", "issuedAtSeconds", "expiresAtSeconds",
+  ])) return unavailable();
+  const checkpoint = strictCheckpoint(result.checkpoint);
+  if (result.ok !== true
+    || result.makerAccountId !== submitted.makerAccountId
+    || result.configurationHash !== deployment.expectedMatcher.configurationHash
+    || !checkpoint || checkpoint.configurationHash !== deployment.expectedMatcher.configurationHash
+    || result.afterSequence !== submitted.afterSequence
+    || result.limit !== submitted.limit
+    || typeof result.challenge !== "string" || !HEX32.test(result.challenge)
+    || typeof result.issuedAtSeconds !== "string" || !DECIMAL.test(result.issuedAtSeconds)
+    || typeof result.expiresAtSeconds !== "string" || !DECIMAL.test(result.expiresAtSeconds)
+    || BigInt(result.expiresAtSeconds) <= BigInt(result.issuedAtSeconds)
+    || BigInt(result.expiresAtSeconds) - BigInt(result.issuedAtSeconds) > 300n) {
+    return unavailable();
+  }
+  return noStoreJson({
+    ok: true,
+    makerAccountId: result.makerAccountId,
+    configurationHash: result.configurationHash,
+    checkpoint,
+    afterSequence: result.afterSequence,
+    limit: result.limit,
+    challenge: result.challenge,
+    issuedAtSeconds: result.issuedAtSeconds,
+    expiresAtSeconds: result.expiresAtSeconds,
+  });
+}
+
+export async function matcherRecoveryOrdersProxy(
+  request: Request,
+  env: Record<string, string | undefined> = process.env,
+  deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+) {
+  if (!deployment.enabled || deployment.expectedMatcher === null) return unavailable();
+  const baseUrl = matcherUrl(env);
+  if (!baseUrl) return unavailable();
+  const bodyOrResponse = await recoveryRequestBody(request);
+  if (bodyOrResponse instanceof Response) return bodyOrResponse;
+  const submitted = validRecoveryProofBody(bodyOrResponse);
+  if (!submitted || submitted.configurationHash !== deployment.expectedMatcher.configurationHash) {
+    return noStoreJson({ ok: false, reason: "matcher-recovery-body-invalid" }, 400);
+  }
+  if (!await approvedMutationRuntime(baseUrl, deployment)) return unavailable();
+  const upstream = await fetchLoopbackOperator(new URL("/v1/account-open-orders", baseUrl), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      [MATCHER_CONFIGURATION_HEADER]: deployment.expectedMatcher.configurationHash,
+    },
+    body: bodyOrResponse,
+  });
+  if (!upstream) return unavailable();
+  if (upstream.status !== 200) return recoveryRejected(upstream.status);
+  const result = strictJsonRecord(upstream.body);
+  if (!result || !exactKeys(result, [
+    "ok", "makerAccountId", "configurationHash", "accountEpoch", "afterSequence",
+    "nextAfter", "hasMore", "checkpoint", "orders",
+  ])) return unavailable();
+  const checkpoint = strictCheckpoint(result.checkpoint);
+  if (result.ok !== true
+    || result.makerAccountId !== submitted.makerAccountId
+    || result.configurationHash !== deployment.expectedMatcher.configurationHash
+    || typeof result.accountEpoch !== "string" || !DECIMAL.test(result.accountEpoch)
+    || result.afterSequence !== submitted.afterSequence
+    || typeof result.nextAfter !== "string" || !DECIMAL.test(result.nextAfter)
+    || typeof result.hasMore !== "boolean"
+    || !checkpoint
+    || checkpoint.configurationHash !== deployment.expectedMatcher.configurationHash
+    || checkpoint.sequence !== submitted.checkpointSequence
+    || checkpoint.recordHash !== submitted.checkpointRecordHash
+    || checkpoint.stateRoot !== submitted.checkpointStateRoot
+    || !Array.isArray(result.orders)
+    || result.orders.length > Number(submitted.limit)) {
+    return unavailable();
+  }
+  const afterSequence = BigInt(submitted.afterSequence as string);
+  const checkpointSequence = BigInt(submitted.checkpointSequence as string);
+  const orders: JsonRecord[] = [];
+  const hashes = new Set<string>();
+  const nonces = new Set<string>();
+  let priorSequence = afterSequence;
+  for (const input of result.orders) {
+    const order = safeRecoveryOrder(input, result.makerAccountId as string, result.accountEpoch, afterSequence, checkpointSequence);
+    if (!order || hashes.has(order.orderHash as string) || nonces.has(order.nonce as string)
+      || BigInt(order.acceptedSequence as string) <= priorSequence) return unavailable();
+    hashes.add(order.orderHash as string);
+    nonces.add(order.nonce as string);
+    priorSequence = BigInt(order.acceptedSequence as string);
+    orders.push(order);
+  }
+  const nextAfter = BigInt(result.nextAfter);
+  if (nextAfter !== (orders.length > 0 ? priorSequence : afterSequence)
+    || nextAfter > checkpointSequence
+    || (result.hasMore && orders.length !== Number(submitted.limit))) {
+    return unavailable();
+  }
+  return noStoreJson({
+    ok: true,
+    makerAccountId: result.makerAccountId,
+    configurationHash: result.configurationHash,
+    accountEpoch: result.accountEpoch,
+    afterSequence: result.afterSequence,
+    nextAfter: result.nextAfter,
+    hasMore: result.hasMore,
+    checkpoint,
+    orders,
   });
 }
 

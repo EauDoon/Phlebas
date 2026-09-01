@@ -7,6 +7,8 @@ import {
   matcherMutationAction,
   matcherMutationProxy,
   matcherOrderProxy,
+  matcherRecoveryChallengeProxy,
+  matcherRecoveryOrdersProxy,
   type MatcherIngressDeployment,
 } from "./matcher-proxy.ts";
 import { MATCHER_CONFIGURATION_HEADER } from "./matcher-http.ts";
@@ -130,6 +132,16 @@ test("matcher reads stay fail-closed before upstream fetch while the deployment 
 
   assert.equal((await matcherHealthProxy()).status, 503);
   assert.equal((await matcherAccountProxy(MAKER_ACCOUNT_ID)).status, 503);
+  assert.equal((await matcherRecoveryChallengeProxy(new Request("http://localhost/api/matcher/recovery/challenge", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  }))).status, 503);
+  assert.equal((await matcherRecoveryOrdersProxy(new Request("http://localhost/api/matcher/recovery/orders", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  }))).status, 503);
   assert.equal(calls, 0);
 });
 
@@ -286,6 +298,155 @@ test("matcher GET rejects malformed private health and exposes a strict account 
   const malformed = await matcherHealthProxy(process.env, enabledDeployment);
   assert.equal(malformed.status, 503);
   assert.deepEqual(await malformed.json(), { ok: false, reason: "matcher-unavailable", matcher: "in-browser" });
+});
+
+test("matcher recovery proxies exact no-store challenge and signature-free order views", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
+  const challengeValue = `0x${"66".repeat(32)}`;
+  const maker = MAKER_ACCOUNT_ID;
+  const challengeRequest = {
+    version: 1,
+    makerAccountId: maker,
+    afterSequence: "0",
+    limit: 10,
+  };
+  const requested: Array<{ path: string; init: RequestInit | undefined }> = [];
+  globalThis.fetch = (async (input, init) => {
+    const path = (input as URL).pathname;
+    requested.push({ path, init });
+    if (path === "/health") return new Response(healthBody, { status: 200 });
+    if (path === "/v1/account-order-challenges") return new Response(JSON.stringify({
+      ok: true,
+      makerAccountId: maker,
+      configurationHash: CONFIGURATION_HASH,
+      checkpoint,
+      afterSequence: "0",
+      limit: 10,
+      challenge: challengeValue,
+      issuedAtSeconds: "1800000000",
+      expiresAtSeconds: "1800000060",
+    }), { status: 200 });
+    return new Response(JSON.stringify({
+      ok: true,
+      makerAccountId: maker,
+      configurationHash: CONFIGURATION_HASH,
+      accountEpoch: "0",
+      afterSequence: "0",
+      nextAfter: "1",
+      hasMore: false,
+      checkpoint,
+      orders: [{
+        version: 1,
+        orderHash: SUBJECT_HASH,
+        acceptedSequence: "1",
+        makerAccountId: maker,
+        authorizedSignerId: maker,
+        accountEpoch: "0",
+        nonce: "7",
+        currentStatus: "open",
+        baseAmountAtoms: "100000000",
+        remainingBaseAtoms: "100000000",
+        limitPriceTicks: "650000",
+        expiry: "1800000600",
+      }],
+    }), { status: 200 });
+  }) as typeof fetch;
+
+  const challenge = await matcherRecoveryChallengeProxy(new Request("http://localhost/api/matcher/recovery/challenge", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(challengeRequest),
+  }), process.env, enabledDeployment);
+  assert.equal(challenge.status, 200);
+  assert.equal(challenge.headers.get("cache-control"), "no-store");
+  assert.equal(requested.at(-1)?.path, "/v1/account-order-challenges");
+  assert.equal(new Headers(requested.at(-1)?.init?.headers).get(MATCHER_CONFIGURATION_HEADER), CONFIGURATION_HASH);
+  const challengeBody = await challenge.json() as Record<string, unknown>;
+  assert.deepEqual(challengeBody, {
+    ok: true,
+    makerAccountId: maker,
+    configurationHash: CONFIGURATION_HASH,
+    checkpoint,
+    afterSequence: "0",
+    limit: 10,
+    challenge: challengeValue,
+    issuedAtSeconds: "1800000000",
+    expiresAtSeconds: "1800000060",
+  });
+
+  const proof = {
+    version: 1,
+    makerAccountId: maker,
+    configurationHash: CONFIGURATION_HASH,
+    checkpointSequence: "1",
+    checkpointRecordHash: RECORD_HASH,
+    checkpointStateRoot: STATE_ROOT,
+    afterSequence: "0",
+    limit: 10,
+    challenge: challengeValue,
+    expiresAtSeconds: "1800000060",
+    signature: `0x${"77".repeat(65)}`,
+  };
+  const recovery = await matcherRecoveryOrdersProxy(new Request("http://localhost/api/matcher/recovery/orders", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(proof),
+  }), process.env, enabledDeployment);
+  assert.equal(recovery.status, 200);
+  assert.equal(requested.at(-1)?.path, "/v1/account-open-orders");
+  const recoveryBody = await recovery.json() as Record<string, unknown>;
+  assert.equal(JSON.stringify(recoveryBody).includes("signature"), false);
+  assert.equal((recoveryBody.orders as unknown[]).length, 1);
+});
+
+test("matcher recovery rejects malformed or widened upstream order views", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
+  globalThis.fetch = (async (input) => {
+    if ((input as URL).pathname === "/health") return new Response(healthBody, { status: 200 });
+    return new Response(JSON.stringify({
+      ok: true,
+      makerAccountId: MAKER_ACCOUNT_ID,
+      configurationHash: CONFIGURATION_HASH,
+      accountEpoch: "0",
+      afterSequence: "0",
+      nextAfter: "1",
+      hasMore: false,
+      checkpoint,
+      orders: [{
+        version: 1,
+        orderHash: SUBJECT_HASH,
+        acceptedSequence: "1",
+        makerAccountId: MAKER_ACCOUNT_ID,
+        authorizedSignerId: MAKER_ACCOUNT_ID,
+        accountEpoch: "0",
+        nonce: "7",
+        currentStatus: "open",
+        baseAmountAtoms: "100",
+        remainingBaseAtoms: "100",
+        limitPriceTicks: "1",
+        expiry: "1800000600",
+        signature: "must-not-cross",
+      }],
+    }), { status: 200 });
+  }) as typeof fetch;
+  const response = await matcherRecoveryOrdersProxy(new Request("http://localhost/api/matcher/recovery/orders", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      version: 1,
+      makerAccountId: MAKER_ACCOUNT_ID,
+      configurationHash: CONFIGURATION_HASH,
+      checkpointSequence: "1",
+      checkpointRecordHash: RECORD_HASH,
+      checkpointStateRoot: STATE_ROOT,
+      afterSequence: "0",
+      limit: 10,
+      challenge: `0x${"66".repeat(32)}`,
+      expiresAtSeconds: "1800000060",
+      signature: `0x${"77".repeat(65)}`,
+    }),
+  }), process.env, enabledDeployment);
+  assert.equal(response.status, 503);
 });
 
 test("matcher POST rejects invalid transport boundaries before proxying", async () => {
