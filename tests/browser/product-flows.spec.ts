@@ -7,7 +7,7 @@ import { payoutClaimForTourStep } from "../../src/lib/payout.ts";
 import { isEducationLastStep, PREVIEW_EDUCATION_STEPS } from "../../src/lib/preview-education.ts";
 import { describeSubmit, seedBook, ticketRejectCopy } from "../../src/lib/session.ts";
 import { simulationStatus } from "../../src/lib/status.ts";
-import { parseAtomicUnits, PZEC_DECIMALS, PRICE_DECIMALS } from "../../src/lib/units.ts";
+import { parseAtomicUnits, PZEC_DECIMALS, PRICE_DECIMALS, worstPriceTicks } from "../../src/lib/units.ts";
 import { unresolvedWithdrawalTourIndex, WITHDRAWAL_TOUR } from "../../src/lib/withdrawal-tour.ts";
 
 import { expect, test } from "./fixtures";
@@ -45,6 +45,8 @@ test("education last step stays inside 320px with 44px Enter and Back", async ({
   expect((await enter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   expect((await back.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   await expectNoHorizontalOverflow(page);
+  await enter.click();
+  await expect(dialog).toHaveCount(0);
 });
 
 test("deposit tour walks Eligibility through Complete without a receivable address", async ({ page }) => {
@@ -169,4 +171,25 @@ test("GTC remainder can be cancelled, IOC cancels remainder, and FOK rejects a m
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText(describeSubmit(fok, "ZEC/USDC"), { exact: true })).toBeVisible();
   await expect(page.getByText(ticketRejectCopy("Fill-or-kill could not fill in full", "ZEC/USDC"), { exact: true })).toBeVisible();
+});
+
+test("market IOC confirm fills against the fixture book", async ({ page }) => {
+  const book = seedBook("ZEC/USDC");
+  const slippageHundredths = parseAtomicUnits("0.50", PRICE_DECIMALS, { allowZero: true });
+  const market = submitOrder(book, {
+    id: "user-preview",
+    side: "buy",
+    tif: "IOC",
+    priceTicks: worstPriceTicks(book.lastTicks, "buy", slippageHundredths),
+    sizeAtoms: parseAtomicUnits("1", PZEC_DECIMALS),
+  });
+
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Market" }).click();
+  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("button", { name: "Review simulated buy" }).click();
+  await expect(page.getByText("Worst acceptable price")).toBeVisible();
+  await expect(page.getByText("IOC", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm simulated buy" }).click();
+  await expect(page.getByText(describeSubmit(market, "ZEC/USDC"))).toBeVisible();
 });
