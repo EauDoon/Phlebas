@@ -9,6 +9,7 @@ import {
   ORDER_DOMAIN_VERSION,
   createOrderDomain,
   hashOrderDomain,
+  hashTypedOrder,
   type OrderDomain,
   type TypedOrderIntent,
 } from "./eip712-order.ts";
@@ -19,16 +20,18 @@ import {
   verifySignedOrderIntent,
   type MatcherControlAuthorization,
 } from "./matcher-auth.ts";
+import { keccak256Text } from "./keccak.ts";
 import { matcherApiPathForMarket, matcherMarketIdForIdentity } from "./matcher-market-routing.ts";
 import {
   UINT64_MAX,
+  UINT256_MAX,
   assetIdentifier,
   chainIdentifier,
   normalizeAddress,
   normalizeHex32,
   type Hex32,
 } from "./order-domain.ts";
-import { assertOrderPolicy, type OrderPair } from "./order-policy.ts";
+import { assertOrderPolicy, VENUE_CLOB, type OrderPair } from "./order-policy.ts";
 
 export const MATCHER_API_PATH = "/api/matcher" as const;
 export const MATCHER_ORDER_OPERATION = "/v1/orders" as const;
@@ -141,6 +144,7 @@ export type MatcherOrderRequest = Readonly<{
   operation: typeof MATCHER_ORDER_OPERATION;
   requestId: string;
   idempotencyKey: string;
+  commandHash: Hex32;
   identity: VerifiedMatcherIdentity;
   headers: Readonly<{
     "content-type": "application/json";
@@ -221,10 +225,14 @@ export type VerifiedMatcherOrderReceipt = Readonly<{
     version: 1;
     sequence: bigint;
     requestId: string;
+    commandHash: Hex32;
     kind: "accept-order";
     status: "open" | "filled" | "partially-filled" | "ioc-remainder-cancelled" | "fok-rejected" | "unfilled";
     subjectHash: Hex32;
     occurredAtSeconds: bigint;
+    routeKind?: "order-book" | "solver" | "combined";
+    remainingBaseAtoms: bigint;
+    swapPlanIds: readonly Hex32[];
   }>;
   /** The journal prefix that accepted this receipt. */
   receiptCheckpoint: VerifiedMatcherCheckpoint;
@@ -235,7 +243,8 @@ export type VerifiedMatcherOrderReceipt = Readonly<{
 export type MatcherOrderReceiptExpectation = Readonly<{
   expectedMatcher: ExpectedMatcherIdentity;
   requestId: string;
-  subjectHash: Hex32;
+  commandHash: Hex32;
+  order: TypedOrderIntent;
 }>;
 
 export type MatcherControlReceiptExpectation = Readonly<{
@@ -275,6 +284,7 @@ export type VerifiedMatcherControlReceipt = Readonly<{
 type PreparedSubmission = Readonly<{
   identity: VerifiedMatcherIdentity;
   requestId: string;
+  order: TypedOrderIntent;
   payload: MatcherOrderPayload;
 }>;
 
@@ -439,6 +449,15 @@ function canonicalDecimalUint64(value: unknown, label: string): bigint {
   }
   const parsed = BigInt(value);
   if (parsed > UINT64_MAX) throw new RangeError(`${label} must fit uint64`);
+  return parsed;
+}
+
+function canonicalDecimalUint256(value: unknown, label: string): bigint {
+  if (typeof value !== "string" || !/^(?:0|[1-9][0-9]*)$/.test(value)) {
+    throw new TypeError(`${label} must be a canonical decimal string`);
+  }
+  const parsed = BigInt(value);
+  if (parsed > UINT256_MAX) throw new RangeError(`${label} must fit uint256`);
   return parsed;
 }
 
@@ -646,6 +665,29 @@ function canonicalAccounts(value: WalletSettlementAccounts): WalletSettlementAcc
   };
 }
 
+export function hashMatcherOrderCommand(input: Readonly<{
+  configurationHash: Hex32;
+  requestId: string;
+  occurredAtSeconds: bigint;
+  orderHash: Hex32;
+  signature: string;
+  accounts: WalletSettlementAccounts;
+}>): Hex32 {
+  const accounts = canonicalAccounts(input.accounts);
+  return keccak256Text([
+    "PhlebasMatcherCommand",
+    "version=1",
+    `configuration=${normalizeHex32(input.configurationHash, "Matcher configuration hash")}`,
+    `requestId=${canonicalRequestId(input.requestId)}`,
+    `occurredAtSeconds=${canonicalOccurredAtSeconds(input.occurredAtSeconds)}`,
+    "kind=accept-order",
+    `orderHash=${normalizeHex32(input.orderHash, "Matcher order hash")}`,
+    `signature=${canonicalSignature(input.signature)}`,
+    `sourceAccount=${accounts.sourceAccount}`,
+    `recipientAccount=${accounts.recipientAccount}`,
+  ].join("\n"));
+}
+
 function assertBuySideWalletAuthority(
   order: TypedOrderIntent,
   accounts: WalletSettlementAccounts,
@@ -722,6 +764,7 @@ function prepareMatcherOrderSubmission(input: MatcherOrderSubmissionInput): Prep
   return {
     identity,
     requestId,
+    order,
     payload: {
       version: 1,
       requestId,
@@ -743,12 +786,21 @@ export function buildMatcherOrderRequest(input: MatcherOrderSubmissionInput): Ma
   if (new TextEncoder().encode(body).length > MAX_MATCHER_BODY_BYTES) {
     throw new RangeError("Matcher order request exceeds the API body limit");
   }
+  const commandHash = hashMatcherOrderCommand({
+    configurationHash: prepared.identity.configurationHash,
+    requestId: prepared.requestId,
+    occurredAtSeconds: input.occurredAtSeconds,
+    orderHash: hashTypedOrder(input.expectedMatcher.orderDomain, prepared.order),
+    signature: prepared.payload.submission.signature,
+    accounts: prepared.payload.submission.accounts,
+  });
   return deepFreeze({
     path: matcherApiPathForMarket(matcherMarketIdForIdentity(prepared.identity.market)),
     method: "POST",
     operation: MATCHER_ORDER_OPERATION,
     requestId: prepared.requestId,
     idempotencyKey: prepared.requestId,
+    commandHash,
     identity: prepared.identity,
     headers: {
       "content-type": "application/json",
@@ -873,13 +925,42 @@ const MATCHER_ORDER_STATUSES = new Set<VerifiedMatcherOrderReceipt["receipt"]["s
   "unfilled",
 ]);
 
+function assertMatcherOrderReceiptSemantics(
+  status: VerifiedMatcherOrderReceipt["receipt"]["status"],
+  remainingBaseAtoms: bigint,
+  routeKind: VerifiedMatcherOrderReceipt["receipt"]["routeKind"],
+  swapPlanIds: readonly Hex32[],
+  order: TypedOrderIntent,
+): void {
+  const baseAmountAtoms = order.baseAmountAtoms;
+  if (typeof baseAmountAtoms !== "bigint" || baseAmountAtoms <= 0n || remainingBaseAtoms > baseAmountAtoms) {
+    throw new Error("Matcher receipt remaining amount exceeds the reviewed order");
+  }
+  const routed = routeKind !== undefined && swapPlanIds.length > 0;
+  const untouched = remainingBaseAtoms === baseAmountAtoms && !routed;
+  const partiallyExecuted = remainingBaseAtoms > 0n && remainingBaseAtoms < baseAmountAtoms && routed;
+  const fullyExecuted = remainingBaseAtoms === 0n && routed;
+  const valid = status === "filled" ? fullyExecuted
+    : status === "partially-filled" ? order.timeInForce === 0 && partiallyExecuted
+      : status === "ioc-remainder-cancelled" ? order.timeInForce === 1 && partiallyExecuted
+        : status === "fok-rejected" ? order.timeInForce === 2 && untouched
+          : status === "open" ? order.timeInForce === 0 && (order.allowedVenues & VENUE_CLOB) !== 0 && untouched
+            : status === "unfilled"
+              ? untouched && (order.timeInForce === 1
+                || (order.timeInForce === 0 && (order.allowedVenues & VENUE_CLOB) === 0))
+              : false;
+  if (!valid) throw new Error("Matcher receipt status is inconsistent with the reviewed order and remaining amount");
+}
+
 export function assertMatcherOrderReceipt(
   value: unknown,
   expectation: MatcherOrderReceiptExpectation,
 ): VerifiedMatcherOrderReceipt {
   const expectedIdentity = canonicalExpectedIdentity(expectation.expectedMatcher);
   const expectedRequestId = canonicalRequestId(expectation.requestId);
-  const expectedSubjectHash = normalizeHex32(expectation.subjectHash, "Expected order hash");
+  const expectedCommandHash = normalizeHex32(expectation.commandHash, "Expected matcher command hash");
+  const expectedOrder = canonicalOrder(expectation.order);
+  const expectedSubjectHash = hashTypedOrder(expectation.expectedMatcher.orderDomain, expectedOrder);
   const result = objectValue(value, "Matcher order response");
   assertExactKeys(result, ["ok", "replayed", "receipt", "receiptCheckpoint", "checkpoint"], "Matcher order response");
   if (result.ok !== true || typeof result.replayed !== "boolean") {
@@ -887,11 +968,12 @@ export function assertMatcherOrderReceipt(
   }
 
   const receipt = objectValue(result.receipt, "Matcher order receipt");
-  assertExactKeys(
-    receipt,
-    ["version", "sequence", "requestId", "kind", "status", "subjectHash", "occurredAtSeconds"],
-    "Matcher order receipt",
-  );
+  const receiptKeys = [
+    "version", "sequence", "requestId", "commandHash", "kind", "status", "subjectHash", "occurredAtSeconds",
+    "remainingBaseAtoms", "swapPlanIds",
+    ...(Object.hasOwn(receipt, "routeKind") ? ["routeKind"] : []),
+  ];
+  assertExactKeys(receipt, receiptKeys, "Matcher order receipt");
   if (receipt.version !== 1 || receipt.kind !== "accept-order") {
     throw new Error("Matcher order receipt type is unsupported");
   }
@@ -900,10 +982,32 @@ export function assertMatcherOrderReceipt(
   const subjectHash = canonicalHex32(receipt.subjectHash, "Matcher receipt order hash");
   if (subjectHash !== expectedSubjectHash) throw new Error("Matcher receipt does not match the signed order");
   const occurredAtSeconds = canonicalDecimalUint64(receipt.occurredAtSeconds, "Matcher receipt event time");
+  const commandHash = canonicalHex32(receipt.commandHash, "Matcher receipt command hash");
+  if (commandHash !== expectedCommandHash) throw new Error("Matcher receipt does not match the submitted command");
+  const remainingBaseAtoms = canonicalDecimalUint256(receipt.remainingBaseAtoms, "Matcher receipt remaining amount");
+  if (!Array.isArray(receipt.swapPlanIds)) throw new TypeError("Matcher receipt swap plan IDs must be an array");
+  const swapPlanIds = receipt.swapPlanIds.map((value, index) => (
+    canonicalHex32(value, `Matcher receipt swap plan ID ${index}`)
+  ));
+  if (new Set(swapPlanIds).size !== swapPlanIds.length) throw new Error("Matcher receipt swap plan IDs must be distinct");
+  const routeKind = receipt.routeKind;
+  if (routeKind !== undefined && routeKind !== "order-book" && routeKind !== "solver" && routeKind !== "combined") {
+    throw new Error("Matcher receipt route kind is unsupported");
+  }
+  if ((swapPlanIds.length === 0) !== (routeKind === undefined)) {
+    throw new Error("Matcher receipt route kind and swap plan IDs are inconsistent");
+  }
   const status = receipt.status;
   if (typeof status !== "string" || !MATCHER_ORDER_STATUSES.has(status as VerifiedMatcherOrderReceipt["receipt"]["status"])) {
     throw new Error("Matcher order receipt status is unsupported");
   }
+  assertMatcherOrderReceiptSemantics(
+    status as VerifiedMatcherOrderReceipt["receipt"]["status"],
+    remainingBaseAtoms,
+    routeKind as VerifiedMatcherOrderReceipt["receipt"]["routeKind"],
+    swapPlanIds,
+    expectedOrder,
+  );
 
   const sequence = canonicalDecimalUint64(receipt.sequence, "Matcher receipt sequence");
   const receiptCheckpoint = canonicalReceiptCheckpoint(
@@ -931,10 +1035,14 @@ export function assertMatcherOrderReceipt(
       version: 1,
       sequence,
       requestId,
+      commandHash,
       kind: "accept-order",
       status: status as VerifiedMatcherOrderReceipt["receipt"]["status"],
       subjectHash,
       occurredAtSeconds,
+      ...(routeKind === undefined ? {} : { routeKind }),
+      remainingBaseAtoms,
+      swapPlanIds: Object.freeze(swapPlanIds),
     },
     receiptCheckpoint,
     checkpoint,

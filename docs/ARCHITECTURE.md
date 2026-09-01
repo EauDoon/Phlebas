@@ -142,7 +142,7 @@ The candidate EVM leg is a non-upgradeable exact-token contract with these opera
 
 The contract has no token registry controlled by an administrator, callback, arbitrary recipient change, protocol balance, seizure path, hidden fee, proxy, or upgrade path.
 
-USDC is the first quote candidate. Circle publishes its [current contract registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). USDT and USDT0 remain unresolved until one exact asset, chain, contract, proxy, admin model, and issuer policy is approved.
+The exact quote identities are Ethereum Mainnet USDC at `0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` and Ethereum Mainnet USDT at `0xdac17f958d2ee523a2206206994597c13d831ec7`. USDT uses a zero-first-then-exact allowance policy; USDC uses exact allowance. The ConditionalLock deployment is still absent, so neither asset has an enabled settlement action.
 
 Contract code and test dependencies remain local until Testnet deployment receives separate approval.
 

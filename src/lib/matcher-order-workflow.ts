@@ -273,13 +273,15 @@ async function postSignedMatcherOrder(signed: SignedMatcherOrderPost, fetcher: M
   }
 
   const expectedMatcher = signed.review.deployment.expectedMatcher;
-  const domain = signed.review.deployment.orderDomain;
-  if (expectedMatcher === null || domain === null) return deepFreeze({ kind: "receipt-unknown", ...signed });
+  if (expectedMatcher === null || signed.review.deployment.orderDomain === null) {
+    return deepFreeze({ kind: "receipt-unknown", ...signed });
+  }
   try {
     const receipt = assertMatcherOrderReceipt(body, {
       expectedMatcher,
       requestId: signed.request.requestId,
-      subjectHash: hashTypedOrder(domain, signed.review.draft.order),
+      commandHash: signed.request.commandHash,
+      order: signed.review.draft.order,
     });
     const confirmation = deepFreeze({ kind: "confirmed" as const, receipt, ...signed });
     confirmedMatcherOrderArtifacts.add(confirmation);

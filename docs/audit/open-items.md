@@ -9,7 +9,7 @@ The canonical status remains `docs/audit/audit-checklist.md`.
 | contracts-11 | Independent contract and protocol security review | exact release artifact not frozen |
 | services-9 | Strict Zcash spend, branch, witness, destination, and finality evidence | strict adapter integration and review |
 | services-10 | Strict EVM chain, contract, ABI, receipt, and finality evidence | exact deployment and authoritative journal adapter |
-| services-11 | Canonical signed matcher terms consumed by both legs | matcher integration and cross-leg verification |
+| services-11 | Canonical signed matcher terms consumed by both legs | matcher-to-terms materialization and replayable participant signature evidence; the Zcash artifact leg now binds exact terms, confirmed funding, journal provenance, and PCZT review bytes |
 | services-12 | Durable authoritative settlement journals | production storage and reorganization evidence |
 | operations-7 | Production alert destination | approved routing configuration |
 | operations-8 | Production metrics destination | approved metrics configuration |
