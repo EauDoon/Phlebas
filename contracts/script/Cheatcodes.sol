@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 interface Vm {
     function envAddress(string calldata name) external view returns (address);
     function startBroadcast(address signer) external;
+    function startBroadcast() external;
     function stopBroadcast() external;
 }
 

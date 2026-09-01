@@ -37,15 +37,15 @@ contract ConditionalLockTest is TestBase {
     }
 
     function testConstructorRejectsBrokenConfiguration() public {
-        vm.expectRevert(ConditionalLock.InvalidConfiguration.selector);
+        vm.expectRevert(IConditionalLock.InvalidConfiguration.selector);
         new ConditionalLock(address(0), address(usdt0), pauser, governor);
-        vm.expectRevert(ConditionalLock.InvalidConfiguration.selector);
+        vm.expectRevert(IConditionalLock.InvalidConfiguration.selector);
         new ConditionalLock(address(usdc), address(0), pauser, governor);
-        vm.expectRevert(ConditionalLock.InvalidConfiguration.selector);
+        vm.expectRevert(IConditionalLock.InvalidConfiguration.selector);
         new ConditionalLock(address(usdc), address(usdt0), address(0), governor);
-        vm.expectRevert(ConditionalLock.InvalidConfiguration.selector);
+        vm.expectRevert(IConditionalLock.InvalidConfiguration.selector);
         new ConditionalLock(address(usdc), address(usdt0), pauser, address(0));
-        vm.expectRevert(ConditionalLock.InvalidConfiguration.selector);
+        vm.expectRevert(IConditionalLock.InvalidConfiguration.selector);
         new ConditionalLock(address(usdc), address(usdc), pauser, governor);
     }
 
@@ -97,8 +97,8 @@ contract ConditionalLockTest is TestBase {
         vm.prank(buyer);
         uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
 
+        vm.expectRevert(IConditionalLock.WrongPreimage.selector);
         vm.prank(seller);
-        vm.expectRevert(ConditionalLock.WrongPreimage.selector);
         lock.claim(lockId, bytes32(uint256(0xBADF00D)));
     }
 
@@ -108,8 +108,8 @@ contract ConditionalLockTest is TestBase {
         vm.prank(buyer);
         uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
 
+        vm.expectRevert(IConditionalLock.NotClaimant.selector);
         vm.prank(bystander);
-        vm.expectRevert(ConditionalLock.NotClaimant.selector);
         lock.claim(lockId, PREIMAGE);
     }
 
@@ -121,8 +121,8 @@ contract ConditionalLockTest is TestBase {
 
         vm.prank(seller);
         lock.claim(lockId, PREIMAGE);
+        vm.expectRevert(IConditionalLock.AlreadyClaimed.selector);
         vm.prank(seller);
-        vm.expectRevert(ConditionalLock.AlreadyClaimed.selector);
         lock.claim(lockId, PREIMAGE);
     }
 
@@ -152,10 +152,10 @@ contract ConditionalLockTest is TestBase {
         vm.prank(buyer);
         uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
 
-        vm.prank(buyer);
         vm.expectRevert(
-            abi.encodeWithSelector(ConditionalLock.RefundTooEarly.selector, lock.getLock(lockId).refundAfter, block.timestamp)
+            abi.encodeWithSelector(IConditionalLock.RefundTooEarly.selector, lock.getLock(lockId).refundAfter, block.timestamp)
         );
+        vm.prank(buyer);
         lock.refund(lockId);
     }
 
@@ -168,8 +168,8 @@ contract ConditionalLockTest is TestBase {
         uint256 lockId = lock.deposit(_paramsAt(address(usdc), 100e6, HASHLOCK, seller, buyer, refundAfter));
 
         vm.warp(block.timestamp + lock.MIN_REFUND_DELAY() + 60);
+        vm.expectRevert(IConditionalLock.NotDepositor.selector);
         vm.prank(bystander);
-        vm.expectRevert(ConditionalLock.NotDepositor.selector);
         lock.refund(lockId);
     }
 
@@ -183,8 +183,8 @@ contract ConditionalLockTest is TestBase {
         lock.claim(lockId, PREIMAGE);
 
         vm.warp(block.timestamp + lock.MIN_REFUND_DELAY() + 60);
+        vm.expectRevert(IConditionalLock.AlreadyClaimed.selector);
         vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.AlreadyClaimed.selector);
         lock.refund(lockId);
     }
 
@@ -200,8 +200,8 @@ contract ConditionalLockTest is TestBase {
         vm.prank(buyer);
         lock.refund(lockId);
 
+        vm.expectRevert(IConditionalLock.AlreadyRefunded.selector);
         vm.prank(seller);
-        vm.expectRevert(ConditionalLock.AlreadyRefunded.selector);
         lock.claim(lockId, PREIMAGE);
     }
 
@@ -213,8 +213,8 @@ contract ConditionalLockTest is TestBase {
         vm.prank(buyer);
         extra.approve(address(lock), type(uint256).max);
 
+        vm.expectRevert(IConditionalLock.TokenNotApproved.selector);
         vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.TokenNotApproved.selector);
         lock.deposit(_params(address(extra), 100e6, HASHLOCK, seller, buyer));
     }
 
@@ -222,8 +222,8 @@ contract ConditionalLockTest is TestBase {
         vm.prank(buyer);
         usdc.approve(address(lock), type(uint256).max);
 
+        vm.expectRevert(IConditionalLock.ZeroAmount.selector);
         vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.ZeroAmount.selector);
         lock.deposit(_params(address(usdc), 0, HASHLOCK, seller, buyer));
     }
 
@@ -231,8 +231,8 @@ contract ConditionalLockTest is TestBase {
         vm.prank(buyer);
         usdc.approve(address(lock), type(uint256).max);
 
+        vm.expectRevert(IConditionalLock.ZeroHashlock.selector);
         vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.ZeroHashlock.selector);
         lock.deposit(_params(address(usdc), 100e6, bytes32(0), seller, buyer));
     }
 
@@ -240,12 +240,12 @@ contract ConditionalLockTest is TestBase {
         vm.prank(buyer);
         usdc.approve(address(lock), type(uint256).max);
 
+        vm.expectRevert(IConditionalLock.ZeroAddress.selector);
         vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.ZeroAddress.selector);
         lock.deposit(_params(address(usdc), 100e6, HASHLOCK, address(0), buyer));
 
+        vm.expectRevert(IConditionalLock.ZeroAddress.selector);
         vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.ZeroAddress.selector);
         lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, address(0)));
     }
 
@@ -254,12 +254,12 @@ contract ConditionalLockTest is TestBase {
         usdc.approve(address(lock), type(uint256).max);
 
         uint64 tooEarly = uint64(block.timestamp + 60);
-        vm.prank(buyer);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ConditionalLock.RefundDelayTooShort.selector, tooEarly, uint64(block.timestamp) + lock.MIN_REFUND_DELAY()
+                IConditionalLock.RefundDelayTooShort.selector, tooEarly, uint64(block.timestamp) + lock.MIN_REFUND_DELAY()
             )
         );
+        vm.prank(buyer);
         lock.deposit(_paramsAt(address(usdc), 100e6, HASHLOCK, seller, buyer, tooEarly));
     }
 
@@ -268,12 +268,12 @@ contract ConditionalLockTest is TestBase {
         usdc.approve(address(lock), type(uint256).max);
 
         uint64 boundary = uint64(block.timestamp + lock.MIN_REFUND_DELAY());
-        vm.prank(buyer);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ConditionalLock.RefundDelayTooShort.selector, boundary, uint64(block.timestamp) + lock.MIN_REFUND_DELAY()
+                IConditionalLock.RefundDelayTooShort.selector, boundary, uint64(block.timestamp) + lock.MIN_REFUND_DELAY()
             )
         );
+        vm.prank(buyer);
         lock.deposit(_paramsAt(address(usdc), 100e6, HASHLOCK, seller, buyer, boundary));
     }
 
@@ -299,10 +299,11 @@ contract ConditionalLockTest is TestBase {
         vm.prank(buyer);
         uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
 
+        vm.prank(pauser);
         lock.pause();
 
+        vm.expectRevert(IConditionalLock.Paused.selector);
         vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.Paused.selector);
         lock.deposit(_params(address(usdc), 50e6, HASHLOCK, seller, buyer));
 
         vm.warp(block.timestamp + lock.MIN_REFUND_DELAY() + 60);
@@ -312,13 +313,15 @@ contract ConditionalLockTest is TestBase {
     }
 
     function testUnpauseByPauserIsRejected() public {
-        lock.pause();
         vm.prank(pauser);
-        vm.expectRevert(ConditionalLock.NotGovernor.selector);
+        lock.pause();
+        vm.expectRevert(IConditionalLock.NotGovernor.selector);
+        vm.prank(pauser);
         lock.unpause();
     }
 
     function testUnpauseByGovernorRestoresDeposits() public {
+        vm.prank(pauser);
         lock.pause();
         vm.prank(governor);
         lock.unpause();
@@ -344,9 +347,9 @@ contract ConditionalLockTest is TestBase {
     }
 
     function testGetLockRejectsUnknownId() public {
-        vm.expectRevert(ConditionalLock.LockNotFound.selector);
+        vm.expectRevert(IConditionalLock.LockNotFound.selector);
         lock.getLock(0);
-        vm.expectRevert(ConditionalLock.LockNotFound.selector);
+        vm.expectRevert(IConditionalLock.LockNotFound.selector);
         lock.getLock(99);
     }
 
@@ -373,7 +376,7 @@ contract ConditionalLockTest is TestBase {
         view
         returns (IConditionalLock.LockParams memory)
     {
-        return _paramsAt(token, amount, hashlock, claimTo, refundTo, uint64(block.timestamp + lock.MIN_REFUND_DELAY() + 60));
+        return _paramsAt(token, amount, hashlock, claimTo, refundTo, uint64(block.timestamp + 1 hours + 60));
     }
 
     function _paramsAt(

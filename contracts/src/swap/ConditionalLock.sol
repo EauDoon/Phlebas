@@ -17,7 +17,6 @@ interface IERC20ConditionalLock {
 /// @dev    See docs/adr/0003-evm-conditional-lock.md.
 contract ConditionalLock is IConditionalLock {
     uint64 public constant MIN_REFUND_DELAY = 1 hours;
-    uint256 internal constant SHA256_PRECOMPILE = 0x02;
 
     address public immutable usdc;
     address public immutable usdt0;
@@ -136,17 +135,8 @@ contract ConditionalLock is IConditionalLock {
         return locks[lockId];
     }
 
-    function _verifyPreimage(bytes32 hashlock, bytes32 preimage) internal view returns (bool) {
-        bytes32 digest = _sha256(preimage);
-        return digest == hashlock;
-    }
-
-    function _sha256(bytes32 data) internal view returns (bytes32 result) {
-        (bool ok, bytes memory out) = SHA256_PRECOMPILE.staticcall(abi.encode(data));
-        if (!ok || out.length != 32) revert TransferFailed();
-        assembly ("memory-safe") {
-            result := mload(add(out, 32))
-        }
+    function _verifyPreimage(bytes32 hashlock, bytes32 preimage) internal pure returns (bool) {
+        return sha256(abi.encodePacked(preimage)) == hashlock;
     }
 
     function _transferFrom(address token, address from, address to, uint256 amount) internal returns (bool) {
