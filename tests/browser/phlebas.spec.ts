@@ -3311,13 +3311,13 @@ test("skip-nav row-gap leftover 768 brand legal two-up and banner stacking", asy
       lastHeight: last?.height ?? 0,
     };
   });
-  expect(landingLayout.rowGap).toBe("8px");
+  expect(landingLayout.rowGap).toBe("4px");
   expect(landingLayout.navZ).toBeGreaterThan(landingLayout.bannerZ);
-  expect(landingLayout.padding).toBe("8px");
+  expect(landingLayout.padding).toBe("4px");
   expect(landingLayout.minWidth).toBeGreaterThanOrEqual(44);
   expect(landingLayout.lastWidth).toBeGreaterThanOrEqual(44);
   expect(landingLayout.lastHeight).toBeGreaterThanOrEqual(44);
-  expect(landingLayout.firstBottom + 4).toBeLessThanOrEqual(landingLayout.thirdTop - 4 + 0.5);
+  expect(landingLayout.firstBottom + 3.5).toBeLessThanOrEqual(landingLayout.thirdTop);
 
   await page.setViewportSize({ width: 768, height: 1024 });
   await page.goto("/", { waitUntil: "networkidle" });
@@ -3421,11 +3421,11 @@ test("skip-nav column-gap status liquidity leftover 768 Menu and security wrap",
       firstHeight: first?.height ?? 0,
     };
   });
-  expect(landingLayout.columnGap).toBe("8px");
+  expect(landingLayout.columnGap).toBe("4px");
   expect(landingLayout.minHeight).toBeGreaterThanOrEqual(44);
-  expect(landingLayout.padding).toBe("8px");
+  expect(landingLayout.padding).toBe("4px");
   expect(landingLayout.firstHeight).toBeGreaterThanOrEqual(44);
-  expect(landingLayout.firstRight + 4).toBeLessThanOrEqual(landingLayout.secondLeft - 4 + 0.5);
+  expect(landingLayout.firstRight + 3.5).toBeLessThanOrEqual(landingLayout.secondLeft);
 
   const navBox = await nav.boundingBox();
   const headerBox = await page.locator("header").boundingBox();
