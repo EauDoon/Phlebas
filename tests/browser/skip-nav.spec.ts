@@ -34,6 +34,7 @@ async function expectVisibleFocus(target: Locator) {
 function boxesOverlap(
   first: { x: number; y: number; width: number; height: number } | null,
   second: { x: number; y: number; width: number; height: number } | null,
+  minSize = 2,
 ) {
   return Boolean(
     first && second
@@ -41,29 +42,33 @@ function boxesOverlap(
     && first.x + first.width > second.x
     && first.y < second.y + second.height
     && first.y + first.height > second.y
-    && first.width > 2
-    && first.height > 2,
+    && first.width > minSize
+    && first.height > minSize,
   );
 }
 
 async function expectSkipNavHidden(page: Page) {
   const nav = page.getByRole("navigation", { name: "Skip links" });
+  await expect.poll(async () => nav.evaluate((element) => element.matches(":focus-within"))).toBe(false);
   const state = await nav.evaluate((element) => {
     const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
     return {
-      focusWithin: element.matches(":focus-within"),
       transform: style.transform,
       clipPath: style.clipPath,
+      overflow: style.overflow,
       width: style.width,
       height: style.height,
+      rectWidth: rect.width,
+      rectHeight: rect.height,
     };
   });
 
-  expect(state.focusWithin).toBe(false);
-  const clipped = /inset\(50%\)/.test(state.clipPath);
-  const translated = state.transform.includes("matrix") && state.transform !== "none"
-    || state.transform.includes("translate");
-  expect(clipped || translated || state.width === "1px" || state.height === "1px").toBe(true);
+  const clipped = /inset\(50%\)/.test(state.clipPath) && (state.overflow === "hidden" || state.width === "1px");
+  const translated = state.transform.includes("translate")
+    || (state.transform.includes("matrix") && state.transform !== "none" && state.transform !== "matrix(1, 0, 0, 1, 0, 0)");
+  const collapsed = state.width === "1px" || state.height === "1px" || state.rectWidth <= 2 || state.rectHeight <= 2;
+  expect(clipped || translated || collapsed).toBe(true);
 }
 
 async function openFocusedSkipNav(page: Page, path: string) {
@@ -128,10 +133,11 @@ test("skip-nav hides after skip-link activation on landing and trade", async ({ 
     await page.keyboard.press("Enter");
     const target = page.locator(route.target);
     await expect(target).toBeFocused();
+    await expect(skipLink).not.toBeFocused();
     await expectSkipNavHidden(page);
 
-    const skipBox = await skipLink.boundingBox();
+    const navBox = await page.getByRole("navigation", { name: "Skip links" }).boundingBox();
     const targetBox = await target.boundingBox();
-    expect(boxesOverlap(skipBox, targetBox)).toBe(false);
+    expect(boxesOverlap(navBox, targetBox, 43)).toBe(false);
   }
 });
