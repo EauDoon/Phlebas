@@ -2,13 +2,13 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 while reconciling the hardened native-settlement stack with live `main` at `46a222ba4a92b5facb6a5adb35028a327c57e6a4`.
+Last updated: 01-09-2026 after restacking PR #26 on current `main` at `aa0d0a2262263677534ac8aba9427d534da7bd00` and verifying education/skip-link 44px coverage through 1440px.
 
 ## Branch
 
-Integration worktree: `feat/native-swap-state-machine` at `4b4e224`, merging live `main` at `46a222b`.
+`feat/product-ui-education-a11y` is restacked on current `main` at `aa0d0a2` for PR #26: https://github.com/EauDoon/Phlebas/pull/26. PR #22 stays open on `feat/product-ui` and was not grown this session. Origin `feat/simulation-hardening` remains separate; do not force-push it.
 
-The committed native-settlement stack is 27 commits beyond its original base, which satisfies the requested minimum of eight meaningful commits and remains below the 100-commit PR cap. Do not publish the merge until conflicts are resolved, full checks pass, an independent exact-head review is clean, and a Vercel preview resolves to that exact head.
+The PR remains a no-value simulation change. Do not publish or deploy it until conflicts are resolved, full checks pass, an independent exact-head review is clean, and the Vercel preview resolves to that exact head.
 
 ## Canonical authority
 
@@ -19,11 +19,9 @@ The committed native-settlement stack is 27 commits beyond its original base, wh
 
 ## Active integration batch
 
-- Reconcile native settlement with live-main accessibility, market, service, and operations work.
 - Preserve the signed ZEC-first SwapState and hash-chained journal as authority.
 - Add the native settlement walkthrough to the shared terminal view model without exposing a wallet or broadcast surface.
 - Replace public error details with fixed non-sensitive copy.
-- Restack PR #26 after this integration. Do not merge its stale, conflicted head.
 - Run the complete Node, Foundry, production-build, secret-scan, and Chromium gates on the resolved tree.
 
 ## Done
@@ -494,6 +492,110 @@ The committed native-settlement stack is 27 commits beyond its original base, wh
 - Status and security leftover skip links stay at least 44px at 320px
 - Loading and 404 leftover skip links stay at least 44px at 768px
 - Playwright covers Enter simulation in 320px, Continue `#f4c95d`, and leftover 320/768
+- Education tourNav `flex-shrink: 0` keeps Back in the 320px viewport on the last step
+- Education heading `z-index: 2` stays above sticky tourNav `z-index: 1`
+- Education dialog `padding-top: 24px` and heading `overflow: visible` keep the 2px ring in overflow-y auto
+- Legal, architecture, and country-block leftover skip links stay at least 44px at 320px
+- Error-page leftover skip link stays at least 44px at 768px
+- Playwright covers last-step Back, heading stack, leftover 320/768
+- Education Enter simulation stays 44px wide on the last step at 320px
+- Education heading stays a 44px tap target after flex-shrink 0 (`min-width`/`min-height` 44px)
+- Education heading uses `display: flex; align-items: center` at 820px so the 44px box is the tap target
+- Education Continue stays in the 320px viewport after padding-top 24px
+- Liquidity leftover skip link stays at least 44px at 320px
+- Bridge leftover skip link stays at least 44px at 320px
+- Loading leftover skip link stays at least 44px at 320px
+- 404 leftover skip link stays at least 44px at 320px
+- Leftover odd skip links (`:last-child:nth-child(odd)`) use `flex-shrink: 0` so skip-nav `min-width: 0` cannot shrink them below 44px
+- Landing leftover skip link (seven links) stays at least 44px at 320px
+- 404 Return home and Open the trading terminal stay 44px at 320px
+- Education Continue stays 44px at 390px
+- Education Continue and Enter simulation stay in a 320x568 viewport
+- Playwright covers education 44px leftover 320, heading flex, leftover odd shrink, 404 links, Continue at 390, and 320x568
+- In-page `simpleMain` links use `flex-shrink: 0` so they stay 44px at 320px
+- Education heading `box-sizing: border-box` keeps the 44px tap at 768px
+- Education tourNav padding is 8px and overflow visible so the Continue 2px ring stays inside the dialog at 390px
+- Global-error skip last-child stays 44px (`min-width`/`min-height` 44px, `flex-shrink: 0`)
+- Education Enter simulation and Back stay 44px on the last step at 390px
+- Education heading stays a 44px tap target at 768px
+- Education heading 2px ring stays inside the dialog at 320x568
+- Country-block tourNav links stay 44px at 320px
+- Legal, security, and status in-page links stay 44px at 320px
+- 404 Return home stays 44px at 390px
+- Landing leftover skip link stays 44px at 768px after leftover odd `flex-shrink: 0`
+- Playwright covers education 390 last-step, 768 heading, Continue ring, heading ring at 568, in-page 44px, and landing leftover 768
+- Every skip last-child uses `flex-shrink: 0` so even leftover pairs stay 44px
+- Education tourNav is `width: 100%` with `box-sizing: border-box` so the Continue ring stays inside at 768px
+- Education tourNav buttons use `box-sizing: border-box` so Enter and Back stay 44px at 768px
+- Global-error skip-nav is `width: 100%` so two-up last-child stays 44px at 390px
+- In-page links use `box-sizing: border-box` at 390px and 768px
+- Education Enter and Back stay 44px on the last step at 768px
+- Education Continue 2px ring stays inside the dialog at 768px
+- Education heading 2px ring stays inside the dialog at 390px
+- Country-block, legal, security, and status in-page links stay 44px at 390px
+- 404 Return home stays 44px at 768px
+- Loading leftover skip last-child stays 44px at 390px
+- Architecture leftover skip links stay 44px at 768px
+- Playwright covers education 768 last-step, Continue ring, heading ring at 390, in-page 390, 404 768, loading leftover 390, and architecture leftover 768
+- Education heading is a 44px tap target at 1440px (`display: flex`, `min-height` 44px on the base rule)
+- Education tourNav padding 8px and overflow visible keep the Continue ring inside at 1440px
+- Education tourNav buttons use `box-sizing: border-box` at 1440px
+- Country-block tourNav links use `box-sizing: border-box`
+- Education Enter and Back stay 44px on the last step at 1440px
+- Education Continue 2px ring stays inside the dialog at 1440px
+- Education heading 2px ring stays inside the dialog at 768px
+- Country-block, legal, security, and status in-page links stay 44px at 768px
+- 404 Return home stays 44px at 1440px
+- Bridge leftover skip last-child stays 44px at 390px
+- Error leftover skip last-child stays 44px at 390px
+- Playwright covers education 1440 last-step, Continue ring, heading ring at 768, in-page 768, 404 1440, bridge leftover 390, and error leftover 390
+- Education dialog `overflow: visible` and `box-sizing: border-box` keep the heading 2px ring inside at 1440px
+- Education dialog padding-top is 24px at desktop so the heading ring has clearance at 1440px
+- Education tourNav is `width: 100%` at desktop
+- Education heading `flex-shrink: 0` at desktop
+- Education heading 2px ring stays inside the dialog at 1440px
+- Education Continue stays inside a 390x844 viewport
+- Country-block, legal, security, and status in-page links stay 44px at 1440px
+- 404 leftover skip last-child stays 44px at 768px
+- Liquidity leftover skip last-child stays 44px at 390px
+- Bridge, error, and loading leftover skip last-child stay 44px at 768px
+- Playwright covers heading ring 1440, Continue 390x844, in-page 1440, leftover 404/bridge/error/loading 768, and liquidity leftover 390
+- Skip last-child 44px and `flex-shrink: 0` apply outside the 820px query so 1440 leftover stays 44px
+- Skip last-child uses `box-sizing: border-box` at 1440px
+- Education dialog scroll-padding is 12px so the heading 2px ring stays inside at 390px
+- Education heading scroll-margin-top is 12px
+- Education dialog max-height leaves 16px below so Continue fits at 768px
+- Education Continue stays inside a 768x1024 viewport
+- Education Enter and Back stay inside a 390x844 viewport on the last step
+- Education heading 2px ring stays inside the dialog at 390px
+- 404, legal, status, and country-block leftover skip last-child stay 44px at 1440px
+- Liquidity leftover skip last-child stays 44px at 768px
+- Architecture leftover skip last-child stays 44px at 390px
+- Playwright covers Continue 768, Enter/Back 390, heading ring 390, leftover 1440, liquidity 768, and architecture 390
+- Education dialog padding-bottom is 12px at 820px so the Continue ring fits at 390px
+- Education tourNav `flex-shrink: 0` at desktop so Continue fits at 1440px
+- Education tourNav padding is 12px so the Continue 2px ring stays inside at 390px
+- Education dialog `max-height: calc(100vh - 32px)` at desktop so Continue fits at 1440px
+- Education tourNav buttons have `scroll-margin-bottom: 12px`
+- Education Continue stays inside a 1440x900 viewport
+- Education Enter and Back stay inside a 768x1024 viewport on the last step
+- Education heading 2px ring stays inside the dialog at 768px
+- Education Continue 2px ring stays inside the dialog at 390px
+- Security, loading, error, and bridge leftover skip last-child stay 44px at 1440px
+- Country-block leftover skip last-child stays 44px at 768px
+- Playwright covers Continue 1440, Enter/Back 768, heading ring 768, Continue ring 390, leftover 1440, and country-block leftover 768
+- Education tourNav `min-height: 44px` so Enter and Back fit at 1440px
+- Education dialog scroll-padding is 12px at desktop so the heading ring fits at 1440px
+- Education dialog uses a shorter margin on viewports under 700px tall so Continue fits at 390x568
+- Education tourNav is a flex row with centered actions
+- Education Enter and Back stay inside a 1440x900 viewport on the last step
+- Education heading 2px ring stays inside the dialog at 1440px
+- Education Continue 2px ring stays inside the dialog at 768px
+- Education Continue stays inside a 390x568 viewport
+- Liquidity and architecture leftover skip last-child stay 44px at 1440px
+- Legal and status leftover skip last-child stay 44px at 768px
+- 404 leftover skip last-child stays 44px at 390px
+- Playwright covers Enter/Back 1440, heading ring 1440, Continue ring 768, Continue 390x568, leftover 1440/768/390
 
 ## Next
 
@@ -502,8 +604,14 @@ The committed native-settlement stack is 27 commits beyond its original base, wh
 - Replace heuristic Zcash spend classification with exact transaction, branch, witness, and preimage decoding. Pin the SHA-256 to HASH160 commitment vector.
 - Replace legacy observer transitions and v1 Fill snapshots with exact evidence adapters and a verified journal/snapshot store.
 - Complete Testnet wallet interoperability, recovery, reorganization, and wrong-network scenarios without embedding keys.
-- Restack and re-review PR #26 against the integrated native-settlement tree.
 - Create an exact-head Vercel preview after the deployment quota permits it. Promote only a release-approved artifact.
+- Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
+- Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
+- Public Vercel UI still serves the last merged production build until a deploy token is available
+- ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
+- Reserve `WithdrawalClaimStatus` still has no `refunded` status token; refund removes the payable claim instead
+- Gateway stub is text-only; 320px density of stub states across USDT markets is still thin
+- Deposit Unavailable covers observer disagreement in the tour; architecture demo remains a separate surface
 
 ## Blockers
 

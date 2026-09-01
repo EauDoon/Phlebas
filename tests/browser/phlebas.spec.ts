@@ -3945,8 +3945,8 @@ test("education Back Enter simulation heading ring leftover 768 and skip-nav rin
       scrollMarginTop: style.scrollMarginTop,
     };
   });
-  expect(headingRing.scrollPaddingTop).toBe("8px");
-  expect(headingRing.scrollMarginTop).toBe("8px");
+  expect(headingRing.scrollPaddingTop).toBe("12px");
+  expect(headingRing.scrollMarginTop).toBe("12px");
   expect(headingRing.top).toBeGreaterThanOrEqual(headingRing.parentTop - 0.5);
 
   await dialog.getByRole("button", { name: "Continue" }).click();
@@ -4248,7 +4248,7 @@ test("education last-step Back heading ring leftover 320 768", async ({ page }) 
   expect(stacking.headingZ).toBeGreaterThan(stacking.tourZ);
   expect(stacking.headingOverflow).toBe("visible");
   expect(stacking.headingShrink).toBe("0");
-  expect(stacking.scrollPaddingTop).toBe("8px");
+  expect(stacking.scrollPaddingTop).toBe("12px");
   expect(Number.parseFloat(stacking.paddingTop)).toBeGreaterThanOrEqual(24);
 
   async function leftover(path: string, width: number, height: number, count: number) {

@@ -2528,10 +2528,10 @@ a.skipLink:focus-visible {
   .educationDialog {
     width: calc(100vw - 16px);
     max-width: 320px;
-    padding: 16px 12px 12px;
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
-  .educationDialog .tourNav button,
   .incidentDemo select {
     min-width: 44px;
     min-height: 44px;
