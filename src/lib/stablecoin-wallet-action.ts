@@ -1,3 +1,5 @@
+import trackedConditionalLockManifest from "../../contracts/manifests/conditional-lock.not-deployed.json" with { type: "json" };
+
 import {
   encodeClaimCalldata,
   encodeFundCalldata,
@@ -33,9 +35,6 @@ export type StablecoinLockDeploymentReceipt = Readonly<{
   blockHash: string;
   receiptStatus: "0x1";
   runtimeBytecodeSha256: string;
-  receiptVerified: true;
-  constructorArgumentsVerified: true;
-  runtimeBytecodeVerified: true;
 }>;
 
 export type StablecoinLockObservation = Readonly<{
@@ -122,6 +121,16 @@ type NormalizedContext = Readonly<{
 const ZERO_ADDRESS = `0x${"00".repeat(20)}`;
 const ZERO_HEX32 = `0x${"00".repeat(32)}`;
 const UINT64_MAX = (1n << 64n) - 1n;
+const TRACKED_CONDITIONAL_LOCK_MANIFEST: unknown = structuredClone(trackedConditionalLockManifest);
+
+type ApprovedDeploymentManifest = Readonly<{
+  address: HexAddress;
+  transactionHash: Hex32;
+  blockNumber: bigint;
+  blockHash: Hex32;
+  runtimeBytecodeSha256: Hex32;
+  terms: ReturnType<typeof normalizeTerms>;
+}>;
 
 function nonzeroAddress(value: string, label: string): HexAddress {
   const address = normalizeAddress(value, label);
@@ -204,23 +213,82 @@ function sameTerms(left: ReturnType<typeof normalizeTerms>, right: ReturnType<ty
     && left.refundTime === right.refundTime;
 }
 
+function record(value: unknown, label: string): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError(`${label} must be a plain object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function requiredString(value: unknown, label: string): string {
+  if (typeof value !== "string") throw new TypeError(`${label} must be a string`);
+  return value;
+}
+
+/**
+ * Loads the one repository-tracked deployment authority. Caller observations
+ * can corroborate this record, but cannot create or widen it. The checked-in
+ * manifest is intentionally undeployed, so this function currently fails
+ * closed before any approval or lock calldata can be created.
+ */
+function approvedDeploymentManifest(): ApprovedDeploymentManifest {
+  const manifest = record(TRACKED_CONDITIONAL_LOCK_MANIFEST, "Tracked conditional lock manifest");
+  const deployment = record(manifest.deployment, "Tracked conditional lock deployment");
+  const terms = record(record(manifest.terms, "Tracked conditional lock terms").values, "Tracked conditional lock values");
+  if (manifest.manifestType !== "conditional-lock-deployment"
+    || manifest.deployed !== true
+    || deployment.network !== "ethereum-mainnet"
+    || deployment.chainId !== "1"
+    || deployment.receiptStatus !== "0x1"
+    || deployment.receiptVerified !== true
+    || deployment.sourceVerified !== true
+    || deployment.constructorArgumentsVerified !== true
+    || deployment.runtimeBytecodeVerified !== true) {
+    throw new Error("No approved Ethereum Mainnet conditional lock deployment manifest is active");
+  }
+  return Object.freeze({
+    address: nonzeroAddress(requiredString(deployment.address, "Manifest deployment address"), "Manifest deployment address"),
+    transactionHash: nonzeroHex32(requiredString(deployment.transactionHash, "Manifest transaction hash"), "Manifest transaction hash"),
+    blockNumber: uint256(BigInt(requiredString(deployment.blockNumber, "Manifest block number")), "Manifest block number", false),
+    blockHash: nonzeroHex32(requiredString(deployment.blockHash, "Manifest block hash"), "Manifest block hash"),
+    runtimeBytecodeSha256: nonzeroHex32(
+      requiredString(deployment.runtimeBytecodeSha256, "Manifest runtime bytecode SHA-256"),
+      "Manifest runtime bytecode SHA-256",
+    ),
+    terms: normalizeTerms({
+      swapId: requiredString(terms.swapId, "Manifest swap ID"),
+      termsHash: requiredString(terms.termsHash, "Manifest terms hash"),
+      token: requiredString(terms.token, "Manifest token"),
+      funder: requiredString(terms.funder, "Manifest funder"),
+      claimRecipient: requiredString(terms.claimRecipient, "Manifest claim recipient"),
+      refundRecipient: requiredString(terms.refundRecipient, "Manifest refund recipient"),
+      amount: BigInt(requiredString(terms.amount, "Manifest amount")),
+      hashlock: requiredString(terms.hashlock, "Manifest hashlock"),
+      fundingCutoff: BigInt(requiredString(terms.fundingCutoff, "Manifest funding cutoff")),
+      claimCutoff: BigInt(requiredString(terms.claimCutoff, "Manifest claim cutoff")),
+      refundTime: BigInt(requiredString(terms.refundTime, "Manifest refund time")),
+    }, "Manifest conditional lock"),
+  });
+}
+
 function normalizeContext(input: StablecoinLockContext): NormalizedContext {
   const market = mainnetMarket(input.marketId);
   const lock = nonzeroAddress(input.lock, "Conditional lock");
+  const approved = approvedDeploymentManifest();
   const receipt = input.deploymentReceipt;
   if (receipt.chainId !== ETHEREUM_MAINNET_CHAIN_HEX
-    || receipt.receiptStatus !== "0x1"
-    || receipt.receiptVerified !== true
-    || receipt.constructorArgumentsVerified !== true
-    || receipt.runtimeBytecodeVerified !== true) {
-    throw new Error("Conditional lock requires a verified successful Ethereum Mainnet deployment receipt");
+    || receipt.receiptStatus !== "0x1") {
+    throw new Error("Conditional lock observation must report a successful Ethereum Mainnet deployment receipt");
   }
-  if (nonzeroAddress(receipt.address, "Deployment receipt address") !== lock) {
-    throw new Error("Conditional lock address does not match the verified deployment receipt");
+  if (nonzeroAddress(receipt.address, "Deployment receipt address") !== lock
+    || lock !== approved.address
+    || nonzeroHex32(receipt.transactionHash, "Deployment transaction hash") !== approved.transactionHash
+    || receipt.blockNumber !== approved.blockNumber
+    || nonzeroHex32(receipt.blockHash, "Deployment block hash") !== approved.blockHash
+    || nonzeroHex32(receipt.runtimeBytecodeSha256, "Deployment runtime bytecode SHA-256") !== approved.runtimeBytecodeSha256) {
+    throw new Error("Conditional lock receipt does not match the repository-approved deployment manifest");
   }
-  nonzeroHex32(receipt.transactionHash, "Deployment transaction hash");
   const deploymentBlockNumber = uint256(receipt.blockNumber, "Deployment block number", false);
-  nonzeroHex32(receipt.blockHash, "Deployment block hash");
   const observation = input.observation;
   if (observation.chainId !== ETHEREUM_MAINNET_CHAIN_HEX) {
     throw new Error("Conditional lock observation must come from Ethereum Mainnet chain ID 1");
@@ -229,6 +297,9 @@ function normalizeContext(input: StablecoinLockContext): NormalizedContext {
     throw new Error("Observed conditional lock address does not match the reviewed deployment");
   }
   const expectedTerms = normalizeTerms(input.expectedTerms, "Expected conditional lock");
+  if (!sameTerms(expectedTerms, approved.terms)) {
+    throw new Error("Expected conditional lock terms do not match the repository-approved deployment manifest");
+  }
   const observedTerms = normalizeTerms(observation.immutableTerms, "Observed conditional lock");
   if (!sameTerms(expectedTerms, observedTerms)) {
     throw new Error("Observed conditional lock immutable terms do not match all 11 reviewed terms");
@@ -239,7 +310,7 @@ function normalizeContext(input: StablecoinLockContext): NormalizedContext {
   }
   const observedRuntime = runtimeBytecode(observation.runtimeBytecode, "Observed runtime bytecode");
   const expectedRuntimeHash = nonzeroHex32(
-    receipt.runtimeBytecodeSha256,
+    approved.runtimeBytecodeSha256,
     "Approved runtime bytecode SHA-256",
   );
   if (sha256Hex(observedRuntime) !== expectedRuntimeHash) {
