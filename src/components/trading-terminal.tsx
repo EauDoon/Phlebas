@@ -402,8 +402,10 @@ export function TradingTerminal({
   const sessionTape = fills.filter((fill) => fill.marketId === marketId).slice(0, 6);
   const fixtureTape = feed.showFixtures ? recentTrades[marketId] : [];
 
+  const operatingView = initialAccess === "open" && (view === "trade" || view === "liquidity");
+
   return (
-    <div className={styles.shell}>
+    <div className={operatingView ? `${styles.shell} ${styles.operatingShell}` : styles.shell}>
       <nav className={styles.skipNav} aria-label="Skip links">
         <a className={styles.skipLink} href="#main-content">Skip to main content</a>
         {initialAccess === "blocked" ? (
@@ -479,7 +481,7 @@ export function TradingTerminal({
 
       <PreviewEducation force={forceEducation} />
 
-      <main id="main-content" tabIndex={-1}>
+      <main id="main-content" className={styles.main} tabIndex={-1}>
         <h1 className={styles.srOnly}>Phlebas ZEC trading terminal</h1>
         {initialAccess === "blocked" && <CountryBlock />}
         {initialAccess === "open" && view === "trade" && (
