@@ -2228,7 +2228,7 @@ test("mid-price fills and inventory rows stay 44px on desktop", async ({ page })
   expect((await fillRow.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
   await page.getByRole("tab", { name: "Inventory" }).click();
-  const inventoryRow = page.getByRole("tabpanel").locator("dl > div").first();
+  const inventoryRow = page.getByRole("tabpanel", { name: "Inventory" }).getByRole("table").locator("tbody tr").first();
   await expect(inventoryRow).toBeVisible();
   expect((await inventoryRow.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });

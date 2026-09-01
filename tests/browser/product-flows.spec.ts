@@ -203,5 +203,5 @@ test("market IOC confirm fills against the fixture book", async ({ page }) => {
   await page.getByRole("tab", { name: "Fills" }).click();
   const fills = page.getByRole("tabpanel", { name: "Fills" });
   await expect(fills.getByRole("table", { name: "Session fills for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
-  await expect(fills.getByRole("row").filter({ hasText: "Buy52.911ZEC-USDC" })).toBeVisible();
+  await expect(fills.getByRole("row").filter({ hasText: /^Buy 52\.91.*1.*ZEC-USDC$/ })).toBeVisible();
 });
