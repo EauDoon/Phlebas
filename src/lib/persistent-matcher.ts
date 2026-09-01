@@ -162,6 +162,9 @@ function assertConfiguration(configuration: PersistentMatcherConfiguration): voi
     throw new RangeError("Solver fill limit exceeds the route fill limit");
   }
   const pair = configuration.atomicSwapPolicy.pair;
+  if (pair.quote.network !== `eip155:${configuration.domain.chainId}`) {
+    throw new Error("Matcher order domain chain must match the exact EVM quote network");
+  }
   const adapter = adapterIdentifier(configuration.atomicSwapPolicy.settlementProtocolVersion);
   if (configuration.solverQuotePolicy.baseNetwork !== pair.base.network
     || configuration.solverQuotePolicy.baseAsset !== pair.base.asset

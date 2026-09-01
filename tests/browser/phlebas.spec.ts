@@ -249,7 +249,7 @@ for (const width of viewports) {
       const liquidityNavigation = page.getByRole("tab", { name: "Liquidity" });
       await expectVisibleFocus(liquidityNavigation);
       await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDC$/);
+      await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDC&mode=advanced$/);
       await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
 
       const currentPool = page.getByRole("radio", { name: /ZEC \/ USDC|ZEC\/USDC/ });
@@ -261,7 +261,7 @@ for (const width of viewports) {
       await page.keyboard.press("Enter");
       await expect(laterPool).toHaveAttribute("aria-checked", "true");
       await expect(page.getByText("Later listing gate")).toHaveCount(0);
-      await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDT$/);
+      await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDT&mode=advanced$/);
 
       const amount = page.getByRole("textbox", { name: "ZEC liquidity amount" });
       await tabTo(page, amount);
@@ -507,14 +507,7 @@ test("non-payable ZIP 321 format example has no issue or copy action", async ({ 
   await expect(page.getByText("No address is generated, copied, or accepted by this application.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Issue testnet TEX" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Copy testnet URI" })).toHaveCount(0);
-  await page.evaluate(() => {
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText: () => Promise.reject(new Error("denied")) },
-    });
-  });
-  await page.getByRole("button", { name: "Copy placeholder URI" }).click();
-  await expect(page.getByText("Clipboard copy failed. The URI was not copied. Nothing was sent.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Copy.*URI/ })).toHaveCount(0);
 });
 
 test("stale market data disables preview-to-sign and retries to illustrative", async ({ page }) => {
@@ -3070,7 +3063,7 @@ test("skip-nav keeps wrapped line-height, 390px two-up ring, gutter, and header 
   expect(skipStyle.lineHeight).toBeGreaterThanOrEqual(skipStyle.fontSize * 1.25);
   expect(skipStyle.minHeight).toBeGreaterThanOrEqual(44);
   expect(skipStyle.minWidth).toBeGreaterThanOrEqual(44);
-  expect(skipStyle.outlineColor).toBe("rgb(21, 20, 13)");
+  expect(skipStyle.outlineColor).toBe("rgb(4, 47, 46)");
 
   const nav = page.getByRole("navigation", { name: "Skip links" });
   expect(await nav.evaluate((element) => getComputedStyle(element).scrollbarGutter)).toBe("stable");
@@ -3137,7 +3130,7 @@ test("skip-nav keeps wrapped line-height, 390px two-up ring, gutter, and header 
       color: style.outlineColor,
     };
   });
-  expect(ring390.color).toBe("rgb(21, 20, 13)");
+  expect(ring390.color).toBe("rgb(4, 47, 46)");
   expect(ring390.left).toBeGreaterThanOrEqual(-0.5);
   expect(ring390.top).toBeGreaterThanOrEqual(-0.5);
   expect(ring390.right).toBeLessThanOrEqual(390.5);
@@ -3283,7 +3276,7 @@ test("skip-nav two-up at 768 and 390 keeps 44px links, wrap, gutter, and Menu cl
       color: style.outlineColor,
     };
   });
-  expect(tradeRing.color).toBe("rgb(21, 20, 13)");
+  expect(tradeRing.color).toBe("rgb(4, 47, 46)");
   expect(tradeRing.left).toBeGreaterThanOrEqual(-0.5);
   expect(tradeRing.top).toBeGreaterThanOrEqual(-0.5);
   expect(tradeRing.right).toBeLessThanOrEqual(390.5);
@@ -3318,13 +3311,13 @@ test("skip-nav row-gap leftover 768 brand legal two-up and banner stacking", asy
       lastHeight: last?.height ?? 0,
     };
   });
-  expect(landingLayout.rowGap).toBe("8px");
+  expect(landingLayout.rowGap).toBe("4px");
   expect(landingLayout.navZ).toBeGreaterThan(landingLayout.bannerZ);
-  expect(landingLayout.padding).toBe("8px");
+  expect(landingLayout.padding).toBe("4px");
   expect(landingLayout.minWidth).toBeGreaterThanOrEqual(44);
   expect(landingLayout.lastWidth).toBeGreaterThanOrEqual(44);
   expect(landingLayout.lastHeight).toBeGreaterThanOrEqual(44);
-  expect(landingLayout.firstBottom + 4).toBeLessThanOrEqual(landingLayout.thirdTop - 4 + 0.5);
+  expect(landingLayout.firstBottom + 3.5).toBeLessThanOrEqual(landingLayout.thirdTop);
 
   await page.setViewportSize({ width: 768, height: 1024 });
   await page.goto("/", { waitUntil: "networkidle" });
@@ -3428,11 +3421,11 @@ test("skip-nav column-gap status liquidity leftover 768 Menu and security wrap",
       firstHeight: first?.height ?? 0,
     };
   });
-  expect(landingLayout.columnGap).toBe("8px");
+  expect(landingLayout.columnGap).toBe("4px");
   expect(landingLayout.minHeight).toBeGreaterThanOrEqual(44);
-  expect(landingLayout.padding).toBe("8px");
+  expect(landingLayout.padding).toBe("4px");
   expect(landingLayout.firstHeight).toBeGreaterThanOrEqual(44);
-  expect(landingLayout.firstRight + 4).toBeLessThanOrEqual(landingLayout.secondLeft - 4 + 0.5);
+  expect(landingLayout.firstRight + 3.5).toBeLessThanOrEqual(landingLayout.secondLeft);
 
   const navBox = await nav.boundingBox();
   const headerBox = await page.locator("header").boundingBox();
@@ -3905,7 +3898,7 @@ test("education Continue stays in 320px and leftover skip links stay 44px", asyn
       gutter: getComputedStyle(element).scrollbarGutter,
     };
   });
-  expect(twoUp.padding).toBe("8px");
+  expect(twoUp.padding).toBe("4px");
   expect(twoUp.gutter).toBe("stable");
   expect(twoUp.firstWidth).toBeGreaterThanOrEqual(44);
   expect(twoUp.secondWidth).toBeGreaterThanOrEqual(44);

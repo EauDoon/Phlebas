@@ -1,5 +1,7 @@
 import { type Locator, type Page } from "@playwright/test";
 
+import { NATIVE_MATCHER_DISABLED_COPY } from "../../src/lib/native-matcher-order-action.ts";
+
 import { expect, test } from "./fixtures";
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -166,3 +168,58 @@ test.describe("stacked viewports stay inside the page", () => {
     });
   }
 });
+
+for (const width of [1180, 1440] as const) {
+  test(`${width}px native matcher status is unclipped and does not overlap terminal panels`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
+
+    const matcher = page.locator("#native-matcher-order-action");
+    await expect(matcher).toBeVisible();
+    await expect(matcher).toContainText(NATIVE_MATCHER_DISABLED_COPY);
+
+    const geometry = await page.evaluate(() => {
+      const ids = [
+        "price-chart",
+        "order-book",
+        "order-ticket",
+        "recent-trades",
+        "native-matcher-order-action",
+        "session-blotter",
+      ];
+      const boxes = Object.fromEntries(ids.map((id) => {
+        const element = document.getElementById(id);
+        if (!element) throw new Error(`Missing ${id}`);
+        const rect = element.getBoundingClientRect();
+        return [id, {
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+          left: rect.left,
+          clientHeight: element.clientHeight,
+          scrollHeight: element.scrollHeight,
+        }];
+      }));
+      return boxes;
+    });
+
+    const entries = Object.entries(geometry);
+    for (let leftIndex = 0; leftIndex < entries.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < entries.length; rightIndex += 1) {
+        const [leftId, left] = entries[leftIndex];
+        const [rightId, right] = entries[rightIndex];
+        const overlapWidth = Math.min(left.right, right.right) - Math.max(left.left, right.left);
+        const overlapHeight = Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top);
+        expect(
+          overlapWidth > 1 && overlapHeight > 1,
+          `${leftId} does not overlap ${rightId}`,
+        ).toBe(false);
+      }
+    }
+
+    const matcherBox = geometry["native-matcher-order-action"];
+    expect(matcherBox.scrollHeight, "native matcher status fits without internal scrolling").toBeLessThanOrEqual(
+      matcherBox.clientHeight + 1,
+    );
+  });
+}

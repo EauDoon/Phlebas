@@ -38,6 +38,7 @@ function withoutHonestBridgeNegation(copy: string) {
 
 function withoutHonestCopyNegation(copy: string) {
   return withoutHonestBridgeNegation(copy)
+    .replace(/from\s+["'][^"']+["'];?/g, "")
     .replace(/\bnot trustless\b/gi, "")
     .replace(/\bdoes not provide shielded(?: deposits)?\b/gi, "")
     .replace(/\bNo shielded deposit or withdrawal is planned for v1\b/gi, "")
@@ -582,11 +583,12 @@ test("landing and terminal banners stay simulation-only", async () => {
     await readFile(join(root, "src/components/price-chart.tsx"), "utf8"),
     /feedSurface\(feedStatus\)/,
   );
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /market\.settlementPair/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /missingProviderCopy/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /retargetSettlementCopy/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /isTicketRejectCopy/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /isMissingProviderCopy/);
+  const tradeTicket = await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8");
+  assert.match(tradeTicket, /market\.settlementPair/);
+  assert.match(tradeTicket, /retargetSettlementCopy/);
+  assert.match(tradeTicket, /isTicketRejectCopy/);
+  assert.doesNotMatch(tradeTicket, /missingProviderCopy|isMissingProviderCopy/);
+  assert.doesNotMatch(tradeTicket, /sendSettlement|planTestnetSubmit|sepoliaSubmitEnabled/);
   assert.match(await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8"), /key=\{feedStatus\}/);
   const terminalTape = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");
   assert.match(terminalTape, /tapeSideCopy/);

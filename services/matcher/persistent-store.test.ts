@@ -12,6 +12,7 @@ import { matcherStateRoot, type PersistentMatcherConfiguration, type PersistentM
 import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier, UINT64_MAX } from "../../src/lib/order-domain.ts";
 import { VENUE_CLOB } from "../../src/lib/order-policy.ts";
 import type { SolverQuote } from "../../src/lib/solver-quotes.ts";
+import { hash160Value, p2shAddress } from "../../src/lib/zcash-address.ts";
 import { canonicalJournalJson, type JournalCheckpoint } from "./journal.ts";
 import {
   PersistentMatcherStore,
@@ -66,7 +67,7 @@ const configuration: PersistentMatcherConfiguration = {
 const verifier: MatcherSignatureVerifier = { verify() {} };
 
 function zcashAccount(name: string): string {
-  const address = `t3${keccak256Text(`zcash:${name}`).slice(2).replaceAll("0", "a").slice(0, 33)}`;
+  const address = p2shAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
   return `zcash:mainnet:${address}`;
 }
 
@@ -213,7 +214,7 @@ test("round-trips the exact persisted event representation", () => {
     /missing or unsupported fields/,
   );
 
-  const sourceAccount = "zcash:mainnet:t3-store-solver";
+  const sourceAccount = zcashAccount("store-solver");
   const recipientAccount = `${quoteNetwork}:0x${"22".repeat(20)}`;
   const quote: SolverQuote = {
     version: 1,

@@ -10,8 +10,10 @@ import test from "node:test";
 import { createOrderDomain, hashOrderDomain, type TypedOrderIntent } from "../../src/lib/eip712-order.ts";
 import { keccak256Text } from "../../src/lib/keccak.ts";
 import type { MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
-import type { PersistentMatcherConfiguration, PersistentMatcherEvent } from "../../src/lib/persistent-matcher.ts";
+import { MATCHER_CONFIGURATION_HEADER } from "../../src/lib/matcher-http.ts";
+import { matcherConfigurationHash, type PersistentMatcherConfiguration, type PersistentMatcherEvent } from "../../src/lib/persistent-matcher.ts";
 import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier } from "../../src/lib/order-domain.ts";
+import { hash160Value, p2shAddress } from "../../src/lib/zcash-address.ts";
 import { VENUE_CLOB } from "../../src/lib/order-policy.ts";
 import { serializePersistentMatcherEvent } from "./persistent-store.ts";
 import { startMatcher } from "./server.ts";
@@ -62,24 +64,33 @@ const configuration: PersistentMatcherConfiguration = {
 };
 const verifier: MatcherSignatureVerifier = { verify() {} };
 
+function mutationHeaders(requestId: string): Record<string, string> {
+  return {
+    "content-type": "application/json",
+    "idempotency-key": requestId,
+    [MATCHER_CONFIGURATION_HEADER]: matcherConfigurationHash(configuration),
+  };
+}
+
 function zcashAccount(name: string): string {
-  const address = `t3${keccak256Text(`zcash:${name}`).slice(2).replaceAll("0", "a").slice(0, 33)}`;
+  const address = p2shAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
   return `zcash:mainnet:${address}`;
 }
 
 function event(requestId = "order-one", nonce = 1n): Extract<PersistentMatcherEvent, { kind: "accept-order" }> {
   const suffix = nonce.toString();
-  const sourceAccount = zcashAccount(`maker:${suffix}`);
-  const recipientAccount = `${quoteNetwork}:0x1111111111111111111111111111111111111111`;
+  const sourceAccount = `${quoteNetwork}:0x${suffix.padStart(40, "0")}`;
+  const recipientAccount = zcashAccount(`recipient:${suffix}`);
+  const sourceAccountId = accountIdentifier(sourceAccount);
   const order: TypedOrderIntent = {
-    makerAccountId: accountIdentifier(sourceAccount),
-    authorizedSignerId: accountIdentifier(`${quoteNetwork}:signer-${suffix}`),
+    makerAccountId: sourceAccountId,
+    authorizedSignerId: sourceAccountId,
     recipientAccountId: accountIdentifier(recipientAccount),
     baseChainId: chainIdentifier(baseNetwork),
     baseAssetId: assetIdentifier(baseAsset),
     quoteChainId: chainIdentifier(quoteNetwork),
     quoteAssetId: assetIdentifier(quoteAsset),
-    side: 1,
+    side: 0,
     baseAmountAtoms: 100_000_000n,
     limitPriceTicks: 5_000n,
     nonce,
@@ -146,6 +157,7 @@ test("starts loopback-only in an honest unconfigured no-value mode", async () =>
     assert.equal(body.acceptingMutations, false);
     assert.equal(body.mode, "no-value");
     assert.equal(body.custody, false);
+    assert.equal(body.market, null);
     assert.equal((await fetch(`${origin}/v1/sequence`)).status, 503);
     assert.equal((await fetch(`${origin}/v1/orders`, { method: "POST" })).status, 503);
     for (const path of [
@@ -173,7 +185,7 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
   try {
     const first = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      headers: mutationHeaders("order-one"),
       body: JSON.stringify(payload(event())),
     });
     assert.equal(first.status, 201);
@@ -182,7 +194,7 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
 
     const replay = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      headers: mutationHeaders("order-one"),
       body: JSON.stringify(payload({ ...event(), occurredAtSeconds: now - 5n })),
     });
     assert.equal(replay.status, 200);
@@ -191,14 +203,33 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
     const health = await json(await fetch(`${origin}/health`));
     assert.equal(health.sequence, "1");
     assert.match(String(health.stateRoot), /^0x[0-9a-f]{64}$/);
+    assert.deepEqual(health.market, {
+      base: { network: baseNetwork, asset: baseAsset, environment: "mainnet", decimals: 8 },
+      quote: { network: quoteNetwork, asset: quoteAsset, environment: "mainnet", decimals: 6 },
+    });
+    const markets = await json(await fetch(`${origin}/markets`));
+    assert.equal(markets.baseAsset, baseAsset);
+    assert.equal(markets.quoteAsset, quoteAsset);
+    assert.deepEqual(markets.quoteAssets, [quoteAsset]);
+    assert.deepEqual(markets.market, health.market);
     const sequence = await json(await fetch(`${origin}/v1/sequence?after=0&limit=1`));
     assert.equal(sequence.nextAfter, "1");
     assert.equal(sequence.hasMore, false);
     assert.equal((sequence.receipts as unknown[]).length, 1);
     const receipt = await fetch(`${origin}/v1/requests/order-one`);
     assert.equal(receipt.status, 200);
+    const makerAccountId = event().submission.order.makerAccountId;
+    const account = await json(await fetch(`${origin}/v1/accounts/${makerAccountId}`));
+    assert.deepEqual(account, {
+      ok: true,
+      makerAccountId,
+      configurationHash: health.configurationHash,
+      accountEpoch: "0",
+      sequence: "1",
+      checkpoint: health.checkpoint,
+    });
     const book = await json(await fetch(`${origin}/v1/market/book`));
-    assert.equal(((book.book as { asks: unknown[] }).asks).length, 1);
+    assert.equal(((book.book as { bids: unknown[] }).bids).length, 1);
     assert.equal((await fetch(`${origin}/v1/checkpoint`)).status, 200);
     assert.equal((await fetch(`${origin}/v1/executions?after=1`)).status, 200);
     await close(server);
@@ -208,6 +239,156 @@ test("persists idempotent v1 intake and publishes checkpoint-bound feeds", async
     assert.equal((await json(await fetch(`${origin}/health`))).sequence, "1");
   } finally {
     if (server.listening) await close(server);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects an absent or stale matcher configuration header before order persistence", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-configuration-header-"));
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: directory,
+    configuration,
+    verifier,
+    clockSeconds: () => now,
+  });
+  const origin = await listen(server);
+  const request = (headers: Record<string, string>) => fetch(`${origin}/v1/orders`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload(event("configuration-bound"))),
+  });
+  try {
+    const missing = await request({
+      "content-type": "application/json",
+      "idempotency-key": "configuration-bound",
+    });
+    assert.equal(missing.status, 409);
+    assert.equal((await json(missing)).reason, "matcher-configuration-does-not-match-request");
+
+    const stale = await request({
+      ...mutationHeaders("configuration-bound"),
+      [MATCHER_CONFIGURATION_HEADER]: `0x${"99".repeat(32)}`,
+    });
+    assert.equal(stale.status, 409);
+    assert.equal((await json(stale)).reason, "matcher-configuration-does-not-match-request");
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
+  } finally {
+    await close(server);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects a mismatched order market before signature verification or persistence", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-market-"));
+  let verificationCalls = 0;
+  const checkedVerifier: MatcherSignatureVerifier = {
+    verify() {
+      verificationCalls += 1;
+    },
+  };
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: directory,
+    configuration,
+    verifier: checkedVerifier,
+    clockSeconds: () => now,
+  });
+  const origin = await listen(server);
+  const candidate = event("wrong-market");
+  const mismatched = {
+    ...candidate,
+    submission: {
+      ...candidate.submission,
+      order: {
+        ...candidate.submission.order,
+        quoteAssetId: assetIdentifier(`${quoteNetwork}/erc20:0x0000000000000000000000000000000000000003`),
+      },
+    },
+  };
+  try {
+    const response = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: mutationHeaders("wrong-market"),
+      body: JSON.stringify(payload(mismatched)),
+    });
+    assert.equal(response.status, 422);
+    assert.equal((await json(response)).reason, "order-market-does-not-match-matcher");
+    assert.equal(verificationCalls, 0);
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
+  } finally {
+    await close(server);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects sell and delegated buy authority before signature verification or persistence", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-authority-"));
+  let verificationCalls = 0;
+  const checkedVerifier: MatcherSignatureVerifier = {
+    verify() {
+      verificationCalls += 1;
+    },
+  };
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: directory,
+    configuration,
+    verifier: checkedVerifier,
+    clockSeconds: () => now,
+  });
+  const origin = await listen(server);
+  const buy = event("buy-authority");
+  const sellSource = zcashAccount("sell-authority");
+  const sellRecipient = `${quoteNetwork}:0x1111111111111111111111111111111111111111`;
+  const sell = {
+    ...buy,
+    requestId: "sell-authority",
+    submission: {
+      ...buy.submission,
+      order: {
+        ...buy.submission.order,
+        side: 1 as const,
+        makerAccountId: accountIdentifier(sellSource),
+        recipientAccountId: accountIdentifier(sellRecipient),
+      },
+      accounts: { sourceAccount: sellSource, recipientAccount: sellRecipient },
+    },
+  };
+  const delegated = {
+    ...buy,
+    requestId: "delegated-buy",
+    submission: {
+      ...buy.submission,
+      order: {
+        ...buy.submission.order,
+        authorizedSignerId: accountIdentifier(`${quoteNetwork}:0x2222222222222222222222222222222222222222`),
+      },
+    },
+  };
+  try {
+    const sellResponse = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: mutationHeaders(sell.requestId),
+      body: JSON.stringify(payload(sell)),
+    });
+    assert.equal(sellResponse.status, 422);
+    assert.equal((await json(sellResponse)).reason, "zcash-wallet-order-authorization-not-implemented");
+
+    const delegatedResponse = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: mutationHeaders(delegated.requestId),
+      body: JSON.stringify(payload(delegated)),
+    });
+    assert.equal(delegatedResponse.status, 422);
+    assert.equal((await json(delegatedResponse)).reason, "buy-source-account-must-match-authorized-signer");
+    assert.equal(verificationCalls, 0);
+    assert.equal((await json(await fetch(`${origin}/health`))).sequence, "0");
+  } finally {
+    await close(server);
     await rm(directory, { recursive: true, force: true });
   }
 });
@@ -226,33 +407,36 @@ test("rejects ambiguous endpoints, idempotency mismatch, media type, and oversiz
   try {
     const wrongKind = await fetch(`${origin}/v1/solver-quotes`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      headers: mutationHeaders("order-one"),
       body: JSON.stringify(payload(event())),
     });
     assert.equal(wrongKind.status, 400);
     const wrongKey = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "different" },
+      headers: mutationHeaders("different"),
       body: JSON.stringify(payload(event())),
     });
     assert.equal(wrongKey.status, 400);
     assert.equal((await fetch(`${origin}/v1/orders`, { method: "POST", body: "{}" })).status, 415);
     const duplicate = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "duplicate" },
+      headers: mutationHeaders("duplicate"),
       body: '{"kind":"accept-order","kind":"cancel-order"}',
     });
     assert.equal(duplicate.status, 400);
     assert.match(String((await json(duplicate)).reason), /invalid-json/);
     const oversized = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "large" },
+      headers: mutationHeaders("large"),
       body: JSON.stringify({ value: "x".repeat(3_000) }),
     });
     assert.equal(oversized.status, 413);
     assert.equal((await fetch(`${origin}/v1/sequence?after=01`)).status, 400);
     assert.equal((await fetch(`${origin}/v1/sequence?limit=101`)).status, 400);
     assert.equal((await fetch(`${origin}/v1/requests/missing`)).status, 404);
+    assert.equal((await fetch(`${origin}/v1/accounts/0x12`)).status, 400);
+    assert.equal((await fetch(`${origin}/v1/accounts/${`0x${"AA".repeat(32)}`}`)).status, 400);
+    assert.equal((await fetch(`${origin}/v1/accounts/${`0x${"aa".repeat(32)}`}/extra`)).status, 404);
   } finally {
     await close(server);
     await rm(directory, { recursive: true, force: true });
@@ -291,7 +475,7 @@ test("times out and destroys partial mutation bodies without consuming the pendi
 
     const recovered = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "after-slowloris" },
+      headers: mutationHeaders("after-slowloris"),
       body: JSON.stringify(payload(event("after-slowloris"))),
     });
     assert.equal(recovered.status, 201);
@@ -392,7 +576,7 @@ test("rejects mutation events outside the trusted server clock skew", async () =
   try {
     const response = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "future-server" },
+      headers: mutationHeaders("future-server"),
       body: JSON.stringify(payload({ ...event("future-server"), occurredAtSeconds: now + 31n })),
     });
     assert.equal(response.status, 400);
@@ -417,7 +601,7 @@ test("stamps accepted mutation time instead of trusting a backdated client times
   try {
     const response = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "backdated-server" },
+      headers: mutationHeaders("backdated-server"),
       body: JSON.stringify(payload({ ...event("backdated-server"), occurredAtSeconds: now - 5n })),
     });
     assert.equal(response.status, 201);
@@ -446,7 +630,7 @@ test("does not let an initially backdated client event revive an expired order",
     const candidate = event("initial-backdate-server");
     const response = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "initial-backdate-server" },
+      headers: mutationHeaders("initial-backdate-server"),
       body: JSON.stringify(payload({
         ...candidate,
         occurredAtSeconds: 0n,
@@ -480,12 +664,12 @@ test("reports a faulted store as unavailable and rejects future mutations", asyn
   try {
     assert.equal((await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "fault-one" },
+      headers: mutationHeaders("fault-one"),
       body: JSON.stringify(payload(event("fault-one"))),
     })).status, 201);
     const failed = await fetch(`${origin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "fault-two" },
+      headers: mutationHeaders("fault-two"),
       body: JSON.stringify(payload(event("fault-two", 2n))),
     });
     assert.equal(failed.status, 503);
@@ -599,7 +783,7 @@ test("enforces mutation rate and queue admission before sequencing", async () =>
   try {
     const requests = Array.from({ length: 8 }, () => fetch(`${queueOrigin}/v1/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+      headers: mutationHeaders("order-one"),
       body: JSON.stringify(payload(event())),
     }));
     const responses = await Promise.all(requests);

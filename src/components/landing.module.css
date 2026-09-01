@@ -1243,3 +1243,24 @@ a.skipLink:focus-visible {
     min-height: 44px;
   }
 }
+
+@media (max-width: 820px) and (prefers-reduced-motion: reduce) {
+  .skipNav:focus-within .skipLink {
+    width: auto;
+    max-width: none;
+  }
+}
+
+@media (max-width: 360px) and (prefers-reduced-motion: reduce) {
+  .skipNav:focus-within {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 4px;
+    row-gap: 4px;
+    padding: 4px;
+  }
+
+  .skipNav:focus-within .skipLink {
+    padding: 4px;
+    font-size: 12px;
+  }
+}

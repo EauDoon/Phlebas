@@ -1,5 +1,6 @@
 import { hashTypedOrder, type OrderDomain, type TypedOrderIntent } from "./eip712-order.ts";
 import { keccak256Text } from "./keccak.ts";
+import { assertZcashTransparentAccount } from "./zcash-address.ts";
 import {
   UINT64_MAX,
   UINT256_MAX,
@@ -155,17 +156,6 @@ function assertEvmAccount(account: string, network: string, label: string): void
     || !account.startsWith(`${network}:`)
     || !/^0x[0-9a-fA-F]{40}$/.test(account.slice(network.length + 1))) {
     throw new Error(`${label} must be an EVM account on the exact ${network} network`);
-  }
-}
-
-function assertZcashTransparentAccount(account: string, environment: ExactAsset["environment"], label: string): void {
-  const prefix = `zcash:${environment}:`;
-  const address = account.startsWith(prefix) ? account.slice(prefix.length) : "";
-  const addressPattern = environment === "mainnet"
-    ? /^(?:t1|t3)[1-9A-HJ-NP-Za-km-z]{33}$/
-    : /^(?:tm|t2)[1-9A-HJ-NP-Za-km-z]{33}$/;
-  if (!addressPattern.test(address)) {
-    throw new Error(`${label} must be a transparent ${environment} Zcash account`);
   }
 }
 

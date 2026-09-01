@@ -19,6 +19,7 @@ import { NO_TEX_ISSUED, ZEC_DESTINATION_LABEL } from "@/lib/wallet-bar-copy";
 import { terminalUrl } from "@/lib/terminal-url";
 import {
   DEFAULT_TERMINAL_MODE,
+  nextTerminalMode,
   resolveTerminalMode,
   TERMINAL_MODE_STORAGE_KEY,
   TERMINAL_MODES,
@@ -28,6 +29,7 @@ import {
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
 import { MARKET_ID_LABELS, MARKET_IDS, nextMarketId } from "@/lib/market-ids";
+import { NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT } from "@/lib/native-zec-usdc-matcher-manifest";
 import {
   FEED_STATUS_LABELS,
   FEED_STATUSES,
@@ -77,6 +79,7 @@ import { ArchitecturePanel } from "./architecture-panel";
 import { BridgePanel } from "./bridge-panel";
 import { CountryBlock } from "./country-block";
 import { LiquidityPanel } from "./liquidity-panel";
+import { NativeMatcherOrderAction } from "./native-matcher-order-action";
 import { NativeSwapPanel } from "./native-swap-panel";
 import { OrderBlotter } from "./order-blotter";
 import { OrderBook } from "./order-book";
@@ -195,6 +198,7 @@ export function TradingTerminal({
   const viewRefs = useRef<Partial<Record<TerminalView, HTMLButtonElement | null>>>({});
   const marketRefs = useRef<Partial<Record<MarketId, HTMLButtonElement | null>>>({});
   const feedRefs = useRef<Partial<Record<FeedStatus, HTMLButtonElement | null>>>({});
+  const modeRefs = useRef<Partial<Record<TerminalMode, HTMLButtonElement | null>>>({});
   const market = markets[marketId];
   const book = books[marketId];
   const feed = feedSurface(feedStatus);
@@ -211,6 +215,25 @@ export function TradingTerminal({
   function selectMode(nextMode: TerminalMode) {
     persistMode(nextMode);
     router.replace(viewUrl(view, marketId, feedStatus, demoQuery, nextMode), { scroll: false });
+  }
+
+  function moveModeFocus(nextMode: TerminalMode) {
+    modeRefs.current[nextMode]?.focus();
+  }
+
+  function onModeKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: TerminalMode) {
+    let nextMode: TerminalMode | null = null;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown" || event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      nextMode = nextTerminalMode(id);
+    } else if (event.key === "Home") {
+      nextMode = "simple";
+    } else if (event.key === "End") {
+      nextMode = "advanced";
+    }
+    if (nextMode === null) return;
+    event.preventDefault();
+    moveModeFocus(nextMode);
+    selectMode(nextMode);
   }
 
   function selectView(nextView: TerminalView) {
@@ -554,8 +577,13 @@ export function TradingTerminal({
                 key={id}
                 role="radio"
                 aria-checked={mode === id}
+                tabIndex={mode === id ? 0 : -1}
                 className={mode === id ? styles.selectorActive : undefined}
+                ref={(node) => {
+                  modeRefs.current[id] = node;
+                }}
                 onClick={() => selectMode(id)}
+                onKeyDown={(event) => onModeKeyDown(event, id)}
               >
                 {id === "simple" ? "Simple" : "Advanced"}
               </button>
@@ -702,10 +730,14 @@ export function TradingTerminal({
                 reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
                 accountEpoch={accountEpoch}
                 feedStatus={feedStatus}
-                walletAddress={wallet.address}
                 variant={mode}
                 onRetryFeed={() => selectFeed("illustrative")}
                 onSubmit={submitUserOrder}
+              />
+
+              <NativeMatcherOrderAction
+                marketId={marketId}
+                deployment={NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT}
               />
 
               <section id="recent-trades" tabIndex={-1} className={`${styles.panel} ${styles.tradesPanel}`} aria-labelledby="recent-trades-title">

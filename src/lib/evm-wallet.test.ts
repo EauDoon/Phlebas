@@ -3,12 +3,14 @@ import test from "node:test";
 
 import {
   ARBITRUM_SEPOLIA_HEX,
+  assertConnectedWalletAuthority,
   connectTestnetWallet,
   isMissingProviderCopy,
   missingProviderCopy,
   publicTestnetSigningError,
   publicWalletConnectionError,
   retargetSettlementCopy,
+  signTypedOrderIntent,
   signTypedData,
   walletConnectBarTitle,
   walletConnectBusyTitle,
@@ -16,7 +18,6 @@ import {
   walletConnectIdleTitle,
   walletConnectTitle,
   walletDisconnectLabel,
-  walletSigningDisabledCopy,
   walletStateWithSettlement,
   type Eip1193Provider,
 } from "./evm-wallet.ts";
@@ -238,10 +239,47 @@ test("rechecks the active chain immediately before signing", async () => {
   await assert.rejects(() => signTypedData(provider, "0xabc", {}), /Arbitrum Sepolia/);
 });
 
-test("wallet signing disabled copy never asks for a seed or spend key", () => {
-  const copy = walletSigningDisabledCopy();
-  assert.match(copy, /undeployed/);
-  assert.match(copy, /signing is disabled/);
-  assert.doesNotMatch(copy, /seed|spend(?:ing)? key|viewing key/i);
-  assert.doesNotMatch(copy, /\blive funds\b/i);
+test("binds matcher signing to the reviewed account and chain without a transaction RPC", async () => {
+  const address = "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf";
+  const signature = `0x${"11".repeat(65)}`;
+  const calls: string[] = [];
+  const provider: Eip1193Provider = {
+    async request({ method }) {
+      calls.push(method);
+      if (method === "eth_chainId") return "0xa4b1";
+      if (method === "eth_accounts") return [address.toUpperCase().replace("0X", "0x")];
+      if (method === "eth_signTypedData_v4") return signature;
+      throw new Error(method);
+    },
+  };
+
+  assert.equal(await assertConnectedWalletAuthority(provider, address, 42161n), address);
+  calls.length = 0;
+  assert.equal(await signTypedOrderIntent(provider, address, 42161n, { domain: {}, message: {} }), signature);
+  assert.deepEqual(calls.slice(0, 2).sort(), ["eth_accounts", "eth_chainId"]);
+  assert.equal(calls[2], "eth_signTypedData_v4");
+  assert.equal(calls.includes("eth_sendTransaction"), false);
+});
+
+test("refuses stale matcher wallet state before requesting a signature", async () => {
+  const calls: string[] = [];
+  const provider: Eip1193Provider = {
+    async request({ method }) {
+      calls.push(method);
+      if (method === "eth_chainId") return "0xa4b1";
+      if (method === "eth_accounts") return ["0x1111111111111111111111111111111111111111"];
+      if (method === "eth_signTypedData_v4") throw new Error("must not sign");
+      throw new Error(method);
+    },
+  };
+  await assert.rejects(
+    () => signTypedOrderIntent(
+      provider,
+      "0x2222222222222222222222222222222222222222",
+      42161n,
+      {},
+    ),
+    /account changed after order review/,
+  );
+  assert.equal(calls.includes("eth_signTypedData_v4"), false);
 });

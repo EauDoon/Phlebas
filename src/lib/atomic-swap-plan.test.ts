@@ -5,6 +5,7 @@ import { createOrderDomain, hashTypedOrder, type TypedOrderIntent } from "./eip7
 import { createAtomicSwapPlan, type AtomicSwapParty, type AtomicSwapPolicy } from "./atomic-swap-plan.ts";
 import { keccak256Text } from "./keccak.ts";
 import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier } from "./order-domain.ts";
+import { hash160Value, p2shAddress } from "./zcash-address.ts";
 
 const policy: AtomicSwapPolicy = {
   orderDomain: createOrderDomain(42161n, "0x1111111111111111111111111111111111111111"),
@@ -30,7 +31,7 @@ const policy: AtomicSwapPolicy = {
 };
 
 function party(name: string, side: 0 | 1): AtomicSwapParty {
-  const zcashAddress = `t3${keccak256Text(`zcash:${name}`).slice(2).replaceAll("0", "a").slice(0, 33)}`;
+  const zcashAddress = p2shAddress(hash160Value(new TextEncoder().encode(`zcash:${name}`)), "mainnet");
   const sourceAccount = side === 0 ? `eip155:42161:0x${side}${"1".repeat(39)}` : `zcash:mainnet:${zcashAddress}`;
   const recipientAccount = side === 0 ? `zcash:mainnet:${zcashAddress}` : `eip155:42161:0x${side}${"2".repeat(39)}`;
   const order: TypedOrderIntent = {
@@ -334,7 +335,7 @@ test("rejects account-role and exact-network mismatches even when signed IDs mat
     policy,
   }), /exact eip155:42161 network/);
 
-  const wrongZcash = `zcash:testnet:t3${"a".repeat(33)}`;
+  const wrongZcash = `zcash:testnet:${p2shAddress(hash160Value(new TextEncoder().encode("wrong-network")), "mainnet")}`;
   const wrongSellerOrder = { ...seller.order, makerAccountId: accountIdentifier(wrongZcash) };
   const wrongSeller = {
     ...seller,

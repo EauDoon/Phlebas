@@ -34,7 +34,7 @@ test("Compose publishes only the matcher on loopback and the image copies exactl
 
   const copiedRuntimeSources = [...dockerfile.matchAll(/^COPY\s+(.+)$/gm)]
     .flatMap((match) => match[1]!.trim().split(/\s+/).slice(0, -1))
-    .filter((source) => source.startsWith("src/") || source.startsWith("services/"))
+    .filter((source) => source.startsWith("infra/") || source.startsWith("src/") || source.startsWith("services/"))
     .sort();
   const requiredRuntimeSources = [...await transitiveRelativeImports("services/matcher/server.ts")].sort();
   assert.deepEqual(copiedRuntimeSources, requiredRuntimeSources);
