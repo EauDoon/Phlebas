@@ -1,7 +1,48 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { matcherHealthProxy, matcherOrderProxy } from "./matcher-proxy.ts";
+import { matcherAccountProxy, matcherHealthProxy, matcherOrderProxy } from "./matcher-proxy.ts";
+
+const CONFIGURATION_HASH = `0x${"11".repeat(32)}`;
+const STATE_ROOT = `0x${"22".repeat(32)}`;
+const RECORD_HASH = `0x${"33".repeat(32)}`;
+const MAKER_ACCOUNT_ID = `0x${"44".repeat(32)}`;
+const SUBJECT_HASH = `0x${"55".repeat(32)}`;
+const checkpoint = {
+  version: 1,
+  sequence: "1",
+  recordHash: RECORD_HASH,
+  stateRoot: STATE_ROOT,
+  configurationHash: CONFIGURATION_HASH,
+};
+const market = {
+  base: {
+    network: "bip122:00040fe8ec8471911baa1db1266ea15d",
+    asset: "bip122:00040fe8ec8471911baa1db1266ea15d/slip44:133",
+    environment: "mainnet",
+    decimals: 8,
+  },
+  quote: {
+    network: "eip155:42161",
+    asset: "eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+    environment: "mainnet",
+    decimals: 6,
+  },
+};
+const healthBody = JSON.stringify({
+  ok: true,
+  matcher: "persistent-native-v1",
+  configured: true,
+  acceptingMutations: true,
+  mode: "no-value",
+  custody: false,
+  market,
+  sequence: "1",
+  stateRoot: STATE_ROOT,
+  configurationHash: CONFIGURATION_HASH,
+  checkpoint,
+  privateOperatorDetail: "must-not-cross-the-proxy",
+});
 
 const originalMatcherUrl = process.env.PHLEBAS_MATCHER_URL;
 const originalFetch = globalThis.fetch;
@@ -29,7 +70,7 @@ test("matcher GET proxies only the loopback health endpoint without caching", as
   globalThis.fetch = (async (input, nextInit) => {
     requested = input as URL;
     init = nextInit;
-    return new Response('{"ok":true}', { status: 200 });
+    return new Response(healthBody, { status: 200 });
   }) as typeof fetch;
 
   const response = await matcherHealthProxy();
@@ -37,7 +78,48 @@ test("matcher GET proxies only the loopback health endpoint without caching", as
   assert.equal(init?.cache, "no-store");
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
-  assert.deepEqual(await response.json(), { ok: true });
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    matcher: "persistent-native-v1",
+    configured: true,
+    acceptingMutations: true,
+    mode: "no-value",
+    custody: false,
+    market,
+    sequence: "1",
+    stateRoot: STATE_ROOT,
+    configurationHash: CONFIGURATION_HASH,
+    checkpoint,
+  });
+});
+
+test("matcher GET rejects malformed private health and exposes a strict account lifecycle view", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    ok: true,
+    makerAccountId: MAKER_ACCOUNT_ID,
+    configurationHash: CONFIGURATION_HASH,
+    accountEpoch: "0",
+    sequence: "1",
+    checkpoint,
+    privateSignerBinding: "must-not-cross-the-proxy",
+  }))) as typeof fetch;
+  const account = await matcherAccountProxy(MAKER_ACCOUNT_ID);
+  assert.equal(account.status, 200);
+  assert.deepEqual(await account.json(), {
+    ok: true,
+    makerAccountId: MAKER_ACCOUNT_ID,
+    configurationHash: CONFIGURATION_HASH,
+    accountEpoch: "0",
+    sequence: "1",
+    checkpoint,
+  });
+  assert.equal((await matcherAccountProxy(`0x${"AA".repeat(32)}`)).status, 400);
+
+  globalThis.fetch = (async () => new Response('{"ok":true,"private":"detail"}')) as typeof fetch;
+  const malformed = await matcherHealthProxy();
+  assert.equal(malformed.status, 503);
+  assert.deepEqual(await malformed.json(), { ok: false, reason: "matcher-unavailable", matcher: "in-browser" });
 });
 
 test("matcher POST rejects invalid transport boundaries before proxying", async () => {
@@ -87,7 +169,24 @@ test("matcher POST forwards the exact order endpoint, body, and idempotency key"
   globalThis.fetch = (async (input, nextInit) => {
     requested = input as URL;
     init = nextInit;
-    return new Response('{"ok":true,"replayed":false}', { status: 201 });
+    return new Response(JSON.stringify({
+      ok: true,
+      replayed: false,
+      receipt: {
+        version: 1,
+        sequence: "1",
+        requestId: "order-one",
+        commandHash: `0x${"66".repeat(32)}`,
+        kind: "accept-order",
+        occurredAtSeconds: "1800000000",
+        status: "open",
+        subjectHash: SUBJECT_HASH,
+        remainingBaseAtoms: "100000000",
+        swapPlanIds: [],
+      },
+      checkpoint,
+      privateMatcherDetail: "must-not-cross-the-proxy",
+    }), { status: 201 });
   }) as typeof fetch;
 
   const response = await matcherOrderProxy(new Request("http://localhost/api/matcher", {
@@ -109,5 +208,36 @@ test("matcher POST forwards the exact order endpoint, body, and idempotency key"
   assert.equal(init?.cache, "no-store");
   assert.equal(response.status, 201);
   assert.equal(response.headers.get("cache-control"), "no-store");
-  assert.deepEqual(await response.json(), { ok: true, replayed: false });
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    replayed: false,
+    receipt: {
+      version: 1,
+      sequence: "1",
+      requestId: "order-one",
+      kind: "accept-order",
+      status: "open",
+      subjectHash: SUBJECT_HASH,
+      occurredAtSeconds: "1800000000",
+    },
+    checkpoint,
+  });
+});
+
+test("matcher POST maps private rejections and malformed success bodies to fixed errors", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
+  const request = () => new Request("http://localhost/api/matcher", {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+    body: '{"version":1,"requestId":"order-one"}',
+  });
+  globalThis.fetch = (async () => new Response('{"reason":"private verifier stack"}', { status: 422 })) as typeof fetch;
+  const rejected = await matcherOrderProxy(request());
+  assert.equal(rejected.status, 422);
+  assert.deepEqual(await rejected.json(), { ok: false, reason: "matcher-rejected-order" });
+
+  globalThis.fetch = (async () => new Response('{"ok":true,"private":"detail"}', { status: 201 })) as typeof fetch;
+  const malformed = await matcherOrderProxy(request());
+  assert.equal(malformed.status, 503);
+  assert.deepEqual(await malformed.json(), { ok: false, reason: "matcher-unavailable", matcher: "in-browser" });
 });

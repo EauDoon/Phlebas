@@ -1,5 +1,6 @@
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
 const OPERATOR_TIMEOUT_MS = 3_000;
+const OPERATOR_RESPONSE_BYTES = 128 * 1024;
 
 export function isLoopbackOperatorUrl(value: string | undefined): value is string {
   if (!value) return false;
@@ -36,6 +37,7 @@ export async function fetchLoopbackOperator(
   input: URL,
   init: RequestInit = {},
   fetcher: typeof fetch = fetch,
+  maximumBodyBytes = OPERATOR_RESPONSE_BYTES,
 ): Promise<Readonly<{ body: string; status: number }> | undefined> {
   try {
     const response = await fetcher(input, {
@@ -43,7 +45,33 @@ export async function fetchLoopbackOperator(
       cache: "no-store",
       signal: AbortSignal.timeout(OPERATOR_TIMEOUT_MS),
     });
-    return Object.freeze({ body: await response.text(), status: response.status });
+    const declaredLength = response.headers.get("content-length");
+    if (declaredLength && (!/^(?:0|[1-9][0-9]*)$/.test(declaredLength)
+      || BigInt(declaredLength) > BigInt(maximumBodyBytes))) {
+      await response.body?.cancel();
+      return undefined;
+    }
+    if (!response.body) return Object.freeze({ body: "", status: response.status });
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let length = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > maximumBodyBytes) {
+        await reader.cancel();
+        return undefined;
+      }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return Object.freeze({ body: new TextDecoder().decode(bytes), status: response.status });
   } catch {
     return undefined;
   }

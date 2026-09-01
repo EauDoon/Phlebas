@@ -62,4 +62,20 @@ test("loopback operator fetches preserve bounded responses and hide transport fa
     async () => { throw new Error("private operator failure"); },
   );
   assert.equal(failed, undefined);
+
+  const declaredOversized = await fetchLoopbackOperator(
+    new URL("http://127.0.0.1:8787/health"),
+    {},
+    async () => new Response("private operator bytes", { headers: { "content-length": "999" } }),
+    16,
+  );
+  assert.equal(declaredOversized, undefined);
+
+  const streamedOversized = await fetchLoopbackOperator(
+    new URL("http://127.0.0.1:8787/health"),
+    {},
+    async () => new Response("private operator bytes"),
+    16,
+  );
+  assert.equal(streamedOversized, undefined);
 });
