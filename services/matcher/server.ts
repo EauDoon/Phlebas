@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +10,12 @@ import {
   MAX_FEED_PAGE_SIZE,
 } from "../../src/lib/matcher-feeds.ts";
 import { createEvmEoaSignatureVerifier, type MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
+import {
+  MAX_MATCHER_ACCOUNT_RECOVERY_PAGE_SIZE,
+  canonicalMatcherAccountRecoveryAuthorization,
+  verifyMatcherAccountRecovery,
+  type MatcherAccountRecoveryAuthorization,
+} from "../../src/lib/matcher-account-recovery.ts";
 import { MATCHER_CONFIGURATION_HEADER } from "../../src/lib/matcher-http.ts";
 import {
   findRequestReceipt,
@@ -35,12 +42,12 @@ import {
   sendRateLimitHeaders,
   type RateLimitMiddleware,
 } from "../../src/lib/rate-limit-http.ts";
-import { UINT64_MAX, assetIdentifier, chainIdentifier, normalizeHex32 } from "../../src/lib/order-domain.ts";
-import type { TypedOrderIntent } from "../../src/lib/eip712-order.ts";
+import { UINT64_MAX, assetIdentifier, chainIdentifier, normalizeHex32, type Hex32 } from "../../src/lib/order-domain.ts";
+import { hashTypedOrder, type TypedOrderIntent } from "../../src/lib/eip712-order.ts";
 import { activeAccountEpoch } from "../../src/lib/order-lifecycle.ts";
 import { listenHost } from "../../src/lib/operator-url.ts";
 import { nativeZecUsdcMatcherPersistentConfiguration } from "./native-zec-usdc-configuration.ts";
-import type { JournalValue } from "./journal.ts";
+import type { JournalCheckpoint, JournalValue } from "./journal.ts";
 import {
   PersistentMatcherStore,
   MatcherPersistenceUnavailableError,
@@ -60,6 +67,10 @@ const DEFAULT_PENDING_MUTATIONS = 64;
 const DEFAULT_RATE_WINDOW_MILLISECONDS = 60_000;
 const DEFAULT_RATE_LIMIT = 120;
 const DEFAULT_RATE_LIMIT_ENTRIES = 10_000;
+const ACCOUNT_RECOVERY_CHALLENGE_SECONDS = 60n;
+const MAX_ACCOUNT_RECOVERY_CHALLENGES = 10_000;
+const ACCOUNT_RECOVERY_CHALLENGE_PATH = "/v1/account-order-challenges";
+const ACCOUNT_RECOVERY_ORDERS_PATH = "/v1/account-open-orders";
 const MAX_BODY_READ_TIMEOUT_MILLISECONDS = 5 * 60 * 1_000;
 const MAX_HTTP_TIMEOUT_MILLISECONDS = 5 * 60 * 1_000;
 const MUTATION_KINDS = new Map<string, PersistentMatcherEvent["kind"]>([
@@ -71,6 +82,14 @@ const MUTATION_KINDS = new Map<string, PersistentMatcherEvent["kind"]>([
 ]);
 
 type RateWindow = { startedAt: number; count: number };
+
+type StoredRecoveryChallenge = Readonly<{
+  authorization: MatcherAccountRecoveryAuthorization;
+  issuedAtSeconds: bigint;
+  checkpoint: JournalCheckpoint;
+  accountEpoch: bigint;
+  page: ReturnType<typeof recoveryOpenOrderPage>;
+}>;
 
 type MatcherMarketIdentity = Readonly<{
   base: Readonly<{ network: string; asset: string; environment: string; decimals: number }>;
@@ -234,6 +253,121 @@ function pageLimit(value: string | null): number {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed > MAX_FEED_PAGE_SIZE) throw new HttpError(400, `limit-must-not-exceed-${MAX_FEED_PAGE_SIZE}`);
   return parsed;
+}
+
+function exactKeys(value: Record<string, JournalValue>, expected: readonly string[], label: string): void {
+  const actual = Object.keys(value).sort();
+  const allowed = [...expected].sort();
+  if (actual.length !== allowed.length || actual.some((key, index) => key !== allowed[index])) {
+    throw new HttpError(400, `${label}-fields-invalid`);
+  }
+}
+
+function bodyString(value: JournalValue | undefined, label: string): string {
+  if (typeof value !== "string") throw new HttpError(400, `${label}-must-be-string`);
+  return value;
+}
+
+function bodyDecimal(value: JournalValue | undefined, label: string): bigint {
+  const input = bodyString(value, label);
+  if (!/^(?:0|[1-9][0-9]*)$/.test(input)) throw new HttpError(400, `${label}-must-be-canonical-decimal`);
+  const parsed = BigInt(input);
+  if (parsed > UINT64_MAX) throw new HttpError(400, `${label}-outside-uint64`);
+  return parsed;
+}
+
+function recoveryPageLimit(value: JournalValue | undefined): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value)
+    || value <= 0 || value > MAX_MATCHER_ACCOUNT_RECOVERY_PAGE_SIZE) {
+    throw new HttpError(400, `limit-must-be-between-1-and-${MAX_MATCHER_ACCOUNT_RECOVERY_PAGE_SIZE}`);
+  }
+  return value;
+}
+
+function canonicalBodyHex32(value: JournalValue | undefined, label: string): Hex32 {
+  const input = bodyString(value, label);
+  const normalized = normalizeHex32(input, label);
+  if (input !== normalized) throw new HttpError(400, `${label}-must-be-canonical`);
+  return normalized;
+}
+
+function sameRecoveryAuthorization(
+  left: MatcherAccountRecoveryAuthorization,
+  right: MatcherAccountRecoveryAuthorization,
+): boolean {
+  return left.makerAccountId === right.makerAccountId
+    && left.configurationHash === right.configurationHash
+    && left.checkpointSequence === right.checkpointSequence
+    && left.checkpointRecordHash === right.checkpointRecordHash
+    && left.checkpointStateRoot === right.checkpointStateRoot
+    && left.afterSequence === right.afterSequence
+    && left.limit === right.limit
+    && left.challenge === right.challenge
+    && left.expiresAtSeconds === right.expiresAtSeconds;
+}
+
+function recoveryOpenOrderPage(
+  store: PersistentMatcherStore,
+  makerAccountId: string,
+  afterSequence: bigint,
+  limit: number,
+  nowSeconds: bigint,
+) {
+  const matching = Object.values(store.state.openOrders)
+    .filter((entry) => entry.sequenced.order.makerAccountId === makerAccountId
+      && entry.sequenced.sequence > afterSequence
+      && entry.sequenced.order.expiry > nowSeconds
+      && entry.sequenced.remainingBaseAtoms > 0n)
+    .sort((left, right) => left.sequenced.sequence < right.sequenced.sequence ? -1
+      : left.sequenced.sequence > right.sequenced.sequence ? 1
+        : left.sequenced.orderHash.localeCompare(right.sequenced.orderHash));
+  const page = matching.slice(0, limit).map((entry) => {
+    const sequenced = entry.sequenced;
+    const record = store.journal.records[Number(sequenced.sequence - 1n)];
+    if (!record || BigInt(record.sequence) !== sequenced.sequence) {
+      throw new HttpError(503, "account-recovery-order-journal-record-unavailable");
+    }
+    const event = deserializePersistentMatcherEvent(store.state.configuration, record.event, {
+      source: "journal",
+      sequence: sequenced.sequence,
+      legacyControlCutoverSequence: 0n,
+    });
+    if (event.kind !== "accept-order"
+      || event.submission.order.makerAccountId !== makerAccountId
+      || event.submission.order.authorizedSignerId !== makerAccountId
+      || event.submission.order.timeInForce !== 0
+      || hashTypedOrder(store.state.configuration.domain, event.submission.order) !== sequenced.orderHash) {
+      throw new HttpError(503, "account-recovery-order-journal-binding-invalid");
+    }
+    const receipt = findRequestReceipt(store.state, event.requestId);
+    const receiptCheckpoint = store.receiptCheckpoint(event.requestId);
+    if (!receipt || receipt.kind !== "accept-order"
+      || receipt.sequence !== sequenced.sequence
+      || receipt.subjectHash !== sequenced.orderHash
+      || !receiptCheckpoint
+      || BigInt(receiptCheckpoint.sequence) !== receipt.sequence) {
+      throw new HttpError(503, "account-recovery-order-receipt-unavailable");
+    }
+    return {
+      version: 1,
+      orderHash: sequenced.orderHash,
+      acceptedSequence: sequenced.sequence,
+      makerAccountId: event.submission.order.makerAccountId,
+      authorizedSignerId: event.submission.order.authorizedSignerId,
+      accountEpoch: event.submission.order.accountEpoch,
+      nonce: event.submission.order.nonce,
+      currentStatus: sequenced.remainingBaseAtoms === sequenced.order.baseAmountAtoms ? "open" : "partially-filled",
+      baseAmountAtoms: sequenced.order.baseAmountAtoms,
+      remainingBaseAtoms: sequenced.remainingBaseAtoms,
+      limitPriceTicks: sequenced.order.limitPriceTicks,
+      expiry: sequenced.order.expiry,
+    };
+  });
+  return {
+    orders: page,
+    nextAfter: page.at(-1)?.acceptedSequence ?? afterSequence,
+    hasMore: matching.length > page.length,
+  };
 }
 
 function persistenceOptions(
@@ -474,6 +608,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
   };
   const startedAt = Date.now();
   const rateWindows = new Map<string, RateWindow>();
+  const recoveryChallenges = new Map<string, StoredRecoveryChallenge>();
   let pendingMutations = 0;
   let storeError: unknown;
   const storeReady = configured
@@ -519,7 +654,9 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
       sendRateLimitHeaders(response, rl.remaining, 0n);
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
       const expectedKind = request.method === "POST" ? MUTATION_KINDS.get(url.pathname) : undefined;
-      if (!expectedKind && hasRequestBody(request)) {
+      const recoveryPost = request.method === "POST"
+        && (url.pathname === ACCOUNT_RECOVERY_CHALLENGE_PATH || url.pathname === ACCOUNT_RECOVERY_ORDERS_PATH);
+      if (!expectedKind && !recoveryPost && hasRequestBody(request)) {
         await drainUnexpectedBody(request, maximumBodyBytes, bodyReadTimeoutMilliseconds);
         throw new HttpError(400, "unexpected-request-body");
       }
@@ -652,6 +789,123 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
       const store = await storeReady;
       if (!store) throw new HttpError(503, configured ? errorReason(storeError) : "matcher-configuration-unavailable");
       if (!store.acceptingMutations) throw new HttpError(503, store.faultReason ?? "matcher-store-closed");
+
+      if (request.method === "POST" && url.pathname === ACCOUNT_RECOVERY_CHALLENGE_PATH) {
+        checkRate(request);
+        const body = await readJson(request, maximumBodyBytes, bodyReadTimeoutMilliseconds);
+        exactKeys(body, ["version", "makerAccountId", "afterSequence", "limit"], "account-recovery-challenge");
+        if (body.version !== 1) throw new HttpError(400, "account-recovery-challenge-version-unsupported");
+        const makerAccountId = canonicalBodyHex32(body.makerAccountId, "maker-account-id");
+        const afterSequence = bodyDecimal(body.afterSequence, "after-sequence");
+        const limit = recoveryPageLimit(body.limit);
+        const expectedConfigurationHash = request.headers[MATCHER_CONFIGURATION_HEADER];
+        const configurationHash = matcherConfigurationHash(store.state.configuration);
+        if (typeof expectedConfigurationHash !== "string" || expectedConfigurationHash !== configurationHash) {
+          throw new HttpError(409, "matcher-configuration-does-not-match-request");
+        }
+        for (const [challenge, stored] of recoveryChallenges) {
+          if (stored.authorization.expiresAtSeconds < requestNow) recoveryChallenges.delete(challenge);
+        }
+        if (recoveryChallenges.size >= MAX_ACCOUNT_RECOVERY_CHALLENGES) {
+          throw new HttpError(503, "account-recovery-challenge-capacity-reached");
+        }
+        let challenge: Hex32;
+        do challenge = `0x${randomBytes(32).toString("hex")}`;
+        while (recoveryChallenges.has(challenge));
+        const expiresAtSeconds = requestNow + ACCOUNT_RECOVERY_CHALLENGE_SECONDS;
+        if (expiresAtSeconds > UINT64_MAX) throw new HttpError(503, "account-recovery-clock-outside-uint64");
+        const authorization = canonicalMatcherAccountRecoveryAuthorization({
+          makerAccountId,
+          configurationHash,
+          checkpointSequence: BigInt(store.checkpoint.sequence),
+          checkpointRecordHash: store.checkpoint.recordHash,
+          checkpointStateRoot: store.checkpoint.stateRoot,
+          afterSequence,
+          limit,
+          challenge,
+          expiresAtSeconds,
+        });
+        const page = recoveryOpenOrderPage(store, makerAccountId, afterSequence, limit, requestNow);
+        recoveryChallenges.set(challenge, {
+          authorization,
+          issuedAtSeconds: requestNow,
+          checkpoint: store.checkpoint,
+          accountEpoch: activeAccountEpoch(store.state.orderReference.lifecycle, makerAccountId),
+          page,
+        });
+        send(response, 200, {
+          ok: true,
+          makerAccountId,
+          configurationHash,
+          checkpoint: store.checkpoint,
+          afterSequence,
+          limit,
+          challenge,
+          issuedAtSeconds: requestNow,
+          expiresAtSeconds,
+        });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === ACCOUNT_RECOVERY_ORDERS_PATH) {
+        checkRate(request);
+        const body = await readJson(request, maximumBodyBytes, bodyReadTimeoutMilliseconds);
+        exactKeys(body, [
+          "version", "makerAccountId", "configurationHash", "checkpointSequence",
+          "checkpointRecordHash", "checkpointStateRoot", "afterSequence", "limit",
+          "challenge", "expiresAtSeconds", "signature",
+        ], "account-open-orders");
+        if (body.version !== 1) throw new HttpError(400, "account-open-orders-version-unsupported");
+        const expectedConfigurationHash = request.headers[MATCHER_CONFIGURATION_HEADER];
+        const activeConfigurationHash = matcherConfigurationHash(store.state.configuration);
+        if (typeof expectedConfigurationHash !== "string" || expectedConfigurationHash !== activeConfigurationHash) {
+          throw new HttpError(409, "matcher-configuration-does-not-match-request");
+        }
+        let authorization: MatcherAccountRecoveryAuthorization;
+        try {
+          authorization = canonicalMatcherAccountRecoveryAuthorization({
+            makerAccountId: canonicalBodyHex32(body.makerAccountId, "maker-account-id"),
+            configurationHash: canonicalBodyHex32(body.configurationHash, "configuration-hash"),
+            checkpointSequence: bodyDecimal(body.checkpointSequence, "checkpoint-sequence"),
+            checkpointRecordHash: canonicalBodyHex32(body.checkpointRecordHash, "checkpoint-record-hash"),
+            checkpointStateRoot: canonicalBodyHex32(body.checkpointStateRoot, "checkpoint-state-root"),
+            afterSequence: bodyDecimal(body.afterSequence, "after-sequence"),
+            limit: recoveryPageLimit(body.limit),
+            challenge: canonicalBodyHex32(body.challenge, "challenge"),
+            expiresAtSeconds: bodyDecimal(body.expiresAtSeconds, "expires-at-seconds"),
+          });
+        } catch {
+          throw new HttpError(401, "account-recovery-unauthorized");
+        }
+        const stored = recoveryChallenges.get(authorization.challenge);
+        if (!stored) throw new HttpError(401, "account-recovery-unauthorized");
+        if (!sameRecoveryAuthorization(stored.authorization, authorization)
+          || authorization.configurationHash !== activeConfigurationHash
+          || requestNow < stored.issuedAtSeconds
+          || requestNow > authorization.expiresAtSeconds) {
+          throw new HttpError(401, "account-recovery-unauthorized");
+        }
+        const signature = bodyString(body.signature, "signature");
+        if (!/^0x[0-9a-f]{130}$/.test(signature)) throw new HttpError(401, "account-recovery-unauthorized");
+        try {
+          verifyMatcherAccountRecovery(configured!.verifier!, store.state.configuration.domain, authorization, signature);
+        } catch {
+          throw new HttpError(401, "account-recovery-unauthorized");
+        }
+        recoveryChallenges.delete(authorization.challenge);
+        send(response, 200, {
+          ok: true,
+          makerAccountId: authorization.makerAccountId,
+          configurationHash: activeConfigurationHash,
+          accountEpoch: stored.accountEpoch,
+          afterSequence: authorization.afterSequence,
+          nextAfter: stored.page.nextAfter,
+          hasMore: stored.page.hasMore,
+          checkpoint: stored.checkpoint,
+          orders: stored.page.orders,
+        });
+        return;
+      }
 
       if (request.method === "GET" && url.pathname === "/v1/checkpoint") {
         send(response, 200, { checkpoint: store.checkpoint, stateRoot: matcherStateRoot(store.state) });
