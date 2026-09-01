@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { typedOrderFromTicket } from "./ticket-order.ts";
-import { planTestnetSubmit, sepoliaSubmitEnabled, sendSettlement } from "./sepolia-submit.ts";
-import { ARBITRUM_SEPOLIA_HEX, type Eip1193Provider } from "./evm-wallet.ts";
+import { ARBITRUM_SEPOLIA_HEX, planTestnetSubmit, sepoliaSubmitEnabled, sendSettlement } from "./sepolia-submit.ts";
+import type { Eip1193Provider } from "./evm-wallet.ts";
 
 const MAKER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const SIG = `0x${"11".repeat(65)}`;

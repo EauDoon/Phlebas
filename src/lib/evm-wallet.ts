@@ -1,12 +1,8 @@
-import { ARBITRUM_SEPOLIA_CHAIN_ID } from "./eip712.ts";
 import {
   ETHEREUM_MAINNET_CHAIN_HEX,
   ETHEREUM_MAINNET_CHAIN_ID,
 } from "./mainnet-assets.ts";
 import type { Market } from "./market-data.ts";
-
-// Retained only for the isolated legacy Sepolia submission module.
-export const ARBITRUM_SEPOLIA_HEX = `0x${ARBITRUM_SEPOLIA_CHAIN_ID.toString(16)}`;
 
 export type Eip1193Provider = {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>;

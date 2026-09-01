@@ -1,6 +1,6 @@
 import { type Locator, type Page } from "@playwright/test";
 
-import { ARBITRUM_SEPOLIA_HEX } from "../../src/lib/evm-wallet.ts";
+import { ETHEREUM_MAINNET_CHAIN_HEX } from "../../src/lib/mainnet-assets.ts";
 import { DEPOSIT_TOUR } from "../../src/lib/deposit-tour.ts";
 import { payoutClaimForTourStep, payoutClaimStubCopy } from "../../src/lib/payout.ts";
 import { WITHDRAWAL_TOUR } from "../../src/lib/withdrawal-tour.ts";
@@ -1020,7 +1020,7 @@ test("ticket signing stays disabled while the settlement contract is undeployed"
         },
       },
     });
-  }, ARBITRUM_SEPOLIA_HEX);
+  }, ETHEREUM_MAINNET_CHAIN_HEX);
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDC." })).toBeVisible();
@@ -1053,7 +1053,7 @@ test("market switching cannot enable undeployed testnet signing", async ({ page 
         },
       },
     });
-  }, ARBITRUM_SEPOLIA_HEX);
+  }, ETHEREUM_MAINNET_CHAIN_HEX);
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDC." })).toBeVisible();
@@ -1083,7 +1083,7 @@ test("wallet disconnect accessible name keeps settlement after switching market"
         },
       },
     });
-  }, ARBITRUM_SEPOLIA_HEX);
+  }, ETHEREUM_MAINNET_CHAIN_HEX);
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }).click();
   const connectedUsdc = page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDC." });

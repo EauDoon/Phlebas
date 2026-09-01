@@ -1,10 +1,11 @@
 import { encodeSettleCalldata } from "./settlement-abi.ts";
-import { assertAddress, type TypedOrder } from "./eip712.ts";
+import { ARBITRUM_SEPOLIA_CHAIN_ID, assertAddress, type TypedOrder } from "./eip712.ts";
 import { isOnchainAddress } from "./sepolia-manifest.ts";
-import { ARBITRUM_SEPOLIA_HEX, type Eip1193Provider } from "./evm-wallet.ts";
+import type { Eip1193Provider } from "./evm-wallet.ts";
 import { TESTNET } from "./testnet.ts";
 
 export const SEPOLIA_SUBMIT_FLAG = "NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT";
+export const ARBITRUM_SEPOLIA_HEX = `0x${ARBITRUM_SEPOLIA_CHAIN_ID.toString(16)}`;
 
 export function sepoliaSubmitEnabled(env?: Record<string, string | undefined>): boolean {
   return env
