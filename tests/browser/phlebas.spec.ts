@@ -392,7 +392,8 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   await expect(page.getByText("in-browser", { exact: true })).toBeVisible();
   await expect(page.getByText("live funds", { exact: false })).toBeVisible();
   await expect(page.getByText("deny-default", { exact: true })).toBeVisible();
-  await expect(page.getByText("unset", { exact: true })).toBeVisible();
+  const sequenceRoot = page.getByRole("listitem").filter({ hasText: "Sequence root" });
+  await expect(sequenceRoot.getByText("none", { exact: true })).toBeVisible();
   const boundary = page.locator("main#main-content");
   await expect(boundary.getByRole("link", { name: "Legal and compliance" })).toBeVisible();
   await expect(boundary.getByRole("link", { name: "Security" })).toHaveCount(2);

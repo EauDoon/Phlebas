@@ -1,12 +1,27 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-test("Compose publishes only the matcher on loopback and never sets a Vercel operator URL", async () => {
+async function transitiveRelativeImports(entrypoint: string, seen = new Set<string>()): Promise<Set<string>> {
+  const normalized = entrypoint.replaceAll("\\", "/");
+  if (seen.has(normalized)) return seen;
+  seen.add(normalized);
+
+  const source = await readFile(join(root, normalized), "utf8");
+  for (const match of source.matchAll(/from\s+["']([^"']+)["']/g)) {
+    const specifier = match[1];
+    if (!specifier?.startsWith(".")) continue;
+    const dependency = relative(root, resolve(root, dirname(normalized), specifier)).replaceAll("\\", "/");
+    await transitiveRelativeImports(dependency, seen);
+  }
+  return seen;
+}
+
+test("Compose publishes only the matcher on loopback and the image copies exactly its runtime source closure", async () => {
   const compose = await readFile(join(root, "services/compose.yaml"), "utf8");
   const dockerfile = await readFile(join(root, "services/Dockerfile"), "utf8");
   assert.match(compose, /127\.0\.0\.1:8788:8788/);
@@ -14,7 +29,28 @@ test("Compose publishes only the matcher on loopback and never sets a Vercel ope
   assert.match(compose, /Do not set PHLEBAS_MATCHER_URL on Vercel/);
   assert.match(compose, /PHLEBAS_ALLOW_NON_LOOPBACK: "1"/);
   assert.match(dockerfile, /node:24/);
-  assert.match(dockerfile, /COPY services/);
+  assert.doesNotMatch(dockerfile, /^COPY\s+(?:\.|src|services)\s/m);
+  assert.doesNotMatch(dockerfile, /services\/(?:gateway|observer|atomic-swap-observer)/);
+
+  const copiedRuntimeSources = [...dockerfile.matchAll(/^COPY\s+(.+)$/gm)]
+    .flatMap((match) => match[1]!.trim().split(/\s+/).slice(0, -1))
+    .filter((source) => source.startsWith("src/") || source.startsWith("services/"))
+    .sort();
+  const requiredRuntimeSources = [...await transitiveRelativeImports("services/matcher/server.ts")].sort();
+  assert.deepEqual(copiedRuntimeSources, requiredRuntimeSources);
+});
+
+test("the root Docker context excludes custody data, secrets, VCS state, and build output", async () => {
+  const dockerignore = await readFile(join(root, ".dockerignore"), "utf8");
+  const patterns = new Set(
+    dockerignore.split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith("#")),
+  );
+  for (const required of [
+    ".git", ".github", ".next", ".vercel", "node_modules", "coverage", "playwright-report", "test-results",
+    "contracts/cache", "contracts/out", "contracts/broadcast", "**/.data", "**/.env", "**/.env.*", "**/*.key", "**/*.pem",
+  ]) {
+    assert.ok(patterns.has(required), `missing Docker context exclusion: ${required}`);
+  }
 });
 
 test("LICENSE is Apache-2.0 and the Sepolia manifest stays undeployed", async () => {
