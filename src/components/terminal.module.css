@@ -195,9 +195,9 @@
   justify-content: center;
   gap: 10px;
   padding: 6px 20px;
-  border-bottom: 1px solid rgba(45, 212, 191), 0.28);
-  color: #d8c895;
-  background: rgba(45, 212, 191), 0.07);
+  border-bottom: 1px solid rgba(45, 212, 191, 0.28);
+  color: var(--text);
+  background: rgba(45, 212, 191, 0.07);
   font-size: 12px;
   letter-spacing: 0.01em;
 }
@@ -233,7 +233,7 @@
   border: 0;
   background: transparent;
   color: var(--text);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 760;
   letter-spacing: 0.18em;
 }
@@ -243,7 +243,7 @@
   display: inline-grid;
   flex: 0 0 auto;
   place-items: center;
-  color: #171408;
+  color: var(--accent-fg);
   background: var(--accent);
   font-family: var(--font-geist-mono), monospace;
   font-weight: 800;
@@ -253,7 +253,7 @@
   width: 28px;
   height: 28px;
   border-radius: 7px 2px 7px 2px;
-  box-shadow: 0 0 22px rgba(45, 212, 191), 0.14);
+  box-shadow: 0 0 22px rgba(45, 212, 191, 0.14);
 }
 
 .coinMark {
@@ -354,9 +354,9 @@
 .connectButton,
 .primaryAction {
   min-height: 38px;
-  border: 1px solid rgba(45, 212, 191), 0.46);
+  border: 1px solid rgba(45, 212, 191, 0.46);
   border-radius: 7px;
-  color: #18160d;
+  color: var(--accent-fg);
   background: var(--accent);
   font-size: 12px;
   font-weight: 730;
@@ -382,7 +382,7 @@
   gap: 16px 20px;
   padding: 12px 20px;
   border-bottom: 1px solid var(--border);
-  background: rgba(14, 18, 23, 0.76);
+  background: var(--surface);
 }
 
 .marketSelectorWrap {
@@ -464,7 +464,7 @@
 
 .gateBadge {
   padding: 5px 8px;
-  border: 1px solid rgba(45, 212, 191), 0.35);
+  border: 1px solid rgba(45, 212, 191, 0.35);
   border-radius: 999px;
   color: var(--accent);
   background: var(--accent-soft);
@@ -744,7 +744,7 @@
   padding: 9px 12px;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  background: rgba(45, 212, 191), 0.04);
+  background: rgba(45, 212, 191, 0.04);
 }
 
 .midPrice strong {
@@ -783,7 +783,7 @@
 }
 
 .warningPill {
-  border-color: rgba(45, 212, 191), 0.25);
+  border-color: rgba(45, 212, 191, 0.25);
   color: var(--accent);
   background: var(--accent-soft);
 }
@@ -843,7 +843,7 @@
 
 .inputShell:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(45, 212, 191), 0.18);
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.18);
 }
 
 .inputShell input {
@@ -1136,9 +1136,9 @@
   min-height: 44px;
   margin: 0 14px 10px;
   padding: 10px 12px;
-  border: 1px solid rgba(45, 212, 191), 0.28);
+  border: 1px solid rgba(45, 212, 191, 0.28);
   border-radius: 6px;
-  background: rgba(45, 212, 191), 0.07);
+  background: rgba(45, 212, 191, 0.07);
 }
 
 .ticketBlocked strong {
@@ -1357,7 +1357,7 @@
 
 .poolTabs button small {
   padding: 3px 6px;
-  border: 1px solid rgba(45, 212, 191), 0.28);
+  border: 1px solid rgba(45, 212, 191, 0.28);
   border-radius: 999px;
   color: var(--accent);
   font-size: 8px;
@@ -1375,7 +1375,7 @@
   min-height: 44px;
   margin: 14px 22px 0;
   padding: 10px 12px;
-  border: 1px solid rgba(45, 212, 191), 0.25);
+  border: 1px solid rgba(45, 212, 191, 0.25);
   border-radius: 6px;
   color: var(--text-secondary);
   background: var(--accent-soft);
@@ -1404,7 +1404,7 @@
 
 .assetInput:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(45, 212, 191), 0.18);
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.18);
 }
 
 .assetInput > span {
@@ -1472,7 +1472,7 @@
 .riskCard {
   padding: 28px 24px;
   background:
-    linear-gradient(180deg, rgba(45, 212, 191), 0.045), transparent 42%),
+    linear-gradient(180deg, rgba(45, 212, 191, 0.045), transparent 42%),
     var(--surface);
 }
 
@@ -1619,7 +1619,7 @@
   width: 100%;
   height: auto;
   border: 1px solid var(--border);
-  background: #f4f1e6;
+  background: var(--text);
 }
 
 .placeholderQr figcaption {
@@ -1699,7 +1699,7 @@
   gap: 18px;
   margin: 22px 22px 0;
   padding: 15px 17px;
-  border: 1px solid rgba(45, 212, 191), 0.22);
+  border: 1px solid rgba(45, 212, 191, 0.22);
   border-radius: 7px;
   background: var(--accent-soft);
 }
@@ -1831,7 +1831,7 @@
   border-top: 1px solid var(--border);
   color: var(--text-muted);
   background: var(--background);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .footer nav {
