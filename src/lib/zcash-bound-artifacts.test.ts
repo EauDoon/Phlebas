@@ -17,6 +17,13 @@ import {
   type TermsBoundFundingArtifactRequest,
   type TermsBoundRefundArtifactRequest,
 } from "./zcash-bound-artifacts.ts";
+import {
+  createBoundWalletReviewRequest,
+  parseBoundWalletReviewRequest,
+  serializeBoundWalletReviewRequest,
+  verifyBoundWalletReviewRequest,
+} from "./zcash-bound-pczt.ts";
+import { createPcztEnvelope, walletPcztReadiness } from "./zcash-pczt.ts";
 import { createNu63EncodingProfile } from "./zcash-transaction-policy.ts";
 import { encodeTransparentAddress, transparentScriptPubKey } from "./zcash-transparent.ts";
 
@@ -172,4 +179,56 @@ test("ignores attempted runtime overrides of contract amount and redeem script",
   assert.equal(bound.artifact.manifest.outputs[0]?.valueZatoshis, bound.projection.amountZatoshis);
   assert.equal(bound.artifact.manifest.authorization.redeemScriptHex, bound.projection.redeemScriptHex.slice(2));
   assert.equal(bound.artifact.manifest.authorization.fundingLockCutoff, Number(bound.projection.fundingCutoffSeconds));
+});
+
+test("binds PCZT review bytes to exact swap terms while keeping release blocked", () => {
+  const bound = buildTermsBoundZcashFundingArtifact(fundingRequest());
+  const pczt = createPcztEnvelope(Uint8Array.of(0x50, 0x43, 0x5a, 0x54, 2, 0, 0, 0, 0xaa));
+  const review = createBoundWalletReviewRequest({ boundArtifact: bound, pczt });
+  verifyBoundWalletReviewRequest(review);
+  assert.equal(review.releaseState, "blocked");
+  assert.equal(review.settlementBinding.binding.swapId, bound.projection.swapId);
+  assert.equal(review.walletReview.manifestDigest, bound.artifact.manifestDigest);
+  assert.match(review.blockers.join(","), /full-zip374.*wallet-htlc-lifecycle.*relayability/);
+  assert.equal(walletPcztReadiness({
+    customTransparentInputs: "proven",
+    customP2shScripts: "proven",
+    exactLockTime: "proven",
+    exactExpiry: "proven",
+    exactOutputs: "proven",
+  }).ready, false);
+  assert.deepEqual(parseBoundWalletReviewRequest(serializeBoundWalletReviewRequest(review)), review);
+});
+
+test("rejects PCZT, manifest, binding, and release-boundary substitution", () => {
+  const bound = buildTermsBoundZcashFundingArtifact(fundingRequest());
+  const review = createBoundWalletReviewRequest({
+    boundArtifact: bound,
+    pczt: createPcztEnvelope(Uint8Array.of(0x50, 0x43, 0x5a, 0x54, 2, 0, 0, 0, 0xaa)),
+  });
+  assert.throws(
+    () => verifyBoundWalletReviewRequest({ ...review, releaseState: "ready" } as never),
+    /blocked boundary/,
+  );
+  assert.throws(
+    () => verifyBoundWalletReviewRequest({ ...review, blockers: [] } as never),
+    /blockers/,
+  );
+  assert.throws(
+    () => verifyBoundWalletReviewRequest({
+      ...review,
+      settlementBinding: {
+        ...review.settlementBinding,
+        binding: { ...review.settlementBinding.binding, termsHash: `0x${"99".repeat(32)}` },
+      },
+    }),
+    /digest does not match/,
+  );
+  assert.throws(
+    () => verifyBoundWalletReviewRequest({
+      ...review,
+      walletReview: { ...review.walletReview, pcztByteSha256: "99".repeat(32) },
+    }),
+    /PCZT envelope fields|review digest/,
+  );
 });
