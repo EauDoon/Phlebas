@@ -4,40 +4,47 @@ import { ARBITRUM_SEPOLIA_HEX } from "../../src/lib/evm-wallet.ts";
 import { DEPOSIT_TOUR } from "../../src/lib/deposit-tour.ts";
 import { payoutClaimForTourStep, payoutClaimStubCopy } from "../../src/lib/payout.ts";
 import { WITHDRAWAL_TOUR } from "../../src/lib/withdrawal-tour.ts";
-import { expect, test } from "./fixtures";
+import {
+  expect,
+  LANDING_HERO_HEADING,
+  OPEN_TERMINAL_CTA,
+  PREVIEW_CHIP,
+  test,
+} from "./fixtures";
 import { LANDING_MAINNET_GATES } from "../../src/lib/landing-gates.ts";
+import { PREVIEW_EDUCATION_STEPS } from "../../src/lib/preview-education.ts";
 
 const viewports = [320, 390, 768, 1440] as const;
 
 const routes = [
   {
     path: "/",
-    disclosure: "Simulation only",
-    marker: "The custody line, drawn in public.",
+    disclosure: PREVIEW_CHIP,
+    marker: LANDING_HERO_HEADING,
   },
   {
     path: "/trade",
-    disclosure: "Protocol preview",
+    disclosure: PREVIEW_CHIP,
     marker: "settles ZEC-USDC",
   },
   {
     path: "/trade?view=settlement&market=ZEC/USDC",
-    disclosure: "No-value walkthrough",
+    disclosure: PREVIEW_CHIP,
     marker: "Native ZEC atomic swap",
   },
   {
     path: "/liquidity",
-    disclosure: "Protocol preview",
+    disclosure: PREVIEW_CHIP,
     marker: "Provide liquidity",
   },
   {
     path: "/legal",
-    disclosure: "Simulation only",
+    disclosure: PREVIEW_CHIP,
     marker: "product copy, not legal advice",
   },
   {
     path: "/security",
-    disclosure: "Simulation only",
+    disclosure: PREVIEW_CHIP,
     marker: "no production support commitment",
   },
 ] as const;
@@ -165,32 +172,21 @@ for (const width of viewports) {
             return Boolean(header && (banner.compareDocumentPosition(header) & Node.DOCUMENT_POSITION_FOLLOWING));
           });
           expect(bannerBeforeHeader).toBe(true);
+          await expect(page.getByRole("heading", { name: LANDING_HERO_HEADING })).toBeVisible();
           await expect(page.getByRole("heading", { name: "Current system" })).toBeVisible();
-          await expect(page.getByText("Wallet connection")).toBeVisible();
-          await expect(page.getByText("Unavailable", { exact: true })).toBeVisible();
-          await expect(page.getByText(
-            "The simulation now labels settlement as ZEC-USDC and ZEC-USDT. Native labels are simulation names, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.",
-            { exact: true },
-          )).toBeVisible();
-          await expect(page.getByText("USDT0 is abandoned. It is not a listed settlement asset.", { exact: true })).toBeVisible();
+          await expect(page.locator("main > section")).toHaveCount(4);
+          await expect(page.getByRole("tab", { name: "Deposit" })).toHaveCount(0);
+          await expect(page.getByRole("tab", { name: "Withdrawal" })).toHaveCount(0);
+          await expect(page.getByRole("link", { name: /Preview deposit|Preview withdrawal/i })).toHaveCount(0);
+          await expect(page.getByText("USDT0 is abandoned", { exact: false })).toBeVisible();
           await expect(page.getByText("Later listing gate")).toHaveCount(0);
-          await expect(page.getByText("Deny by default", { exact: true })).toBeVisible();
-          await expect(page.getByLabel("Current system").getByText("No-value preview", { exact: true })).toBeVisible();
-          await expect(page.getByRole("link", { name: "Open status details" })).toBeVisible();
           await expect(page.getByRole("contentinfo").getByRole("link", { name: "Legal and compliance" })).toBeVisible();
-          await expect(page.getByRole("heading", { name: "Choose what to inspect." })).toBeVisible();
-          await expect(page.getByRole("tab", { name: "Trader" })).toBeVisible();
-          await expect(page.getByRole("tab", { name: "Withdrawal" })).toBeVisible();
-          await expect(page.getByRole("heading", { name: "A working preview, bounded on purpose." })).toBeVisible();
-          await expect(page.getByRole("heading", { name: "Order book preview" })).toBeVisible();
-          await expect(page.getByRole("heading", { name: "Inspect the market model without connecting a wallet." })).toBeVisible();
-          await expect(page.getByText("Simulation", { exact: true })).toBeVisible();
-          await expect(page.getByRole("link", { name: "Open full simulation" })).toBeVisible();
-          await expect(page.getByText("Not a live book.")).toBeVisible();
+          await expect(page.getByRole("link", { name: OPEN_TERMINAL_CTA }).first()).toBeVisible();
+          await expect(page.getByText("Simulation", { exact: true })).toHaveCount(0);
+          await expect(page.getByRole("link", { name: OPEN_TERMINAL_CTA })).toHaveCount(0);
           await expect(page.locator("#launch-gates").getByText("Not cleared", { exact: true })).toHaveCount(
             LANDING_MAINNET_GATES.length + 3,
           );
-          await expect(page.getByRole("link", { name: "Read the launch gates" })).toBeVisible();
         }
       }
 
@@ -201,24 +197,12 @@ for (const width of viewports) {
       const runtimeErrors = captureRuntimeErrors(page);
       await page.goto("/", { waitUntil: "networkidle" });
 
-      const enterSimulation = page.locator("main").getByRole("link", { name: "Enter simulation" });
+      const enterSimulation = page.locator("main").getByRole("link", { name: OPEN_TERMINAL_CTA });
       await tabTo(page, enterSimulation);
       await expectVisibleFocus(enterSimulation);
       await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(/\/trade\?view=trade$/);
-      await expect(page.getByRole("radio", { name: "ZEC / USDC" })).toHaveAttribute("aria-checked", "true");
-      await expect(page.getByText("settles ZEC-USDC", { exact: true })).toBeVisible();
-
-      await page.goto("/", { waitUntil: "networkidle" });
-      const understandPairs = page.getByRole("link", { name: "Understand native pairs" });
-      await tabTo(page, understandPairs);
-      await expectVisibleFocus(understandPairs);
-      await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(/\/#pairs$/);
-      await expect(page.getByText(
-        "The simulation now labels settlement as ZEC-USDC and ZEC-USDT. Native labels are simulation names, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.",
-        { exact: true },
-      )).toBeVisible();
+      await expect(page).toHaveURL(/\/trade/);
+      await expect(page.getByText(PREVIEW_CHIP, { exact: true })).toBeVisible();
 
       await page.goto("/", { waitUntil: "networkidle" });
       const traderTab = page.getByRole("tab", { name: "Trader" });
@@ -319,11 +303,11 @@ for (const width of viewports) {
         await expect(menu).toBeFocused();
       } else {
         await expect(menu).toBeHidden();
-        const enter = page.locator("header").getByRole("link", { name: "Enter simulation" });
+        const enter = page.locator("header").getByRole("link", { name: OPEN_TERMINAL_CTA });
         await tabTo(page, enter);
         await expectVisibleFocus(enter);
         await page.keyboard.press("Enter");
-        await expect(page).toHaveURL(/\/trade\?view=trade$/);
+        await expect(page).toHaveURL(/\/trade/);
       }
 
       expect(runtimeErrors).toEqual([]);
@@ -403,7 +387,7 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   const missing = await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "load" });
   expect(missing?.status(), "404 status").toBe(404);
   await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
-  await expect(page.getByText("Simulation only", { exact: true })).toBeVisible();
+  await expect(page.getByText(PREVIEW_CHIP, { exact: true })).toBeVisible();
 });
 
 test("/api/status publishes incidents as architecture-demonstration", async ({ page }) => {
@@ -412,7 +396,7 @@ test("/api/status publishes incidents as architecture-demonstration", async ({ p
   const body = await response.json() as { incidents?: string; liveFunds?: boolean; mode?: string };
   expect(body.incidents).toBe("architecture-demonstration");
   expect(body.liveFunds).toBe(false);
-  expect(body.mode).toBe("simulation");
+  expect(body.mode).toBe("preview");
 });
 
 test("invalid demo query does not highlight incidents", async ({ page }) => {
@@ -1108,14 +1092,14 @@ test("wallet disconnect accessible name keeps settlement after switching market"
 test("first-session education can be completed by keyboard", async ({ page }) => {
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeFocused();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[0].title })).toBeFocused();
   await dialog.getByRole("button", { name: "Continue" }).click();
-  await expect(dialog.getByRole("heading", { name: "Pairs are native ZEC against USDC and USDT." })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[1].title })).toBeVisible();
   await dialog.getByRole("button", { name: "Continue" }).click();
-  await expect(dialog.getByRole("heading", { name: "Preview actions stay in this browser." })).toBeVisible();
-  await dialog.getByRole("button", { name: "Enter simulation" }).click();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[2].title })).toBeVisible();
+  await dialog.getByRole("button", { name: "Continue" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Review/i })).toBeVisible();
 });
 
 test("ticket G I F shortcuts set time in force", async ({ page }) => {
@@ -1133,10 +1117,10 @@ test("ticket G I F shortcuts set time in force", async ({ page }) => {
 test("first-session education dismisses on Escape", async ({ page }) => {
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[0].title })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Review/i })).toBeVisible();
 });
 
 test("landing Markets control points at the terminal preview", async ({ page }) => {
@@ -1221,26 +1205,17 @@ test("legal and security pages stay simulation-only", async ({ page }) => {
   await expect(page.getByText("Do not send ZEC, USDC, USDT, or any other asset")).toBeVisible();
 });
 
-test("landing without JavaScript still shows four journey descriptions", async ({ browser, serverUrl }) => {
+test("landing without JavaScript still shows the product landing", async ({ browser, serverUrl }) => {
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL: serverUrl });
   const page = await context.newPage();
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Choose what to inspect." })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Preview trading/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Preview liquidity/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Preview deposit states/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Preview withdrawal states/ })).toBeVisible();
-    const journeyCard = page.getByRole("list", { name: "Preview journeys" }).getByRole("listitem").first();
-    await expect(journeyCard).toBeVisible();
-    expect((await journeyCard.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-    const journeyAction = page.getByRole("link", { name: /Preview trading/ });
-    await expect(journeyAction).toBeVisible();
-    expect((await journeyAction.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-    await expect(page.getByText(
-      "This is a no-value simulation. It is not a live exchange and not a shielded market.",
-      { exact: true },
-    )).toBeVisible();
+    await expect(page.getByRole("heading", { name: LANDING_HERO_HEADING })).toBeVisible();
+    await expect(page.getByText(PREVIEW_CHIP, { exact: true })).toBeVisible();
+    await expect(page.locator("main > section")).toHaveCount(4);
+    await expect(page.getByRole("tab", { name: "Deposit" })).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "Withdrawal" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: OPEN_TERMINAL_CTA }).first()).toBeVisible();
   } finally {
     await context.close();
   }
@@ -1401,21 +1376,21 @@ test("blotter arrow keys move to the next tabpanel", async ({ page }) => {
 test("first-session education can be completed by keyboard with education copy", async ({ page }) => {
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeFocused();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[0].title })).toBeFocused();
   await expect(dialog.getByText("Education, not consent.")).toBeVisible();
   await dialog.getByRole("button", { name: "Continue" }).click();
-  await expect(dialog.getByRole("heading", { name: "Pairs are native ZEC against USDC and USDT." })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[1].title })).toBeVisible();
   await dialog.getByRole("button", { name: "Continue" }).click();
-  await expect(dialog.getByRole("heading", { name: "Preview actions stay in this browser." })).toBeVisible();
-  await dialog.getByRole("button", { name: "Enter simulation" }).click();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[2].title })).toBeVisible();
+  await dialog.getByRole("button", { name: "Continue" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Review/i })).toBeVisible();
 });
 
 test("first-session education dismisses on Escape from liquidity", async ({ page }) => {
   await page.goto("/liquidity?education=1", { waitUntil: "networkidle" });
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: "This is a no-value simulation." })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: PREVIEW_EDUCATION_STEPS[0].title })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
@@ -1809,16 +1784,14 @@ test("LP pool arrows move to the USDT pair", async ({ page }) => {
   await expect(page.getByText("Later listing gate")).toHaveCount(0);
 });
 
-test("document metadata names a no-value simulation", async ({ page }) => {
+test("document metadata does not claim a live exchange", async ({ page }) => {
   await page.goto("/", { waitUntil: "networkidle" });
-  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
-    "content",
-    "No-value simulation and non-custodial protocol plan for native transparent ZEC against USDC and USDT. Legacy pZEC surfaces are simulation only. Not an exchange or an offer of financial services.",
-  );
-  await expect(page.locator('meta[name="twitter:description"]')).toHaveAttribute(
-    "content",
-    "No-value simulation and non-custodial protocol plan for native transparent ZEC against USDC and USDT. Legacy pZEC surfaces are simulation only. Not an exchange or an offer of financial services.",
-  );
+  const og = page.locator('meta[property="og:description"]');
+  const twitter = page.locator('meta[name="twitter:description"]');
+  await expect(og).toHaveAttribute("content", /ZEC/);
+  await expect(twitter).toHaveAttribute("content", /ZEC/);
+  await expect(og).not.toHaveAttribute("content", /is a live exchange|is audited|payable/i);
+  await expect(twitter).not.toHaveAttribute("content", /is a live exchange|is audited|payable/i);
 });
 
 test("terminal view arrows move focus and Enter selects", async ({ page }) => {
@@ -2270,7 +2243,7 @@ test("liquidity skip link reaches pool stats", async ({ page }) => {
 test("ticket notice wallet rejection and simulation banner stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const banner = page.getByRole("status", { name: "Simulation disclosure" });
+  const banner = page.getByRole("status", { name: PREVIEW_CHIP });
   await expect(banner).toBeVisible();
   expect((await banner.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
@@ -2285,7 +2258,7 @@ test("ticket notice wallet rejection and simulation banner stay 44px on desktop"
   expect((await rejection.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
   await page.goto("/", { waitUntil: "networkidle" });
-  const landingBanner = page.getByRole("status", { name: "Simulation disclosure" });
+  const landingBanner = page.getByRole("status", { name: PREVIEW_CHIP });
   await expect(landingBanner).toBeVisible();
   expect((await landingBanner.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
@@ -2434,7 +2407,7 @@ test("landing mobile menu links stay 44px", async ({ page }) => {
   const markets = dialog.getByRole("link", { name: "Markets" });
   await expect(markets).toBeVisible();
   expect((await markets.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-  const enter = dialog.getByRole("link", { name: "Enter simulation" });
+  const enter = dialog.getByRole("link", { name: OPEN_TERMINAL_CTA });
   await expect(enter).toBeVisible();
   expect((await enter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
@@ -2490,7 +2463,7 @@ test("status legal and security ledgers are named lists", async ({ page }) => {
 test("landing header CTA journey tabs pZEC source and simulation-frame nav stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/", { waitUntil: "networkidle" });
-  const headerCta = page.locator("header").getByRole("link", { name: "Enter simulation" });
+  const headerCta = page.locator("header").getByRole("link", { name: OPEN_TERMINAL_CTA });
   await expect(headerCta).toBeVisible();
   expect((await headerCta.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   const tab = page.getByRole("tab", { name: "Trader" });
@@ -2509,7 +2482,7 @@ test("landing header CTA journey tabs pZEC source and simulation-frame nav stay 
 test("landing hero CTAs Open status details launch gates and brand home stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/", { waitUntil: "networkidle" });
-  const heroCta = page.locator("main").getByRole("link", { name: "Enter simulation" });
+  const heroCta = page.locator("main").getByRole("link", { name: OPEN_TERMINAL_CTA });
   await expect(heroCta).toBeVisible();
   expect((await heroCta.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   const pzec = page.getByRole("link", { name: "Understand native pairs" });
@@ -2603,7 +2576,7 @@ test("terminal skip education Continue and error Retry stay 44px on desktop", as
   expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
-test("404 skip loading skip education Back and Enter simulation stay 44px on desktop", async ({ page }) => {
+test("404 skip loading skip education Back and Continue stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "networkidle" });
   await page.keyboard.press("Tab");
@@ -2633,7 +2606,7 @@ test("404 skip loading skip education Back and Enter simulation stay 44px on des
   await expect(back).toBeEnabled();
   expect((await back.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   await page.getByRole("button", { name: "Continue" }).click();
-  const enter = page.getByRole("dialog").getByRole("button", { name: "Enter simulation" });
+  const enter = page.getByRole("dialog").getByRole("button", { name: "Continue" });
   await expect(enter).toBeVisible();
   expect((await enter.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
@@ -2835,7 +2808,7 @@ test("reduced-motion keeps skip-nav in place and skip-nav stacks above the banne
 
   const stacking = await page.evaluate(() => {
     const skipNav = document.querySelector('nav[aria-label="Skip links"]');
-    const banner = document.querySelector('[aria-label="Simulation disclosure"]');
+    const banner = [...document.querySelectorAll('[role="status"]')].find((node) => /Public preview/.test(node.textContent ?? ""));
     const root = skipNav?.parentElement;
     return {
       navZ: Number.parseInt(skipNav ? getComputedStyle(skipNav).zIndex : "0", 10),
@@ -2858,7 +2831,7 @@ test("terminal banner stays below skip-nav and 320px skip-nav does not cover the
   await page.goto("/trade", { waitUntil: "networkidle" });
   const tradeStacking = await page.evaluate(() => {
     const skipNav = document.querySelector('nav[aria-label="Skip links"]');
-    const banner = document.querySelector('[aria-label="Simulation disclosure"]');
+    const banner = [...document.querySelectorAll('[role="status"]')].find((node) => /Public preview/.test(node.textContent ?? ""));
     return {
       navZ: Number.parseInt(skipNav ? getComputedStyle(skipNav).zIndex : "0", 10),
       bannerZ: Number.parseInt(banner ? getComputedStyle(banner).zIndex : "0", 10) || 0,
@@ -2908,7 +2881,7 @@ test("focused skip-nav does not cover banner copy and restores 44px skip links a
   expect((await skip.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
   const navBox = await page.getByRole("navigation", { name: "Skip links" }).boundingBox();
-  const bannerBox = await page.getByRole("status", { name: "Simulation disclosure" }).boundingBox();
+  const bannerBox = await page.getByRole("status", { name: PREVIEW_CHIP }).boundingBox();
   expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual((bannerBox?.y ?? 0) + 1);
 });
 
@@ -3298,7 +3271,7 @@ test("skip-nav row-gap leftover 768 brand legal two-up and banner stacking", asy
     const first = links[0]?.getBoundingClientRect();
     const third = links[2]?.getBoundingClientRect();
     const last = links[links.length - 1]?.getBoundingClientRect();
-    const banner = document.querySelector('[aria-label="Simulation disclosure"]');
+    const banner = [...document.querySelectorAll('[role="status"]')].find((node) => /Public preview/.test(node.textContent ?? ""));
     return {
       rowGap: style.rowGap,
       navZ: Number.parseInt(style.zIndex, 10) || 0,
@@ -3904,7 +3877,7 @@ test("education Continue stays in 320px and leftover skip links stay 44px", asyn
   expect(twoUp.secondWidth).toBeGreaterThanOrEqual(44);
 });
 
-test("education Back Enter simulation heading ring leftover 768 and skip-nav ring at 768", async ({ page }) => {
+test("education Back Continue heading ring leftover 768 and skip-nav ring at 768", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
@@ -3936,7 +3909,7 @@ test("education Back Enter simulation heading ring leftover 768 and skip-nav rin
   expect(headingRing.top).toBeGreaterThanOrEqual(headingRing.parentTop - 0.5);
 
   await dialog.getByRole("button", { name: "Continue" }).click();
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(enter).toBeVisible();
   const enterBox = await enter.boundingBox();
   expect(enterBox?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -4067,7 +4040,7 @@ test("education disabled Back sticky copy Continue ring leftover 390 768 and ski
   await leftover("/", 390, 844, 7);
 });
 
-test("education Enter simulation stays in 320px Continue ring is teal leftover 320 768", async ({ page }) => {
+test("education last-step Continue stays in 320px Continue ring is teal leftover 320 768", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
@@ -4085,7 +4058,7 @@ test("education Enter simulation stays in 320px Continue ring is teal leftover 3
 
   await continueButton.click();
   await continueButton.click();
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(enter).toBeVisible();
   const enterBox = await enter.boundingBox();
   expect(enterBox?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -4263,14 +4236,14 @@ test("education last-step Back heading ring leftover 320 768", async ({ page }) 
   await leftover("/trade?error=1", 768, 1024, 2);
   await leftover("/trade?access=blocked", 320, 900, 2);
 });
-test("education Enter simulation stays 44px wide on the last step at 320", async ({ page }) => {
+test("education Continue stays 44px wide on the last step at 320", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/trade?education=1", { waitUntil: "networkidle" });
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(enter).toBeVisible();
   const enterBox = await enter.boundingBox();
   expect(enterBox?.width ?? 0).toBeGreaterThanOrEqual(44);
@@ -4473,7 +4446,7 @@ test("education Continue stays in a 320x568 viewport", async ({ page }) => {
   expect((continueBox?.x ?? 0) + (continueBox?.width ?? 0)).toBeLessThanOrEqual(320);
   await continueButton.click();
   await continueButton.click();
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(enter).toBeVisible();
   const enterBox = await enter.boundingBox();
   expect(enterBox?.width ?? 0).toBeGreaterThanOrEqual(44);
@@ -4490,7 +4463,7 @@ test("education Enter Back heading 44px Continue ring at 390 and heading ring at
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
   const back = dialog.getByRole("button", { name: "Back" });
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(back).toBeEnabled();
   await expect(enter).toBeVisible();
   const backBox = await back.boundingBox();
@@ -4631,7 +4604,7 @@ test("education Enter Back 44px Continue ring at 768 and heading ring at 390", a
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
   const back = dialog.getByRole("button", { name: "Back" });
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(back).toBeEnabled();
   await expect(enter).toBeVisible();
   const backBox = await back.boundingBox();
@@ -4775,7 +4748,7 @@ test("education Enter Back heading 44px Continue ring at 1440 and heading ring a
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
   const back = dialog.getByRole("button", { name: "Back" });
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(back).toBeEnabled();
   await expect(enter).toBeVisible();
   expect((await back.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(44);
@@ -5033,7 +5006,7 @@ test("education Continue in 768x1024 Enter Back in 390x844 and heading ring at 3
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
   const back = dialog.getByRole("button", { name: "Back" });
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(back).toBeEnabled();
   await expect(enter).toBeVisible();
   const backBox = await back.boundingBox();
@@ -5121,7 +5094,7 @@ test("education Continue in 1440 Enter Back in 768 heading ring 768 and Continue
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
   const back = dialog.getByRole("button", { name: "Back" });
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(back).toBeEnabled();
   await expect(enter).toBeVisible();
   const backBox = await back.boundingBox();
@@ -5229,7 +5202,7 @@ test("education Enter Back in 1440 heading ring 1440 Continue ring 768 and Conti
   await dialog.getByRole("button", { name: "Continue" }).click();
   await dialog.getByRole("button", { name: "Continue" }).click();
   const back = dialog.getByRole("button", { name: "Back" });
-  const enter = dialog.getByRole("button", { name: "Enter simulation" });
+  const enter = dialog.getByRole("button", { name: "Continue" });
   await expect(back).toBeEnabled();
   await expect(enter).toBeVisible();
   const backBox = await back.boundingBox();

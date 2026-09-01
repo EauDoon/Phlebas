@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { expect, PREVIEW_CHIP, test } from "./fixtures";
 
 const ACCENT = "rgb(240, 193, 75)";
 const RETIRED_GOLD = "rgb(244, 201, 93)";
@@ -19,7 +19,7 @@ for (const route of routes) {
       expect(response?.status()).toBe(404);
     }
 
-    const banner = page.getByRole("status", { name: "Simulation disclosure" }).locator("strong");
+    const banner = page.getByText(PREVIEW_CHIP, { exact: true });
     await expect(banner).toBeVisible();
     const bannerColor = await banner.evaluate((element) => getComputedStyle(element).color);
     expect(bannerColor, `${route.name} banner accent`).toBe(ACCENT);
