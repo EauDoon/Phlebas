@@ -54,6 +54,13 @@
   padding: 4px;
 }
 
+.skipNav[data-skip-nav-state="hidden-after-activation"],
+.skipNav[data-skip-nav-state="hidden-after-activation"]:focus-within {
+  transform: translateY(-220%);
+  min-height: 0;
+  pointer-events: none;
+}
+
 .skipLink {
   display: inline-flex;
   min-width: 44px;
