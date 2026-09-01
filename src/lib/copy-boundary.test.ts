@@ -1,13 +1,36 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import test from "node:test";
 import { existsSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { simulationStatus } from "./status.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
+const execFileAsync = promisify(execFile);
+
+async function scanSecrets(cwd) {
+  try {
+    const result = await execFileAsync(process.execPath, ["scripts/scan-secrets.mjs"], {
+      cwd,
+      encoding: "utf8",
+    });
+    return { code: 0, stdout: result.stdout, stderr: result.stderr };
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error) {
+      return {
+        code: Number(error.code),
+        stdout: "stdout" in error ? String(error.stdout ?? "") : "",
+        stderr: "stderr" in error ? String(error.stderr ?? "") : "",
+      };
+    }
+    throw error;
+  }
+}
 
 function withoutHonestBridgeNegation(copy: string) {
   return copy.replace(/not (?:native ZEC, shielded ZEC, or )?a trustless bridge asset/gi, "");
@@ -365,6 +388,45 @@ test("vercel.json does not assign operator URLs", async () => {
   const vercel = await readFile(vercelPath, "utf8");
   assert.doesNotMatch(vercel, /PHLEBAS_GATEWAY_URL\s*[:=]/);
   assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_URL\s*[:=]/);
+});
+
+test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "phlebas-secrets-"));
+  try {
+    await mkdir(join(dir, "scripts"));
+    await copyFile(join(root, "scripts/scan-secrets.mjs"), join(dir, "scripts/scan-secrets.mjs"));
+
+    const clean = await scanSecrets(dir);
+    assert.equal(clean.code, 0);
+
+    await writeFile(join(dir, ".env"), "PHLEBAS_GATEWAY_URL=http://127.0.0.1:8787\n");
+    const envHit = await scanSecrets(dir);
+    assert.notEqual(envHit.code, 0);
+    assert.match(`${envHit.stdout}${envHit.stderr}`, /vercel-operator-gateway/);
+    await rm(join(dir, ".env"));
+
+    await writeFile(join(dir, "vercel.json"), "{\n  env: { PHLEBAS_MATCHER_URL: \"http://127.0.0.1:8788\" }\n}\n");
+    const vercelHit = await scanSecrets(dir);
+    assert.notEqual(vercelHit.code, 0);
+    assert.match(`${vercelHit.stdout}${vercelHit.stderr}`, /vercel-operator-matcher/);
+    await rm(join(dir, "vercel.json"));
+
+    await mkdir(join(dir, ".vercel"));
+    await writeFile(join(dir, ".vercel", "project.json"), "PHLEBAS_GATEWAY_URL=http://example.com:8787\n");
+    const vercelDirHit = await scanSecrets(dir);
+    assert.notEqual(vercelDirHit.code, 0);
+    assert.match(`${vercelDirHit.stdout}${vercelDirHit.stderr}`, /vercel-operator-gateway/);
+    await rm(join(dir, ".vercel"), { recursive: true, force: true });
+
+    await writeFile(
+      join(dir, "readme.md"),
+      "PHLEBAS_GATEWAY_URL=http://example.com\nPHLEBAS_MATCHER_URL=http://example.com\n",
+    );
+    const ignored = await scanSecrets(dir);
+    assert.equal(ignored.code, 0);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("Open Graph and Twitter cards stay labeled as a simulation", async () => {
