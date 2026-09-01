@@ -14,10 +14,10 @@ import {
 } from "@/lib/zcash-address.ts";
 import { parseCompressedPubkey } from "@/lib/zcash-pubkey.ts";
 import {
-  buildClaimTransaction,
-  buildFundTransaction,
-  buildRefundTransaction,
-  hashAtomicSwapParams,
+  legacyAtomicSwapScriptHex,
+  previewLegacyClaimShape,
+  previewLegacyFundShape,
+  previewLegacyRefundShape,
 } from "@/lib/zcash-wallet-adapter.ts";
 
 export const metadata: Metadata = {
@@ -45,6 +45,10 @@ function bytesToHex(bytes: Uint8Array): string {
   let out = "0x";
   for (let i = 0; i < bytes.length; i++) out += bytes[i].toString(16).padStart(2, "0");
   return out;
+}
+
+function stringifyLegacyShape(value: unknown): string {
+  return JSON.stringify(value, (_key, entry) => typeof entry === "bigint" ? entry.toString() : entry);
 }
 
 function parseNetwork(value: string | undefined): ZcashNetwork {
@@ -81,26 +85,26 @@ export default async function ZcashPage({
   const p2sh = p2shAddress(scriptHash160, network);
   const fakeBuyerPubkeyHash = pubkeyHash160(hexToBytes(buyerHex as `0x${string}`));
   const p2pkh = p2pkhAddress(fakeBuyerPubkeyHash, network);
-  const fund = buildFundTransaction({
+  const fund = previewLegacyFundShape({
     fundOutput: { valueZat: 1_000_000n, scriptPubKey: script },
     changeOutput: { valueZat: 0n, scriptPubKey: new Uint8Array(0) },
     lockTime: Number(lock),
   });
-  const claim = buildClaimTransaction({
+  const claim = previewLegacyClaimShape({
     utxo: { txid: "ab".repeat(32), vout: 0, valueZat: 1_000_000n, scriptPubKey: script },
     preimage: new Uint8Array(32),
     recipientOutput: { valueZat: 900_000n, scriptPubKey: new Uint8Array(0) },
     changeOutput: { valueZat: 100_000n, scriptPubKey: new Uint8Array(0) },
     sequence: 0xfffffffe,
   });
-  const refund = buildRefundTransaction({
+  const refund = previewLegacyRefundShape({
     utxo: { txid: "ab".repeat(32), vout: 0, valueZat: 1_000_000n, scriptPubKey: script },
     recipientOutput: { valueZat: 990_000n, scriptPubKey: new Uint8Array(0) },
     changeOutput: { valueZat: 10_000n, scriptPubKey: new Uint8Array(0) },
     sequence: 0xfffffffe,
   });
   const versionHex = `0x${VERSION_BYTES[`${network}_p2sh`].toString(16).padStart(4, "0")}`;
-  const hashAtomic = hashAtomicSwapParams({ hash20, buyerPubkey: buyer, sellerPubkey: seller, lockTime: lock });
+  const hashAtomic = legacyAtomicSwapScriptHex({ hash20, buyerPubkey: buyer, sellerPubkey: seller, lockTime: lock });
 
   return (
     <SimulationFrame
@@ -109,7 +113,8 @@ export default async function ZcashPage({
     >
       <p data-testid="zcash-simulation-notice">
         This is a no-value simulation of the Zcash side of the atomic swap. The address
-        encoder, the script builder, and the wallet adapter are all key-independent.
+        encoder and script builder are key-independent. The displayed fund, claim, and refund
+        values are legacy synthetic incomplete shapes, not Zcash transactions or wallet inputs.
         No signing or broadcast happens on this page.
       </p>
 
@@ -172,16 +177,16 @@ export default async function ZcashPage({
         </div>
       </dl>
 
-      <h2>Wallet adapter (unsigned)</h2>
-      <ul role="list" aria-label="Unsigned transactions">
+      <h2>Legacy synthetic shapes</h2>
+      <ul role="list" aria-label="Legacy synthetic incomplete shapes">
         <li role="listitem">
-          <strong>Fund:</strong> <code data-testid="zcash-tx-fund">{JSON.stringify(fund, null, 0)}</code>
+          <strong>Fund:</strong> <code data-testid="zcash-tx-fund">{stringifyLegacyShape(fund)}</code>
         </li>
         <li role="listitem">
-          <strong>Claim:</strong> <code data-testid="zcash-tx-claim">{JSON.stringify(claim, null, 0)}</code>
+          <strong>Claim:</strong> <code data-testid="zcash-tx-claim">{stringifyLegacyShape(claim)}</code>
         </li>
         <li role="listitem">
-          <strong>Refund:</strong> <code data-testid="zcash-tx-refund">{JSON.stringify(refund, null, 0)}</code>
+          <strong>Refund:</strong> <code data-testid="zcash-tx-refund">{stringifyLegacyShape(refund)}</code>
         </li>
       </ul>
 
@@ -194,8 +199,8 @@ export default async function ZcashPage({
       </p>
       <p>
         The atomic-swap script hash is{" "}
-        <code data-testid="zcash-atomic-hash">{hashAtomic}</code> (deterministic, identical on
-        the matcher, the wallet adapter, and the offchain coordinator).
+        <code data-testid="zcash-atomic-hash">{hashAtomic}</code> (deterministic across repeated
+        calls to this legacy script helper). It is not transaction or wallet evidence.
       </p>
     </SimulationFrame>
   );

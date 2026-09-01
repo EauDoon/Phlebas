@@ -272,18 +272,19 @@ The current Vercel deployment remains a simulation until every applicable gate p
 
 ## ZEC half of the atomic swap
 
-The ZEC half of the atomic swap is a transparent P2SH output that holds ZEC until either the buyer reveals the preimage on the Zcash claim path or the seller refunds after the lock time. The address encoder, the P2SH script builder, and the wallet adapter are documented in [ADR 0005](adr/0005-zcash-p2sh-atomic-swap.md).
+The candidate ZEC half is a transparent P2SH output that uses an exact 32-byte SHA-256 preimage claim and a CLTV refund. The canonical key-independent transaction lab is documented in [ZCASH_TRANSACTION_LAB.md](ZCASH_TRANSACTION_LAB.md). It produces committed unsigned effecting-data manifests, not transactions ready for signing or relay.
 
 ### Components
 
-- **Address encoder** (`src/lib/zcash-address.ts`) — Base58Check transparent address encoder and decoder. Testnet and mainnet version bytes are pinned. The address surface is the only surface in PR 3 that depends on a hash function.
-- **P2SH script builder** (`src/lib/zcash-atomic-swap.ts`) — claim branch, refund branch, and full atomic-swap script. The script round-trips through the parser.
-- **Wallet adapter** (`src/lib/zcash-wallet-adapter.ts`) — typed `buildFundTransaction`, `buildClaimTransaction`, `buildRefundTransaction`, and `hashAtomicSwapParams`. The adapter returns unsigned transactions; the signing surface is an injected callback that the production code wires to a real Zcash wallet.
-- **Compressed pubkey parser** (`src/lib/zcash-pubkey.ts`) — 33-byte compressed secp256k1 public key parser and encoder.
+- **Transparent codecs** (`src/lib/zcash-transparent.ts`) - strict network-aware Base58Check, P2PKH/P2SH script, and transaction-ID byte-order handling.
+- **Canonical HTLC template** (`src/lib/zcash-htlc.ts`) - exact SHA-256 and 32-byte preimage claim, P2PKH branches, and CLTV refund validation.
+- **Unsigned manifests** (`src/lib/zcash-funding.ts`, `src/lib/zcash-spend.ts`, `src/lib/zcash-artifact.ts`) - deterministic funding, claim, and refund effecting data with committed policy evidence.
+- **Candidate PCZT boundary** (`src/lib/zcash-pczt.ts`) - opaque PCZT envelope and review records with header-only validation. Full ZIP 374 parsing, signing, extraction, relayability, and transaction-ID verification remain unavailable.
+- **Legacy display only** (`src/lib/zcash-atomic-swap.ts`, `src/lib/zcash-wallet-adapter.ts`, `/zcash`) - historical HASH160 script and synthetic incomplete shapes. They are not canonical Zcash transactions or wallet inputs.
 
 ### Hash function
 
-The hash function is `RIPEMD160(SHA256(x))`, which the Zcash script engine exposes as `OP_HASH160`. The preimage primitive in `src/lib/preimage.ts` produces 32 random bytes; the same preimage and the same hash are valid on both the EVM leg (via `SHA256`) and the ZEC leg (via `RIPEMD160(SHA256)`).
+The canonical transaction lab uses `OP_SHA256` and commits an exact 32-byte digest. The legacy display uses `OP_HASH160`, so its 20-byte digest is not the same value as a 32-byte SHA-256 digest and must not be treated as cross-chain evidence.
 
 ### Observer and watchtower (PR 4)
 

@@ -2,10 +2,11 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 
 import {
-  buildClaimTransaction,
-  buildFundTransaction,
-  buildRefundTransaction,
-  hashAtomicSwapParams,
+  LEGACY_ZCASH_SHAPE_BOUNDARY,
+  legacyAtomicSwapScriptHex,
+  previewLegacyClaimShape,
+  previewLegacyFundShape,
+  previewLegacyRefundShape,
 } from "./zcash-wallet-adapter.ts";
 import { parseCompressedPubkey } from "./zcash-pubkey.ts";
 
@@ -23,12 +24,14 @@ const SAMPLE_PARAMS = {
   lockTime: 1_900_000_000n,
 };
 
-test("buildFundTransaction returns an unsigned tx with the fund and change outputs", () => {
-  const tx = buildFundTransaction({
+test("legacy funding preview is explicitly not a Zcash transaction", () => {
+  const tx = previewLegacyFundShape({
     fundOutput: { valueZat: 1_000_000n, scriptPubKey: new Uint8Array([0x76, 0xa9, 0x14]) },
     changeOutput: { valueZat: 50_000n, scriptPubKey: new Uint8Array([0x76, 0xa9, 0x14, 0x01]) },
     lockTime: 0,
   });
+  assert.equal(tx.boundary, LEGACY_ZCASH_SHAPE_BOUNDARY);
+  assert.equal(tx.transactionIdState, "unresolved");
   assert.equal(tx.version, 4);
   assert.equal(tx.lockTime, 0);
   assert.equal(tx.inputs.length, 0);
@@ -36,9 +39,9 @@ test("buildFundTransaction returns an unsigned tx with the fund and change outpu
   assert.equal(tx.outputs[0].valueZat, 1_000_000n);
 });
 
-test("buildClaimTransaction returns an unsigned tx with the preimage as the scriptSig", () => {
+test("legacy claim preview remains an incomplete synthetic shape", () => {
   const preimage = new Uint8Array(32).fill(0x42);
-  const tx = buildClaimTransaction({
+  const tx = previewLegacyClaimShape({
     utxo: { txid: "ab".repeat(32), vout: 0, valueZat: 1_000_000n, scriptPubKey: new Uint8Array(0) },
     preimage,
     recipientOutput: { valueZat: 900_000n, scriptPubKey: new Uint8Array([0x76, 0xa9, 0x14]) },
@@ -51,8 +54,8 @@ test("buildClaimTransaction returns an unsigned tx with the preimage as the scri
   assert.equal(tx.inputs[0].sequence, 0xfffffffe);
 });
 
-test("buildRefundTransaction returns an unsigned tx with an empty scriptSig", () => {
-  const tx = buildRefundTransaction({
+test("legacy refund preview remains an incomplete synthetic shape", () => {
+  const tx = previewLegacyRefundShape({
     utxo: { txid: "cd".repeat(32), vout: 1, valueZat: 1_000_000n, scriptPubKey: new Uint8Array(0) },
     recipientOutput: { valueZat: 990_000n, scriptPubKey: new Uint8Array([0x76, 0xa9, 0x14]) },
     changeOutput: { valueZat: 0n, scriptPubKey: new Uint8Array([0x76, 0xa9, 0x14, 0x03]) },
@@ -61,9 +64,9 @@ test("buildRefundTransaction returns an unsigned tx with an empty scriptSig", ()
   assert.equal(tx.inputs[0].scriptSig.length, 0);
 });
 
-test("hashAtomicSwapParams returns a deterministic hex string", () => {
-  const a = hashAtomicSwapParams(SAMPLE_PARAMS);
-  const b = hashAtomicSwapParams(SAMPLE_PARAMS);
+test("legacyAtomicSwapScriptHex returns a deterministic hex string", () => {
+  const a = legacyAtomicSwapScriptHex(SAMPLE_PARAMS);
+  const b = legacyAtomicSwapScriptHex(SAMPLE_PARAMS);
   assert.equal(a, b);
   assert.ok(a.startsWith("0x"));
 });
