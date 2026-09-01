@@ -618,7 +618,6 @@ export function TradingTerminal({
                 reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
                 accountEpoch={accountEpoch}
                 feedStatus={feedStatus}
-                walletAddress={wallet.address}
                 onRetryFeed={() => selectFeed("illustrative")}
                 onSubmit={submitUserOrder}
               />

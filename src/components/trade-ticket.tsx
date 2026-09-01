@@ -5,18 +5,8 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as Reac
 import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import { custodyRedemptionCopy, publicLinkabilityCopy } from "@/lib/review-copy";
-import { sepoliaDomain, typedData, type TypedOrder } from "@/lib/eip712";
-import {
-  getInjectedProvider,
-  isMissingProviderCopy,
-  missingProviderCopy,
-  publicTestnetSigningError,
-  retargetSettlementCopy,
-  signTypedData,
-} from "@/lib/evm-wallet";
-import { planTestnetSubmit, sendSettlement, sepoliaSubmitEnabled } from "@/lib/sepolia-submit";
-import { TESTNET } from "@/lib/testnet";
-import { parseExpiryUnix, settlementDigest, typedOrderFromTicket } from "@/lib/ticket-order";
+import { retargetSettlementCopy } from "@/lib/evm-wallet";
+import { parseExpiryUnix } from "@/lib/ticket-order";
 import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import { interpretRovingKey } from "@/lib/roving-keys";
@@ -119,7 +109,6 @@ export function TradeTicket({
   reserveQuoteAtoms,
   accountEpoch,
   feedStatus,
-  walletAddress = null,
   onRetryFeed,
   onSubmit,
 }: {
@@ -133,7 +122,6 @@ export function TradeTicket({
   reserveQuoteAtoms: bigint;
   accountEpoch: number;
   feedStatus: FeedStatus;
-  walletAddress?: string | null;
   onRetryFeed: () => void;
   onSubmit: (order: {
     side: TicketSide;
@@ -173,8 +161,6 @@ export function TradeTicket({
     sizeAtoms: bigint;
     tif: TimeInForce;
     digest: string;
-    eip712Digest?: string;
-    typed?: TypedOrder;
     comparison: RouteComparison;
     clobDebitAtoms: bigint;
     clobReservationAtoms: bigint;
@@ -477,81 +463,14 @@ export function TradeTicket({
       verifyingContract: "not-deployed",
     };
     setSessionNonce((current) => current + 1);
-    let eip712 = undefined as string | undefined;
-    let typed = undefined as TypedOrder | undefined;
-    if (walletAddress && TESTNET.deployed) {
-      typed = typedOrderFromTicket({
-        maker: walletAddress,
-        side,
-        quote: market.quote,
-        sizeAtoms: prepared.sizeAtoms,
-        priceTicks: prepared.priceTicks,
-        nonce: BigInt(canonical.nonce),
-        accountEpoch: BigInt(accountEpoch),
-        tif: prepared.tif,
-        expiry: prepared.expiryUnix,
-      });
-      eip712 = settlementDigest(typed);
-    }
     setReview({
       ...prepared,
       side,
-      digest: eip712 ?? await digestCanonicalOrder(canonical),
-      eip712Digest: eip712,
-      typed,
+      digest: await digestCanonicalOrder(canonical),
       comparison,
       clobDebitAtoms,
       clobReservationAtoms,
     });
-  }
-
-  async function signTestnetOrder() {
-    if (!review?.typed || !walletAddress) {
-      return;
-    }
-    const provider = getInjectedProvider();
-    if (!provider) {
-      setNotice(missingProviderCopy(market.settlementPair));
-      return;
-    }
-    if (!TESTNET.deployed) {
-      setNotice("Settlement contract is undeployed. Testnet signing is disabled.");
-      return;
-    }
-    try {
-      const domain = sepoliaDomain(TESTNET.settlement);
-      const signature = await signTypedData(
-        provider,
-        walletAddress,
-        typedData(domain, review.typed),
-      );
-      const plan = planTestnetSubmit({
-        counterpart: null,
-        taker: review.typed,
-        takerSignature: signature,
-        fillAtoms: review.sizeAtoms,
-      });
-      if (plan.action === "settle") {
-        const hash = await sendSettlement(provider, walletAddress, plan);
-        setNotice(`Submitted Sepolia settlement ${hash.slice(0, 10)}… Testnet only.`);
-        return;
-      }
-      if (plan.action === "sequence" && sepoliaSubmitEnabled()) {
-        const response = await fetch("/api/matcher", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            ...typedData(domain, review.typed).message,
-            signature,
-            tif: review.tif,
-          }),
-        });
-        if (!response.ok) throw new Error(`Matcher rejected the signed order (${response.status}).`);
-      }
-      setNotice(`${plan.reason} Signature ${signature.slice(0, 10)}…`);
-    } catch (error) {
-      setNotice(publicTestnetSigningError(error));
-    }
   }
 
   function confirmSimulatedOrder() {
@@ -898,7 +817,7 @@ export function TradeTicket({
               <dd>{describeRoute(review.comparison, market.quote)}</dd>
             </div>
             <div>
-              <dt>{review.eip712Digest ? "Keccak EIP-712" : "Session digest"}</dt>
+              <dt>Session digest</dt>
               <dd>{review.digest.slice(0, 16)}…</dd>
             </div>
           </dl>
@@ -912,11 +831,6 @@ export function TradeTicket({
           >
             Confirm simulated {review.side}
           </button>
-          {review.typed && (
-            <button type="button" className={styles.textButton} onClick={() => void signTestnetOrder()}>
-              {sepoliaSubmitEnabled() ? "Sign and submit testnet settlement" : "Sign testnet typed data"}
-            </button>
-          )}
           <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
             Back
           </button>
@@ -934,9 +848,7 @@ export function TradeTicket({
       <p id={noticeId} className={styles.inlineNotice} aria-live="polite">
         {inputError ?? notionalError ?? (isTicketRejectCopy(notice)
           ? retargetSettlementCopy(notice, market.settlementPair)
-          : isMissingProviderCopy(notice)
-            ? missingProviderCopy(market.settlementPair)
-            : notice)}
+          : notice)}
       </p>
       <div className={styles.shortcutRegion} role="region" aria-labelledby="ticket-keyboard-heading">
         <h3 id="ticket-keyboard-heading">Ticket keyboard</h3>
