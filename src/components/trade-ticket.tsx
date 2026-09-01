@@ -20,6 +20,7 @@ import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import { interpretRovingKey } from "@/lib/roving-keys";
 import { interpretTicketKey } from "@/lib/ticket-shortcuts";
+import type { TerminalMode } from "@/lib/terminal-mode";
 import {
   nextTicketOrderType,
   nextTicketSide,
@@ -31,6 +32,7 @@ import {
   type TicketSide,
   type TicketTif,
 } from "@/lib/ticket-groups";
+import { maxTicketSizeAtoms } from "@/lib/ticket-size";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
 import { describeSubmit, isTicketRejectCopy } from "@/lib/session";
 import { compareVenues, type RouteComparison } from "@/lib/router";
@@ -50,7 +52,6 @@ import {
   parseAtomicUnits,
   quoteAtomsForFill,
   quoteAtomsForFills,
-  sizeAtomsForQuote,
   worstPriceTicks,
 } from "@/lib/units";
 
@@ -117,6 +118,7 @@ export function TradeTicket({
   accountEpoch,
   feedStatus,
   walletAddress = null,
+  variant = "advanced",
   onRetryFeed,
   onSubmit,
 }: {
@@ -131,6 +133,7 @@ export function TradeTicket({
   accountEpoch: number;
   feedStatus: FeedStatus;
   walletAddress?: string | null;
+  variant?: TerminalMode;
   onRetryFeed: () => void;
   onSubmit: (order: {
     side: TicketSide;
@@ -177,12 +180,17 @@ export function TradeTicket({
     clobReservationAtoms: bigint;
     expiryUnix: bigint;
   } | null>(null);
+  const isSimple = variant === "simple";
+  const effectiveOrderType: TicketOrderType = isSimple ? "market" : orderType;
+  const effectiveTif: TimeInForce = isSimple || effectiveOrderType === "market" ? "IOC" : tif;
 
   if (priceSelection && priceSelection.nonce !== appliedPriceNonce) {
     setAppliedPriceNonce(priceSelection.nonce);
-    setOrderType("limit");
-    setTypeFocus("limit");
-    setPrice(formatAtomicUnits(priceSelection.ticks, PRICE_DECIMALS, 2));
+    if (!isSimple) {
+      setOrderType("limit");
+      setTypeFocus("limit");
+      setPrice(formatAtomicUnits(priceSelection.ticks, PRICE_DECIMALS, 2));
+    }
   }
 
   useEffect(() => {
@@ -208,6 +216,9 @@ export function TradeTicket({
         setSide("sell");
         setSideFocus("sell");
       }
+      if (isSimple) {
+        return;
+      }
       if (action === "limit") {
         setOrderType("limit");
         setTypeFocus("limit");
@@ -231,10 +242,10 @@ export function TradeTicket({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [review]);
+  }, [isSimple, review]);
 
   const lastPrice = Number(formatAtomicUnits(lastTicks, PRICE_DECIMALS, 2));
-  const priceParse = orderType === "market"
+  const priceParse = effectiveOrderType === "market"
     ? { parsed: lastPrice, error: null }
     : parsePreviewDecimal(price, { atomicRule: QUOTE_PRICE_ATOMIC_RULE });
   const sizeParse = parsePreviewDecimal(size, { atomicRule: PZEC_ATOMIC_RULE });
@@ -242,7 +253,7 @@ export function TradeTicket({
   const parsedSize = sizeParse.parsed;
   const priceIsValid = Number.isFinite(parsedPrice) && parsedPrice > 0;
   const sizeIsValid = Number.isFinite(parsedSize) && parsedSize > 0;
-  const limitTicks = orderType === "limit" ? parseTicks(price) : { ticks: 0n, error: null };
+  const limitTicks = effectiveOrderType === "limit" ? parseTicks(price) : { ticks: 0n, error: null };
   const sizeAtoms = parseSizeAtoms(size);
 
   const notionalPreview = useMemo(() => {
@@ -263,7 +274,7 @@ export function TradeTicket({
   const formattedNotional = notional > 0 ? formatQuotePreviewAmount(notional) : "0.00";
 
   const worstPricePreview = useMemo(() => {
-    if (orderType === "limit") {
+    if (effectiveOrderType === "limit") {
       return { value: parsedPrice, error: null };
     }
     const slippageParse = parsePreviewDecimal(slippagePercent, { allowZero: true, maximumExclusive: 100 });
@@ -278,7 +289,7 @@ export function TradeTicket({
         error: error instanceof Error ? error.message : "Worst price is outside the preview range.",
       };
     }
-  }, [lastPrice, orderType, parsedPrice, side, slippagePercent]);
+  }, [effectiveOrderType, lastPrice, parsedPrice, side, slippagePercent]);
   const worstPrice = worstPricePreview.value;
   const expiryParse = (() => {
     try {
@@ -292,40 +303,56 @@ export function TradeTicket({
   })();
   const priceError = priceParse.error ?? limitTicks.error;
   const sizeError = sizeParse.error ?? sizeAtoms.error;
-  const slippageError = orderType === "market" ? worstPricePreview.error : null;
+  const slippageError = effectiveOrderType === "market" ? worstPricePreview.error : null;
   const expiryError = expiryParse.error;
   const inputError = priceError ?? sizeError ?? slippageError ?? expiryError;
   const bookEmpty = book.bids.length === 0 && book.asks.length === 0;
   const gate = ticketGate(feedStatus, bookEmpty, market.settlementPair);
 
-  function applyPercent(percent: 25 | 50 | 75 | 100) {
-    const share = BigInt(percent);
-    if (side === "sell") {
-      const nextSize = (availablePzecAtoms * share) / 100n;
-      if (nextSize <= 0n) {
-        setNotice("Session pZEC inventory is empty.");
-        return;
+  function applyInventorySize(share: bigint) {
+    let priceTicks = 1n;
+    if (side === "buy") {
+      if (effectiveOrderType === "limit") {
+        if (limitTicks.error || limitTicks.ticks <= 0n) {
+          setNotice("Set a positive limit price before using size shortcuts.");
+          return;
+        }
+        priceTicks = limitTicks.ticks;
+      } else {
+        try {
+          const slippageHundredths = parseAtomicUnits(slippagePercent, PRICE_DECIMALS, { allowZero: true });
+          priceTicks = worstPriceTicks(lastTicks, side, slippageHundredths);
+        } catch (error) {
+          setNotice(error instanceof Error ? error.message : "Set a positive maximum slippage before using Max.");
+          return;
+        }
       }
-      setSize(formatAtomicUnits(nextSize, PZEC_DECIMALS));
-      return;
     }
-
-    const priceTicks = orderType === "limit"
-      ? limitTicks.ticks
-      : Number.isFinite(worstPrice)
-        ? parseAtomicUnits(worstPrice.toFixed(PRICE_DECIMALS), PRICE_DECIMALS)
-        : 0n;
-    if (priceTicks <= 0n) {
-      setNotice("Set a positive limit price before using size shortcuts.");
-      return;
-    }
-    const budget = (availableQuoteAtoms * share) / 100n;
-    const nextSize = sizeAtomsForQuote(budget, priceTicks);
+    const nextSize = maxTicketSizeAtoms({
+      side,
+      availablePzecAtoms: (availablePzecAtoms * share) / 100n,
+      availableQuoteAtoms: (availableQuoteAtoms * share) / 100n,
+      priceTicks,
+    });
     if (nextSize <= 0n) {
-      setNotice("Session quote inventory cannot fund this size.");
+      setNotice(side === "sell" ? "Session pZEC inventory is empty." : "Session quote inventory cannot fund this size.");
       return;
     }
     setSize(formatAtomicUnits(nextSize, PZEC_DECIMALS));
+  }
+
+  function applyPercent(percent: 25 | 50 | 75 | 100) {
+    applyInventorySize(BigInt(percent));
+  }
+
+  function applyMax() {
+    applyInventorySize(100n);
+  }
+
+  function switchSide() {
+    const next = side === "buy" ? "sell" : "buy";
+    setSide(next);
+    setSideFocus(next);
   }
 
   function applyRoving<T extends string>(
@@ -388,7 +415,7 @@ export function TradeTicket({
     }
 
     let priceTicks = limitTicks.ticks;
-    if (orderType === "market") {
+    if (effectiveOrderType === "market") {
       try {
         const slippageHundredths = parseAtomicUnits(slippagePercent, PRICE_DECIMALS, { allowZero: true });
         priceTicks = worstPriceTicks(lastTicks, side, slippageHundredths);
@@ -399,14 +426,14 @@ export function TradeTicket({
     if (priceTicks <= 0n) {
       return "Price and size must be positive.";
     }
-    if (expiryError || expiryParse.error) {
+    if (!isSimple && (expiryError || expiryParse.error)) {
       return expiryError ?? expiryParse.error ?? "Expiry must be a whole unix time, or 0 for none.";
     }
     return {
       priceTicks,
       sizeAtoms: sizeAtoms.atoms,
-      tif: orderType === "market" ? "IOC" : tif,
-      expiryUnix: expiryParse.value,
+      tif: effectiveTif,
+      expiryUnix: isSimple ? 0n : expiryParse.value,
     };
   }
 
@@ -571,8 +598,22 @@ export function TradeTicket({
     setReview(null);
   }
 
+  const tokenIn = side === "buy" ? market.quote : "pZEC";
+  const tokenOut = side === "buy" ? "pZEC" : market.quote;
+  const availableIn = side === "buy"
+    ? `${formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`
+    : `${formatAtomicUnits(availablePzecAtoms, PZEC_DECIMALS)} pZEC`;
+  const availableOut = side === "buy"
+    ? `${formatAtomicUnits(availablePzecAtoms, PZEC_DECIMALS)} pZEC`
+    : `${formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`;
+
   return (
-    <section id="order-ticket" tabIndex={-1} className={`${styles.panel} ${styles.ticket}`} aria-labelledby="trade-ticket-title">
+    <section
+      id="order-ticket"
+      tabIndex={-1}
+      className={`${styles.panel} ${styles.ticket}${isSimple ? ` ${styles.simpleTicket}` : ""}`}
+      aria-labelledby="trade-ticket-title"
+    >
       <div className={styles.panelHeader}>
         <h2 id="trade-ticket-title">Order entry</h2>
         <span className={styles.statusDot}>Local matcher</span>
@@ -598,128 +639,154 @@ export function TradeTicket({
         </div>
       )}
 
-      <div className={styles.segmented} role="group" aria-label="Order side">
-        {TICKET_SIDES.map((id) => (
-          <button
-            type="button"
-            key={id}
-            className={side === id ? (id === "buy" ? styles.buyActive : styles.sellActive) : undefined}
-            aria-pressed={side === id}
-            tabIndex={sideFocus === id ? 0 : -1}
-            ref={(node) => {
-              sideRefs.current[id] = node;
-            }}
-            onClick={() => {
-              setSide(id);
-              setSideFocus(id);
-            }}
-            onKeyDown={(event) => applyRoving(
-              event,
-              id,
-              nextTicketSide,
-              TICKET_SIDES[0],
-              TICKET_SIDES[TICKET_SIDES.length - 1],
-              moveSideFocus,
-              (next) => {
-                setSide(next);
-                setSideFocus(next);
-              },
-            )}
-          >
-            {id === "buy" ? "Buy" : "Sell"}
-          </button>
-        ))}
-      </div>
-
-      <div className={styles.orderTypes} role="group" aria-label="Order type">
-        {TICKET_ORDER_TYPES.map((id) => (
-          <button
-            type="button"
-            key={id}
-            className={orderType === id ? styles.textActive : undefined}
-            aria-pressed={orderType === id}
-            tabIndex={typeFocus === id ? 0 : -1}
-            ref={(node) => {
-              typeRefs.current[id] = node;
-            }}
-            onClick={() => {
-              setOrderType(id);
-              setTypeFocus(id);
-            }}
-            onKeyDown={(event) => applyRoving(
-              event,
-              id,
-              nextTicketOrderType,
-              TICKET_ORDER_TYPES[0],
-              TICKET_ORDER_TYPES[TICKET_ORDER_TYPES.length - 1],
-              moveTypeFocus,
-              (next) => {
-                setOrderType(next);
-                setTypeFocus(next);
-              },
-            )}
-          >
-            {id === "limit" ? "Limit" : "Market"}
-          </button>
-        ))}
-      </div>
-
-      {orderType === "limit" && (
-        <div className={styles.orderTypes} role="group" aria-label="Time in force">
-          {TICKET_TIFS.map((value) => (
-            <button
-              type="button"
-              key={value}
-              className={tif === value ? styles.textActive : undefined}
-              aria-pressed={tif === value}
-              tabIndex={tifFocus === value ? 0 : -1}
-              ref={(node) => {
-                tifRefs.current[value] = node;
-              }}
-              onClick={() => {
-                setTif(value);
-                setTifFocus(value);
-              }}
-              onKeyDown={(event) => applyRoving(
-                event,
-                value,
-                nextTicketTif,
-                TICKET_TIFS[0],
-                TICKET_TIFS[TICKET_TIFS.length - 1],
-                moveTifFocus,
-                (next) => {
-                  setTif(next);
-                  setTifFocus(next);
-                },
-              )}
-            >
-              {value}
+      {isSimple ? (
+        <>
+          <div className={styles.tokenRow} aria-label="Token in">
+            <span>Token in</span>
+            <strong>{tokenIn}</strong>
+            <span>Available {availableIn}</span>
+          </div>
+          <div className={styles.switchRow}>
+            <button type="button" onClick={switchSide}>
+              Switch
             </button>
-          ))}
-        </div>
+          </div>
+          <div className={styles.tokenRow} aria-label="Token out">
+            <span>Token out</span>
+            <strong>{tokenOut}</strong>
+            <span>Available {availableOut}</span>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className={styles.segmented} role="group" aria-label="Order side">
+            {TICKET_SIDES.map((id) => (
+              <button
+                type="button"
+                key={id}
+                className={side === id ? (id === "buy" ? styles.buyActive : styles.sellActive) : undefined}
+                aria-pressed={side === id}
+                tabIndex={sideFocus === id ? 0 : -1}
+                ref={(node) => {
+                  sideRefs.current[id] = node;
+                }}
+                onClick={() => {
+                  setSide(id);
+                  setSideFocus(id);
+                }}
+                onKeyDown={(event) => applyRoving(
+                  event,
+                  id,
+                  nextTicketSide,
+                  TICKET_SIDES[0],
+                  TICKET_SIDES[TICKET_SIDES.length - 1],
+                  moveSideFocus,
+                  (next) => {
+                    setSide(next);
+                    setSideFocus(next);
+                  },
+                )}
+              >
+                {id === "buy" ? "Buy" : "Sell"}
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.orderTypes} role="group" aria-label="Order type">
+            {TICKET_ORDER_TYPES.map((id) => (
+              <button
+                type="button"
+                key={id}
+                className={orderType === id ? styles.textActive : undefined}
+                aria-pressed={orderType === id}
+                tabIndex={typeFocus === id ? 0 : -1}
+                ref={(node) => {
+                  typeRefs.current[id] = node;
+                }}
+                onClick={() => {
+                  setOrderType(id);
+                  setTypeFocus(id);
+                }}
+                onKeyDown={(event) => applyRoving(
+                  event,
+                  id,
+                  nextTicketOrderType,
+                  TICKET_ORDER_TYPES[0],
+                  TICKET_ORDER_TYPES[TICKET_ORDER_TYPES.length - 1],
+                  moveTypeFocus,
+                  (next) => {
+                    setOrderType(next);
+                    setTypeFocus(next);
+                  },
+                )}
+              >
+                {id === "limit" ? "Limit" : "Market"}
+              </button>
+            ))}
+          </div>
+
+          {effectiveOrderType === "limit" && (
+            <div className={styles.orderTypes} role="group" aria-label="Time in force">
+              {TICKET_TIFS.map((value) => (
+                <button
+                  type="button"
+                  key={value}
+                  className={tif === value ? styles.textActive : undefined}
+                  aria-pressed={tif === value}
+                  tabIndex={tifFocus === value ? 0 : -1}
+                  ref={(node) => {
+                    tifRefs.current[value] = node;
+                  }}
+                  onClick={() => {
+                    setTif(value);
+                    setTifFocus(value);
+                  }}
+                  onKeyDown={(event) => applyRoving(
+                    event,
+                    value,
+                    nextTicketTif,
+                    TICKET_TIFS[0],
+                    TICKET_TIFS[TICKET_TIFS.length - 1],
+                    moveTifFocus,
+                    (next) => {
+                      setTif(next);
+                      setTifFocus(next);
+                    },
+                  )}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      <label className={styles.inputLabel}>
-        <span>Price</span>
-        <div className={styles.inputShell}>
-          <input
-            inputMode="decimal"
-            value={orderType === "market" ? "Best available" : price}
-            disabled={orderType === "market"}
-            onChange={(event) => setPrice(event.target.value)}
-            aria-label={`Price in ${market.quote}`}
-            aria-invalid={orderType === "limit" && Boolean(priceError || notionalError || !priceIsValid)}
-            aria-errormessage={orderType === "limit" && priceError ? priceErrorId : undefined}
-            aria-describedby={orderType === "limit" && priceError ? `${priceErrorId} ${noticeId}` : noticeId}
-          />
-          <span>{market.quote}</span>
-        </div>
-      </label>
-      {orderType === "limit" && priceError ? (
-        <p id={priceErrorId} className={styles.inlineNotice} role="alert">{priceError}</p>
-      ) : null}
+      {!isSimple && (
+        <>
+          <label className={styles.inputLabel}>
+            <span>Price</span>
+            <div className={styles.inputShell}>
+              <input
+                inputMode="decimal"
+                value={effectiveOrderType === "market" ? "Best available" : price}
+                disabled={effectiveOrderType === "market"}
+                onChange={(event) => setPrice(event.target.value)}
+                aria-label={`Price in ${market.quote}`}
+                aria-invalid={effectiveOrderType === "limit" && Boolean(priceError || notionalError || !priceIsValid)}
+                aria-errormessage={effectiveOrderType === "limit" && priceError ? priceErrorId : undefined}
+                aria-describedby={effectiveOrderType === "limit" && priceError ? `${priceErrorId} ${noticeId}` : noticeId}
+              />
+              <span>{market.quote}</span>
+            </div>
+          </label>
+          {effectiveOrderType === "limit" && priceError ? (
+            <p id={priceErrorId} className={styles.inlineNotice} role="alert">{priceError}</p>
+          ) : null}
+        </>
+      )}
 
-      {orderType === "market" && (
+      {effectiveOrderType === "market" && (
         <label className={styles.inputLabel}>
           <span>Maximum slippage</span>
           <div className={styles.inputShell}>
@@ -740,60 +807,76 @@ export function TradeTicket({
         <p id={slippageErrorId} className={styles.inlineNotice} role="alert">{slippageError}</p>
       ) : null}
 
-      <label className={styles.inputLabel}>
-        <span>Size</span>
-        <div className={styles.inputShell}>
-          <input
-            inputMode="decimal"
-            value={size}
-            onChange={(event) => setSize(event.target.value)}
-            aria-label="Order size in pZEC"
-            aria-invalid={!sizeIsValid || Boolean(sizeError || notionalError)}
-            aria-errormessage={sizeError ? sizeErrorId : undefined}
-            aria-describedby={sizeError ? `${sizeErrorId} ${noticeId}` : noticeId}
-          />
-          <span>pZEC</span>
-        </div>
-      </label>
+      <div className={isSimple ? styles.sizeRow : undefined}>
+        <label className={styles.inputLabel}>
+          <span>Size</span>
+          <div className={styles.inputShell}>
+            <input
+              inputMode="decimal"
+              value={size}
+              onChange={(event) => setSize(event.target.value)}
+              aria-label="Order size in pZEC"
+              aria-invalid={!sizeIsValid || Boolean(sizeError || notionalError)}
+              aria-errormessage={sizeError ? sizeErrorId : undefined}
+              aria-describedby={sizeError ? `${sizeErrorId} ${noticeId}` : noticeId}
+            />
+            <span>pZEC</span>
+          </div>
+        </label>
+        {isSimple ? (
+          <button type="button" className={styles.maxButton} onClick={applyMax}>
+            Max
+          </button>
+        ) : null}
+      </div>
       {sizeError ? (
         <p id={sizeErrorId} className={styles.inlineNotice} role="alert">{sizeError}</p>
       ) : null}
 
-      <label className={styles.inputLabel}>
-        <span>Expiry</span>
-        <div className={styles.inputShell}>
-          <input
-            inputMode="numeric"
-            value={expiry}
-            onChange={(event) => setExpiry(event.target.value)}
-            aria-label="Order expiry unix time"
-            aria-invalid={Boolean(expiryError)}
-            aria-errormessage={expiryError ? expiryErrorId : undefined}
-            aria-describedby={expiryError ? `${expiryErrorId} ${noticeId}` : noticeId}
-          />
-          <span>unix</span>
-        </div>
-      </label>
-      {expiryError ? (
-        <p id={expiryErrorId} className={styles.inlineNotice} role="alert">{expiryError}</p>
-      ) : null}
-      <p className={styles.inlineNotice}>0 means no expiry. This session never sends a live order.</p>
+      {!isSimple && (
+        <>
+          <label className={styles.inputLabel}>
+            <span>Expiry</span>
+            <div className={styles.inputShell}>
+              <input
+                inputMode="numeric"
+                value={expiry}
+                onChange={(event) => setExpiry(event.target.value)}
+                aria-label="Order expiry unix time"
+                aria-invalid={Boolean(expiryError)}
+                aria-errormessage={expiryError ? expiryErrorId : undefined}
+                aria-describedby={expiryError ? `${expiryErrorId} ${noticeId}` : noticeId}
+              />
+              <span>unix</span>
+            </div>
+          </label>
+          {expiryError ? (
+            <p id={expiryErrorId} className={styles.inlineNotice} role="alert">{expiryError}</p>
+          ) : null}
+          <p className={styles.inlineNotice}>0 means no expiry. This session never sends a live order.</p>
 
-      <div
-        className={styles.percentRow}
-        role="group"
-        aria-label="Size shortcuts"
-        aria-describedby={shortcutsReasonId}
-      >
-        {([25, 50, 75, 100] as const).map((percent) => (
-          <button type="button" key={percent} onClick={() => applyPercent(percent)}>
-            {percent}%
-          </button>
-        ))}
-      </div>
-      <p id={shortcutsReasonId} className={styles.inlineNotice}>
-        Shortcuts use session inventory ({formatAtomicUnits(availablePzecAtoms, PZEC_DECIMALS)} pZEC, {formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} {market.quote}). Not a wallet.
-      </p>
+          <div
+            className={styles.percentRow}
+            role="group"
+            aria-label="Size shortcuts"
+            aria-describedby={shortcutsReasonId}
+          >
+            {([25, 50, 75, 100] as const).map((percent) => (
+              <button type="button" key={percent} onClick={() => applyPercent(percent)}>
+                {percent}%
+              </button>
+            ))}
+          </div>
+          <p id={shortcutsReasonId} className={styles.inlineNotice}>
+            Shortcuts use session inventory ({formatAtomicUnits(availablePzecAtoms, PZEC_DECIMALS)} pZEC, {formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} {market.quote}). Not a wallet.
+          </p>
+        </>
+      )}
+      {isSimple ? (
+        <p id={shortcutsReasonId} className={styles.inlineNotice}>
+          Max uses session inventory ({formatAtomicUnits(availablePzecAtoms, PZEC_DECIMALS)} pZEC, {formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} {market.quote}). Not a wallet.
+        </p>
+      ) : null}
 
       <dl className={styles.ticketSummary}>
         <div>
@@ -805,12 +888,12 @@ export function TradeTicket({
           <dd>{market.settlementPair}</dd>
         </div>
         <div>
-          <dt>{orderType === "market" ? "Worst price" : "Limit price"}</dt>
+          <dt>{effectiveOrderType === "market" ? "Worst price" : "Limit price"}</dt>
           <dd>{Number.isFinite(worstPrice) ? worstPrice.toFixed(2) : "0.00"} {market.quote}</dd>
         </div>
         <div>
           <dt>Time in force</dt>
-          <dd>{orderType === "market" ? "IOC" : tif}</dd>
+          <dd>{effectiveTif}</dd>
         </div>
         <div>
           <dt>Trading fee</dt>
@@ -824,10 +907,12 @@ export function TradeTicket({
           <dt>Session nonce</dt>
           <dd>{sessionNonce}</dd>
         </div>
-        <div>
-          <dt>Expiry</dt>
-          <dd>{expiry.trim() === "" || expiry.trim() === "0" ? "none" : expiry.trim()}</dd>
-        </div>
+        {isSimple ? null : (
+          <div>
+            <dt>Expiry</dt>
+            <dd>{expiry.trim() === "" || expiry.trim() === "0" ? "none" : expiry.trim()}</dd>
+          </div>
+        )}
       </dl>
 
       {review ? (
@@ -938,11 +1023,15 @@ export function TradeTicket({
             ? missingProviderCopy(market.settlementPair)
             : notice)}
       </p>
-      <div className={styles.shortcutRegion} role="region" aria-labelledby="ticket-keyboard-heading">
-        <h3 id="ticket-keyboard-heading">Ticket keyboard</h3>
-        <p>B/S side, L/M type, G/I/F time in force, Escape back from review. G/I/F stay idle while review is open.</p>
-      </div>
-      <p className={styles.inlineNotice}>Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
+      {isSimple ? null : (
+        <>
+          <div className={styles.shortcutRegion} role="region" aria-labelledby="ticket-keyboard-heading">
+            <h3 id="ticket-keyboard-heading">Ticket keyboard</h3>
+            <p>B/S side, L/M type, G/I/F time in force, Escape back from review. G/I/F stay idle while review is open.</p>
+          </div>
+          <p className={styles.inlineNotice}>Click a book price to copy it here. SHA-256 is the session-only simulation encoding. Settlement uses keccak EIP-712.</p>
+        </>
+      )}
     </section>
   );
 }

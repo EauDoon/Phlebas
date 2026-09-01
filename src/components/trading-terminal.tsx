@@ -16,6 +16,7 @@ import {
 } from "@/lib/gateway-incidents";
 import { activateSkipLink } from "@/lib/skip-link";
 import { terminalUrl } from "@/lib/terminal-url";
+import type { TerminalMode } from "@/lib/terminal-mode";
 
 import type { ChartRange, MarketId } from "@/lib/market-data";
 import { formatSignedChange, markets, pools, recentTrades } from "@/lib/market-data";
@@ -102,6 +103,7 @@ export function TradingTerminal({
   initialAccess = "open",
   forceEducation = false,
   highlightIncidents = false,
+  initialMode = "advanced",
 }: {
   initialView?: TerminalView;
   initialMarket?: MarketId;
@@ -110,6 +112,7 @@ export function TradingTerminal({
   initialAccess?: AccessDemo;
   forceEducation?: boolean;
   highlightIncidents?: boolean;
+  initialMode?: TerminalMode;
 }) {
   const router = useRouter();
   const [view, setView] = useState<TerminalView>(initialView);
@@ -126,6 +129,8 @@ export function TradingTerminal({
   const [accountEpoch, setAccountEpoch] = useState(0);
   const [priceSelection, setPriceSelection] = useState<{ ticks: bigint; nonce: number } | null>(null);
   const [wallet, setWallet] = useState<WalletState>(disconnectedWallet);
+  const [mode] = useState<TerminalMode>(initialMode);
+  const isSimple = mode === "simple";
   const storedIncidentDemo = useSyncExternalStore(
     subscribeIncidentDemo,
     getIncidentDemoSnapshot,
@@ -416,7 +421,9 @@ export function TradingTerminal({
           <>
             <a className={styles.skipLink} href="#order-ticket" onClick={activateSkipLink}>Skip to order ticket</a>
             <a className={styles.skipLink} href="#price-chart" onClick={activateSkipLink}>Skip to price chart</a>
-            <a className={styles.skipLink} href="#order-book" onClick={activateSkipLink}>Skip to order book</a>
+            {isSimple ? null : (
+              <a className={styles.skipLink} href="#order-book" onClick={activateSkipLink}>Skip to order book</a>
+            )}
             <a className={styles.skipLink} href="#session-blotter" onClick={activateSkipLink}>Skip to blotter</a>
             <a className={styles.skipLink} href="#recent-trades" onClick={activateSkipLink}>Skip to recent trades</a>
           </>
@@ -555,7 +562,7 @@ export function TradingTerminal({
               <p className={styles.inlineNotice}>{feed.statsNote}</p>
             </section>
 
-            <div className={styles.tradeGrid}>
+            <div className={isSimple ? `${styles.tradeGrid} ${styles.simpleTradeGrid}` : styles.tradeGrid}>
               <section id="price-chart" tabIndex={-1} className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
                 <div className={styles.panelHeader}>
                   <div>
@@ -586,15 +593,17 @@ export function TradingTerminal({
                 <PriceChart marketId={marketId} range={range} feedStatus={feedStatus} />
               </section>
 
-              <OrderBook
-                marketId={marketId}
-                book={displayedBook}
-                feedStatus={feedStatus}
-                onPriceSelect={(ticks) => {
-                  setPriceSelection({ ticks, nonce: nextPriceNonce.current });
-                  nextPriceNonce.current += 1;
-                }}
-              />
+              {isSimple ? null : (
+                <OrderBook
+                  marketId={marketId}
+                  book={displayedBook}
+                  feedStatus={feedStatus}
+                  onPriceSelect={(ticks) => {
+                    setPriceSelection({ ticks, nonce: nextPriceNonce.current });
+                    nextPriceNonce.current += 1;
+                  }}
+                />
+              )}
               <TradeTicket
                 key={feedStatus}
                 market={market}
@@ -608,6 +617,7 @@ export function TradingTerminal({
                 accountEpoch={accountEpoch}
                 feedStatus={feedStatus}
                 walletAddress={wallet.address}
+                variant={mode}
                 onRetryFeed={() => selectFeed("illustrative")}
                 onSubmit={submitUserOrder}
               />

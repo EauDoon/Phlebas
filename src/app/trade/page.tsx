@@ -8,6 +8,7 @@ import type { MarketId } from "@/lib/market-data";
 import { isFeedStatus } from "@/lib/market-state";
 import { isEducationForceQuery } from "@/lib/preview-education";
 import { isRenderFailureQuery, RENDER_FAILURE_MESSAGE } from "@/lib/render-demo";
+import { parseTerminalModeQuery } from "@/lib/terminal-mode";
 import { isTerminalView } from "@/lib/terminal-views";
 import { isIncidentDemoQuery } from "@/lib/gateway-incidents";
 
@@ -33,10 +34,12 @@ export default async function TradePage({
     error?: string | string[];
     loading?: string | string[];
     demo?: string | string[];
+    mode?: string | string[];
   }>;
 }) {
   const params = await searchParams;
   const view = Array.isArray(params.view) ? params.view[0] : params.view;
+  const mode = Array.isArray(params.mode) ? params.mode[0] : params.mode;
   const market = Array.isArray(params.market) ? params.market[0] : params.market;
   const feed = Array.isArray(params.feed) ? params.feed[0] : params.feed;
   const journey = Array.isArray(params.journey) ? params.journey[0] : params.journey;
@@ -60,6 +63,7 @@ export default async function TradePage({
       initialAccess={parseAccessDemo(access)}
       forceEducation={isEducationForceQuery(education)}
       highlightIncidents={isIncidentDemoQuery(demo)}
+      initialMode={parseTerminalModeQuery(mode) ?? "advanced"}
     />
   );
 }
