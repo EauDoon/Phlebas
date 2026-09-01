@@ -1819,7 +1819,7 @@ a.skipLink:focus-visible {
   align-items: center;
   justify-content: center;
   padding: 6px 10px;
-  border: 1px solid rgba(244, 201, 93, 0.34);
+  border: 1px solid rgba(45, 212, 191, 0.34);
   border-radius: 999px;
   color: var(--accent);
   background: var(--accent-soft);
@@ -1906,7 +1906,7 @@ a.skipLink:focus-visible {
 
 .settlementSteps li[data-state="current"] {
   box-shadow: inset 0 2px var(--accent);
-  background: rgba(244, 201, 93, 0.06);
+  background: rgba(45, 212, 191, 0.06);
 }
 
 .settlementSteps li[data-state="current"] > span:first-child,

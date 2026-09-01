@@ -23,6 +23,7 @@ const patterns = [
   { name: "aws-access-key", regex: /\bAKIA[0-9A-Z]{16}\b/ },
   { name: "stripe-live-key", regex: /\bsk_live_[A-Za-z0-9]{16,}\b/ },
   { name: "tex-address", regex: /\btex1[0-9a-z]{20,}\b/ },
+  { name: "vercel-operator-gateway", regex: /PHLEBAS_GATEWAY_URL\s*[:=]/ },
   { name: "vercel-operator-matcher", regex: /PHLEBAS_MATCHER_URL\s*[:=]/ },
 ];
 

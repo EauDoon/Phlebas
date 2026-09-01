@@ -41,11 +41,15 @@ function withoutHonestCopyNegation(copy: string) {
     .replace(/\bnot trustless\b/gi, "")
     .replace(/\bdoes not provide shielded(?: deposits)?\b/gi, "")
     .replace(/\bNo shielded deposit or withdrawal is planned for v1\b/gi, "")
+    .replace(/\bnot a live exchange and not a shielded market\b/gi, "")
+    .replace(/\bShielded ZEC stays out of scope\b/gi, "")
+    .replace(/\bShielded deposits, leverage, lending, and token incentives remain out of scope\b/gi, "")
     .replace(/\bnot native ZEC(?: or the target asset)?\b/gi, "")
     .replace(/\bno native ZEC or stablecoin enters this application\b/gi, "")
     .replace(/\bNo live funds(?: or custody)?\b/gi, "")
     .replace(/\bNot a payable QR\b/gi, "")
     .replace(/\bNot payable\b/gi, "")
+    .replace(/\bnon-payable\b/gi, "")
     .replace(/\bNative settlement target:[^.]*(?:\.|$)/gi, "")
     .replace(/\bnot the native-settlement target\b/gi, "");
 }
@@ -358,7 +362,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /padding-bottom: 8px;/);
   assert.match(terminalCss, /flex-direction: column;/);
   assert.match(terminalCss, /margin-top: auto;/);
-  assert.match(terminalCss, /outline: 2px solid #f4c95d;/);
+  assert.match(terminalCss, /outline: 2px solid var\(--accent-fg\);/);
   assert.match(terminalCss, /padding-top: 24px;/);
   assert.match(terminalCss, /z-index: 2;/);
   assert.match(terminalCss, /\.educationDialog h2 \{[\s\S]*?overflow: visible;/);
@@ -376,7 +380,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminalCss, /padding: 24px 18px 16px;/);
   assert.match(
     terminalCss,
-    /\.educationDialog \.tourNav \{\r?\n  box-sizing: border-box;\r?\n  display: flex;\r?\n  align-items: center;\r?\n  width: 100%;\r?\n  min-height: 44px;\r?\n  flex-shrink: 0;/,
+    /\.educationDialog \.tourNav \{\r?\n  box-sizing: border-box;\r?\n  display: flex;\r?\n  align-items: center;\r?\n  width: 100%;\r?\n  min-width: 0;\r?\n  max-width: 100%;\r?\n  min-height: 44px;\r?\n  flex-shrink: 0;/,
   );
   assert.match(terminalCss, /\.educationDialog \{[\s\S]*?scroll-padding-top: 12px;/);
   assert.match(terminalCss, /padding-bottom: 12px;/);
@@ -638,7 +642,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(globalError, /flex-wrap: wrap/);
   assert.match(globalError, /width: 100%/);
   assert.match(globalError, /flex: 1 1 calc\(50% - 4px\)/);
-  assert.match(globalError, /outline: 2px solid #15140d/);
+  assert.match(globalError, /outline: 2px solid #042f2e/);
   assert.match(globalError, /a:last-child/);
   assert.match(globalError, /flex-shrink: 0/);
   assert.doesNotMatch(globalError, /is a live exchange/);
@@ -692,17 +696,21 @@ test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", asy
   try {
     await mkdir(join(dir, "scripts"));
     await copyFile(join(root, "scripts/scan-secrets.mjs"), join(dir, "scripts/scan-secrets.mjs"));
+    await execFileAsync("git", ["init"], { cwd: dir });
+    await execFileAsync("git", ["add", "-A"], { cwd: dir });
 
     const clean = await scanSecrets(dir);
     assert.equal(clean.code, 0);
 
     await writeFile(join(dir, ".env"), "PHLEBAS_GATEWAY_URL=http://127.0.0.1:8787\n");
+    await execFileAsync("git", ["add", "-A"], { cwd: dir });
     const envHit = await scanSecrets(dir);
     assert.notEqual(envHit.code, 0);
     assert.match(`${envHit.stdout}${envHit.stderr}`, /vercel-operator-gateway/);
     await rm(join(dir, ".env"));
 
     await writeFile(join(dir, "vercel.json"), "{\n  env: { PHLEBAS_MATCHER_URL: \"http://127.0.0.1:8788\" }\n}\n");
+    await execFileAsync("git", ["add", "-A"], { cwd: dir });
     const vercelHit = await scanSecrets(dir);
     assert.notEqual(vercelHit.code, 0);
     assert.match(`${vercelHit.stdout}${vercelHit.stderr}`, /vercel-operator-matcher/);
@@ -710,6 +718,7 @@ test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", asy
 
     await mkdir(join(dir, ".vercel"));
     await writeFile(join(dir, ".vercel", "project.json"), "PHLEBAS_GATEWAY_URL=http://example.com:8787\n");
+    await execFileAsync("git", ["add", "-A"], { cwd: dir });
     const vercelDirHit = await scanSecrets(dir);
     assert.notEqual(vercelDirHit.code, 0);
     assert.match(`${vercelDirHit.stdout}${vercelDirHit.stderr}`, /vercel-operator-gateway/);
@@ -719,6 +728,7 @@ test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", asy
       join(dir, "readme.md"),
       "PHLEBAS_GATEWAY_URL=http://example.com\nPHLEBAS_MATCHER_URL=http://example.com\n",
     );
+    await execFileAsync("git", ["add", "-A"], { cwd: dir });
     const ignored = await scanSecrets(dir);
     assert.equal(ignored.code, 0);
   } finally {
