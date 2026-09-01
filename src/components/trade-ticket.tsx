@@ -6,7 +6,7 @@ import { digestCanonicalOrder, type CanonicalOrder } from "@/lib/encoding";
 import { MAKER_FEE_BPS, TAKER_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
 import { custodyRedemptionCopy, publicLinkabilityCopy } from "@/lib/review-copy";
 import { retargetSettlementCopy } from "@/lib/evm-wallet";
-import { parseExpiryUnix } from "@/lib/ticket-order";
+import { parseExpiryUnix } from "@/lib/ticket-expiry";
 import type { Market } from "@/lib/market-data";
 import { ticketGate, type FeedStatus } from "@/lib/market-state";
 import { interpretRovingKey } from "@/lib/roving-keys";
@@ -486,7 +486,7 @@ export function TradeTicket({
       recipient: "session",
       maximumFeeBps: "30",
       allowedVenues: "clob",
-      chainId: "42161",
+      chainId: "1",
       verifyingContract: "not-deployed",
     };
     setSessionNonce((current) => current + 1);

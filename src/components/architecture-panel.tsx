@@ -5,12 +5,12 @@ const layers = [
   {
     label: "Public interface",
     title: "Vercel web application",
-    items: ["Read-only fixture market data", "In-browser matcher; optional Sepolia signing", "No local operator service is hosted on Vercel", "No custody keys or Zcash node"],
+    items: ["Read-only fixture market data", "Ethereum Mainnet wallet connection; transaction submission disabled", "No local operator service is hosted on Vercel", "No custody keys or Zcash node"],
   },
   {
     label: "Trading network",
-    title: "Matcher and Arbitrum contracts",
-    items: ["Offchain matcher, not trustless", "Atomic settlement target", "Constrained constant product pools", "Native ZEC, native USDC, native USDT"],
+    title: "Matcher and mainnet settlement",
+    items: ["Isolated ZEC/USDC and ZEC/USDT matchers, not trustless", "Native Zcash and Ethereum conditional-lock target", "Wallet-held solver liquidity", "Native ZEC, Ethereum USDC, Ethereum USDT"],
   },
   {
     label: "Historical custody model",

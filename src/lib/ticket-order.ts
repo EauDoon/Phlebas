@@ -1,5 +1,6 @@
 import { eip712DigestHex, sepoliaDomain, timeInForceCode, venuesBitmask, type TypedOrder } from "./eip712.ts";
 import type { TimeInForce } from "./matcher.ts";
+export { parseExpiryUnix } from "./ticket-expiry.ts";
 import { quoteTokenAddress, TESTNET } from "./testnet.ts";
 
 export const TIF_SALT = {
@@ -7,15 +8,6 @@ export const TIF_SALT = {
   IOC: 2n,
   FOK: 3n,
 } as const;
-
-export function parseExpiryUnix(value: string): bigint {
-  const trimmed = value.trim();
-  if (trimmed === "" || trimmed === "0") return 0n;
-  if (!/^[0-9]{1,20}$/.test(trimmed)) {
-    throw new Error("Expiry must be a whole unix time, or 0 for none.");
-  }
-  return BigInt(trimmed);
-}
 
 export function typedOrderFromTicket(input: {
   maker: string;

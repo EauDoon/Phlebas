@@ -1,5 +1,5 @@
 export function publicLinkabilityCopy(action: "fill" | "LP action"): string {
-  return `Transparent Zcash and this Arbitrum ${action} are publicly linkable.`;
+  return `Transparent Zcash and any future Ethereum Mainnet ${action} are publicly linkable.`;
 }
 
 export function custodyRedemptionCopy(): string {

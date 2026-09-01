@@ -15,7 +15,7 @@ test("landing hero matches the published custody-line copy", () => {
   assert.doesNotMatch(LANDING_HERO.heading, /\blive\b/i);
 });
 
-test("landing ledger names an unavailable wallet, not optional Sepolia", () => {
+test("landing ledger names the bounded Ethereum Mainnet wallet connection", () => {
   assert.equal(LANDING_LEDGER_HEADING, "Current system");
   assert.deepEqual(LANDING_LEDGER.map((row) => row.label), [
     "Product",
@@ -26,7 +26,7 @@ test("landing ledger names an unavailable wallet, not optional Sepolia", () => {
     "Mainnet approval",
     "Country access",
   ]);
-  assert.equal(LANDING_LEDGER[2]?.value, "Unavailable");
+  assert.equal(LANDING_LEDGER[2]?.value, "Ethereum Mainnet sign-only");
   for (const row of LANDING_LEDGER) {
     assert.doesNotMatch(row.value, /Sepolia/i);
     assert.doesNotMatch(row.value, /\blive\b/i);

@@ -29,10 +29,11 @@ test("education copy stays a simulation briefing, not consent", () => {
   assert.match(PREVIEW_EDUCATION_STEPS[1].body, /not live settlement/);
   assert.match(PREVIEW_EDUCATION_STEPS[1].body, /USDT0 is abandoned/);
   assert.doesNotMatch(PREVIEW_EDUCATION_STEPS[1].body, /pZEC is the planned settlement receipt/);
-  assert.match(PREVIEW_EDUCATION_STEPS[0].body, /does not move mainnet funds/);
+  assert.match(PREVIEW_EDUCATION_STEPS[0].body, /cannot submit a transaction/);
+  assert.match(PREVIEW_EDUCATION_STEPS[0].body, /Ethereum Mainnet/);
   assert.match(PREVIEW_EDUCATION_STEPS[0].body, /historical state-tour events/);
   assert.match(PREVIEW_EDUCATION_STEPS[2].body, /historical custody states/);
-  assert.equal(PREVIEW_EDUCATION_VERSION, "2026-09-01-1");
+  assert.equal(PREVIEW_EDUCATION_VERSION, "2026-09-01-2");
 });
 
 test("education query force is allowlisted to 1", () => {

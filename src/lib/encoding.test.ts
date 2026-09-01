@@ -17,7 +17,7 @@ const sample: CanonicalOrder = {
   recipient: "session",
   maximumFeeBps: "30",
   allowedVenues: "clob",
-  chainId: "42161",
+  chainId: "1",
   verifyingContract: "not-deployed",
 };
 
@@ -52,12 +52,12 @@ test("frozen SHA-256 vector for baseAsset ZEC", async () => {
     "recipient=session",
     "maximumFeeBps=30",
     "allowedVenues=clob",
-    "chainId=42161",
+    "chainId=1",
     "verifyingContract=not-deployed",
   ].join("\n"));
   assert.equal(
     await digestCanonicalOrder(sample),
-    "2d3360d350d50a83e69a46f50a4fedcfc77a610dc91fe0d80fee67616acb38ca",
+    "aa1bdf8c7374fd894cad16abede66833f88629a057d820c3c8526a2962f8b969",
   );
 });
 

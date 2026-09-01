@@ -24,7 +24,7 @@ export function SimulationFrame({
       </nav>
       <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
         <strong>Simulation only</strong>
-        <span>No-value simulation. Optional Sepolia wallet and local testnet services do not move mainnet funds.</span>
+        <span>No-value simulation. Optional Ethereum Mainnet wallet connection is sign-only and cannot submit a transaction.</span>
       </div>
       <header className={styles.topbar}>
         <Link href="/" className={styles.brand} aria-label="Phlebas home">

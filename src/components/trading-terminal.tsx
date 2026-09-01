@@ -535,7 +535,7 @@ export function TradingTerminal({
         <span>
           {view === "settlement"
             ? "No-value native settlement walkthrough. It prepares no transaction, connects no wallet, and moves no asset."
-            : "Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless."}
+            : "Local in-browser matcher by default. Optional Ethereum Mainnet wallet connection is sign-only and cannot submit a transaction. This matcher is not trustless."}
         </span>
       </div>
 

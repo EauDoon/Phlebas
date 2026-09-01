@@ -1,10 +1,10 @@
-export const PREVIEW_EDUCATION_VERSION = "2026-09-01-1";
+export const PREVIEW_EDUCATION_VERSION = "2026-09-01-2";
 export const PREVIEW_EDUCATION_STORAGE_KEY = "phlebas.previewEducationVersion";
 
 export const PREVIEW_EDUCATION_STEPS = [
   {
     title: "This is a no-value simulation.",
-    body: "Prices, orders, pools, balances, and historical state-tour events are illustrative. Optional Arbitrum Sepolia wallet connection is sign-only by default and does not move mainnet funds.",
+    body: "Prices, orders, pools, balances, and historical state-tour events are illustrative. Optional Ethereum Mainnet wallet connection is read-and-sign only in this preview and cannot submit a transaction.",
   },
   {
     title: "Pairs are native ZEC against USDC and USDT.",
@@ -12,7 +12,7 @@ export const PREVIEW_EDUCATION_STEPS = [
   },
   {
     title: "Preview actions stay in this browser.",
-    body: "You can inspect order entry, pool math, and historical custody states. Session fills stay in this browser. Optional Sepolia signing does not move mainnet funds and is not a financial record.",
+    body: "You can inspect order entry, pool math, and historical custody states. Session fills stay in this browser. Optional Ethereum Mainnet signing cannot move funds and is not a financial record.",
   },
 ] as const;
 

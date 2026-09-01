@@ -13,7 +13,7 @@ export const LANDING_LEDGER_HEADING = "Current system";
 export const LANDING_LEDGER = [
   { label: "Product", value: "No-value preview" },
   { label: "Market data", value: "Illustrative fixtures" },
-  { label: "Wallet connection", value: "Unavailable" },
+  { label: "Wallet connection", value: "Ethereum Mainnet sign-only" },
   { label: "Contracts", value: "Not deployed" },
   { label: "Custody", value: "Not operating" },
   { label: "Mainnet approval", value: "Not cleared" },

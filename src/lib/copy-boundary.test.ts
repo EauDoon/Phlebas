@@ -111,7 +111,7 @@ test("status payload cannot be read as live funds or custody", async () => {
   assert.equal(status.liveFunds, false);
   assert.equal(status.mode, "simulation");
   assert.equal(status.custody, "none");
-  assert.equal(status.contracts, "source-undeployed");
+  assert.equal(status.contracts, "conditional-lock-undeployed");
   assert.equal(status.marketData, "illustrative");
   assert.equal(status.incidents, "architecture-demonstration");
 });
@@ -137,7 +137,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(terminal, /Simulation disclosure/);
   assert.match(await readFile(join(root, "src/components/simulation-frame.tsx"), "utf8"), /Simulation disclosure/);
   assert.match(await readFile(join(root, "src/components/simulation-loading.tsx"), "utf8"), /Simulation disclosure/);
-  assert.match(landing, /No mainnet funds/);
+  assert.match(landing, /cannot submit a transaction/);
   assert.match(landing, /Deny by default/);
   assert.match(landing, /no-value simulation/);
   assert.match(landing, /not a live exchange and not a shielded market/);
@@ -163,7 +163,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(await readFile(join(root, "src/lib/session.ts"), "utf8"), /availablePzec/);
   assert.match(
     await readFile(join(root, "src/lib/encoding.test.ts"), "utf8"),
-    /2d3360d350d50a83e69a46f50a4fedcfc77a610dc91fe0d80fee67616acb38ca/,
+    /aa1bdf8c7374fd894cad16abede66833f88629a057d820c3c8526a2962f8b969/,
   );
   assert.match(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /nothing was minted/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/deposit-tour.ts"), "utf8"), /pZEC/);
@@ -236,7 +236,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(terminal), /trustless bridge/i);
   assert.match(terminal, /Fixture \$\{market\.volume\}/);
-  assert.match(terminal, /do not move mainnet funds/);
+  assert.match(terminal, /cannot submit a transaction/);
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /Wallet connection rejection/);
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /connectMainnetWallet/);
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /Ethereum Mainnet/);
@@ -692,6 +692,7 @@ test("vercel.json does not assign operator URLs", async () => {
   }
   const vercel = await readFile(vercelPath, "utf8");
   assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_URL\s*[:=]/);
+  assert.doesNotMatch(vercel, /PHLEBAS_MATCHER_(?:USDC|USDT)_URL\s*[:=]/);
 });
 
 test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", async () => {
@@ -719,6 +720,13 @@ test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", asy
     assert.match(`${vercelHit.stdout}${vercelHit.stderr}`, /vercel-operator-matcher/);
     await rm(join(dir, "vercel.json"));
 
+    await writeFile(join(dir, ".env"), "PHLEBAS_MATCHER_USDT_URL=http://127.0.0.1:8789\n");
+    await execFileAsync("git", ["add", "-A"], { cwd: dir });
+    const marketMatcherHit = await scanSecrets(dir);
+    assert.notEqual(marketMatcherHit.code, 0);
+    assert.match(`${marketMatcherHit.stdout}${marketMatcherHit.stderr}`, /vercel-operator-market-matcher/);
+    await rm(join(dir, ".env"));
+
     await mkdir(join(dir, ".vercel"));
     await writeFile(join(dir, ".vercel", "project.json"), "PHLEBAS_GATEWAY_URL=http://example.com:8787\n");
     await execFileAsync("git", ["add", "-A"], { cwd: dir });
@@ -729,7 +737,7 @@ test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", asy
 
     await writeFile(
       join(dir, "readme.md"),
-      "PHLEBAS_GATEWAY_URL=http://example.com\nPHLEBAS_MATCHER_URL=http://example.com\n",
+      "PHLEBAS_GATEWAY_URL=http://example.com\nPHLEBAS_MATCHER_URL=http://example.com\nPHLEBAS_MATCHER_USDC_URL=http://example.com\n",
     );
     await execFileAsync("git", ["add", "-A"], { cwd: dir });
     const ignored = await scanSecrets(dir);

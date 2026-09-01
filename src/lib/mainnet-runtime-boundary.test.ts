@@ -12,7 +12,12 @@ const ACTIVE_MAINNET_FILES = [
   "infra/matcher/native-zec-usdt.json",
   "infra/matcher/native-zec-usdt.schema.json",
   "src/components/native-swap-fixtures.ts",
+  "src/components/architecture-panel.tsx",
+  "src/components/liquidity-panel.tsx",
+  "src/components/trade-ticket.tsx",
   "src/components/wallet-bar.tsx",
+  "src/app/status/page.tsx",
+  "src/lib/encoding.ts",
   "src/lib/evm-provider-discovery.ts",
   "src/lib/evm-wallet-session.ts",
   "src/lib/evm-wallet.ts",
@@ -21,6 +26,11 @@ const ACTIVE_MAINNET_FILES = [
   "src/lib/native-zec-usdc-matcher-manifest.ts",
   "src/lib/native-zec-usdt-matcher-manifest.ts",
   "src/lib/stablecoin-wallet-action.ts",
+  "src/lib/market-data.ts",
+  "src/lib/review-copy.ts",
+  "src/lib/status.ts",
+  "src/lib/ticket-expiry.ts",
+  "src/lib/withdrawal-tour.ts",
 ] as const;
 
 test("active mainnet wallet and settlement paths cannot reference Arbitrum or Sepolia", async () => {
