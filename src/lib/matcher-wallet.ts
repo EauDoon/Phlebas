@@ -6,14 +6,6 @@ import {
 
 export const ARBITRUM_ONE_HEX = `0x${ARBITRUM_ONE_CHAIN_ID.toString(16)}` as const;
 
-const ARBITRUM_ONE_PARAMETERS = Object.freeze({
-  chainId: ARBITRUM_ONE_HEX,
-  chainName: "Arbitrum One",
-  nativeCurrency: Object.freeze({ name: "Ether", symbol: "ETH", decimals: 18 }),
-  rpcUrls: Object.freeze(["https://arb1.arbitrum.io/rpc"]),
-  blockExplorerUrls: Object.freeze(["https://arbiscan.io"]),
-});
-
 export type MatcherWalletConnection = Readonly<{
   address: string;
   chainId: typeof ARBITRUM_ONE_HEX;
@@ -57,19 +49,10 @@ async function activeAccount(provider: Eip1193Provider, method: "eth_requestAcco
 }
 
 async function switchToArbitrumOne(provider: Eip1193Provider): Promise<void> {
-  try {
-    await provider.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: ARBITRUM_ONE_HEX }],
-    });
-  } catch (error) {
-    const code = providerErrorCode(error);
-    if (code !== 4902 && code !== "4902") throw error;
-    await provider.request({
-      method: "wallet_addEthereumChain",
-      params: [ARBITRUM_ONE_PARAMETERS],
-    });
-  }
+  await provider.request({
+    method: "wallet_switchEthereumChain",
+    params: [{ chainId: ARBITRUM_ONE_HEX }],
+  });
 }
 
 export async function connectMatcherWallet(

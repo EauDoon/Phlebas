@@ -71,36 +71,7 @@ test("switches to Arbitrum One and rechecks the active account without transacti
   assert.equal(calls.includes("eth_sendTransaction"), false);
 });
 
-test("adds Arbitrum One only when the wallet reports an unknown chain", async () => {
-  const calls: string[] = [];
-  const provider: Eip1193Provider = {
-    async request({ method, params }) {
-      calls.push(method);
-      if (method === "eth_requestAccounts" || method === "eth_accounts") return [ADDRESS];
-      if (method === "eth_chainId") {
-        return calls.filter((value) => value === "eth_chainId").length === 1 ? "0x1" : ARBITRUM_ONE_HEX;
-      }
-      if (method === "wallet_switchEthereumChain") throw Object.assign(new Error("unknown chain"), { code: 4902 });
-      if (method === "wallet_addEthereumChain") {
-        assert.deepEqual(params, [{
-          chainId: ARBITRUM_ONE_HEX,
-          chainName: "Arbitrum One",
-          nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-          rpcUrls: ["https://arb1.arbitrum.io/rpc"],
-          blockExplorerUrls: ["https://arbiscan.io"],
-        }]);
-        return null;
-      }
-      throw new Error(method);
-    },
-  };
-
-  await connectMatcherWallet(provider, enabledDeployment());
-  assert.equal(calls.includes("wallet_addEthereumChain"), true);
-  assert.equal(calls.includes("eth_sendTransaction"), false);
-});
-
-test("does not add a chain after an ordinary switch rejection", async () => {
+test("does not add a chain after a switch rejection", async () => {
   const calls: string[] = [];
   const provider: Eip1193Provider = {
     async request({ method }) {
