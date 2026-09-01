@@ -133,3 +133,38 @@ test("applyImportedSnapshot returns the four pieces the trading terminal needs",
   assert.equal(applied.fills, fills);
   assert.equal(applied.sessionLog, sessionLog);
 });
+
+test("applyImportedSnapshot preserves non-empty fills and session log", () => {
+  const account = seedPaperAccount();
+  const book = seedBook("ZEC/USDC");
+  const fills: UserFill[] = [
+    {
+      id: "fill-a",
+      makerId: "user-m1",
+      takerId: "matcher",
+      takerSide: "buy",
+      priceTicks: 5000000n,
+      sizeAtoms: 100000000n,
+      marketId: "ZEC/USDC",
+      time: "12:00:00",
+    },
+  ];
+  const sessionLog: SessionLogEvent[] = [
+    { kind: "submit", marketId: "ZEC/USDC", id: "user-1", side: "buy", tif: "GTC", priceTicks: 5000000n, sizeAtoms: 100000000n, expiryUnix: 0n },
+    { kind: "cancel", marketId: "ZEC/USDC", orderId: "user-1" },
+  ];
+  const snapshot = buildSessionSnapshot({
+    market: ZEC_USDC,
+    account,
+    book,
+    fills,
+    sessionLog,
+    exportedAt: "2026-09-01T00:00:00.000Z",
+  });
+  const applied = applyImportedSnapshot(snapshot);
+  assert.equal(applied.fills.length, 1);
+  assert.equal(applied.fills[0]?.id, "fill-a");
+  assert.equal(applied.sessionLog.length, 2);
+  assert.equal(applied.sessionLog[0]?.kind, "submit");
+  assert.equal(applied.sessionLog[1]?.kind, "cancel");
+});
