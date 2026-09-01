@@ -40,6 +40,11 @@ export default function StatusPage() {
         <div role="listitem"><dt>Sequence root</dt><dd>{status.sequenceRoot === null ? "none" : status.sequenceRoot}</dd></div>
       </dl>
       <p>
+        Incident copy on Architecture is a labeled demonstration, not a live outage.
+        {" "}
+        <a href="/trade?view=architecture&demo=incidents#incident-demo">Architecture incident demonstrations</a>
+      </p>
+      <p>
         Machine-readable copy: <a href="/api/status">/api/status</a>
         {" · "}
         <a href="/legal">Legal</a>

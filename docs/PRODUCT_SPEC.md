@@ -1,11 +1,11 @@
 # Phlebas Product Specification
 
-Status: native-settlement target, no-value implementation
-Updated: 31-08-2026
+Status: native-settlement target, no-value simulation
+As of: 01-09-2026
 
 ## 1. Product statement
 
-Phlebas is being built as a non-custodial spot exchange for native transparent ZEC against USDC and USDT. It combines a professional offchain order book with one two-chain atomic-swap workflow per fill.
+Phlebas is being built as a non-custodial spot exchange for native transparent ZEC against USDC and USDT. Display markets are `ZEC/USDC` and `ZEC/USDT`; settlement pairs are `ZEC-USDC` and `ZEC-USDT`. Settlement assets are native ZEC, native USDC, and native USDT. USDT0 is abandoned. It combines a professional offchain order book with one two-chain atomic-swap workflow per fill.
 
 Users and liquidity providers keep control of their wallets. Phlebas cannot sign, redirect, claim, refund, or custody either asset.
 
@@ -27,13 +27,13 @@ Version 1 includes:
 * responsive web, mobile, and keyboard-accessible interfaces;
 * public system, matcher, observer, and incident status.
 
-USDC is the first quote candidate. USDT and USDT0 remain unresolved until one exact asset passes issuer, contract, network, legal, and operational review.
+USDC is the first quote candidate. Native USDT is listed. USDT0 is abandoned. Exact USDT contract identity remains unresolved until issuer, network, legal, and operational review.
 
 ## 3. Non-goals
 
 Version 1 excludes:
 
-* custody-backed pZEC;
+* custody-backed ERC-20 receipts;
 * platform customer balances;
 * minting, burns, reserve wallets, deposits into Phlebas, or withdrawals from Phlebas;
 * shielded atomic swaps;
@@ -68,9 +68,11 @@ The operator runs the matcher and coordinator, publishes receipts and status, an
 | Display market | Base settlement | Quote settlement |
 | --- | --- | --- |
 | `ZEC/USDC` | Native transparent ZEC | Exact approved USDC contract |
-| `ZEC/USDT` | Native transparent ZEC | Exact approved USDT or USDT0 contract |
+| `ZEC/USDT` | Native transparent ZEC | Exact approved native USDT contract |
 
 ZEC quantities use integer zatoshis with 8 decimals. Quote quantities use the exact token's integer base units. Price uses a versioned integer tick.
+
+Every order ticket, confirmation, fill, and history record names the settlement pair `ZEC-USDC` or `ZEC-USDT`. Those pairs are native ZEC against native USDC or native USDT. USDT0 is not a listed quote asset. The undeployed 8-decimal receipt symbol is `tZEC`; product copy labels native ZEC. That is not live native-ZEC execution.
 
 The reference ticket uses:
 
@@ -105,7 +107,7 @@ verifying domain
 
 EVM signatures use EIP-712. Zcash authorization uses a separate wallet-supported format. One signature never grants authority on both chains.
 
-A market order is IOC with a signed worst acceptable price. There is no unbounded market order.
+A market order is IOC with a signed worst acceptable price. There is no unbounded market order. A market worst price rounds outward to the next tick, up for buys and down for sells.
 
 Contract wallets require ERC-1271 validation on the EVM path. That support remains a later contract milestone.
 
@@ -140,7 +142,7 @@ One fill creates immutable terms for two legs:
 | Leg | Asset | Candidate lock | Funder | Claimant | Refund rule |
 | --- | --- | --- | --- | --- | --- |
 | Native | Transparent ZEC | Zcash P2SH conditional lock | ZEC seller | Stablecoin seller | Later deadline |
-| Quote | USDC or selected USDT | EVM exact-token conditional lock | Stablecoin seller | ZEC seller | Earlier deadline |
+| Quote | USDC or selected native USDT | EVM exact-token conditional lock | Stablecoin seller | ZEC seller | Earlier deadline |
 
 Both legs bind the same hash. The exact deadline margin is a versioned policy.
 
@@ -296,3 +298,22 @@ The no-value milestone needs:
 Testnet needs current protocol evidence, wallet execution, contract and transaction-builder review, observer recovery, legal approval, and a named authorization.
 
 Mainnet needs successful Testnet operation, independent audits, verified contract bytecode, reproducible services, monitoring, incident drills, legal approval, exact deployment manifests, production key controls, and separate authorization for real assets.
+
+## Simulation gateway (current public UI)
+
+The public application still demos a no-value gateway tour. Cannot mint tZEC without a valid deposit attestation. One tZEC burn can produce at most one native payout. High-risk confirmations repeat The ZEC custody and redemption dependency. Nothing is minted or sent.
+
+The simulation withdrawal walker is:
+
+```text
+requested -> screened -> burn submitted -> burn finalized -> payable
+requested | screened -> rejected before burn with review reason
+burn submitted -> expired or reorganized evidence -> closed without finalized burn
+burn finalized | payable -> tZEC restored only on unrecoverable pre-signature failure
+payable -> transaction_prepared -> signed -> broadcast -> mined -> confirmed
+signed | broadcast | mined -> unresolved
+unresolved -> exact committed transaction observed -> broadcast | mined
+unresolved -> verified input restoration -> payable
+```
+
+A single-use refund authorization must permanently cancel the unpaid claim before restoring tZEC. Once a native transaction is signed, the claim cannot be refunded. The public simulation exposes each fail-closed and walker preview state as a clickable tour step on both ZEC-USDC and ZEC-USDT labels.

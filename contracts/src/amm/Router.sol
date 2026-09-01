@@ -14,7 +14,7 @@ interface IERC20Router {
 /// @notice Stateless AMM router. Cannot retain balances. No callbacks.
 contract Router {
     Factory public immutable factory;
-    address public immutable pzec;
+    address public immutable zec;
     address public immutable pauser;
     address public immutable governor;
     bool public paused;
@@ -35,7 +35,7 @@ contract Router {
             revert InvalidConfiguration();
         }
         factory = factory_;
-        pzec = factory_.pzec();
+        zec = factory_.zec();
         pauser = pauser_;
         governor = governor_;
     }
@@ -59,7 +59,7 @@ contract Router {
 
     function addLiquidity(
         address quote,
-        uint256 pzecIn,
+        uint256 zecIn,
         uint256 quoteIn,
         uint256 minShares,
         address to,
@@ -67,7 +67,7 @@ contract Router {
     ) external whenLive returns (uint256 shares) {
         if (block.timestamp > deadline) revert Expired();
         Pair pair = Pair(_pair(quote));
-        _pull(pzec, msg.sender, address(pair), pzecIn);
+        _pull(zec, msg.sender, address(pair), zecIn);
         _pull(quote, msg.sender, address(pair), quoteIn);
         shares = pair.mint(to);
         if (shares < minShares) revert Slippage();
@@ -77,16 +77,16 @@ contract Router {
     function removeLiquidity(
         address quote,
         uint256 shares,
-        uint256 minPzec,
+        uint256 minZec,
         uint256 minQuote,
         address to,
         uint256 deadline
-    ) external returns (uint256 outPzec, uint256 outQuote) {
+    ) external returns (uint256 outZec, uint256 outQuote) {
         if (block.timestamp > deadline) revert Expired();
         Pair pair = Pair(_pair(quote));
         _pull(address(pair), msg.sender, address(pair), shares);
-        (outPzec, outQuote) = pair.burn(to);
-        if (outPzec < minPzec || outQuote < minQuote) revert Slippage();
+        (outZec, outQuote) = pair.burn(to);
+        if (outZec < minZec || outQuote < minQuote) revert Slippage();
         _assertEmpty();
     }
 
@@ -100,17 +100,17 @@ contract Router {
     ) external whenLive returns (uint256 amountOut) {
         if (block.timestamp > deadline) revert Expired();
         if (to == address(this)) revert Residual();
-        if ((tokenIn == pzec) == (tokenOut == pzec)) revert("Router: pair");
-        address quote = tokenIn == pzec ? tokenOut : tokenIn;
+        if ((tokenIn == zec) == (tokenOut == zec)) revert("Router: pair");
+        address quote = tokenIn == zec ? tokenOut : tokenIn;
         Pair pair = Pair(_pair(quote));
-        bool pzecIn = tokenIn == pzec;
+        bool zecIn = tokenIn == zec;
         _pull(tokenIn, msg.sender, address(pair), amountIn);
-        amountOut = pair.swap(pzecIn, minOut, to);
+        amountOut = pair.swap(zecIn, minOut, to);
         _assertEmpty();
     }
 
     function _pair(address quote) internal view returns (address pair) {
-        pair = factory.getPair(pzec, quote);
+        pair = factory.getPair(zec, quote);
         if (pair == address(0)) revert("Router: pair");
     }
 
@@ -122,8 +122,8 @@ contract Router {
     }
 
     function _assertEmpty() internal view {
-        if (IERC20Router(pzec).balanceOf(address(this)) != 0) revert Residual();
+        if (IERC20Router(zec).balanceOf(address(this)) != 0) revert Residual();
         if (IERC20Router(factory.usdc()).balanceOf(address(this)) != 0) revert Residual();
-        if (IERC20Router(factory.usdt0()).balanceOf(address(this)) != 0) revert Residual();
+        if (IERC20Router(factory.usdt()).balanceOf(address(this)) != 0) revert Residual();
     }
 }

@@ -1,7 +1,7 @@
 # Phlebas Architecture
 
-Status: native-settlement target, simulation implementation
-Updated: 01-09-2026
+Status: native-settlement target, no-value simulation
+As of: 01-09-2026
 
 Phlebas is being built as a non-custodial exchange for native transparent ZEC against USDC and a separately approved USDT-family asset. The current public application is a no-value browser simulation. A persistent loopback matcher domain is implemented, while the textest gateway and observer remain legacy stubs. Those services are never hosted on Vercel and do not move mainnet funds.
 
@@ -17,6 +17,12 @@ The target markets are:
 * `ZEC/USDT`
 
 `ZEC` means native transparent ZEC on Zcash. It never becomes a Phlebas receipt or platform balance. The quote asset remains the exact issuer-approved token on the selected EVM chain.
+
+The product UI labels `ZEC-USDC` and `ZEC-USDT` as native ZEC against native USDC and native USDT. USDT0 is abandoned. Shielded ZEC stays out of scope. The public app is still a no-value simulation.
+
+The undeployed 8-decimal receipt symbol is `tZEC`. The Solidity type is `Zec`. Those names are simulation labels, not live native-ZEC execution. [ADR 0001](adr/0001-arbitrum-and-pzec.md) historically named the custody-backed ERC-20 `pZEC`. That name is not the current listed form. ADR 0001 remains historical.
+
+Transparent Zcash exposes transaction and balance information publicly, as described by [Zcash's comparison of transparent and shielded ZEC](https://z.cash/learn/what-is-the-difference-between-shielded-and-transparent-zcash/).
 
 Each fill settles through a pair of chain-native conditional locks. The matcher does not control either lock. Users and solvers sign asset-moving transactions in their own wallet boundary.
 
@@ -35,6 +41,8 @@ The current repository contains a Next.js no-value simulation, undeployed Arbitr
 | Zcash path | Local textest gateway, ZIP 321, TEX, and payout-tour stubs | Transparent P2SH fund, claim, and refund transactions |
 | EVM path | Optional Sepolia wallet flow against an undeployed legacy manifest | Exact-token conditional-lock contract |
 | Liquidity | Signed wallet-held solver quotes in the persistent matcher, plus superseded pZEC AMM previews | Wallet-held maker and solver quotes |
+| Simulation mint | tZEC mint controller in undeployed Sepolia sources | Not live native-ZEC execution |
+| `tZEC` | Undeployed 8-decimal receipt; display label is native ZEC | Simulation label, not live native-ZEC execution |
 | Wallets | Optional EIP-1193 testnet flow; no native swap adapter | Explicit adapters that keep every key in the wallet |
 | Observers | Optional loopback textest stub | Independent read-only Zcash and EVM evidence |
 | Coordinator | None | Persistent state, recovery, and safe-action policy |
@@ -128,7 +136,12 @@ The candidate EVM leg is a non-upgradeable exact-token contract with these opera
 
 The contract has no token registry controlled by an administrator, callback, arbitrary recipient change, protocol balance, seizure path, hidden fee, proxy, or upgrade path.
 
-USDC is the first quote candidate. Circle publishes its [current contract registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). USDT and USDT0 remain unresolved until one exact asset, chain, contract, proxy, admin model, and issuer policy is approved.
+USDC is the first quote candidate. Circle publishes its [current contract registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). Native USDT is the listed second quote. USDT0 is abandoned. No USDT address is approved by this document.
+
+| Product label | Candidate settlement asset | Source checked on 31-08-2026 |
+| --- | --- | --- |
+| `ZEC/USDC` | Native Circle USDC on Arbitrum | [Circle USDC address registry](https://developers.circle.com/stablecoins/usdc-contract-addresses) |
+| `ZEC/USDT` | Native USDT. USDT0 is abandoned. | Issuer-native USDT at the mainnet gate. No address is approved by this document. |
 
 Contract code and test dependencies remain local until Testnet deployment receives separate approval.
 
@@ -254,3 +267,120 @@ Testnet needs current protocol evidence, deterministic vectors, local execution,
 Mainnet needs successful Testnet operation, independent audits, exact contract and service identities, reproducible builds, verified bytecode, monitoring, incident drills, legal approval, and separate authorization for real assets.
 
 The current Vercel deployment remains a simulation until every applicable gate passes.
+
+## ZEC half of the atomic swap
+
+The ZEC half of the atomic swap is a transparent P2SH output that holds ZEC until either the buyer reveals the preimage on the Zcash claim path or the seller refunds after the lock time. The address encoder, the P2SH script builder, and the wallet adapter are documented in [ADR 0005](adr/0005-zcash-p2sh-atomic-swap.md).
+
+### Components
+
+- **Address encoder** (`src/lib/zcash-address.ts`) — Base58Check transparent address encoder and decoder. Testnet and mainnet version bytes are pinned. The address surface is the only surface in PR 3 that depends on a hash function.
+- **P2SH script builder** (`src/lib/zcash-atomic-swap.ts`) — claim branch, refund branch, and full atomic-swap script. The script round-trips through the parser.
+- **Wallet adapter** (`src/lib/zcash-wallet-adapter.ts`) — typed `buildFundTransaction`, `buildClaimTransaction`, `buildRefundTransaction`, and `hashAtomicSwapParams`. The adapter returns unsigned transactions; the signing surface is an injected callback that the production code wires to a real Zcash wallet.
+- **Compressed pubkey parser** (`src/lib/zcash-pubkey.ts`) — 33-byte compressed secp256k1 public key parser and encoder.
+
+### Hash function
+
+The hash function is `RIPEMD160(SHA256(x))`, which the Zcash script engine exposes as `OP_HASH160`. The preimage primitive in `src/lib/preimage.ts` produces 32 random bytes; the same preimage and the same hash are valid on both the EVM leg (via `SHA256`) and the ZEC leg (via `RIPEMD160(SHA256)`).
+
+### Observer and watchtower (PR 4)
+
+The observer and the watchtower close the read-only half of the
+two-chain atomic swap. The observer polls the ConditionalLock
+contract and a set of P2SH lock addresses, reduces the events to
+coordinator transitions, and persists the snapshot to disk. The
+watchtower reads the coordinator state and emits alerts on stop
+conditions. The observer never holds a key and never signs a
+transaction; the signing surface lives in the wallet adapter.
+
+#### Components
+
+- **EVM observer** (src/lib/evm-observer.ts) — classifies the
+  ConditionalLock event topics and emits per-fill event records.
+- **ZEC observer** (src/lib/zcash-observer.ts) — polls each P2SH
+  address for outpoints and classifies them as funded, claimed, or
+  refunded.
+- **Event reducers** (src/lib/evm-event-reducer.ts,
+  src/lib/zcash-event-reducer.ts) — turn the event records into
+  sorted sequences of mapped transitions.
+- **Transition mapper** (src/lib/transition-mapper.ts) — names a
+  transition per event kind and side.
+- **Coordinator** (src/lib/atomic-coordinator.ts) — applies
+  transitions, persists fills by id, and records rejected
+  transitions in the alert log.
+- **Snapshot and persistence**
+  (src/lib/coordinator-snapshot.ts,
+  src/lib/coordinator-persistence.ts) — JSON-on-disk snapshot with
+  atomic write and bootstrap-time marker.
+- **Watchtower** (src/lib/watchtower.ts) — emits
+  reorg-depth-exceeded, missing-terminal-event, and deadline-breach
+  alerts.
+- **Service** (services/atomic-swap-observer/) — wires the
+  observers, the coordinator, and the watchtower into one HTTP
+  process with /health, /state, /fills, /fills/:fillId,
+  /alerts, and /observe.
+
+### Public market data (PR 5)
+
+The public market data surface is four read-only HTTP endpoints
+on the matcher service. The surface is the public read-only view
+of the matcher operator's in-memory state. The surface is the
+companion to the paper-trading fixtures in src/lib/market-data.ts:
+the fixtures drive the no-value simulation; the new endpoints
+drive matcher operator data once a real Sepolia deployment is recorded.
+
+#### Components
+
+- **Pure functions** (src/lib/market-data.ts) — tickerFromOperator,
+  tradesFromReceipts, depthFromBook, marketsFromOperator,
+  topFills. The functions take the operator state and a clock
+  and return a typed snapshot. The functions never mutate the
+  operator.
+- **HTTP endpoints** (services/matcher/server.ts) — /ticker,
+  /trades?limit=N, /depth?levels=N, /markets. The
+  endpoints bound the limit and levels parameters to
+  prevent memory exhaustion.
+
+### Operations hardening (PR 6)
+
+The operations hardening surface is a set of pure-function
+libraries that the services consume and an HTTP layer that the
+operator calls. The surface is the single source of truth for
+the operator's on-call rotation.
+
+#### Components
+
+- **Metrics counter** (src/lib/metrics.ts) — in-memory counter
+  with Prometheus text rendering. Pure function over a state
+  record.
+- **SLO tracker** (src/lib/slo-tracker.ts) — rolling-window
+  compliance verdict for a service against a target SLO.
+- **Health aggregator** (src/lib/health-aggregator.ts) —
+  composes the health of every service into a single response.
+- **Alert router** (src/lib/alert-router.ts) — maps watchtower
+  alerts to channels (pagerduty, slack, email, log) based on
+  severity and service.
+
+### Final integration and audit prep (PR 7)
+
+The final integration surface is the set of pure-function
+libraries and documents that gate the project's readiness for
+the production deployment.
+
+#### Components
+
+- **Release readiness gate** (src/lib/release-readiness.ts) —
+  pure function that evaluates a collection of per-gate
+  results into a single verdict.
+- **Audit checklist** (src/lib/audit-checklist.ts) — pure
+  data structure with required, blocked, and owner tracking.
+- **Release readiness script** (scripts/release-readiness.mjs)
+  — runs the automated gates and prints the verdict.
+- **Audit checklist doc** (docs/audit/audit-checklist.md) —
+  canonical record of the audit surface.
+- **Release readiness evidence pack**
+  (docs/audit/release-readiness-evidence.md) — the source
+  of truth for the release verdict.
+- **Final integration report**
+  (docs/audit/final-integration-report.md) — summary of the
+  seven PRs that delivered the project.

@@ -8,13 +8,13 @@ export type SepoliaManifest = {
   label: string;
   broadcastTx: string | null;
   contracts: {
-    PZec: string | null;
+    Zec: string | null;
     TUsdc: string | null;
-    TUsdt0: string | null;
+    TUsdt: string | null;
     Settlement: string | null;
     Factory: string | null;
-    PzecUsdcPair: string | null;
-    PzecUsdt0Pair: string | null;
+    ZecUsdcPair: string | null;
+    ZecUsdtPair: string | null;
     Router: string | null;
   };
 };
@@ -44,13 +44,13 @@ export function emptyManifest(commit = "UNDEPLOYED"): SepoliaManifest {
     label: "no-value Arbitrum Sepolia only",
     broadcastTx: null,
     contracts: {
-      PZec: null,
+      Zec: null,
       TUsdc: null,
-      TUsdt0: null,
+      TUsdt: null,
       Settlement: null,
       Factory: null,
-      PzecUsdcPair: null,
-      PzecUsdt0Pair: null,
+      ZecUsdcPair: null,
+      ZecUsdtPair: null,
       Router: null,
     },
   };
@@ -89,9 +89,9 @@ export function recordBroadcast(
     }
   }
   next.contracts.TUsdc = quoteTokens[0] ?? null;
-  next.contracts.TUsdt0 = quoteTokens[1] ?? null;
-  next.contracts.PzecUsdcPair = pairs[0] ?? null;
-  next.contracts.PzecUsdt0Pair = pairs[1] ?? null;
+  next.contracts.TUsdt = quoteTokens[1] ?? null;
+  next.contracts.ZecUsdcPair = pairs[0] ?? null;
+  next.contracts.ZecUsdtPair = pairs[1] ?? null;
 
   const hash = creates.find((tx) => tx.hash && TX.test(tx.hash))?.hash
     ?? broadcast.receipts?.find((receipt) => receipt.transactionHash && TX.test(receipt.transactionHash))?.transactionHash

@@ -8,13 +8,20 @@ import {
   nextBlotterTab,
   type BlotterTab,
 } from "@/lib/blotter-tabs";
+import {
+  blotterEmptyFillsCopy,
+  blotterEmptyLogCopy,
+  blotterEmptyOrdersCopy,
+  blotterLogCaptionCopy,
+  blotterLogEventCopy,
+} from "@/lib/blotter-copy";
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
 import type { RestingOrder } from "@/lib/matcher";
-import { describeSessionLogEvent, type SessionLogEvent } from "@/lib/replay";
+import type { SessionLogEvent } from "@/lib/replay";
 import type { PaperAccount, UserFill } from "@/lib/session";
-import { availablePzec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
-import { PZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
+import { availableZec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
+import { ZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
@@ -124,7 +131,7 @@ export function OrderBlotter({
       {tab === "orders" && (
         <div role="tabpanel" id="blotter-panel-orders" aria-labelledby="blotter-tab-orders">
         {openOrders.length === 0 ? (
-          <p className={styles.emptyState}>No open session orders. Venue fixture levels remain on the book.</p>
+          <p className={styles.emptyState}>{blotterEmptyOrdersCopy(market.settlementPair)}</p>
         ) : (
           <div className={styles.tableScroll}>
           <table className={styles.dataTable}>
@@ -133,7 +140,7 @@ export function OrderBlotter({
               <tr>
                 <th scope="col">Side</th>
                 <th scope="col">Price {market.quote}</th>
-                <th scope="col">Remaining pZEC</th>
+                <th scope="col">Remaining ZEC</th>
                 <th scope="col">Settlement</th>
                 <th scope="col">Action</th>
               </tr>
@@ -145,7 +152,7 @@ export function OrderBlotter({
                     {order.side === "buy" ? "Buy" : "Sell"}
                   </th>
                   <td>{formatAtomicUnits(order.priceTicks, PRICE_DECIMALS, 2)}</td>
-                  <td>{formatAtomicUnits(order.remainingAtoms, PZEC_DECIMALS)}</td>
+                  <td>{formatAtomicUnits(order.remainingAtoms, ZEC_DECIMALS)}</td>
                   <td>{market.settlementPair}</td>
                   <td>
                     <button type="button" className={styles.textButton} onClick={() => onCancel(order.id)}>
@@ -173,7 +180,7 @@ export function OrderBlotter({
       {tab === "fills" && (
         <div role="tabpanel" id="blotter-panel-fills" aria-labelledby="blotter-tab-fills">
         {marketFills.length === 0 ? (
-          <p className={styles.emptyState}>No session fills yet. Submitting a simulated order can trade against the fixture book.</p>
+          <p className={styles.emptyState}>{blotterEmptyFillsCopy(market.settlementPair)}</p>
         ) : (
           <div className={styles.tableScroll}>
           <table className={styles.dataTable}>
@@ -183,7 +190,7 @@ export function OrderBlotter({
                 <th scope="col">Time</th>
                 <th scope="col">Side</th>
                 <th scope="col">Price {market.quote}</th>
-                <th scope="col">Size pZEC</th>
+                <th scope="col">Size ZEC</th>
                 <th scope="col">Settlement</th>
               </tr>
             </thead>
@@ -195,7 +202,7 @@ export function OrderBlotter({
                     {fill.takerSide === "buy" ? "Buy" : "Sell"}
                   </td>
                   <td>{formatAtomicUnits(fill.priceTicks, PRICE_DECIMALS, 2)}</td>
-                  <td>{formatAtomicUnits(fill.sizeAtoms, PZEC_DECIMALS)}</td>
+                  <td>{formatAtomicUnits(fill.sizeAtoms, ZEC_DECIMALS)}</td>
                   <td>{market.settlementPair}</td>
                 </tr>
               ))}
@@ -210,12 +217,12 @@ export function OrderBlotter({
         <div role="tabpanel" id="blotter-panel-inventory" aria-labelledby="blotter-tab-inventory">
         <dl className={styles.statGrid}>
           <div>
-            <dt>Available pZEC</dt>
-            <dd>{formatAtomicUnits(availablePzec(account), PZEC_DECIMALS)}</dd>
+            <dt>Available ZEC</dt>
+            <dd>{formatAtomicUnits(availableZec(account), ZEC_DECIMALS)}</dd>
           </div>
           <div>
-            <dt>Reserved pZEC</dt>
-            <dd>{formatAtomicUnits(account.reservedPzecAtoms, PZEC_DECIMALS)}</dd>
+            <dt>Reserved ZEC</dt>
+            <dd>{formatAtomicUnits(account.reservedZecAtoms, ZEC_DECIMALS)}</dd>
           </div>
           <div>
             <dt>Available {market.quote}</dt>
@@ -249,10 +256,10 @@ export function OrderBlotter({
       {tab === "log" && (
         <div role="tabpanel" id="blotter-panel-log" aria-labelledby="blotter-tab-log">
         {events.length === 0 ? (
-          <p className={styles.emptyState}>No session events yet. Replaying this log reconstructs the book and balances.</p>
+          <p className={styles.emptyState}>{blotterEmptyLogCopy(market.settlementPair)}</p>
         ) : (
           <table className={styles.dataTable}>
-            <caption className={styles.srOnly}>Append-only session event log</caption>
+            <caption className={styles.srOnly}>{blotterLogCaptionCopy(market.settlementPair)}</caption>
             <thead>
               <tr>
                 <th scope="col">#</th>
@@ -265,7 +272,8 @@ export function OrderBlotter({
                 <tr key={`${event.kind}-${index}`}>
                   <th scope="row">{events.length - Math.min(events.length, 20) + index + 1}</th>
                   <td>{event.kind}</td>
-                  <td>{describeSessionLogEvent(event)}</td>
+                  {/* The pure blotter copy module keeps describeSessionLogEvent formatting and adds settlement context. */}
+                  <td>{blotterLogEventCopy(event)}</td>
                 </tr>
               ))}
             </tbody>

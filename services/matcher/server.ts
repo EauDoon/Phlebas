@@ -10,7 +10,25 @@ import {
   matcherStateRoot,
   type PersistentMatcherConfiguration,
   type PersistentMatcherEvent,
+  type PersistentMatcherState,
 } from "../../src/lib/persistent-matcher.ts";
+import { emptyMetricsState, defineCounter, incCounter, renderPrometheusText, type MetricsState } from "../../src/lib/metrics.ts";
+import {
+  emptySloState,
+  recordSample,
+  sloVerdict,
+  type SloSample,
+  type SloState,
+  type SloTarget,
+} from "../../src/lib/slo-tracker.ts";
+import {
+  checkRateLimit,
+  emptyRateLimitMiddleware,
+  extractClientKey,
+  sendRateLimitExceeded,
+  sendRateLimitHeaders,
+  type RateLimitMiddleware,
+} from "../../src/lib/rate-limit-http.ts";
 import { UINT64_MAX } from "../../src/lib/order-domain.ts";
 import { listenHost } from "../../src/lib/operator-url.ts";
 import type { JournalValue } from "./journal.ts";
@@ -40,6 +58,7 @@ export type MatcherServerOptions = Readonly<{
   host?: string;
   port?: number;
   dataDirectory?: string;
+  persistPath?: string;
   configuration?: PersistentMatcherConfiguration;
   verifier?: MatcherSignatureVerifier;
   maximumBodyBytes?: number;
@@ -121,7 +140,7 @@ function pageLimit(value: string | null): number {
 
 function persistenceOptions(options: MatcherServerOptions): PersistentMatcherStoreOptions | null {
   if (!options.configuration) return null;
-  const directory = options.dataDirectory ?? DEFAULT_DATA_DIRECTORY;
+  const directory = options.dataDirectory ?? (options.persistPath ? dirname(options.persistPath) : DEFAULT_DATA_DIRECTORY);
   return {
     journalPath: join(directory, "events.jsonl"),
     checkpointPath: join(directory, "checkpoint.json"),
@@ -148,6 +167,85 @@ function errorReason(error: unknown): string {
   return error instanceof Error ? error.message : "matcher-error";
 }
 
+function boundedPublicParameter(value: string | null, fallback: number, maximum: number, label: string): number {
+  const parsed = value === null ? fallback : Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > maximum) {
+    throw new HttpError(400, `${label}-must-be-an-integer-between-0-and-${maximum}`);
+  }
+  return parsed;
+}
+
+function publicDepth(state: PersistentMatcherState | null, nowSeconds: bigint, levels: number) {
+  if (!state || levels === 0) return { bids: [], asks: [], sequence: state ? Number(state.sequence) : 0, generatedAt: nowSeconds };
+  const book = matcherBookFeed(state, nowSeconds, Math.min(levels, MAX_FEED_PAGE_SIZE));
+  const mapLevel = (level: { priceTicks: bigint; baseAmountAtoms: bigint; orderCount: number }) => ({
+    priceTicks: level.priceTicks.toString(),
+    sizeAtoms: level.baseAmountAtoms.toString(),
+    orderCount: level.orderCount,
+  });
+  return {
+    bids: book.bids.map(mapLevel),
+    asks: book.asks.map(mapLevel),
+    sequence: Number(state.sequence),
+    generatedAt: nowSeconds,
+  };
+}
+
+function publicTrades(state: PersistentMatcherState | null, nowSeconds: bigint, limit: number) {
+  if (!state || limit === 0) return { trades: [], count: 0, generatedAt: nowSeconds };
+  const trades: Array<{
+    receiptSequence: number;
+    side: "buy" | "sell";
+    priceTicks: string;
+    sizeAtoms: string;
+    makerId: string;
+    observedAt: bigint;
+  }> = [];
+  for (let index = state.executions.length - 1; index >= 0 && trades.length < limit; index -= 1) {
+    const execution = state.executions[index];
+    if (!execution?.route) continue;
+    const taker = state.orderReference.acceptedOrders[execution.takerOrderHash];
+    const receipt = state.receipts[Number(execution.sequence - 1n)];
+    if (!taker || !receipt) continue;
+    for (const fill of execution.route.fills) {
+      trades.push({
+        receiptSequence: Number(execution.sequence),
+        side: taker.order.side === 0 ? "buy" : "sell",
+        priceTicks: fill.executionPriceTicks.toString(),
+        sizeAtoms: fill.baseAmountAtoms.toString(),
+        makerId: fill.counterpartyOrderHash,
+        observedAt: receipt.occurredAtSeconds,
+      });
+      if (trades.length >= limit) break;
+    }
+  }
+  return { trades, count: trades.length, generatedAt: nowSeconds };
+}
+
+function publicTicker(state: PersistentMatcherState | null, nowSeconds: bigint) {
+  const depth = publicDepth(state, nowSeconds, 1);
+  const trades = publicTrades(state, nowSeconds, 1_000);
+  const bestBid = depth.bids[0]?.priceTicks ?? null;
+  const bestAsk = depth.asks[0]?.priceTicks ?? null;
+  const prices = trades.trades.map((trade) => BigInt(trade.priceTicks));
+  const volumeBase = trades.trades.reduce((total, trade) => total + BigInt(trade.sizeAtoms), 0n);
+  const volumeQuote = trades.trades.reduce((total, trade) => total + ((BigInt(trade.sizeAtoms) * BigInt(trade.priceTicks)) / 10_000n), 0n);
+  return {
+    bestBidTicks: bestBid,
+    bestAskTicks: bestAsk,
+    midTicks: bestBid !== null && bestAsk !== null ? ((BigInt(bestBid) + BigInt(bestAsk)) / 2n).toString() : null,
+    spreadTicks: bestBid !== null && bestAsk !== null ? (BigInt(bestAsk) - BigInt(bestBid)).toString() : null,
+    lastPriceTicks: trades.trades[0]?.priceTicks ?? null,
+    highTicks24h: prices.length > 0 ? prices.reduce((left, right) => left > right ? left : right).toString() : null,
+    lowTicks24h: prices.length > 0 ? prices.reduce((left, right) => left < right ? left : right).toString() : null,
+    volumeBase24h: volumeBase.toString(),
+    volumeQuote24h: volumeQuote.toString(),
+    tradeCount24h: trades.count,
+    sequence: state ? Number(state.sequence) : 0,
+    generatedAt: nowSeconds,
+  };
+}
+
 export function startMatcher(options: MatcherServerOptions = {}): Server {
   const host = listenHost(options.host);
   const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8788);
@@ -161,6 +259,16 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
   );
   const clockSeconds = options.clockSeconds ?? (() => BigInt(Math.floor(Date.now() / 1_000)));
   const configured = persistenceOptions(options);
+  let metricsState: MetricsState = defineCounter(emptyMetricsState(), "requests_total", "Total HTTP requests");
+  let sloState: SloState = emptySloState();
+  let rateLimit: RateLimitMiddleware = emptyRateLimitMiddleware({ capacity: 60n, refillPerSecond: 1n });
+  const availabilityTarget: SloTarget = {
+    service: "matcher",
+    metric: "availability",
+    windowSeconds: 86_400n,
+    threshold: 0.995,
+    comparison: "ge",
+  };
   const startedAt = Date.now();
   const rateWindows = new Map<string, RateWindow>();
   let pendingMutations = 0;
@@ -185,6 +293,15 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
 
   const server = createServer((request, response) => {
     void (async () => {
+      const requestNow = clockSeconds();
+      const clientKey = extractClientKey(request);
+      const rl = checkRateLimit(rateLimit, clientKey, requestNow);
+      rateLimit = { state: rl.state, config: rateLimit.config };
+      if (!rl.allowed) {
+        sendRateLimitExceeded(response, rl.remaining, rl.retryAfterSeconds);
+        return;
+      }
+      sendRateLimitHeaders(response, rl.remaining, 0n);
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
       if (request.method === "GET" && url.pathname === "/health") {
         if (!configured) {
@@ -223,6 +340,67 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
           configurationHash: matcherConfigurationHash(store.state.configuration),
           checkpoint: store.checkpoint,
           startedAt,
+        });
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/version") {
+        send(response, 200, { ok: true, service: "matcher", version: "0.1.0" });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/metrics") {
+        metricsState = incCounter(metricsState, "requests_total", { route: "/metrics" });
+        response.writeHead(200, { "content-type": "text/plain; version=0.0.4" });
+        response.end(renderPrometheusText(metricsState));
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/slo") {
+        const sample: SloSample = {
+          service: "matcher",
+          metric: "availability",
+          observedAt: requestNow,
+          value: 1,
+          success: true,
+        };
+        sloState = recordSample(sloState, sample);
+        send(response, 200, { ok: true, verdict: sloVerdict(sloState, availabilityTarget, requestNow) });
+        return;
+      }
+      if (request.method === "GET" && ["/ticker", "/trades", "/depth", "/markets", "/snapshot"].includes(url.pathname)) {
+        const publicStore = await storeReady;
+        const state = publicStore?.state ?? null;
+        if (url.pathname === "/ticker") {
+          send(response, 200, publicTicker(state, requestNow));
+          return;
+        }
+        if (url.pathname === "/trades") {
+          const limit = boundedPublicParameter(url.searchParams.get("limit"), 50, 1_000, "limit");
+          send(response, 200, publicTrades(state, requestNow, limit));
+          return;
+        }
+        if (url.pathname === "/depth") {
+          const levels = boundedPublicParameter(url.searchParams.get("levels"), 20, 200, "levels");
+          send(response, 200, publicDepth(state, requestNow, levels));
+          return;
+        }
+        if (url.pathname === "/markets") {
+          const pair = state?.configuration.atomicSwapPolicy.pair;
+          const last = publicTrades(state, requestNow, 1).trades[0]?.priceTicks ?? "0";
+          send(response, 200, {
+            baseAsset: pair?.base.asset ?? null,
+            quoteAssets: pair ? [pair.quote.asset] : [],
+            lastTicks: last,
+            sequence: state ? Number(state.sequence) : 0,
+            configured: state !== null,
+          });
+          return;
+        }
+        const depthLevels = boundedPublicParameter(url.searchParams.get("depth"), 20, 200, "depth");
+        const tradeLimit = boundedPublicParameter(url.searchParams.get("trades"), 50, 1_000, "trades");
+        send(response, 200, {
+          ticker: publicTicker(state, requestNow),
+          depth: publicDepth(state, requestNow, depthLevels),
+          trades: publicTrades(state, requestNow, tradeLimit),
         });
         return;
       }

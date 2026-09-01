@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { books, markets } from "@/lib/market-data";
-import { PRICE_DECIMALS, PZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
+import { PRICE_DECIMALS, ZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./landing.module.css";
 
@@ -46,7 +46,7 @@ export function LandingTerminalPreview() {
               <tr>
                 <th scope="col">Side</th>
                 <th scope="col">Fixture price {market.quote}</th>
-                <th scope="col">Fixture size pZEC</th>
+                <th scope="col">Fixture size ZEC</th>
               </tr>
             </thead>
             <tbody>
@@ -54,14 +54,14 @@ export function LandingTerminalPreview() {
                 <tr key={`ask-${level.priceTicks}`}>
                   <th scope="row">Ask</th>
                   <td>Fixture {formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}</td>
-                  <td>Fixture {formatAtomicUnits(level.sizeAtoms, PZEC_DECIMALS)}</td>
+                  <td>Fixture {formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS)}</td>
                 </tr>
               ))}
               {bids.map((level) => (
                 <tr key={`bid-${level.priceTicks}`}>
                   <th scope="row">Bid</th>
                   <td>Fixture {formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}</td>
-                  <td>Fixture {formatAtomicUnits(level.sizeAtoms, PZEC_DECIMALS)}</td>
+                  <td>Fixture {formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS)}</td>
                 </tr>
               ))}
             </tbody>
@@ -69,7 +69,7 @@ export function LandingTerminalPreview() {
 
           <div className={styles.terminalPreviewTicket}>
             <span className={styles.eyebrow}>Order ticket</span>
-            <p>Buy · Limit · 10 pZEC</p>
+            <p>Buy · Limit · 10 ZEC</p>
             <p>Illustrative entry only. This frame cannot submit, sign, or fill.</p>
           </div>
         </div>

@@ -28,6 +28,7 @@ test("status payload never claims live funds or custody", async () => {
   assert.equal(status.mode, "simulation");
   assert.equal(status.marketData, "illustrative");
   assert.equal(status.countryAccess, "deny-default");
+  assert.equal(status.incidents, "architecture-demonstration");
   assert.equal(status.sequenceRoot, null);
   assert.equal(status.intentCap, null);
 });

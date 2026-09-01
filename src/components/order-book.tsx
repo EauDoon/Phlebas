@@ -1,8 +1,16 @@
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
-import { feedSurface, type FeedStatus } from "@/lib/market-state";
+import {
+  bookSideControlCopy,
+  depthEmptyCopy,
+  depthSessionLastCopy,
+  feedSurface,
+  feedWithheldCopy,
+  orderBookCaptionCopy,
+  type FeedStatus,
+} from "@/lib/market-state";
 import { levelsFromBook, type Book } from "@/lib/matcher";
-import { PRICE_DECIMALS, PZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
+import { PRICE_DECIMALS, ZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
@@ -37,13 +45,13 @@ export function OrderBook({
       </div>
       <table className={styles.dataTable}>
         <caption className={styles.srOnly}>
-          Local {marketId} order book. Totals are cumulative pZEC depth from the best price. Click a price to copy it into the ticket.
+          {orderBookCaptionCopy(marketId)}
         </caption>
         <thead>
           <tr>
             <th scope="col">Price {market.quote}</th>
-            <th scope="col">Size pZEC</th>
-            <th scope="col">Total pZEC</th>
+            <th scope="col">Size ZEC</th>
+            <th scope="col">Total ZEC</th>
           </tr>
         </thead>
         <tbody aria-label="Asks">
@@ -52,8 +60,8 @@ export function OrderBook({
               <td colSpan={3}>
                 <p className={styles.emptyState}>
                   {surface.showFixtures || feedStatus === "empty"
-                    ? "No resting depth. The local book is empty."
-                    : `${surface.heading}. ${surface.message}`}
+                    ? depthEmptyCopy(market.settlementPair)
+                    : feedWithheldCopy(feedStatus, market.settlementPair)}
                 </p>
               </td>
             </tr>
@@ -72,8 +80,10 @@ export function OrderBook({
               <div className={styles.midPrice}>
                 <strong>{formatAtomicUnits(book.lastTicks, PRICE_DECIMALS, 2)}</strong>
                 <span>
-                  session last
-                  {spreadTicks !== null ? ` · spread ${formatAtomicUnits(spreadTicks, PRICE_DECIMALS, 2)}` : ""}
+                  {depthSessionLastCopy(
+                    market.settlementPair,
+                    spreadTicks !== null ? formatAtomicUnits(spreadTicks, PRICE_DECIMALS, 2) : null,
+                  )}
                 </span>
               </div>
             </td>
@@ -107,7 +117,8 @@ function BookRow({
   onPriceSelect: (priceTicks: bigint) => void;
 }) {
   const depthPercent = Number((level.totalAtoms * 1000n) / maxAtoms) / 10;
-  const label = side === "buy" ? "Bid" : "Ask";
+  const bookSide = side === "buy" ? "bid" : "ask";
+  const priceLabel = formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2);
 
   return (
     <tr>
@@ -125,12 +136,11 @@ function BookRow({
           className={styles.bookButton}
           onClick={() => onPriceSelect(level.priceTicks)}
         >
-          <span className={styles.srOnly}>{label} </span>
-          {formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}
+          {bookSideControlCopy(bookSide, priceLabel)}
         </button>
       </th>
-      <td>{formatAtomicUnits(level.sizeAtoms, PZEC_DECIMALS, 2)}</td>
-      <td>{formatAtomicUnits(level.totalAtoms, PZEC_DECIMALS, 2)}</td>
+      <td>{formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS, 2)}</td>
+      <td>{formatAtomicUnits(level.totalAtoms, ZEC_DECIMALS, 2)}</td>
     </tr>
   );
 }

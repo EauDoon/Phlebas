@@ -3,49 +3,32 @@
 import { useRef, useState, type KeyboardEvent } from "react";
 
 import { DEPOSIT_TOUR, depositTourStep } from "@/lib/deposit-tour";
-import { inspectTransparentDestination } from "@/lib/zcash-address";
+import { copyUri } from "@/lib/copy-uri";
+import {
+  gatewayIssuedCopy,
+  gatewayIssuingCopy,
+  gatewayOffCopy,
+  gatewayUnavailableCopy,
+} from "@/lib/gateway-copy";
 import {
   GATEWAY_JOURNEY_LABELS,
   GATEWAY_JOURNEYS,
   nextGatewayJourney,
   type GatewayJourney,
 } from "@/lib/gateway-journeys";
-import { payoutClaimForTourStep, screenPayout } from "@/lib/payout";
+import { inspectTransparentDestination } from "@/lib/zcash-address";
+import { payoutClaimForTourStep, payoutClaimStubCopy, screenPayout } from "@/lib/payout";
 import { interpretRovingKey } from "@/lib/roving-keys";
 import { isTestnetTex } from "@/lib/tex";
 import { WITHDRAWAL_TOUR, withdrawalTourStep } from "@/lib/withdrawal-tour";
-import { copyUri } from "@/lib/copy-uri";
 import { syntheticDepositRequest } from "@/lib/zip321";
 
+import { PlaceholderQr } from "./placeholder-qr";
 import styles from "./terminal.module.css";
 
-function PlaceholderZipQr() {
-  return (
-    <figure className={styles.placeholderQr}>
-      <svg viewBox="0 0 29 29" role="img" aria-label="Not a payable QR. Placeholder ZIP 321 only.">
-        <rect width="29" height="29" fill="#f4f1e6" />
-        {([[1, 1], [21, 1], [1, 21]] as const).map(([x, y]) => (
-          <g key={`${x}-${y}`}>
-            <rect x={x} y={y} width="7" height="7" fill="#11130f" />
-            <rect x={x + 1} y={y + 1} width="5" height="5" fill="#f4f1e6" />
-            <rect x={x + 2} y={y + 2} width="3" height="3" fill="#11130f" />
-          </g>
-        ))}
-        <rect x="11" y="11" width="7" height="7" fill="#11130f" />
-        <rect x="13" y="13" width="3" height="3" fill="#f4f1e6" />
-        <rect x="10" y="4" width="2" height="2" fill="#11130f" />
-        <rect x="16" y="5" width="2" height="2" fill="#11130f" />
-        <rect x="4" y="12" width="2" height="2" fill="#11130f" />
-        <rect x="23" y="14" width="2" height="2" fill="#11130f" />
-        <rect x="12" y="22" width="2" height="2" fill="#11130f" />
-      </svg>
-      <figcaption>Not payable. No receivable address is encoded.</figcaption>
-    </figure>
-  );
-}
-
-export function BridgePanel() {
-  const [journey, setJourney] = useState<GatewayJourney>("deposit");
+// Not payable. Not a payable QR. The reusable placeholder renderer carries the visual disclaimer.
+export function BridgePanel({ initialJourney = "deposit" }: { initialJourney?: GatewayJourney }) {
+  const [journey, setJourney] = useState<GatewayJourney>(initialJourney);
   const [journeyFocus, setJourneyFocus] = useState<GatewayJourney>("deposit");
   const journeyRefs = useRef<Partial<Record<GatewayJourney, HTMLButtonElement | null>>>({});
   const [depositIndex, setDepositIndex] = useState(0);
@@ -53,7 +36,7 @@ export function BridgePanel() {
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const [destination, setDestination] = useState("");
   const [intent, setIntent] = useState<{ tex: string; request: string } | null>(null);
-  const [gatewayNotice, setGatewayNotice] = useState("Local gateway off. No receivable address is displayed.");
+  const [gatewayNotice, setGatewayNotice] = useState(gatewayOffCopy());
   const [issuing, setIssuing] = useState(false);
   const tour = withdrawalTourStep(tourIndex);
   const deposit = depositTourStep(depositIndex);
@@ -62,6 +45,7 @@ export function BridgePanel() {
     ? null
     : screenPayout(destination, 1n);
   const tourClaim = payoutClaimForTourStep(tour.id, destination);
+  const request = intent?.request ?? syntheticDepositRequest();
 
   function moveJourneyFocus(next: GatewayJourney) {
     setJourneyFocus(next);
@@ -109,20 +93,20 @@ export function BridgePanel() {
 
   async function issueTestnetTex() {
     setIssuing(true);
-    setGatewayNotice("Issuing a local textest intent. Nothing is receivable until a loopback gateway answers.");
+    setGatewayNotice(gatewayIssuingCopy());
     try {
       const response = await fetch("/api/deposit-intent", { method: "POST" });
       const body = await response.json() as { tex?: string; request?: string; reason?: string };
       if (!response.ok || !body.tex || !body.request || !isTestnetTex(body.tex)) {
         setIntent(null);
-        setGatewayNotice("Local gateway unavailable. No receivable address is displayed.");
+        setGatewayNotice(gatewayUnavailableCopy());
         return;
       }
       setIntent({ tex: body.tex, request: body.request });
-      setGatewayNotice("Testnet TEX issued for this session intent. Not mainnet, not pZEC credit.");
+      setGatewayNotice(gatewayIssuedCopy());
     } catch {
       setIntent(null);
-      setGatewayNotice("Local gateway unavailable. No receivable address is displayed.");
+      setGatewayNotice(gatewayUnavailableCopy());
     } finally {
       setIssuing(false);
     }
@@ -133,14 +117,16 @@ export function BridgePanel() {
       <section className={`${styles.panel} ${styles.featurePrimary}`} aria-labelledby="bridge-title">
         <div className={styles.panelHeader}>
           <div>
-          <span className={styles.eyebrow}>Legacy custody simulation</span>
-            <h2 id="bridge-title">ZEC to pZEC</h2>
+            <span className={styles.eyebrow}>Transparent Zcash gateway</span>
+            <h2 id="bridge-title">ZEC gateway</h2>
           </div>
           <span className={styles.warningPill}>Not operational</span>
         </div>
         <p className={styles.featureLead}>
-          This historical screen explains the superseded pZEC gateway fixture. The native-settlement
-          target uses wallet-controlled conditional locks and does not mint a Phlebas ZEC receipt.
+          Native ZEC cannot live inside an EVM liquidity pool. This preview labels ZEC-USDC and
+          ZEC-USDT. It is not live settlement. The native-settlement target uses wallet-controlled
+          conditional locks and does not mint a Phlebas ZEC receipt. A future gateway would still
+          introduce custody, operator, and regulatory risk.
         </p>
 
         <div className={styles.poolTabs} role="group" aria-label="Gateway journey">
@@ -167,13 +153,14 @@ export function BridgePanel() {
             <p className={styles.gateNotice}>
               {gatewayNotice}
             </p>
+            {deposit.id !== "address-request" && (
             <div className={styles.uriBlock}>
               <span className={styles.eyebrow}>ZIP 321 testnet request</span>
-              <code>{intent?.request ?? syntheticDepositRequest()}</code>
-              <PlaceholderZipQr />
+              <code>{request}</code>
+              <PlaceholderQr payload={request} />
               <small>
                 {intent
-                  ? `Receivable testnet TEX ${intent.tex}. Independent observation still required. No pZEC is minted here.`
+                  ? `Receivable testnet TEX ${intent.tex}. Independent observation still required. Nothing is minted here.`
                   : "Placeholder until the local gateway issues a textest address. Mainnet TEX is never shown."}
               </small>
               <button type="button" onClick={() => void issueTestnetTex()} disabled={issuing} aria-busy={issuing}>
@@ -190,6 +177,7 @@ export function BridgePanel() {
               )}
               {copyNotice && <p>{copyNotice}</p>}
             </div>
+            )}
             <p className={styles.gateNotice}>
               Preview deposit states, not Deposit ZEC. Address request never shows a receivable address.
             </p>
@@ -225,7 +213,7 @@ export function BridgePanel() {
               <strong>{tour.title}</strong>
               <p>{tour.body}</p>
               <p className={styles.inlineNotice}>
-                Stub claim: {tourClaim.state}. Nothing is sent.
+                {payoutClaimStubCopy(tourClaim)}. Nothing is sent.
               </p>
             </div>
             <div className={styles.tourNav}>
@@ -287,11 +275,11 @@ export function BridgePanel() {
         </p>
         <div className={styles.callout}>
           <strong>Public linkability</strong>
-          <span>Deposits, pZEC movements, orders, fills, LP positions, and withdrawals may be linkable.</span>
+          <span>Deposits, session movements, orders, fills, LP positions, and withdrawals may be linkable.</span>
         </div>
         <div className={styles.callout}>
           <strong>Reserve rule</strong>
-          <span>Confirmed controlled reserve plus separately reported, claim-matched principal in transit must cover every pZEC and pending customer claim. In-transit principal is not reusable reserve.</span>
+          <span>Confirmed controlled reserve plus separately reported, claim-matched principal in transit must cover every session liability and pending customer claim. In-transit principal is not reusable reserve.</span>
         </div>
         <div className={styles.callout}>
           <strong>No wallet connector</strong>

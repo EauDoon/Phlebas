@@ -6,13 +6,13 @@
   "label": "no-value Arbitrum Sepolia only",
   "broadcastTx": null,
   "contracts": {
-    "PZec": null,
+    "Zec": null,
     "TUsdc": null,
-    "TUsdt0": null,
+    "TUsdt": null,
     "Settlement": null,
     "Factory": null,
-    "PzecUsdcPair": null,
-    "PzecUsdt0Pair": null,
+    "ZecUsdcPair": null,
+    "ZecUsdtPair": null,
     "Router": null
   }
 }

@@ -1,10 +1,10 @@
 export const LANDING_HERO = {
-  eyebrow: "A transparent pZEC market design",
-  heading: "An order book for pZEC, with the custody line drawn in public.",
+  eyebrow: "Transparent ZEC markets",
+  heading: "The custody line, drawn in public.",
   supporting:
-    "Phlebas models ZEC / USDC and ZEC / USDT spot markets that would settle with pZEC against USDC and USDT0, plus small constant-product pools. The current product is a no-value simulation. pZEC does not exist today, and no native ZEC or stablecoin enters this application.",
+    "Phlebas is a production-minded design for ZEC/USDC and ZEC/USDT spot markets, an order book designed for auditable sequencing, and restrained onchain liquidity. Native labels are simulation names, not live settlement.",
   primaryAction: "Enter simulation",
-  secondaryAction: "Understand pZEC",
+  secondaryAction: "Understand native pairs",
   disclosure: "Illustrative data only. Nothing here can be bought, sold, deposited, withdrawn, or redeemed.",
 } as const;
 
@@ -17,6 +17,7 @@ export const LANDING_LEDGER = [
   { label: "Contracts", value: "Not deployed" },
   { label: "Custody", value: "Not operating" },
   { label: "Mainnet approval", value: "Not cleared" },
+  { label: "Country access", value: "Deny by default" },
 ] as const;
 
 export const LANDING_PZEC = {
@@ -40,7 +41,7 @@ export const LANDING_SKIP_LINKS = [
   { href: "#main-content", label: "Skip to main content" },
   { href: "#markets", label: "Skip to markets" },
   { href: "#exists-today", label: "Skip to evidence" },
-  { href: "#pzec", label: "Skip to pZEC" },
+  { href: "#pairs", label: "Skip to native pairs" },
   { href: "#terminal-preview", label: "Skip to terminal preview" },
   { href: "#journeys", label: "Skip to journeys" },
   { href: "#launch-gates", label: "Skip to launch gates" },

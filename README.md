@@ -27,7 +27,7 @@ The matcher remains an offchain availability and fairness boundary. The target i
 - `/legal` and `/security` simulation pages; landing and terminal footers omit a GitHub URL
 - Integer seed books, empty/loading/stale/unavailable ticket gates, and a transparent-destination inspector
 - Click-to-price depth, local last/spread, and slippage-bounded market orders as IOC
-- Integer constant-product quotes and local add/swap previews for `pZEC/USDC` and `pZEC/USDT0`
+- Integer constant-product quotes and local add/swap previews for `ZEC/USDC` and `ZEC/USDT`
 - ZIP 321 testnet TEX issuance through a local gateway, plus the PRODUCT_SPEC withdrawal state tour
 - `/status` and `/api/status`, branded 404/error surfaces, and production `noindex`
 - Executable withdrawal-coverage checks after a finalized burn; production mint, custody, and payout remain design-only
@@ -58,7 +58,7 @@ The terminal takes structural cues from [Hyperliquid](https://app.hyperliquid.xy
 | `docs/LANDING_AND_USER_JOURNEYS.md` | Landing, trader, LP, deposit, and withdrawal experience |
 | `docs/ARCHITECTURE.md` | System boundaries and proposed production topology |
 | `docs/adr/0003-persistent-native-matcher.md` | Durable matcher, solver, API, and recovery decision |
-| `docs/ASSET_AND_ACCOUNTING.md` | pZEC, reserves, liabilities, and reconciliation |
+| `docs/ASSET_AND_ACCOUNTING.md` | Settlement ZEC (`tZEC`), reserves, liabilities, and reconciliation |
 | `docs/WALLET_COMPATIBILITY.md` | Current ZEC wallet evidence and executable Testnet qualification |
 | `docs/THREAT_MODEL.md` | Abuse cases, invariants, tests, and stop conditions |
 | `docs/OPERATIONS.md` | Proposed services, observability, and incident control |
