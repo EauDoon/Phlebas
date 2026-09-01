@@ -1143,8 +1143,8 @@ function validateSpendEvidence(state: SwapState, evidence: SpendEvidence): Spend
     if (sha256Hex(hexToBytes(preimage)) !== state.terms.secretHash) {
       throw new Error("Claim preimage does not match the signed hashlock");
     }
-    if (normalizedFact.leg === "evm" && normalizedFact.executedAtSeconds >= state.terms.evmRefundTime) {
-      throw new Error("EVM claim cannot be accepted at or after its refund deadline");
+    if (normalizedFact.leg === "evm" && normalizedFact.executedAtSeconds > state.terms.evmClaimSafetyCutoff) {
+      throw new Error("EVM claim cannot be accepted after its signed claim cutoff");
     }
   }
   const attestation = validateObserverAttestation(state, normalizedFact.leg, normalizedFact, evidence.attestation);

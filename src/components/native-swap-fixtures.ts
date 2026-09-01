@@ -324,7 +324,7 @@ function unsafeState(scenario: Exclude<NativeSwapScenario, "happy" | "refund">):
   if (scenario === "contract-mismatch") {
     return flagSwapDispute(funded, "semantic-mismatch", "Observed contract identity differs from the signed fixture terms.");
   }
-  const claim = spendEvidence("evm", "claim", fixtureTerms.evmRefundTime - 1n);
+  const claim = spendEvidence("evm", "claim", fixtureTerms.evmClaimSafetyCutoff);
   const revealed = observeSwapSpend(funded, claim);
   return retractSwapEvidence(revealed, claim.attestation.evidenceId, "The fixture EVM claim left the canonical chain.");
 }
@@ -462,7 +462,7 @@ export function advanceNativeSwapFixture(session: NativeSwapFixtureSession): Rea
       announcement = "Two fixture USDC refund reports agree. Policy qualification is still required.";
     }
   } else if (phase === "awaiting-evm-claim") {
-    const executedAt = state.terms.evmRefundTime - 1n;
+    const executedAt = state.terms.evmClaimSafetyCutoff;
     nextState = observeSwapSpend(
       observeSwapSpend(state, spendEvidence("evm", "claim", executedAt, 0)),
       spendEvidence("evm", "claim", executedAt, 1),

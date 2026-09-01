@@ -17,8 +17,18 @@ test("requires strict funding, claim, and refund ordering", () => {
     /strictly increasing/,
   );
   assert.throws(
-    () => assertSwapTimingPolicy({ ...sampleSwapTerms, evmRefundTime: sampleSwapTerms.evmClaimSafetyCutoff + 99n }, fixturePolicy),
+    () => assertSwapTimingPolicy({
+      ...sampleSwapTerms,
+      evmClaimSafetyCutoff: sampleSwapTerms.evmFundBy + 99n,
+    }, fixturePolicy),
     /claim window/,
+  );
+  assert.throws(
+    () => assertSwapTimingPolicy({
+      ...sampleSwapTerms,
+      evmRefundTime: sampleSwapTerms.evmClaimSafetyCutoff + 1n,
+    }, fixturePolicy),
+    /excluded safety gap/,
   );
   assert.throws(
     () => assertSwapTimingPolicy({ ...sampleSwapTerms, zecRefundTime: sampleSwapTerms.evmRefundTime + 499n }, fixturePolicy),

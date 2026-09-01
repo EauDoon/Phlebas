@@ -159,8 +159,11 @@ export function assertSwapTimingPolicy(terms: SwapTermsV1, policy: SwapTimingPol
   if (validated.evmFundBy - validated.zecFundBy < fundingWindow) {
     throw new RangeError("Second-leg funding window is below the policy minimum");
   }
-  if (validated.evmRefundTime - validated.evmClaimSafetyCutoff < claimWindow) {
+  if (validated.evmClaimSafetyCutoff - validated.evmFundBy < claimWindow) {
     throw new RangeError("EVM claim window is below the policy minimum");
+  }
+  if (validated.evmRefundTime <= validated.evmClaimSafetyCutoff + 1n) {
+    throw new RangeError("EVM claim and refund deadlines must leave an excluded safety gap");
   }
   if (validated.zecRefundTime - validated.evmRefundTime < safetyWindow) {
     throw new RangeError("Cross-chain safety window is below the policy minimum");

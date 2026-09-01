@@ -135,7 +135,14 @@ test("binds timing, market, observer, and finality policies into state integrity
 test("uses chain execution time while treating late observer arrival as metadata", () => {
   const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
   const funded = fundedSwap(terms);
-  const claim = spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms);
+  const baseClaim = spendEvidence("evm", "claim", terms.evmClaimSafetyCutoff, terms);
+  const claim = {
+    ...baseClaim,
+    attestation: {
+      ...baseClaim.attestation,
+      observedAtSeconds: terms.evmRefundTime + 1n,
+    },
+  };
   assert.ok(claim.attestation.observedAtSeconds > terms.evmRefundTime);
   const observed = observeSwapSpend(funded, claim);
   assert.equal(observed.observedSecret, claim.fact.preimage);
@@ -155,7 +162,7 @@ test("uses chain execution time while treating late observer arrival as metadata
 test("binds spends to the exact funded outpoint or escrow record", () => {
   const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
   const funded = fundedSwap(terms);
-  const claim = spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms);
+  const claim = spendEvidence("evm", "claim", terms.evmClaimSafetyCutoff, terms);
   for (const changed of [
     replaceSpendFact(claim, { fundingFactId: keccak256Text("other-funding-fact") }),
     replaceSpendFact(claim, { fundingTransactionId: keccak256Text("other-funding-transaction") }),
@@ -184,7 +191,7 @@ test("rejects chain facts that predate their causal prerequisites", () => {
   const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
   const funded = fundedSwap(terms);
   const prematureClaim = replaceSpendFact(
-    spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms),
+    spendEvidence("evm", "claim", terms.evmClaimSafetyCutoff, terms),
     { executedAtSeconds: funded.evm.funding!.executedAtSeconds - 1n },
   );
   assert.throws(() => observeSwapSpend(funded, prematureClaim), /cannot predate/);
@@ -318,7 +325,7 @@ test("rejects wrong preimages and keeps the funded state byte-identical", () => 
   const root = swapStateRoot(bothFunded);
   assert.throws(() => observeSwapSpend(bothFunded, {
     ...replaceSpendFact(
-      spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms),
+      spendEvidence("evm", "claim", terms.evmClaimSafetyCutoff, terms),
       { preimage: `0x${"12".repeat(32)}` },
     ),
   }), /hashlock/);

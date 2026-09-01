@@ -302,7 +302,7 @@ test("journals abandon and reprepare with a fresh artifact across replay", () =>
 test("replays a retracted spend attestation replacement with its audit record", () => {
   const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
   const initial = fundedJournal(terms);
-  const firstEvidence = spendEvidence("evm", "claim", terms.evmRefundTime - 1n, terms, 0);
+  const firstEvidence = spendEvidence("evm", "claim", terms.evmClaimSafetyCutoff, terms, 0);
   const observed = appendSwapEvent(initial.journal, initial.state, {
     kind: "observe-spend",
     evidence: firstEvidence,
