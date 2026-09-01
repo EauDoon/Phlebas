@@ -343,6 +343,9 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /id="honesty-bar"/);
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /id="architecture-layers"/);
   assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /The matcher is not trustless/);
+  assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /How settlement works/);
+  assert.match(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /href="\/#launch-gates"/);
+  assert.doesNotMatch(await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8"), /LANDING_MAINNET_GATES/);
   assert.match(await readFile(join(root, "src/components/country-block.tsx"), "utf8"), /id="country-block"/);
   assert.match(await readFile(join(root, "src/components/country-block.tsx"), "utf8"), /shareable preview of a blocked location/);
   assert.match(await readFile(join(root, "src/components/incident-demo.tsx"), "utf8"), /Selected incident demonstration/);
@@ -1052,6 +1055,7 @@ test("canonical settlement and wallet modules cannot import the diagnostic proje
     "src/lib/sepolia-submit.ts",
     "src/components/trade-ticket.tsx",
     "src/components/native-swap-panel.tsx",
+    "src/components/settlement-ticket.tsx",
     "src/app/api/matcher/route.ts",
   ];
   for (const path of restrictedConsumers) {

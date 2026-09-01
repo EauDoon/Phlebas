@@ -13,7 +13,10 @@ import { isTerminalView } from "@/lib/terminal-views";
 import { isIncidentDemoQuery } from "@/lib/gateway-incidents";
 
 export const metadata: Metadata = {
-  description: "Explore the no-value Phlebas ZEC order book, native settlement walkthrough, and legacy liquidity simulation.",
+  title: {
+    absolute: "Phlebas",
+  },
+  description: "Phlebas terminal for ZEC/USDC and ZEC/USDT. Fill ticket settlement, not a live exchange.",
 };
 
 function isMarketId(value: string | undefined): value is MarketId {
@@ -55,7 +58,7 @@ export default async function TradePage({
   }
   return (
     <TradingTerminal
-      initialView={isTerminalView(view) ? view : "trade"}
+      initialView={isTerminalView(view) ? view : view === "bridge" ? "bridge" : "trade"}
       initialMarket={isMarketId(market) ? market : "ZEC/USDC"}
       initialFeed={isFeedStatus(feed) ? feed : "illustrative"}
       initialBridgeJourney={journey === "withdrawal" ? "withdrawal" : "deposit"}
