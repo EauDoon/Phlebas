@@ -2,11 +2,11 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 31-08-2026 after incorporating the latest product UI commits and current main for PR #22.
+Last updated: 01-09-2026. `feat/simulation-hardening` has teal Simple/Advanced restyle. PR #19 is closed. Next slice PR is on this family, not #26.
 
 ## Branch
 
-`feat/product-ui` now includes current `main` at `84a3224645e5ef8e3d95b49eb98345fa8fd3eb16` for PR #22. PR #22: https://github.com/EauDoon/Phlebas/pull/22. Origin `feat/simulation-hardening` remains separate; do not force-push it.
+`feat/simulation-hardening` at `76d2221`. Open PR on another family: #26 `feat/product-ui-education-a11y` — do not touch. Origin `feat/simulation-hardening` is the slice branch.
 
 ## Done
 
@@ -240,6 +240,11 @@ Last updated: 31-08-2026 after incorporating the latest product UI commits and c
 - Landing skip sections keep 12px scroll-margin
 - Landing skip links keep a 2px focus ring
 - Playwright covers skip-target scroll-margin on trade and landing, and skip-link focus ring
+- Teal Hyperliquid/Lighter chrome (`--accent #2DD4BF`); no gold, no glass
+- Simple/Advanced mode (`?mode=` + `phlebas.terminalMode`); default Simple; toggle does not drop session
+- Simple Uniswap-style Market IOC ticket (in/out, Switch, Max, review-and-confirm)
+- Advanced CLOB remains chart, click-to-price book, GTC/IOC/FOK, blotter
+- Header shows No TEX issued until a gateway issues an address
 - Terminal skip links keep a 2px focus ring
 - Skip-nav leaves 12px inset so the skip-link focus ring is not clipped
 - Landing pZEC, journeys, and launch-gates skip targets keep 12px scroll-margin
@@ -259,12 +264,9 @@ Last updated: 31-08-2026 after incorporating the latest product UI commits and c
 
 ## Next
 
-- Focused skip-nav should wrap skip links at 320px so it does not consume the full viewport height
-- Terminal skip-nav in flow should not cover the topbar brand
-- Skip-nav should return to its hidden state after skip-link activation
-- Playwright: 320px skip-nav wrap, terminal brand not covered, skip-nav hides after activation
-- Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
-- Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
+- Push the slice PR on `feat/simulation-hardening` (not #26); GitHub→Vercel for https://phlebas.vercel.app
+- Record a real Arbitrum Sepolia broadcast in the manifest (skipped: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
+- Redeploy the public Vercel UI after this PR merges (skipped if no deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
 - Public Vercel UI still serves the last merged production build until a deploy token is available
 
 ## Blockers
