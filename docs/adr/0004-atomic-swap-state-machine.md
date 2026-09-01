@@ -4,7 +4,7 @@ Date: 01-09-2026
 Status: Accepted for key-independent development
 Production status: Not approved
 
-Current Zcash boundary: references below to a signing-capable Zcash wallet adapter or a next-PR signing surface are historical and superseded by `docs/ZCASH_TRANSACTION_LAB.md`. The present candidate PCZT integration is header-only, handles no key bytes, and blocks wallet readiness while full serialization and relayability remain unresolved.
+Current Zcash boundary: references below to a signing-capable Zcash wallet adapter or a next-PR signing surface are historical and superseded by `docs/ZCASH_TRANSACTION_LAB.md`. The present candidate PCZT integration is header-only. Its API exposes no dedicated seed, spending-key, private-key, viewing-key, or signature-byte parameters, but opaque PCZT content remains potentially sensitive. Wallet readiness stays blocked while full serialization and relayability remain unresolved.
 
 ## Context
 
