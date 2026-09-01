@@ -47,9 +47,12 @@ The ZEC observer's input is:
 - the Zcash RPC endpoint URL,
 - the list of P2SH addresses to watch,
 - the from-height cursor,
+- an exact `txid:vout=redeemScriptHex` expectation for every outpoint whose spend may become terminal,
 - the poll interval.
 
 The ZEC observer's output is a stream of `ZcashOutpointEvent` records that the coordinator consumes. The stream is replayable.
+
+An unspent outpoint emits `funded`. A spent outpoint emits `claimed` or `refunded` only after the observer finds exactly one parsed transparent input for the expected outpoint and validates its canonical push-only scriptSig. The revealed redeem script must equal the configured `PHLEBAS_ZCASH_REDEEM_SCRIPT_MAP` entry and hash to the watched testnet P2SH address. A claim additionally requires a canonical compressed branch public key, SIGHASH_ALL DER signature shape, and an exact 32-byte preimage whose SHA-256 digest satisfies the script. A refund requires the false branch shape, the refund public key, a nonfinal sequence, and a transaction locktime in the correct domain at or after the script operand. Missing, ambiguous, malformed, mainnet, or mismatched evidence stops the poll instead of guessing from block height.
 
 The ZEC observer is a stub in this PR: the production deployment wires a real Zcash node, and the test deployment wires a deterministic mock. The coordinator does not care which one is in use.
 

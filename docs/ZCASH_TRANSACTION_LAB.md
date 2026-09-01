@@ -101,6 +101,10 @@ The claim path requires an exact 32-byte preimage whose SHA-256 digest matches t
 
 The refund path requires a network-correct P2PKH address whose hash matches the refund branch. Its maturity evidence must use the same observed block height as expiry evaluation. Height locks require a strictly later block height. Timestamp locks require a strictly later median-time-past value, with no wall-clock fallback. The spend value must equal the recipient output plus fee. Spend change is not supported by this artifact version.
 
+## Observer evidence boundary
+
+The key-independent observer accepts parsed public transparent-input evidence from its injected source. It never connects to a node by itself. Terminal classification is bound to one exact configured outpoint and redeem script, the corresponding testnet P2SH address, and the canonical claim or refund scriptSig shape. Claim evidence must reveal a 32-byte preimage that satisfies the script hashlock. Refund evidence must select the false branch and satisfy the script's CLTV locktime and nonfinal-sequence conditions. Funding height is never used to infer a terminal branch. Absent, duplicate, malformed, or mismatched evidence fails closed.
+
 ## PCZT and wallet review
 
 The candidate adapter binds the committed manifest to opaque PCZT bytes and wallet inspection fields. It fixes `SIGHASH_ALL` and `tx_modifiable = 0`. Transaction version 6 requires PCZT version 2. Review-request and restart boundaries require a caller-supplied expected manifest digest. Equality binds the artifact to that expectation, but does not prove the expectation's provenance or approval.
