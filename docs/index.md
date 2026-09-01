@@ -15,19 +15,22 @@ the corresponding file in the docs tree.
   - [ADR 0005](adr/0005-zcash-p2sh-atomic-swap.md) — Zcash P2SH atomic swap
   - [ADR 0006](adr/0006-atomic-swap-observer.md) — atomic-swap observer
   - [ADR 0007](adr/0007-public-market-data.md) — public market data
+  - [ADR 0009](adr/0009-skip-nav-hook.md) — shared skip-nav controller hook
 
 ## Operations and runbooks
 
 - [OPERATIONS.md](OPERATIONS.md) — operations overview
 - [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md) — operator runbook
-- [THREAT_MODEL.md](THREAT_MODEL.md) — threat model with 21 sections
+- [THREAT_MODEL.md](THREAT_MODEL.md) — threat model with 24 sections
 - [SOURCES.md](SOURCES.md) — source references
 - [runbooks/](runbooks/) — per-surface restart runbooks
   - [runbooks/observer-restart.md](runbooks/observer-restart.md)
   - [runbooks/market-data-restart.md](runbooks/market-data-restart.md)
+  - [runbooks/a11y-test.md](runbooks/a11y-test.md) — accessibility test runbook with the skip-nav controller contract
 - [operations/](operations/) — per-surface SLOs
   - [operations/observer-slo.md](operations/observer-slo.md)
   - [operations/market-data-slo.md](operations/market-data-slo.md)
+  - [operations/a11y-slo.md](operations/a11y-slo.md) — accessibility SLOs
 
 ## Delivery and product
 
@@ -48,4 +51,5 @@ the corresponding file in the docs tree.
   - [audit/audit-checklist.md](audit/audit-checklist.md)
   - [audit/release-readiness-evidence.md](audit/release-readiness-evidence.md)
   - [audit/final-integration-report.md](audit/final-integration-report.md)
+  - [audit/a11y-changelog.md](audit/a11y-changelog.md) — accessibility changelog
 - [release-notes/](release-notes/) — release notes template
