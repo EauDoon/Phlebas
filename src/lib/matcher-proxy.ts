@@ -202,7 +202,11 @@ function exactKeys(value: StrictJsonRecord, expected: readonly string[]): boolea
   return actual.length === allowed.length && actual.every((key, index) => key === allowed[index]);
 }
 
-function validMutationBody(body: string, requestedAction: MatcherMutationAction | null, requestId: string): MatcherMutationAction | null {
+function validMutationBody(
+  body: string,
+  requestedAction: MatcherMutationAction | null,
+  requestId: string,
+): Readonly<{ action: MatcherMutationAction; expectedSubjectHash: string | null }> | null {
   const value = strictJsonRecord(body);
   const action = value && typeof value.kind === "string" ? matcherMutationAction(value.kind) : null;
   if (!value || !action || (requestedAction !== null && action !== requestedAction)
@@ -213,14 +217,14 @@ function validMutationBody(body: string, requestedAction: MatcherMutationAction 
   if (action === "accept-order") {
     return exactKeys(value, ["version", "requestId", "occurredAtSeconds", "kind", "submission"])
       && value.submission !== null && typeof value.submission === "object" && !Array.isArray(value.submission)
-      ? action
+      ? { action, expectedSubjectHash: null }
       : null;
   }
   if (action === "cancel-order") {
     return exactKeys(value, ["version", "requestId", "occurredAtSeconds", "kind", "orderHash", "signature"])
       && typeof value.orderHash === "string" && HEX32.test(value.orderHash)
       && typeof value.signature === "string"
-      ? action
+      ? { action, expectedSubjectHash: value.orderHash }
       : null;
   }
   return exactKeys(value, ["version", "requestId", "occurredAtSeconds", "kind", "makerAccountId", "nextEpoch", "authorizedSignerId", "signature"])
@@ -228,7 +232,7 @@ function validMutationBody(body: string, requestedAction: MatcherMutationAction 
     && typeof value.nextEpoch === "string" && DECIMAL.test(value.nextEpoch)
     && typeof value.authorizedSignerId === "string" && HEX32.test(value.authorizedSignerId)
     && typeof value.signature === "string"
-    ? action
+    ? { action, expectedSubjectHash: value.makerAccountId }
     : null;
 }
 
@@ -392,7 +396,11 @@ async function approvedMutationRuntime(
     && sameAsset(record(market.quote), expected.market.quote);
 }
 
-export async function matcherHealthProxy(env: Record<string, string | undefined> = process.env) {
+export async function matcherHealthProxy(
+  env: Record<string, string | undefined> = process.env,
+  deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+) {
+  if (!deployment.enabled || deployment.expectedMatcher === null) return unavailable();
   const baseUrl = matcherUrl(env);
   if (!baseUrl) return unavailable();
   const response = await fetchLoopbackOperator(new URL("/health", baseUrl));
@@ -403,7 +411,9 @@ export async function matcherHealthProxy(env: Record<string, string | undefined>
 export async function matcherAccountProxy(
   makerAccountId: string,
   env: Record<string, string | undefined> = process.env,
+  deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
 ) {
+  if (!deployment.enabled || deployment.expectedMatcher === null) return unavailable();
   const baseUrl = matcherUrl(env);
   if (!baseUrl) return unavailable();
   if (!HEX32.test(makerAccountId)) {
@@ -454,12 +464,12 @@ export async function matcherMutationProxy(
   if (!requestId || !REQUEST_ID.test(requestId)) {
     return noStoreJson({ ok: false, reason: "idempotency-key-invalid" }, 400);
   }
-  const action = validMutationBody(body, expectedAction, requestId);
-  if (!action) {
+  const mutationBody = validMutationBody(body, expectedAction, requestId);
+  if (!mutationBody) {
     return noStoreJson({ ok: false, reason: "matcher-action-body-invalid" }, 400);
   }
   if (!await approvedMutationRuntime(baseUrl, deployment)) return unavailable();
-  const mutation = MUTATION_ACTIONS[action];
+  const mutation = MUTATION_ACTIONS[mutationBody.action];
   const response = await fetchLoopbackOperator(new URL(mutation.endpoint, baseUrl), {
     method: "POST",
     headers: {
@@ -472,7 +482,7 @@ export async function matcherMutationProxy(
   if (!response) return unavailable();
   if (response.status !== 200 && response.status !== 201) {
     const status = MUTATION_RESPONSE_STATUSES.has(response.status) ? response.status : 503;
-    const reason = action === "accept-order" ? "matcher-rejected-order" : "matcher-rejected-control";
+    const reason = mutationBody.action === "accept-order" ? "matcher-rejected-order" : "matcher-rejected-control";
     return noStoreJson({ ok: false, reason: status === 503 ? "matcher-unavailable" : reason }, status);
   }
   const result = parsedRecord(response.body);
@@ -482,9 +492,10 @@ export async function matcherMutationProxy(
     || receipt.version !== 1
     || typeof receipt.sequence !== "string" || !DECIMAL.test(receipt.sequence)
     || receipt.requestId !== requestId
-    || receipt.kind !== action
+    || receipt.kind !== mutationBody.action
     || typeof receipt.status !== "string" || !mutation.receiptStatuses.has(receipt.status)
     || typeof receipt.subjectHash !== "string" || !HEX32.test(receipt.subjectHash)
+    || (mutationBody.expectedSubjectHash !== null && receipt.subjectHash !== mutationBody.expectedSubjectHash)
     || typeof receipt.occurredAtSeconds !== "string" || !DECIMAL.test(receipt.occurredAtSeconds)
     || checkpoint.sequence !== receipt.sequence
     || checkpoint.configurationHash !== deployment.expectedMatcher.configurationHash) {
@@ -497,7 +508,7 @@ export async function matcherMutationProxy(
       version: 1,
       sequence: receipt.sequence,
       requestId,
-      kind: action,
+      kind: mutationBody.action,
       status: receipt.status,
       subjectHash: receipt.subjectHash,
       occurredAtSeconds: receipt.occurredAtSeconds,

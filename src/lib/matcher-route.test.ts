@@ -120,6 +120,19 @@ test("matcher POST stays fail-closed before upstream fetch while the deployment 
   assert.equal(calls, 0);
 });
 
+test("matcher reads stay fail-closed before upstream fetch while the deployment manifest is disabled", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response(healthBody, { status: 200 });
+  }) as typeof fetch;
+
+  assert.equal((await matcherHealthProxy()).status, 503);
+  assert.equal((await matcherAccountProxy(MAKER_ACCOUNT_ID)).status, 503);
+  assert.equal(calls, 0);
+});
+
 test("matcher control actions stay fail-closed before upstream fetch while the deployment manifest is disabled", async () => {
   process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
   let calls = 0;
@@ -226,7 +239,7 @@ test("matcher GET proxies only the loopback health endpoint without caching", as
     return new Response(healthBody, { status: 200 });
   }) as typeof fetch;
 
-  const response = await matcherHealthProxy();
+  const response = await matcherHealthProxy(process.env, enabledDeployment);
   assert.equal(requested?.toString(), "http://127.0.0.1:8788/health");
   assert.equal(init?.cache, "no-store");
   assert.equal(response.status, 200);
@@ -257,7 +270,7 @@ test("matcher GET rejects malformed private health and exposes a strict account 
     checkpoint,
     privateSignerBinding: "must-not-cross-the-proxy",
   }))) as typeof fetch;
-  const account = await matcherAccountProxy(MAKER_ACCOUNT_ID);
+  const account = await matcherAccountProxy(MAKER_ACCOUNT_ID, process.env, enabledDeployment);
   assert.equal(account.status, 200);
   assert.deepEqual(await account.json(), {
     ok: true,
@@ -267,10 +280,10 @@ test("matcher GET rejects malformed private health and exposes a strict account 
     sequence: "1",
     checkpoint,
   });
-  assert.equal((await matcherAccountProxy(`0x${"AA".repeat(32)}`)).status, 400);
+  assert.equal((await matcherAccountProxy(`0x${"AA".repeat(32)}`, process.env, enabledDeployment)).status, 400);
 
   globalThis.fetch = (async () => new Response('{"ok":true,"private":"detail"}')) as typeof fetch;
-  const malformed = await matcherHealthProxy();
+  const malformed = await matcherHealthProxy(process.env, enabledDeployment);
   assert.equal(malformed.status, 503);
   assert.deepEqual(await malformed.json(), { ok: false, reason: "matcher-unavailable", matcher: "in-browser" });
 });
@@ -473,6 +486,38 @@ test("matcher control actions forward only their exact endpoint and bind the ret
       },
       checkpoint: { ...checkpoint, sequence: "2" },
     }, candidate.action);
+  }
+});
+
+test("matcher control proxy rejects a receipt for a different signed subject", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://localhost:8788";
+  for (const [action, requestId, body, status] of [
+    ["cancel-order", "cancel-one", cancellationBody, "cancelled"],
+    ["advance-epoch", "epoch-one", epochBody, "epoch-advanced"],
+  ] as const) {
+    globalThis.fetch = (async (input) => (input as URL).pathname === "/health"
+      ? new Response(healthBody, { status: 200 })
+      : new Response(JSON.stringify({
+        ok: true,
+        replayed: false,
+        receipt: {
+          version: 1,
+          sequence: "2",
+          requestId,
+          kind: action,
+          status,
+          subjectHash: `0x${"99".repeat(32)}`,
+          occurredAtSeconds: "1800000003",
+        },
+        checkpoint: { ...checkpoint, sequence: "2" },
+      }), { status: 201 })) as typeof fetch;
+
+    const response = await matcherMutationProxy(new Request("http://localhost/api/matcher", {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": requestId },
+      body,
+    }), action, process.env, enabledDeployment);
+    assert.equal(response.status, 503, action);
   }
 });
 
