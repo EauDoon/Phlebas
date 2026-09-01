@@ -972,6 +972,8 @@
     position: relative;
     top: auto;
     left: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     width: auto;
     max-width: none;
   }
