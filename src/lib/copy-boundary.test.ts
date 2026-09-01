@@ -205,7 +205,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.doesNotMatch(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /ZEC to pZEC/);
   assert.doesNotMatch(await readFile(join(root, "src/components/bridge-panel.tsx"), "utf8"), /pZEC/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/gateway-incidents.ts"), "utf8"), /pZEC/);
-  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /It is not live settlement/);
+  assert.match(await readFile(join(root, "src/lib/ticket-review-copy.ts"), "utf8"), /It is not live settlement/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /ticketReviewNoticeCopy/);
   assert.match(await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8"), /It is not live settlement/);
   assert.doesNotMatch(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /pZEC is a custody receipt/);
   assert.match(await readFile(join(root, "contracts/src/amm/Factory.sol"), "utf8"), /address public immutable usdt;/);
@@ -252,8 +253,12 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicLinkabilityCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /marketOrderConstraintCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicLinkabilityCopy\("fill"\)/);
+  assert.match(await readFile(join(root, "src/lib/ticket-review-copy.ts"), "utf8"), /publicLinkabilityCopy\("fill"\)/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /Review custody notice/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /feeEnvelopeCopy/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /ticketReviewRows/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /ticketReviewCompleteCopy/);
+  assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /ticketReviewFeeCopy/);
   assert.match(await readFile(join(root, "src/lib/order.ts"), "utf8"), /no unbounded market instruction/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/order.ts"), "utf8"), /pZEC/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /parseExpiryUnix/);

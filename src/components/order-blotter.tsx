@@ -9,6 +9,7 @@ import {
   type BlotterTab,
 } from "@/lib/blotter-tabs";
 import {
+  blotterCancelRefundCopy,
   blotterEmptyFillsCopy,
   blotterEmptyLogCopy,
   blotterEmptyOrdersCopy,
@@ -248,7 +249,7 @@ export function OrderBlotter({
           </div>
         </dl>
         <p className={styles.inlineNotice}>
-          Session nonce cancel is local. Onchain cancelNonce is not this simulation.
+          {blotterCancelRefundCopy()}
         </p>
         </div>
       )}
