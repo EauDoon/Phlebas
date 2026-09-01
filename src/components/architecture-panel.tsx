@@ -59,7 +59,7 @@ export function ArchitecturePanel({ highlightIncidents = false }: { highlightInc
         tabIndex={-1}
       >
         <strong>Target product boundary</strong>
-        <span>Designed as a non-custodial exchange with an offchain matcher and wallet-signed native-ZEC atomic settlement. The matcher is not trustless. It can censor or delay orders. Mainnet access policy remains unresolved.</span>
+        <span>Native settlement target: a non-custodial interface with user-signed actions and an offchain matcher. The matcher is not trustless. It can censor or delay orders. Simulation only. Mainnet access policy remains unresolved.</span>
       </div>
       <IncidentDemo highlight={highlightIncidents} />
     </section>
