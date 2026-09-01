@@ -180,3 +180,52 @@ export async function signTypedData(
   }
   return signature;
 }
+
+function chainHex(chainId: bigint): string {
+  if (typeof chainId !== "bigint" || chainId <= 0n || chainId > (1n << 256n) - 1n) {
+    throw new RangeError("Expected wallet chain ID must be a positive uint256");
+  }
+  return `0x${chainId.toString(16)}`;
+}
+
+function canonicalWalletAddress(value: string, label: string): string {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(value)) throw new TypeError(`${label} must be a 20-byte EVM address`);
+  return value.toLowerCase();
+}
+
+export async function assertConnectedWalletAuthority(
+  provider: Eip1193Provider,
+  expectedAddress: string,
+  expectedChainId: bigint,
+): Promise<string> {
+  const address = canonicalWalletAddress(expectedAddress, "Expected wallet address");
+  const [chainId, accounts] = await Promise.all([
+    provider.request({ method: "eth_chainId" }),
+    provider.request({ method: "eth_accounts" }),
+  ]);
+  if (typeof chainId !== "string" || chainId.toLowerCase() !== chainHex(expectedChainId)) {
+    throw new Error("Connected wallet chain does not match the approved matcher manifest");
+  }
+  if (!Array.isArray(accounts) || typeof accounts[0] !== "string"
+    || canonicalWalletAddress(accounts[0], "Connected wallet account") !== address) {
+    throw new Error("Connected wallet account changed after order review");
+  }
+  return address;
+}
+
+export async function signTypedOrderIntent(
+  provider: Eip1193Provider,
+  expectedAddress: string,
+  expectedChainId: bigint,
+  orderTypedData: unknown,
+): Promise<string> {
+  const address = await assertConnectedWalletAuthority(provider, expectedAddress, expectedChainId);
+  const signature = await provider.request({
+    method: "eth_signTypedData_v4",
+    params: [address, JSON.stringify(orderTypedData)],
+  });
+  if (typeof signature !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(signature)) {
+    throw new Error("Provider did not return a 65-byte order signature");
+  }
+  return signature;
+}
