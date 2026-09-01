@@ -140,14 +140,25 @@ test("selects an EIP-6963 wallet and clears the reviewed session on provider dri
       __phlebasWalletHarness: { listenerCount(rdns: string): number };
     }).__phlebasWalletHarness.listenerCount("io.rabby")
   ))).toBe(3);
-  await page.getByRole("tab", { name: "Settlement" }).click();
+  await page
+    .getByRole("navigation", { name: "Primary navigation" })
+    .getByRole("link", { name: "Docs" })
+    .click();
+  await expect(page).toHaveURL(/view=architecture/);
+  await page
+    .getByRole("navigation", { name: "Settlement and launch" })
+    .getByRole("link", { name: "How settlement works" })
+    .click();
   await expect(page).toHaveURL(/view=settlement/);
   await expect.poll(() => page.evaluate(() => (
     (window as unknown as {
       __phlebasWalletHarness: { listenerCount(rdns: string): number };
     }).__phlebasWalletHarness.listenerCount("io.rabby")
   ))).toBe(0);
-  await page.getByRole("tab", { name: "Trade" }).click();
+  await page
+    .getByRole("navigation", { name: "Primary navigation" })
+    .getByRole("link", { name: "Terminal" })
+    .click();
   await expect(page).toHaveURL(/view=trade/);
   await expect(connect).toBeVisible();
   await expect(disconnect).toHaveCount(0);
@@ -207,7 +218,15 @@ test("a pending wallet connection cannot survive leaving the wallet surface", as
   await connect.click();
   await expect(connect).toHaveText("Connecting");
 
-  await page.getByRole("tab", { name: "Settlement" }).click();
+  await page
+    .getByRole("navigation", { name: "Primary navigation" })
+    .getByRole("link", { name: "Docs" })
+    .click();
+  await expect(page).toHaveURL(/view=architecture/);
+  await page
+    .getByRole("navigation", { name: "Settlement and launch" })
+    .getByRole("link", { name: "How settlement works" })
+    .click();
   await expect(page).toHaveURL(/view=settlement/);
   await expect(connect).toHaveCount(0);
   await page.evaluate(() => {
@@ -219,7 +238,10 @@ test("a pending wallet connection cannot survive leaving the wallet surface", as
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   }));
 
-  await page.getByRole("tab", { name: "Trade" }).click();
+  await page
+    .getByRole("navigation", { name: "Primary navigation" })
+    .getByRole("link", { name: "Terminal" })
+    .click();
   await expect(page).toHaveURL(/view=trade/);
   await expect(connect).toBeVisible();
   await expect(page.getByRole("button", { name: /Disconnect/ })).toHaveCount(0);
