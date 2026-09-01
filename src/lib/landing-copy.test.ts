@@ -14,6 +14,7 @@ import {
   LANDING_MARKETS_INTRO,
   LANDING_NAV,
   LANDING_PATHS_INTRO,
+  PRODUCT_NAV,
   LANDING_SETTLEMENT_INTRO,
   LANDING_SETTLEMENT_STEPS,
   LANDING_SKIP_LINKS,
@@ -157,7 +158,11 @@ test("paths intro names Trade, Provide quotes, and Read settlement", () => {
 });
 
 test("shipped landing copy fails closed on live-funds and banned product claims", () => {
-  assert.match(LANDING_FOOTER, /not a live exchange/);
+  assert.equal(
+    LANDING_FOOTER,
+    "Phlebas is not a live exchange and not an offer of financial services.",
+  );
+  assert.doesNotMatch(LANDING_FOOTER, /protocol preview/i);
   assert.doesNotMatch(shipped, /\btrustless\b/i);
   assert.doesNotMatch(shipped, /\bis audited\b/i);
   assert.doesNotMatch(shipped, /\bpayable\b/i);
@@ -169,6 +174,18 @@ test("shipped landing copy fails closed on live-funds and banned product claims"
   assert.match(shipped, /USDT0 is abandoned/);
   assert.match(shipped, /No pZEC/);
   assert.doesNotMatch(shipped, /pZEC is (?:the live|native|the product)/i);
+});
+
+test("product nav is Markets Terminal Liquidity Docs Status", () => {
+  assert.deepEqual(
+    PRODUCT_NAV.map((item) => item.label),
+    ["Markets", "Terminal", "Liquidity", "Docs", "Status"],
+  );
+  assert.equal(PRODUCT_NAV[0]?.href, "/#markets");
+  assert.equal(PRODUCT_NAV[1]?.href, "/trade?view=trade");
+  assert.equal(PRODUCT_NAV[2]?.href, "/liquidity");
+  assert.equal(PRODUCT_NAV[3]?.href, "/trade?view=architecture");
+  assert.equal(PRODUCT_NAV[4]?.href, "/status");
 });
 
 test("operational landing labels drop simulator vocabulary", () => {

@@ -26,6 +26,14 @@ export const LANDING_NAV = [
   { href: "/status", label: "Status" },
 ] as const;
 
+export const PRODUCT_NAV = [
+  { href: "/#markets", label: "Markets" },
+  { href: "/trade?view=trade", label: "Terminal" },
+  { href: "/liquidity", label: "Liquidity" },
+  { href: "/trade?view=architecture", label: "Docs" },
+  { href: "/status", label: "Status" },
+] as const;
+
 export const LANDING_LEDGER_HEADING = "Current system";
 
 export const LANDING_LEDGER_PILL = "Public preview";
@@ -122,4 +130,4 @@ export const LANDING_PATHS_INTRO = {
 } as const;
 
 export const LANDING_FOOTER =
-  "Phlebas is a protocol preview, not a live exchange or an offer of financial services.";
+  "Phlebas is not a live exchange and not an offer of financial services.";

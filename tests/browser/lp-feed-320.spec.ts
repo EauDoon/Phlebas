@@ -6,7 +6,7 @@ const SETTLEMENT_PAIR = "ZEC-USDC" as const;
 
 test("320px LP loading feed disables mint and retries", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
-  await page.goto("/liquidity?feed=loading", { waitUntil: "networkidle" });
+  await page.goto("/trade?view=architecture&feed=loading", { waitUntil: "networkidle" });
   await expect(page.getByRole("button", { name: "Review mint" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Review swap" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
@@ -20,7 +20,7 @@ test("320px LP loading feed disables mint and retries", async ({ page }) => {
 
 test("320px LP stale feed disables mint and retries", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
-  await page.goto("/liquidity?feed=stale", { waitUntil: "networkidle" });
+  await page.goto("/trade?view=architecture&feed=stale", { waitUntil: "networkidle" });
   await expect(page.getByRole("button", { name: "Review mint" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Review swap" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();

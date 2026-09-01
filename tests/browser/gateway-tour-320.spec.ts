@@ -54,7 +54,7 @@ test("320px historical custody tour shows refunded tZEC restore", async ({ page 
   }
   await expect(page.getByText(refunded.title, { exact: true })).toBeVisible();
   await expect(page.getByText(refunded.body)).toBeVisible();
-  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill(DEST);
+  await page.getByRole("textbox", { name: "Transparent destination to check" }).fill(DEST);
   await expect(page.getByText(payoutClaimStubCopy(payoutClaimForTourStep("refunded", DEST)))).toBeVisible();
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
   await expect(page.getByText("Nothing is sent", { exact: false }).first()).toBeVisible();
@@ -123,7 +123,7 @@ test("320px historical custody tour shows confirmed walker stub claim", async ({
   }
   await expect(page.getByText(confirmed.title, { exact: true })).toBeVisible();
   await expect(page.getByText(confirmed.body)).toBeVisible();
-  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill(DEST);
+  await page.getByRole("textbox", { name: "Transparent destination to check" }).fill(DEST);
   await expect(page.getByText(payoutClaimStubCopy(payoutClaimForTourStep("confirmed", DEST)))).toBeVisible();
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
   await expect(page.getByText("Nothing is sent", { exact: false }).first()).toBeVisible();

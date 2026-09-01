@@ -105,18 +105,19 @@ test.describe("desktop operating density", () => {
     await expectIntersectingViewport(pairs, "quote pairs");
     await expectIntersectingViewport(wallet, "wallet connect");
     await expect(page.getByText("Wallet-held inventory")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Historical AMM model" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Review mint" })).toHaveCount(0);
+    await expect(page.getByRole("complementary", { name: "Named quote risks" })).toBeVisible();
+
+    await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
     await expect(page.getByRole("heading", { name: "Historical AMM model" })).toBeVisible();
     await expect(page.getByText("Retired", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Session LP shares", { exact: true })).toBeVisible();
     await expect(page.getByText("Session IL vs hold", { exact: true })).toBeVisible();
     await expect(page.getByText("IL vs hold at 4x ZEC/quote")).toBeVisible();
-    const solverQuotes = page.getByRole("region", { name: "Solver quotes" });
     const historicalAmm = page.getByRole("region", { name: "Historical AMM model" });
-    const risks = page.getByRole("complementary", { name: "Named quote risks" });
-    await expect(solverQuotes).toBeVisible();
     await expect(historicalAmm).toContainText("Retired constant-product math");
     await expect(historicalAmm.locator("#pool-stats")).toBeVisible();
-    await expect(risks).toBeVisible();
 
     const mint = page.getByRole("button", { name: "Review mint" });
     const burn = page.getByRole("button", { name: "Burn session shares" });
@@ -134,13 +135,13 @@ test.describe("desktop operating density", () => {
 });
 
 test.describe("stacked viewports stay inside the page", () => {
-  for (const width of [320, 390, 768, 1440] as const) {
-    test(`${width}px trade and liquidity have no horizontal overflow`, async ({ page }) => {
+  for (const width of [320, 390, 768, 820, 1440] as const) {
+    test(`${width}px landing, trade and liquidity have no horizontal overflow`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
-      await expectNoHorizontalOverflow(page);
-      await page.goto("/liquidity", { waitUntil: "networkidle" });
-      await expectNoHorizontalOverflow(page);
+      for (const path of ["/", "/trade", "/liquidity"] as const) {
+        await page.goto(path, { waitUntil: "networkidle" });
+        await expectNoHorizontalOverflow(page);
+      }
     });
   }
 });

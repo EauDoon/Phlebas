@@ -14,8 +14,10 @@ import {
   rememberIncidentDemo,
   subscribeIncidentDemo,
 } from "@/lib/gateway-incidents";
+import { PRODUCT_NAV } from "@/lib/landing-copy";
 import { activateSkipLink } from "@/lib/skip-link";
 import { PreviewChip } from "./preview-chip";
+import { SiteFooter } from "./site-footer";
 import { NO_TEX_ISSUED, ZEC_DESTINATION_LABEL } from "@/lib/wallet-bar-copy";
 import { terminalUrl } from "@/lib/terminal-url";
 import {
@@ -49,10 +51,6 @@ import {
 } from "@/lib/market-state";
 import { interpretRovingKey } from "@/lib/roving-keys";
 import {
-  isTerminalView,
-  nextTerminalView,
-  TERMINAL_VIEW_LABELS,
-  TERMINAL_VIEWS,
   type RenderableTerminalView,
   type TerminalView,
 } from "@/lib/terminal-views";
@@ -167,13 +165,10 @@ export function TradingTerminal({
   initialMode?: TerminalMode;
 }) {
   const router = useRouter();
-  const [view, setView] = useState<RenderableTerminalView>(initialView);
-  const [viewFocusId, setViewFocusId] = useState<TerminalView>(
-    isTerminalView(initialView) ? initialView : "trade",
-  );
-  const [marketId, setMarketId] = useState<MarketId>(initialMarket);
+  const view = initialView;
+  const marketId = initialMarket;
+  const feedStatus = initialFeed;
   const [marketFocusId, setMarketFocusId] = useState<MarketId>(initialMarket);
-  const [feedStatus, setFeedStatus] = useState<FeedStatus>(initialFeed);
   const [feedFocusId, setFeedFocusId] = useState<FeedStatus>(initialFeed);
   const [range, setRange] = useState<ChartRange>("4H");
   const [books, setBooks] = useState(seedBooks);
@@ -201,7 +196,6 @@ export function TradingTerminal({
   const nextPriceNonce = useRef(1);
   const nextFillId = useRef(1);
   const rangeRefs = useRef<Partial<Record<ChartRange, HTMLButtonElement | null>>>({});
-  const viewRefs = useRef<Partial<Record<TerminalView, HTMLButtonElement | null>>>({});
   const marketRefs = useRef<Partial<Record<MarketId, HTMLButtonElement | null>>>({});
   const feedRefs = useRef<Partial<Record<FeedStatus, HTMLButtonElement | null>>>({});
   const modeRefs = useRef<Partial<Record<TerminalMode, HTMLButtonElement | null>>>({});
@@ -243,51 +237,15 @@ export function TradingTerminal({
   }
 
   function selectView(nextView: TerminalView) {
-    setView(nextView);
-    setViewFocusId(nextView);
     router.replace(viewUrl(nextView, marketId, feedStatus, demoQuery, mode), { scroll: false });
   }
 
-  function moveViewFocus(next: TerminalView) {
-    setViewFocusId(next);
-    viewRefs.current[next]?.focus();
-  }
-
-  function onViewKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: TerminalView) {
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      event.preventDefault();
-      moveViewFocus(nextTerminalView(id, 1));
-      return;
-    }
-    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      event.preventDefault();
-      moveViewFocus(nextTerminalView(id, -1));
-      return;
-    }
-    if (event.key === "Home") {
-      event.preventDefault();
-      moveViewFocus("trade");
-      return;
-    }
-    if (event.key === "End") {
-      event.preventDefault();
-      moveViewFocus("architecture");
-      return;
-    }
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      selectView(id);
-    }
-  }
-
   function selectMarket(nextMarket: MarketId) {
-    setMarketId(nextMarket);
     setMarketFocusId(nextMarket);
     router.replace(viewUrl(view, nextMarket, feedStatus, demoQuery, mode), { scroll: false });
   }
 
   function selectFeed(nextFeed: FeedStatus) {
-    setFeedStatus(nextFeed);
     setFeedFocusId(nextFeed);
     router.replace(viewUrl(view, marketId, nextFeed, demoQuery, mode), { scroll: false });
   }
@@ -524,8 +482,8 @@ export function TradingTerminal({
         ) : null}
         {initialAccess === "open" && view === "liquidity" ? (
           <>
-            <a className={styles.skipLink} href="#liquidity-pools" onClick={activateSkipLink}>Skip to pool tabs</a>
-            <a className={styles.skipLink} href="#pool-stats" onClick={activateSkipLink}>Skip to pool stats</a>
+            <a className={styles.skipLink} href="#liquidity-pools" onClick={activateSkipLink}>Skip to quote pairs</a>
+            <a className={styles.skipLink} href="#lp-risk-title" onClick={activateSkipLink}>Skip to quote risks</a>
           </>
         ) : null}
         {initialAccess === "open" && view === "bridge" ? (
@@ -542,31 +500,42 @@ export function TradingTerminal({
           <span className={styles.brandMark}>P</span>
           <span>PHLEBAS</span>
         </Link>
-        <nav
-          className={styles.nav}
-          role="tablist"
-          aria-label="Primary navigation"
-          aria-orientation="horizontal"
-        >
-          {TERMINAL_VIEWS.map((id) => (
-            <button
-              type="button"
-              key={id}
-              role="tab"
-              id={`terminal-view-${id}`}
-              aria-controls="main-content"
-              aria-selected={view === id}
-              tabIndex={viewFocusId === id ? 0 : -1}
-              className={view === id ? styles.navActive : undefined}
-              ref={(node) => {
-                viewRefs.current[id] = node;
-              }}
-              onClick={() => selectView(id)}
-              onKeyDown={(event) => onViewKeyDown(event, id)}
-            >
-              {TERMINAL_VIEW_LABELS[id]}
-            </button>
-          ))}
+        <nav className={styles.nav} aria-label="Primary navigation">
+          {PRODUCT_NAV.map((item) => {
+            const current =
+              (item.label === "Terminal" && (view === "trade" || view === "settlement"))
+              || (item.label === "Docs" && view === "architecture")
+              || (item.label === "Liquidity" && view === "liquidity");
+            const href =
+              item.label === "Terminal"
+                ? viewUrl("trade", marketId, feedStatus, undefined, mode)
+                : item.label === "Docs"
+                  ? viewUrl("architecture", marketId, feedStatus, demoQuery, mode)
+                  : item.label === "Liquidity"
+                    ? viewUrl("liquidity", marketId, feedStatus, undefined, mode)
+                    : item.href;
+            return (
+              <Link
+                href={href}
+                key={item.href}
+                className={current ? styles.navActive : undefined}
+                aria-current={current ? "page" : undefined}
+                onClick={(event) => {
+                  if (item.label === "Terminal") {
+                    event.preventDefault();
+                    selectView("trade");
+                    return;
+                  }
+                  if (item.label === "Docs") {
+                    event.preventDefault();
+                    selectView("architecture");
+                  }
+                }}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
         <div className={styles.headerActions}>
           <div className={styles.selectorTabs} role="radiogroup" aria-label="Terminal mode">
@@ -668,7 +637,6 @@ export function TradingTerminal({
                 </div>
                 <div><dt>24h high</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
                 <div><dt>24h low</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
-                <div><dt>24h volume</dt><dd>{feed.showFixtures ? market.volume : "—"}</dd></div>
               </dl>
               <p className={styles.inlineNotice}>{feed.statsNote}</p>
             </section>
@@ -841,20 +809,21 @@ export function TradingTerminal({
               <span className={styles.settlementBadge}>legacy market: {market.settlementPair}</span>
             </div>
             <ArchitecturePanel highlightIncidents={incidentDemo} />
+            <LiquidityPanel
+              variant="historical-amm"
+              marketId={marketId}
+              feedStatus={feedStatus}
+              onMarketChange={selectMarket}
+              onFeedChange={selectFeed}
+              onRetryFeed={() => selectFeed("illustrative")}
+            />
           </>
         )}
       </main>
 
-      <footer className={styles.footer}>
-        <span>Phlebas is a protocol preview, not a live exchange or an offer of financial services.</span>
-        <nav aria-label="Footer">
-          <Link href="/trade?view=architecture">Architecture</Link>
-          <Link href="/legal">Legal and compliance</Link>
-          <Link href="/#launch-gates">Launch gates</Link>
-          <Link href="/security">Security</Link>
-          <Link href="/status">Status</Link>
-        </nav>
-      </footer>
+      <div className={styles.footerSlot}>
+        <SiteFooter />
+      </div>
     </div>
   );
 }

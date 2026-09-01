@@ -124,7 +124,7 @@ export function ticketGate(
     status: "illustrative",
     canReview: true,
     heading: "Illustrative",
-    message: "Repository fixtures. Not a live, delayed, or production feed.",
+    message: "Illustrative. Not a live, delayed, or production feed.",
     asOf: null,
   };
 }
@@ -143,7 +143,7 @@ export function feedSurface(status: FeedStatus): FeedSurface {
     return {
       showFixtures: true,
       eyebrow: "Illustrative market data",
-      statsNote: "24h figures are repository fixtures. Not a live, delayed, or production feed.",
+      statsNote: "24h figures are illustrative. Not a live, delayed, or production feed.",
       heading: gate.heading,
       message: gate.message,
     };
@@ -152,7 +152,7 @@ export function feedSurface(status: FeedStatus): FeedSurface {
     return {
       showFixtures: true,
       eyebrow: gate.heading,
-      statsNote: `24h figures stay fixture labels while market data is stale as of ${gate.asOf}.`,
+      statsNote: `24h figures stay illustrative labels while market data is stale as of ${gate.asOf}.`,
       heading: gate.heading,
       message: gate.message,
     };
@@ -181,7 +181,7 @@ export function feedWithheldCopy(status: FeedStatus, settlementPair: Market["set
     empty: "Order book empty. No 24h stats or chart series. The local book has no resting depth.",
     stale: "Market data stale. Delayed illustrative series. As of 2026-08-30T16:32:08Z.",
     unavailable: "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed.",
-    illustrative: "Illustrative. Repository fixtures are visible.",
+    illustrative: "Illustrative. Preview figures are visible.",
   } satisfies Record<FeedStatus, string>;
   return `${copy[status]} Settled as ${settlementPair}.`;
 }

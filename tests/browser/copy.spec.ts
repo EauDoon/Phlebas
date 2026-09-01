@@ -19,10 +19,14 @@ function withoutHonestNegation(copy: string) {
     .replace(/\bUSDT0 is abandoned\b/gi, "");
 }
 
+const SITE_FOOTER_SENTENCE =
+  "Phlebas is not a live exchange and not an offer of financial services.";
+
 for (const path of routes) {
-  test(`${path} shows the public-preview chip and no banned live claims`, async ({ page }) => {
+  test(`${path} shows the public-preview chip, footer sentence, and no banned live claims`, async ({ page }) => {
     await page.goto(path, { waitUntil: "networkidle" });
     await expect(page.getByText(PREVIEW_CHIP, { exact: true })).toBeVisible();
+    await expect(page.getByText(SITE_FOOTER_SENTENCE, { exact: true })).toBeVisible();
     const text = withoutHonestNegation(await page.locator("body").innerText());
     expect(text).not.toMatch(/\btrustless\b/i);
     expect(text).not.toMatch(/\bshielded-market\b/i);

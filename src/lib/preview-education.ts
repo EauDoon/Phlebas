@@ -11,7 +11,7 @@ export const PREVIEW_EDUCATION_STEPS = [
     body: "Not live settlement, not shielded, not a trustless bridge. USDT0 is abandoned.",
   },
   {
-    title: "Value-moving actions stay disabled.",
+    title: "Actions stay in this browser.",
     body: "Contracts are not deployed. Preview actions stay in this browser; no signing, submission, or asset movement is enabled.",
   },
 ] as const;

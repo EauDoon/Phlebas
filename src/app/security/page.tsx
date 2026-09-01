@@ -5,7 +5,7 @@ import { SimulationFrame } from "@/components/simulation-frame";
 
 export const metadata: Metadata = {
   title: "Security",
-  description: "Phlebas simulation security boundary. No production support commitment and no real assets.",
+  description: "Phlebas security boundary. No production support commitment and no real assets.",
 };
 
 export default function SecurityPage() {
@@ -20,7 +20,7 @@ export default function SecurityPage() {
           Do not send ZEC, USDC, USDT, or any other asset to an address from this preview.
         </p>
         <dl role="list" aria-label="Security ledger">
-          <div role="listitem"><dt>Public app</dt><dd>no-value interface, noindex</dd></div>
+          <div role="listitem"><dt>Public app</dt><dd>public preview, noindex</dd></div>
           <div role="listitem"><dt>Matcher</dt><dd>in-browser; loopback operator never hosted on Vercel</dd></div>
           <div role="listitem"><dt>Keys</dt><dd>no custody, attester, governance, or deployer keys in Vercel or git</dd></div>
           <div role="listitem"><dt>Bug bounty</dt><dd>none</dd></div>

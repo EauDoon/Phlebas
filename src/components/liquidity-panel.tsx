@@ -89,12 +89,14 @@ export function LiquidityPanel({
   onMarketChange,
   onFeedChange,
   onRetryFeed,
+  variant = "quotes",
 }: {
   marketId: MarketId;
   feedStatus: FeedStatus;
   onMarketChange: (market: MarketId) => void;
   onFeedChange: (status: FeedStatus) => void;
   onRetryFeed: () => void;
+  variant?: "quotes" | "historical-amm";
 }) {
   const amountHelpId = useId();
   const amountErrorId = useId();
@@ -376,6 +378,7 @@ export function LiquidityPanel({
 
   return (
     <div className={styles.liquidityGrid}>
+      {variant === "quotes" ? (
       <section className={`${styles.panel} ${styles.lpQuote}`} aria-labelledby="liquidity-title">
         <div className={styles.panelHeader}>
           <div>
@@ -434,7 +437,9 @@ export function LiquidityPanel({
           </button>
         </div>
       </section>
+      ) : null}
 
+      {variant === "historical-amm" ? (
       <section
         id="historical-amm"
         className={`${styles.panel} ${styles.lpStats}`}
@@ -633,7 +638,6 @@ export function LiquidityPanel({
         >
           <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
           <div><dt>Historical pool size</dt><dd>{selectedPool.tvl}</dd></div>
-          <div><dt>Historical pool volume</dt><dd>{selectedPool.volume}</dd></div>
           <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveZecAtoms, ZEC_DECIMALS, 2)}</dd></div>
           <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
           <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
@@ -661,12 +665,14 @@ export function LiquidityPanel({
         </p>
         <p className={styles.inlineNotice}>{lpRiskCopy()}</p>
       </section>
+      ) : null}
 
+      {variant === "quotes" ? (
       <aside className={`${styles.panel} ${styles.lpRisk}`} aria-labelledby="lp-risk-title">
         <div className={styles.panelHeader}>
           <div>
             <span className={styles.eyebrow}>Quote risk</span>
-            <h2 id="lp-risk-title">Named quote risks</h2>
+            <h2 id="lp-risk-title" tabIndex={-1}>Named quote risks</h2>
           </div>
         </div>
         <ul className={styles.cleanList}>
@@ -679,6 +685,7 @@ export function LiquidityPanel({
           ))}
         </ul>
       </aside>
+      ) : null}
     </div>
   );
 }

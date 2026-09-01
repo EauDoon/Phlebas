@@ -139,7 +139,7 @@ test("primary CTAs on landing trade and liquidity change visible state", async (
   await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
 
-  await page.goto("/liquidity", { waitUntil: "networkidle" });
+  await page.goto("/trade?view=architecture", { waitUntil: "networkidle" });
   await expectHonestPreview(page);
   await expect(page.getByRole("button", { name: "Complete mint" })).toHaveCount(0);
   await page.getByRole("button", { name: "Review mint" }).click();
@@ -158,7 +158,7 @@ test("ZEC TEX reject shielded destination and sends nothing", async ({ page }) =
   await expectHonestPreview(page);
   const inspection = inspectTransparentDestination("zs1notreal");
   expect(inspection.class).toBe("shielded");
-  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("zs1notreal");
+  await page.getByRole("textbox", { name: "Transparent destination to check" }).fill("zs1notreal");
   await expect(page.getByText(inspection.message)).toBeVisible();
   expect(posts).toEqual([]);
 });

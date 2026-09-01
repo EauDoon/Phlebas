@@ -23,6 +23,22 @@ test("incident copy does not promise credit, loss, or a live outage", () => {
   assert.doesNotMatch(joined, /VPN/i);
 });
 
+test("incident bodies are labeled historical-state or copy-only demonstrations", () => {
+  const joined = GATEWAY_INCIDENTS.map((incident) => `${incident.title} ${incident.body}`).join(" ");
+  assert.match(joined, /labeled historical-state demonstration/);
+  assert.match(joined, /copy-only demonstration/);
+  for (const incident of GATEWAY_INCIDENTS) {
+    assert.match(incident.body, /labeled historical-state demonstration|copy-only demonstration/);
+  }
+  assert.doesNotMatch(joined, /\bfixture\b/i);
+  assert.doesNotMatch(joined, /\bsimulation\b/i);
+  assert.doesNotMatch(joined, /\bwalkthrough\b/i);
+  assert.doesNotMatch(joined, /\binspect\b/i);
+  assert.doesNotMatch(joined, /\bno-value\b/i);
+  assert.doesNotMatch(joined, /live incident feed/i);
+  assert.doesNotMatch(joined, /is an incident feed/i);
+});
+
 test("observer disagreement demo is historical and read-only", () => {
   const disagreement = gatewayIncidentById("observer-disagreement");
   assert.ok(disagreement);

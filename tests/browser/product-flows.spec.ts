@@ -70,7 +70,7 @@ test("deposit tour walks Eligibility through Complete without a receivable addre
 test("withdrawal tour reaches unresolved and sends nothing", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Withdrawal states" }).click();
-  await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill(TRANSPARENT_SHAPE_DESTINATION);
+  await page.getByRole("textbox", { name: "Transparent destination to check" }).fill(TRANSPARENT_SHAPE_DESTINATION);
   const unresolvedAt = unresolvedWithdrawalTourIndex();
   expect(unresolvedAt).toBeGreaterThanOrEqual(0);
   const next = page.getByRole("button", { name: "Next state" });
@@ -102,7 +102,7 @@ test("wallet connect without a provider names the rejection while the native mat
 test("status, missing route, and render-failure retry change visible state", async ({ page }) => {
   const status = simulationStatus();
   await page.goto("/status", { waitUntil: "networkidle" });
-  const ledger = page.getByRole("list", { name: "Simulation status ledger" });
+  const ledger = page.getByRole("list", { name: "Status ledger" });
   await expect(ledger).toBeVisible();
   await expect(ledger).toContainText(status.mode);
   await page.locator("#main-content").getByRole("link", { name: "Architecture", exact: true }).click();

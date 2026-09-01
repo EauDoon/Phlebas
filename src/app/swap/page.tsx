@@ -15,9 +15,9 @@ import {
 } from "@/lib/swap-fill-projection.ts";
 
 export const metadata: Metadata = {
-  title: "Legacy fill diagnostic",
+  title: "Historical fill-event projection",
   description:
-    "Untrusted no-value projection for an older fill event stream. Read-only. Signing and broadcast remain gated.",
+    "Untrusted historical fill-event projection. Read-only. Signing and broadcast remain gated. Not live settlement.",
   robots: { index: false, follow: false },
 };
 
@@ -108,7 +108,7 @@ const OBSERVATION_LABELS: Readonly<Record<string, string>> = {
   "observe-evm-spend": "Waiting for an EVM spend observation",
   "observe-evm-timeout": "EVM leg refund deadline has passed",
   "observe-zec-timeout": "ZEC leg refund deadline has passed",
-  "observe-terminal": "The legacy projection is terminal",
+  "observe-terminal": "The historical fill-event projection is terminal",
 };
 
 function formatUnix(seconds: bigint): string {
@@ -167,13 +167,15 @@ export default async function SwapPage({
 
   return (
     <SimulationFrame
-      title="Legacy fill diagnostic"
+      title="Historical fill-event projection"
       skipTo={{ href: "#swap-state-ledger", label: "Skip to swap state" }}
     >
       <p data-testid="swap-simulation-notice">
-        This is an untrusted no-value projection built from URL parameters. It is not the
-        signed SwapState, it does not verify a SwapJournal, and it cannot authorize a wallet
-        action. No wallet, signature, or broadcast happens on this page.
+        This is an untrusted, retired historical fill-event projection built from URL
+        parameters. It is read-only and not live settlement. It is not the signed
+        SwapState, it does not verify a SwapJournal, and it cannot authorize a wallet
+        action. Signing and broadcast remain gated. No wallet, signature, or broadcast
+        happens on this page.
       </p>
 
       <dl id="swap-state-ledger" tabIndex={-1} role="list" aria-label="Swap state ledger">
@@ -228,7 +230,7 @@ export default async function SwapPage({
       </p>
       <p>
         The current viewer role is <strong data-testid="swap-role">{role}</strong>. This is
-        a read-only diagnostic view. It exposes no action controls.
+        a read-only historical projection. It exposes no action controls.
       </p>
     </SimulationFrame>
   );

@@ -15,7 +15,7 @@ import { parseCompressedPubkey } from "@/lib/zcash-pubkey.ts";
 export const metadata: Metadata = {
   title: "Legacy Zcash HASH160 display",
   description:
-    "Historical, testnet-only, no-value HASH160 display. Not a transaction, wallet, or funding surface.",
+    "Historical, testnet-only HASH160 display. Not a transaction, wallet, or funding surface. Not payable.",
   robots: { index: false, follow: false },
 };
 
@@ -108,10 +108,10 @@ export default async function ZcashPage({
       skipTo={{ href: "#zcash-ledger", label: "Skip to legacy display" }}
     >
       <p data-testid="zcash-simulation-notice">
-        This is a historical, testnet-only, no-value HASH160 display. The script and every
+        This is a historical, testnet-only HASH160 display. The script and every
         fund, claim, and refund value are legacy synthetic incomplete shapes. They are not the
         canonical SHA-256 transaction lab, Zcash transactions, addresses to fund, wallet inputs,
-        or signing evidence. No signing or broadcast happens on this page.
+        or signing evidence. Not payable. No signing or broadcast happens on this page.
       </p>
 
       <dl id="zcash-ledger" tabIndex={-1} role="list" aria-label="Zcash ledger">
