@@ -144,6 +144,33 @@ export type MatcherOrderRequest = Readonly<{
   body: string;
 }>;
 
+export type VerifiedMatcherOrderReceipt = Readonly<{
+  replayed: boolean;
+  receipt: Readonly<{
+    version: 1;
+    sequence: bigint;
+    requestId: string;
+    kind: "accept-order";
+    status: "open" | "filled" | "partially-filled" | "ioc-remainder-cancelled" | "fok-rejected" | "unfilled";
+    subjectHash: Hex32;
+    occurredAtSeconds: bigint;
+  }>;
+  checkpoint: Readonly<{
+    version: 1;
+    sequence: bigint;
+    recordHash: Hex32;
+    stateRoot: Hex32;
+    configurationHash: Hex32;
+  }>;
+}>;
+
+export type MatcherOrderReceiptExpectation = Readonly<{
+  expectedMatcher: ExpectedMatcherIdentity;
+  requestId: string;
+  subjectHash: Hex32;
+  occurredAtSeconds: bigint;
+}>;
+
 type PreparedSubmission = Readonly<{
   identity: VerifiedMatcherIdentity;
   requestId: string;
@@ -511,6 +538,85 @@ export function buildMatcherOrderRequest(input: MatcherOrderSubmissionInput): Ma
       [MATCHER_IDEMPOTENCY_HEADER]: prepared.requestId,
     },
     body,
+  });
+}
+
+const MATCHER_ORDER_STATUSES = new Set<VerifiedMatcherOrderReceipt["receipt"]["status"]>([
+  "open",
+  "filled",
+  "partially-filled",
+  "ioc-remainder-cancelled",
+  "fok-rejected",
+  "unfilled",
+]);
+
+export function assertMatcherOrderReceipt(
+  value: unknown,
+  expectation: MatcherOrderReceiptExpectation,
+): VerifiedMatcherOrderReceipt {
+  const expectedIdentity = canonicalExpectedIdentity(expectation.expectedMatcher);
+  const expectedRequestId = canonicalRequestId(expectation.requestId);
+  const expectedSubjectHash = normalizeHex32(expectation.subjectHash, "Expected order hash");
+  const expectedOccurredAt = canonicalOccurredAtSeconds(expectation.occurredAtSeconds);
+  const result = objectValue(value, "Matcher order response");
+  assertExactKeys(result, ["ok", "replayed", "receipt", "checkpoint"], "Matcher order response");
+  if (result.ok !== true || typeof result.replayed !== "boolean") {
+    throw new Error("Matcher order response is not an accepted receipt");
+  }
+
+  const receipt = objectValue(result.receipt, "Matcher order receipt");
+  assertExactKeys(
+    receipt,
+    ["version", "sequence", "requestId", "kind", "status", "subjectHash", "occurredAtSeconds"],
+    "Matcher order receipt",
+  );
+  if (receipt.version !== 1 || receipt.kind !== "accept-order") {
+    throw new Error("Matcher order receipt type is unsupported");
+  }
+  const requestId = canonicalRequestId(stringValue(receipt.requestId, "Matcher receipt request ID"));
+  if (requestId !== expectedRequestId) throw new Error("Matcher receipt does not match the submitted request");
+  const subjectHash = canonicalHex32(receipt.subjectHash, "Matcher receipt order hash");
+  if (subjectHash !== expectedSubjectHash) throw new Error("Matcher receipt does not match the signed order");
+  const occurredAtSeconds = canonicalDecimalUint64(receipt.occurredAtSeconds, "Matcher receipt event time");
+  if (occurredAtSeconds !== expectedOccurredAt) throw new Error("Matcher receipt event time does not match the reviewed request");
+  const status = receipt.status;
+  if (typeof status !== "string" || !MATCHER_ORDER_STATUSES.has(status as VerifiedMatcherOrderReceipt["receipt"]["status"])) {
+    throw new Error("Matcher order receipt status is unsupported");
+  }
+
+  const checkpoint = objectValue(result.checkpoint, "Matcher order checkpoint");
+  assertExactKeys(
+    checkpoint,
+    ["version", "sequence", "recordHash", "stateRoot", "configurationHash"],
+    "Matcher order checkpoint",
+  );
+  if (checkpoint.version !== 1) throw new Error("Matcher order checkpoint version is unsupported");
+  const sequence = canonicalDecimalUint64(receipt.sequence, "Matcher receipt sequence");
+  const checkpointSequence = canonicalDecimalUint64(checkpoint.sequence, "Matcher checkpoint sequence");
+  if (checkpointSequence !== sequence) throw new Error("Matcher checkpoint does not bind the order receipt");
+  const configurationHash = canonicalHex32(checkpoint.configurationHash, "Matcher checkpoint configuration hash");
+  if (configurationHash !== expectedIdentity.configurationHash) {
+    throw new Error("Matcher receipt checkpoint does not match the approved matcher");
+  }
+
+  return deepFreeze({
+    replayed: result.replayed,
+    receipt: {
+      version: 1,
+      sequence,
+      requestId,
+      kind: "accept-order",
+      status: status as VerifiedMatcherOrderReceipt["receipt"]["status"],
+      subjectHash,
+      occurredAtSeconds,
+    },
+    checkpoint: {
+      version: 1,
+      sequence: checkpointSequence,
+      recordHash: canonicalHex32(checkpoint.recordHash, "Matcher checkpoint record hash"),
+      stateRoot: canonicalHex32(checkpoint.stateRoot, "Matcher checkpoint state root"),
+      configurationHash,
+    },
   });
 }
 

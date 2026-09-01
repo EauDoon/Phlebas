@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { type AtomicSwapPair } from "./atomic-swap-plan.ts";
-import { createOrderDomain, hashOrderDomain, type TypedOrderIntent } from "./eip712-order.ts";
+import { createOrderDomain, hashOrderDomain, hashTypedOrder, type TypedOrderIntent } from "./eip712-order.ts";
 import { evmAuthorizedSignerId } from "./matcher-auth.ts";
 import {
   MATCHER_API_PATH,
@@ -12,6 +12,7 @@ import {
   MatcherOrderClientError,
   assertMatcherAccountIdentity,
   assertMatcherHealthIdentity,
+  assertMatcherOrderReceipt,
   buildMatcherOrderRequest,
   serializeMatcherOrderSubmission,
   type ExpectedMatcherIdentity,
@@ -448,5 +449,104 @@ test("rejects ambiguous expected matcher identities before trusting health", () 
       },
     })),
     /Quote asset must be on its declared network/,
+  );
+});
+
+test("binds a matcher receipt to the reviewed request, signed order, and configuration", () => {
+  const subjectHash = hashTypedOrder(domain, order);
+  const response = {
+    ok: true,
+    replayed: false,
+    receipt: {
+      version: 1,
+      sequence: "8",
+      requestId: "order:testnet:0001",
+      kind: "accept-order",
+      status: "open",
+      subjectHash,
+      occurredAtSeconds: NOW.toString(),
+    },
+    checkpoint: {
+      version: 1,
+      sequence: "8",
+      recordHash: `0x${"cd".repeat(32)}`,
+      stateRoot: `0x${"ef".repeat(32)}`,
+      configurationHash: expectedMatcher.configurationHash,
+    },
+  };
+
+  const verified = assertMatcherOrderReceipt(response, {
+    expectedMatcher,
+    requestId: "order:testnet:0001",
+    subjectHash,
+    occurredAtSeconds: NOW,
+  });
+  assert.equal(verified.receipt.sequence, 8n);
+  assert.equal(verified.receipt.status, "open");
+  assert.equal(verified.checkpoint.configurationHash, expectedMatcher.configurationHash);
+  assert.equal(Object.isFrozen(verified), true);
+  assert.equal(Object.isFrozen(verified.receipt), true);
+  assert.equal(Object.isFrozen(verified.checkpoint), true);
+});
+
+test("rejects matcher receipts that do not bind the reviewed no-value order", () => {
+  const subjectHash = hashTypedOrder(domain, order);
+  const base = {
+    ok: true,
+    replayed: false,
+    receipt: {
+      version: 1,
+      sequence: "8",
+      requestId: "order:testnet:0001",
+      kind: "accept-order",
+      status: "open",
+      subjectHash,
+      occurredAtSeconds: NOW.toString(),
+    },
+    checkpoint: {
+      version: 1,
+      sequence: "8",
+      recordHash: `0x${"cd".repeat(32)}`,
+      stateRoot: `0x${"ef".repeat(32)}`,
+      configurationHash: expectedMatcher.configurationHash,
+    },
+  };
+  const expectation = {
+    expectedMatcher,
+    requestId: "order:testnet:0001",
+    subjectHash,
+    occurredAtSeconds: NOW,
+  };
+
+  assert.throws(
+    () => assertMatcherOrderReceipt({ ...base, receipt: { ...base.receipt, requestId: "order:other" } }, expectation),
+    /submitted request/,
+  );
+  assert.throws(
+    () => assertMatcherOrderReceipt({ ...base, receipt: { ...base.receipt, subjectHash: `0x${"11".repeat(32)}` } }, expectation),
+    /signed order/,
+  );
+  assert.throws(
+    () => assertMatcherOrderReceipt({ ...base, receipt: { ...base.receipt, occurredAtSeconds: (NOW + 1n).toString() } }, expectation),
+    /event time/,
+  );
+  assert.throws(
+    () => assertMatcherOrderReceipt({ ...base, receipt: { ...base.receipt, status: "cancelled" } }, expectation),
+    /status is unsupported/,
+  );
+  assert.throws(
+    () => assertMatcherOrderReceipt({ ...base, checkpoint: { ...base.checkpoint, sequence: "9" } }, expectation),
+    /does not bind/,
+  );
+  assert.throws(
+    () => assertMatcherOrderReceipt({
+      ...base,
+      checkpoint: { ...base.checkpoint, configurationHash: `0x${"22".repeat(32)}` },
+    }, expectation),
+    /approved matcher/,
+  );
+  assert.throws(
+    () => assertMatcherOrderReceipt({ ...base, privateDetail: "must reject" }, expectation),
+    /missing or unsupported fields/,
   );
 });
