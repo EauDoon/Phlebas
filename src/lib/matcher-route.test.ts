@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { matcherAccountProxy, matcherHealthProxy, matcherOrderProxy } from "./matcher-proxy.ts";
+import {
+  matcherAccountProxy,
+  matcherHealthProxy,
+  matcherOrderProxy,
+  type MatcherIngressDeployment,
+} from "./matcher-proxy.ts";
 
 const CONFIGURATION_HASH = `0x${"11".repeat(32)}`;
 const STATE_ROOT = `0x${"22".repeat(32)}`;
@@ -27,6 +32,13 @@ const market = {
     asset: "eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831",
     environment: "mainnet",
     decimals: 6,
+  },
+};
+const enabledDeployment: MatcherIngressDeployment = {
+  enabled: true,
+  expectedMatcher: {
+    configurationHash: CONFIGURATION_HASH,
+    market,
   },
 };
 const healthBody = JSON.stringify({
@@ -61,6 +73,45 @@ test("matcher route stays unavailable without an exact loopback operator URL", a
     headers: { "content-type": "application/json", "idempotency-key": "order-one" },
     body: "{}",
   }))).status, 503);
+});
+
+test("matcher POST stays fail-closed before upstream fetch while the deployment manifest is disabled", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response(healthBody, { status: 200 });
+  }) as typeof fetch;
+
+  const response = await matcherOrderProxy(new Request("http://localhost/api/matcher", {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+    body: "{}",
+  }));
+  assert.equal(response.status, 503);
+  assert.equal(calls, 0);
+});
+
+test("matcher POST requires the approved runtime configuration before forwarding an order", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
+  const mismatchedHash = `0x${"77".repeat(32)}`;
+  const paths: string[] = [];
+  globalThis.fetch = (async (input) => {
+    paths.push((input as URL).pathname);
+    return new Response(JSON.stringify({
+      ...JSON.parse(healthBody),
+      configurationHash: mismatchedHash,
+      checkpoint: { ...checkpoint, configurationHash: mismatchedHash },
+    }), { status: 200 });
+  }) as typeof fetch;
+
+  const response = await matcherOrderProxy(new Request("http://localhost/api/matcher", {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+    body: "{}",
+  }), process.env, enabledDeployment);
+  assert.equal(response.status, 503);
+  assert.deepEqual(paths, ["/health"]);
 });
 
 test("matcher GET proxies only the loopback health endpoint without caching", async () => {
@@ -134,14 +185,14 @@ test("matcher POST rejects invalid transport boundaries before proxying", async 
     method: "POST",
     headers: { "content-type": "text/plain", "idempotency-key": "order-one" },
     body: "{}",
-  }));
+  }), process.env, enabledDeployment);
   assert.equal(wrongType.status, 415);
 
   const missingKey = await matcherOrderProxy(new Request("http://localhost/api/matcher", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: "{}",
-  }));
+  }), process.env, enabledDeployment);
   assert.equal(missingKey.status, 400);
   assert.deepEqual(await missingKey.json(), { ok: false, reason: "idempotency-key-invalid" });
 
@@ -149,14 +200,14 @@ test("matcher POST rejects invalid transport boundaries before proxying", async 
     method: "POST",
     headers: { "content-type": "application/json", "idempotency-key": "contains space" },
     body: "{}",
-  }));
+  }), process.env, enabledDeployment);
   assert.equal(invalidKey.status, 400);
 
   const tooLarge = await matcherOrderProxy(new Request("http://localhost/api/matcher", {
     method: "POST",
     headers: { "content-type": "application/json", "idempotency-key": "order-one" },
     body: JSON.stringify({ value: "x".repeat(64 * 1024) }),
-  }));
+  }), process.env, enabledDeployment);
   assert.equal(tooLarge.status, 413);
 
   let cancelled = false;
@@ -174,7 +225,7 @@ test("matcher POST rejects invalid transport boundaries before proxying", async 
     headers: { "content-type": "application/json", "idempotency-key": "order-one" },
     body: streamedBody,
     duplex: "half",
-  } as RequestInit & { duplex: "half" }));
+  } as RequestInit & { duplex: "half" }), process.env, enabledDeployment);
   assert.equal(streamedTooLarge.status, 413);
   assert.equal(cancelled, true);
   assert.equal(calls, 0);
@@ -188,6 +239,7 @@ test("matcher POST forwards the exact order endpoint, body, and idempotency key"
   globalThis.fetch = (async (input, nextInit) => {
     requested = input as URL;
     init = nextInit;
+    if (requested.pathname === "/health") return new Response(healthBody, { status: 200 });
     return new Response(JSON.stringify({
       ok: true,
       replayed: false,
@@ -216,7 +268,7 @@ test("matcher POST forwards the exact order endpoint, body, and idempotency key"
       authorization: "must-not-cross-the-proxy",
     },
     body,
-  }));
+  }), process.env, enabledDeployment);
 
   assert.equal(requested?.toString(), "http://localhost:8788/v1/orders");
   assert.equal(init?.method, "POST");
@@ -250,13 +302,17 @@ test("matcher POST maps private rejections and malformed success bodies to fixed
     headers: { "content-type": "application/json", "idempotency-key": "order-one" },
     body: '{"version":1,"requestId":"order-one"}',
   });
-  globalThis.fetch = (async () => new Response('{"reason":"private verifier stack"}', { status: 422 })) as typeof fetch;
-  const rejected = await matcherOrderProxy(request());
+  globalThis.fetch = (async (input) => (input as URL).pathname === "/health"
+    ? new Response(healthBody, { status: 200 })
+    : new Response('{"reason":"private verifier stack"}', { status: 422 })) as typeof fetch;
+  const rejected = await matcherOrderProxy(request(), process.env, enabledDeployment);
   assert.equal(rejected.status, 422);
   assert.deepEqual(await rejected.json(), { ok: false, reason: "matcher-rejected-order" });
 
-  globalThis.fetch = (async () => new Response('{"ok":true,"private":"detail"}', { status: 201 })) as typeof fetch;
-  const malformed = await matcherOrderProxy(request());
+  globalThis.fetch = (async (input) => (input as URL).pathname === "/health"
+    ? new Response(healthBody, { status: 200 })
+    : new Response('{"ok":true,"private":"detail"}', { status: 201 })) as typeof fetch;
+  const malformed = await matcherOrderProxy(request(), process.env, enabledDeployment);
   assert.equal(malformed.status, 503);
   assert.deepEqual(await malformed.json(), { ok: false, reason: "matcher-unavailable", matcher: "in-browser" });
 });

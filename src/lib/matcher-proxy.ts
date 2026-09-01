@@ -1,4 +1,5 @@
 import { fetchLoopbackOperator, isLoopbackOperatorUrl, operatorUnavailable } from "./operator-url.ts";
+import { NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT } from "./native-zec-usdc-matcher-manifest.ts";
 
 const REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const HEX32 = /^0x[0-9a-f]{64}$/;
@@ -15,6 +16,23 @@ const ORDER_RECEIPT_STATUSES = new Set([
 const MATCHER_REQUEST_BYTES = 64 * 1024;
 
 type JsonRecord = Record<string, unknown>;
+type MatcherIngressAsset = Readonly<{
+  network: string;
+  asset: string;
+  environment: string;
+  decimals: number;
+}>;
+
+export type MatcherIngressDeployment = Readonly<{
+  enabled: boolean;
+  expectedMatcher: Readonly<{
+    configurationHash: string;
+    market: Readonly<{
+      base: MatcherIngressAsset;
+      quote: MatcherIngressAsset;
+    }>;
+  }> | null;
+}>;
 
 function matcherUrl(env: Record<string, string | undefined>): string | null {
   const value = env.PHLEBAS_MATCHER_URL;
@@ -166,6 +184,29 @@ function healthResponse(body: string): Response {
   });
 }
 
+async function approvedMutationRuntime(
+  baseUrl: string,
+  deployment: MatcherIngressDeployment,
+): Promise<boolean> {
+  const expected = deployment.expectedMatcher;
+  if (!deployment.enabled || expected === null) return false;
+  const response = await fetchLoopbackOperator(new URL("/health", baseUrl));
+  if (!response || response.status !== 200) return false;
+  const checked = healthResponse(response.body);
+  if (checked.status !== 200) return false;
+  const health = await checked.json() as JsonRecord;
+  if (health.acceptingMutations !== true || health.configurationHash !== expected.configurationHash) return false;
+  const market = record(health.market);
+  const sameAsset = (actual: JsonRecord | null, approved: MatcherIngressAsset) => actual !== null
+    && actual.network === approved.network
+    && actual.asset === approved.asset
+    && actual.environment === approved.environment
+    && actual.decimals === approved.decimals;
+  return market !== null
+    && sameAsset(record(market.base), expected.market.base)
+    && sameAsset(record(market.quote), expected.market.quote);
+}
+
 export async function matcherHealthProxy(env: Record<string, string | undefined> = process.env) {
   const baseUrl = matcherUrl(env);
   if (!baseUrl) return unavailable();
@@ -209,7 +250,9 @@ export async function matcherAccountProxy(
 export async function matcherOrderProxy(
   request: Request,
   env: Record<string, string | undefined> = process.env,
+  deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
 ) {
+  if (!deployment.enabled || deployment.expectedMatcher === null) return unavailable();
   const baseUrl = matcherUrl(env);
   if (!baseUrl) return unavailable();
   if (request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
@@ -223,6 +266,7 @@ export async function matcherOrderProxy(
   if (!requestId || !REQUEST_ID.test(requestId)) {
     return noStoreJson({ ok: false, reason: "idempotency-key-invalid" }, 400);
   }
+  if (!await approvedMutationRuntime(baseUrl, deployment)) return unavailable();
   const response = await fetchLoopbackOperator(new URL("/v1/orders", baseUrl), {
     method: "POST",
     headers: { "content-type": "application/json", "idempotency-key": requestId },
