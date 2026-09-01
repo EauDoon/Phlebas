@@ -25,6 +25,8 @@ the corresponding file in the docs tree.
 - [runbooks/](runbooks/) — per-surface restart runbooks
   - [runbooks/observer-restart.md](runbooks/observer-restart.md)
   - [runbooks/market-data-restart.md](runbooks/market-data-restart.md)
+  - [runbooks/session-export.md](runbooks/session-export.md) — session export operator procedure
+  - [runbooks/session-roundtrip.md](runbooks/session-roundtrip.md) — session export + import roundtrip procedure
 - [operations/](operations/) — per-surface SLOs
   - [operations/observer-slo.md](operations/observer-slo.md)
   - [operations/market-data-slo.md](operations/market-data-slo.md)
