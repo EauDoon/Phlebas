@@ -77,13 +77,15 @@ test("landing journey copy fails closed on live product claims", () => {
   assert.doesNotMatch(shipped, /\bis audited\b/i);
   assert.doesNotMatch(shipped, /\bpayable\b/i);
   assert.doesNotMatch(shipped, /\bshielded market\b/i);
+  assert.doesNotMatch(shipped, /\bsimulations?\b/i);
+  assert.doesNotMatch(shipped, /\bsimulator\b/i);
+  assert.doesNotMatch(shipped, /\bfixtures?\b/i);
+  assert.doesNotMatch(shipped, /\bno-value\b/i);
+  assert.doesNotMatch(shipped, /\binspect\b/i);
+  assert.doesNotMatch(shipped, /\bwalkthrough\b/i);
   for (const journey of LANDING_JOURNEYS) {
     assert.doesNotMatch(journey.action, /^Deposit ZEC$/i);
     assert.doesNotMatch(journey.action, /^Withdraw ZEC$/i);
-    assert.doesNotMatch(journey.description, /\bsimulations?\b/i);
-    assert.doesNotMatch(journey.description, /\bfixture\b/i);
-    assert.doesNotMatch(journey.description, /\binspect\b/i);
-    assert.doesNotMatch(journey.description, /\bwalkthrough\b/i);
   }
   assert.match(LANDING_JOURNEYS[1].description, /wallet-held|own wallets/);
 });

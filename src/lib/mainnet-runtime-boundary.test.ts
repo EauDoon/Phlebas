@@ -5,6 +5,13 @@ import { readdir, readFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  ETHEREUM_MAINNET_USDC_ASSET,
+  ETHEREUM_MAINNET_USDT_ASSET,
+  USDT0_LISTING_STATUS,
+} from "./mainnet-assets.ts";
+import { STABLECOIN_NETWORK_ACTION } from "./stablecoin-wallet-action.ts";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 const ACTIVE_MAINNET_FILES = [
@@ -55,9 +62,30 @@ test("active manifests bind chain 1 and exact issuer token identities", async ()
     [usdc.evm, usdt.evm].map(({ network, chainId }) => ({ network, chainId })),
     [{ network: "eip155:1", chainId: 1 }, { network: "eip155:1", chainId: 1 }],
   );
-  assert.equal(usdc.market.quote.asset, "eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
-  assert.equal(usdt.market.quote.asset, "eip155:1/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7");
+  assert.equal(usdc.market.quote.asset, ETHEREUM_MAINNET_USDC_ASSET);
+  assert.equal(usdt.market.quote.asset, ETHEREUM_MAINNET_USDT_ASSET);
   assert.equal(usdc.deployed || usdc.submissionEnabled || usdt.deployed || usdt.submissionEnabled, false);
+});
+
+test("active mainnet paths cannot list USDT0 as a quote or settlement asset", async () => {
+  assert.equal(USDT0_LISTING_STATUS, "abandoned");
+  for (const path of ACTIVE_MAINNET_FILES) {
+    const source = (await readFile(join(root, path), "utf8")).replace(/\bUSDT0 is abandoned\b/gi, "");
+    assert.doesNotMatch(source, /USDT0 is (?:listed|live)|lists USDT0/i, path);
+    assert.doesNotMatch(source, /quote(?:Asset)?:\s*"USDT0"|symbol:\s*"USDT0"/, path);
+  }
+});
+
+test("stablecoin wallet actions stay disabled until a deployed mainnet manifest exists", async () => {
+  assert.equal(STABLECOIN_NETWORK_ACTION, "disabled-until-deployment-manifest");
+  const source = await readFile(join(root, "src/lib/stablecoin-wallet-action.ts"), "utf8");
+  assert.match(source, /disabled-until-deployment-manifest/);
+  assert.doesNotMatch(source, /eth_sendTransaction|eth_sendRawTransaction|wallet_sendCalls/);
+  const manifest = JSON.parse(
+    await readFile(join(root, "contracts/manifests/conditional-lock.not-deployed.json"), "utf8"),
+  ) as { deployed: boolean; networkActionEnabled: boolean };
+  assert.equal(manifest.deployed, false);
+  assert.equal(manifest.networkActionEnabled, false);
 });
 
 test("active application code cannot supply its own stablecoin deployment authority", async () => {

@@ -38,6 +38,12 @@ test("pZEC appears only as a rejected product, never as live settlement", () => 
 });
 
 test("landing evidence does not list USDT0 or claim live funds", () => {
+  assert.doesNotMatch(shipped, /\bsimulations?\b/i);
+  assert.doesNotMatch(shipped, /\bsimulator\b/i);
+  assert.doesNotMatch(shipped, /\bfixtures?\b/i);
+  assert.doesNotMatch(shipped, /\bno-value\b/i);
+  assert.doesNotMatch(shipped, /\binspect\b/i);
+  assert.doesNotMatch(shipped, /\bwalkthrough\b/i);
   for (const row of LANDING_EVIDENCE) {
     assert.doesNotMatch(row.body, /\blive funds\b/i);
     assert.doesNotMatch(row.body, /\bis a live exchange\b/i);

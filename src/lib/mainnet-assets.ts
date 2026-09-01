@@ -10,17 +10,27 @@ export const ETHEREUM_MAINNET_USDT_ADDRESS = "0xdac17f958d2ee523a2206206994597c1
 export const ETHEREUM_MAINNET_USDC_ASSET = `${ETHEREUM_MAINNET_NETWORK}/erc20:${ETHEREUM_MAINNET_USDC_ADDRESS}` as const;
 export const ETHEREUM_MAINNET_USDT_ASSET = `${ETHEREUM_MAINNET_NETWORK}/erc20:${ETHEREUM_MAINNET_USDT_ADDRESS}` as const;
 
-export type MainnetQuoteSymbol = "USDC" | "USDT";
+export const USDT0_LISTING_STATUS = "abandoned" as const;
+
+export type AbandonedQuoteSymbol = "USDT0";
+export type MainnetQuoteSymbol = Exclude<"USDC" | "USDT" | AbandonedQuoteSymbol, AbandonedQuoteSymbol>;
 export type MainnetMarketId = "ZEC/USDC" | "ZEC/USDT";
 export type AllowancePolicy = "exact" | "zero-first-then-exact";
+export type MainnetStablecoinAddress =
+  | typeof ETHEREUM_MAINNET_USDC_ADDRESS
+  | typeof ETHEREUM_MAINNET_USDT_ADDRESS;
+export type MainnetStablecoinAsset =
+  | typeof ETHEREUM_MAINNET_USDC_ASSET
+  | typeof ETHEREUM_MAINNET_USDT_ASSET;
 
 export type MainnetStablecoin = Readonly<{
   symbol: MainnetQuoteSymbol;
   name: string;
+  issuer: "Circle" | "Tether";
   network: typeof ETHEREUM_MAINNET_NETWORK;
   chainId: typeof ETHEREUM_MAINNET_CHAIN_ID;
-  address: string;
-  asset: string;
+  address: MainnetStablecoinAddress;
+  asset: MainnetStablecoinAsset;
   decimals: 6;
   allowancePolicy: AllowancePolicy;
   unlimitedApprovalAllowed: false;
@@ -44,6 +54,7 @@ export type MainnetMarket = Readonly<{
 const USDC: MainnetStablecoin = Object.freeze({
   symbol: "USDC",
   name: "USD Coin",
+  issuer: "Circle",
   network: ETHEREUM_MAINNET_NETWORK,
   chainId: ETHEREUM_MAINNET_CHAIN_ID,
   address: ETHEREUM_MAINNET_USDC_ADDRESS,
@@ -57,6 +68,7 @@ const USDC: MainnetStablecoin = Object.freeze({
 const USDT: MainnetStablecoin = Object.freeze({
   symbol: "USDT",
   name: "Tether USD",
+  issuer: "Tether",
   network: ETHEREUM_MAINNET_NETWORK,
   chainId: ETHEREUM_MAINNET_CHAIN_ID,
   address: ETHEREUM_MAINNET_USDT_ADDRESS,
@@ -66,6 +78,11 @@ const USDT: MainnetStablecoin = Object.freeze({
   unlimitedApprovalAllowed: false,
   transferAccounting: "exact-balance-delta",
 });
+
+const ABANDONED_USDT0_ADDRESSES = Object.freeze([
+  "0x6c96de32cea08842dcc4058c14d3aaad7fa41dee",
+  "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+]);
 
 const BASE = Object.freeze({
   symbol: "ZEC" as const,
@@ -93,12 +110,26 @@ export const MAINNET_MARKETS: Readonly<Record<MainnetMarketId, MainnetMarket>> =
   }),
 });
 
+export function assertMainnetQuoteSymbol(value: unknown): MainnetQuoteSymbol {
+  if (value === "USDT0") throw new Error("USDT0 is abandoned");
+  if (value !== "USDC" && value !== "USDT") {
+    throw new Error("Quote is not an approved Ethereum Mainnet stablecoin");
+  }
+  return value;
+}
+
 export function mainnetMarket(marketId: MainnetMarketId): MainnetMarket {
+  if (typeof marketId === "string" && /USDT0/i.test(marketId)) {
+    throw new Error("USDT0 is abandoned");
+  }
+  if (marketId !== "ZEC/USDC" && marketId !== "ZEC/USDT") {
+    throw new Error("Market is not an approved Ethereum Mainnet pair");
+  }
   return MAINNET_MARKETS[marketId];
 }
 
 export function mainnetStablecoin(symbol: MainnetQuoteSymbol): MainnetStablecoin {
-  return MAINNET_STABLECOINS[symbol];
+  return MAINNET_STABLECOINS[assertMainnetQuoteSymbol(symbol)];
 }
 
 export function assertEthereumMainnetChainId(value: unknown): typeof ETHEREUM_MAINNET_CHAIN_HEX {
@@ -112,12 +143,16 @@ export function assertEthereumMainnetChainId(value: unknown): typeof ETHEREUM_MA
 export function assertMainnetStablecoinAddress(
   symbol: MainnetQuoteSymbol,
   value: unknown,
-): MainnetStablecoin["address"] {
+): MainnetStablecoinAddress {
+  const approved = assertMainnetQuoteSymbol(symbol);
   if (typeof value !== "string" || !/^0x[0-9a-fA-F]{40}$/.test(value)) {
-    throw new TypeError(`${symbol} token address must be a 20-byte EVM address`);
+    throw new TypeError(`${approved} token address must be a 20-byte EVM address`);
   }
   const canonical = value.toLowerCase();
-  const expected = mainnetStablecoin(symbol).address;
-  if (canonical !== expected) throw new Error(`${symbol} token is not the approved Ethereum Mainnet asset`);
+  if ((ABANDONED_USDT0_ADDRESSES as readonly string[]).includes(canonical)) {
+    throw new Error("USDT0 is abandoned");
+  }
+  const expected = mainnetStablecoin(approved).address;
+  if (canonical !== expected) throw new Error(`${approved} token is not the approved Ethereum Mainnet asset`);
   return expected;
 }

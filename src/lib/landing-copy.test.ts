@@ -62,7 +62,7 @@ test("landing hero uses the shipped pre-launch product copy", () => {
   assert.equal(LANDING_HERO.heading, "Native ZEC. Native stables. No platform balance.");
   assert.equal(
     LANDING_HERO.supporting,
-    "Phlebas is a prelaunch order-book design for native transparent ZEC against Ethereum Mainnet USDC and USDT. Each future fill is designed to use one Zcash lock and one exact-token EVM lock, funded from the parties’ wallets. Contracts are not deployed, and the matcher never holds the assets.",
+    "Phlebas is a prelaunch venue for native transparent ZEC against Ethereum Mainnet USDC and USDT. Each future fill uses one Zcash lock and one exact-token EVM lock, funded from the parties’ wallets. Contracts are not deployed, and the matcher never holds the assets.",
   );
   assert.equal(LANDING_HERO.primaryAction, "Open terminal");
   assert.equal(LANDING_HERO.primaryHref, "/trade?view=trade");
@@ -189,23 +189,14 @@ test("product nav is Markets Terminal Liquidity Docs Status", () => {
 });
 
 test("operational landing labels drop simulator vocabulary", () => {
-  const operational = corpus({
-    LANDING_BANNER,
-    LANDING_HEADER_STATUS,
-    LANDING_HERO,
-    LANDING_LEDGER,
-    LANDING_LEDGER_PILL,
-    LANDING_NAV,
-    LANDING_SKIP_LINKS,
-    LANDING_TERMINAL_PREVIEW,
-    LANDING_PATHS_INTRO,
-  });
-  assert.doesNotMatch(operational, /\bsimulations?\b/i);
-  assert.doesNotMatch(operational, /\bsimulator\b/i);
-  assert.doesNotMatch(operational, /\bfixture\b/i);
-  assert.doesNotMatch(operational, /\bno-value\b/i);
-  assert.doesNotMatch(operational, /\binspect\b/i);
-  assert.doesNotMatch(operational, /\bwalkthrough\b/i);
-  assert.doesNotMatch(operational, /\bpreview-only\b/i);
-  assert.doesNotMatch(operational, /illustrative fixture/i);
+  assert.match(LANDING_HERO.supporting, /prelaunch venue/);
+  assert.doesNotMatch(LANDING_HERO.supporting, /order-book design/);
+  assert.doesNotMatch(shipped, /\bsimulations?\b/i);
+  assert.doesNotMatch(shipped, /\bsimulator\b/i);
+  assert.doesNotMatch(shipped, /\bfixtures?\b/i);
+  assert.doesNotMatch(shipped, /\bno-value\b/i);
+  assert.doesNotMatch(shipped, /\binspect\b/i);
+  assert.doesNotMatch(shipped, /\bwalkthrough\b/i);
+  assert.doesNotMatch(shipped, /\bpreview-only\b/i);
+  assert.doesNotMatch(shipped, /illustrative fixture/i);
 });

@@ -57,4 +57,10 @@ test("mainnet gate copy has no launch date, countdown, waitlist, or live-funds c
   assert.doesNotMatch(shipped, /\btrustless\b/i);
   assert.doesNotMatch(shipped, /\bis audited\b/i);
   assert.doesNotMatch(shipped, /pZEC is (?:the live|native|the product)/i);
+  assert.doesNotMatch(shipped, /\bsimulations?\b/i);
+  assert.doesNotMatch(shipped, /\bsimulator\b/i);
+  assert.doesNotMatch(shipped, /\bfixtures?\b/i);
+  assert.doesNotMatch(shipped, /\bno-value\b/i);
+  assert.doesNotMatch(shipped, /\binspect\b/i);
+  assert.doesNotMatch(shipped, /\bwalkthrough\b/i);
 });

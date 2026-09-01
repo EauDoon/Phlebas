@@ -27,6 +27,10 @@ test("the public application has no custody-capable receiver, mint observer, or 
   assert.match(scanner, /git", \["ls-files", "-z"\]/);
   assert.doesNotMatch(scanner, /readdir/);
 
+  const walletAction = await readFile(join(root, "src/lib/stablecoin-wallet-action.ts"), "utf8");
+  assert.match(walletAction, /disabled-until-deployment-manifest/);
+  assert.doesNotMatch(walletAction, /eth_sendTransaction|eth_sendRawTransaction|wallet_sendCalls/);
+
   for (const removedPath of [
     "src/app/api/deposit-intent/route.ts",
     "src/lib/deposit-intent.ts",

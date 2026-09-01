@@ -2,7 +2,7 @@ export const LANDING_HERO = {
   eyebrow: "Transparent ZEC markets",
   heading: "Native ZEC. Native stables. No platform balance.",
   supporting:
-    "Phlebas is a prelaunch order-book design for native transparent ZEC against Ethereum Mainnet USDC and USDT. Each future fill is designed to use one Zcash lock and one exact-token EVM lock, funded from the parties’ wallets. Contracts are not deployed, and the matcher never holds the assets.",
+    "Phlebas is a prelaunch venue for native transparent ZEC against Ethereum Mainnet USDC and USDT. Each future fill uses one Zcash lock and one exact-token EVM lock, funded from the parties’ wallets. Contracts are not deployed, and the matcher never holds the assets.",
   primaryAction: "Open terminal",
   primaryHref: "/trade?view=trade",
   secondaryAction: "How settlement works",
