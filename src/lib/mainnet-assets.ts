@@ -1,5 +1,3 @@
-import type { MarketId } from "./market-data.ts";
-
 export const ETHEREUM_MAINNET_CHAIN_ID = 1n;
 export const ETHEREUM_MAINNET_CHAIN_HEX = "0x1" as const;
 export const ETHEREUM_MAINNET_NETWORK = "eip155:1" as const;
@@ -13,6 +11,7 @@ export const ETHEREUM_MAINNET_USDC_ASSET = `${ETHEREUM_MAINNET_NETWORK}/erc20:${
 export const ETHEREUM_MAINNET_USDT_ASSET = `${ETHEREUM_MAINNET_NETWORK}/erc20:${ETHEREUM_MAINNET_USDT_ADDRESS}` as const;
 
 export type MainnetQuoteSymbol = "USDC" | "USDT";
+export type MainnetMarketId = "ZEC/USDC" | "ZEC/USDT";
 export type AllowancePolicy = "exact" | "zero-first-then-exact";
 
 export type MainnetStablecoin = Readonly<{
@@ -29,7 +28,7 @@ export type MainnetStablecoin = Readonly<{
 }>;
 
 export type MainnetMarket = Readonly<{
-  id: MarketId;
+  id: MainnetMarketId;
   settlementPair: "ZEC-USDC" | "ZEC-USDT";
   base: Readonly<{
     symbol: "ZEC";
@@ -79,7 +78,7 @@ const BASE = Object.freeze({
 
 export const MAINNET_STABLECOINS = Object.freeze({ USDC, USDT });
 
-export const MAINNET_MARKETS: Readonly<Record<MarketId, MainnetMarket>> = Object.freeze({
+export const MAINNET_MARKETS: Readonly<Record<MainnetMarketId, MainnetMarket>> = Object.freeze({
   "ZEC/USDC": Object.freeze({
     id: "ZEC/USDC",
     settlementPair: "ZEC-USDC",
@@ -94,7 +93,7 @@ export const MAINNET_MARKETS: Readonly<Record<MarketId, MainnetMarket>> = Object
   }),
 });
 
-export function mainnetMarket(marketId: MarketId): MainnetMarket {
+export function mainnetMarket(marketId: MainnetMarketId): MainnetMarket {
   return MAINNET_MARKETS[marketId];
 }
 
