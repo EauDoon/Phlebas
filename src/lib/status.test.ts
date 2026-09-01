@@ -25,7 +25,7 @@ test("status payload never claims live funds or custody", async () => {
   assert.equal(status.solverLiquidity, "wallet-held-signed-quotes");
   assert.equal(status.authoritativeJournal, "off-vercel");
   assert.equal(status.contracts, "source-undeployed");
-  assert.equal(status.mode, "simulation");
+  assert.equal(status.mode, "preview");
   assert.equal(status.marketData, "illustrative");
   assert.equal(status.countryAccess, "deny-default");
   assert.equal(status.incidents, "architecture-demonstration");

@@ -106,11 +106,12 @@ export function PreviewEducation({ force = false }: { force?: boolean }) {
         <button type="button" disabled={step === 0} onClick={() => setStep((index) => index - 1)}>
           Back
         </button>
-        {last ? (
-          <button type="button" onClick={dismiss}>Enter simulation</button>
-        ) : (
-          <button type="button" onClick={() => setStep((index) => index + 1)}>Continue</button>
-        )}
+        <button
+          type="button"
+          onClick={last ? dismiss : () => setStep((index) => index + 1)}
+        >
+          Continue
+        </button>
       </div>
     </dialog>
   );
