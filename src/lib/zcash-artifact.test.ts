@@ -159,6 +159,13 @@ test("validates every runtime manifest field before committing", () => {
   assert.throws(
     () => commitZcashArtifact({
       ...fixtureManifest(),
+      authorization: { ...fixtureManifest().authorization, preimageHex: "00".repeat(32) },
+    }),
+    /must not contain a claim preimage/,
+  );
+  assert.throws(
+    () => commitZcashArtifact({
+      ...fixtureManifest(),
       policy: {
         ...fixtureManifest().policy,
         feePolicy: { ...fixtureManifest().policy.feePolicy, conventionalFeeZatoshis: "9999" },

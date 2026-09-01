@@ -569,6 +569,8 @@ Stop conditions that must halt the leg and surface to the user:
 
 ## 19. ZEC half of the atomic swap (transparent P2SH)
 
+Historical section: the HASH160 script and transaction-shaped adapter claims below are superseded by `docs/ZCASH_TRANSACTION_LAB.md`. The legacy route is a testnet-only display with no address, transaction, wallet, signing, extraction, or broadcast surface. Treat the numbered claims in this section as historical requirements, not implemented current guarantees.
+
 The ZEC leg of the atomic swap uses a transparent P2SH output that holds
 ZEC until either the buyer reveals the preimage on the Zcash claim
 path or the seller refunds after the lock time. The design is fixed
@@ -588,12 +590,10 @@ version bytes. The Base58Check checksum fails closed on a wrong-network
 or corrupt address. The compressed secp256k1 public key parser rejects
 a wrong length, a wrong prefix, and a leading zero in the x coordinate.
 
-The wallet adapter is a typed interface. It returns an unsigned
-transaction and a transaction id. The signing surface is an injected
-callback. The interface never reads a key from disk and never holds a
-key in memory. The hash function used by the address encoder is the
-Node-native `ripemd160`; the browser path is a follow-up because Web
-Crypto does not expose `ripemd160`.
+The legacy adapter name now fronts only explicitly labeled incomplete
+synthetic display shapes. It returns no transaction ID and has no signer
+callback. The canonical transaction lab remains key-independent and blocks
+wallet readiness while serialized size and relayability are unresolved.
 
 ### 19.2 Adversaries and required controls
 
@@ -643,7 +643,7 @@ Stop conditions that must halt the leg and surface to the user:
 | Invariant | Test |
 | --- | --- |
 | 1 | `zcash-atomic-swap.test.ts::buildAtomicSwapScript produces a script that round-trips through parseAtomicSwapScript` |
-| 2 | `zcash-wallet-adapter.test.ts::hashAtomicSwapParams returns a deterministic hex string` |
+| 2 | `zcash-wallet-adapter.test.ts::legacyAtomicSwapScriptHex returns a deterministic hex string` |
 | 3 | `zcash-atomic-swap.test.ts::buildRefundBranch rejects a lock time out of uint32 range` |
 | 4 | `zcash-atomic-swap.test.ts::buildAtomicSwapScript rejects identical buyer and seller pubkeys` |
 | 5 | `preimage.test.ts::hashPreimage matches the pinned vector` |
@@ -656,8 +656,7 @@ Stop conditions that must halt the leg and surface to the user:
 * Custodial or wrapped representations of ZEC. ADR 0001 is superseded.
 * Cross-chain generalized message passing. The swap is a strict
   hash-and-deadline protocol.
-* A live wallet integration. The signing surface ships only with the
-  wallet adapter in a later PR.
+* A live wallet integration. No signing surface exists or is authorized.
 
 
 ## 20. Atomic-swap observer and watchtower surface
@@ -667,8 +666,8 @@ of P2SH lock addresses, reduces the events to coordinator
 transitions, persists the snapshot to disk, and surfaces the
 watchtower's alerts over HTTP. The service is the second half of
 the read-only surface that PR 1 (EVM lock) and PR 3 (ZEC leg) leave
-open. The signing surface lives in the wallet adapter; the
-observer never holds a key and never signs a transaction.
+open. No signing surface exists in the legacy adapter or the current
+header-only PCZT boundary; the observer never holds a key and never signs a transaction.
 
 ### 20.1 Trust boundary
 
@@ -735,8 +734,7 @@ Stop conditions that must halt the leg and surface to the operator:
 
 ### 20.5 Out of scope for the observer
 
-* Live wallet signing. The signing surface ships only with the
-  wallet adapter in a later PR.
+* Live wallet signing. No signing surface exists or is authorized.
 * Transaction submission. The poller never submits an EVM or ZEC
   transaction.
 * Shielded ZEC. The observer only watches transparent P2SH

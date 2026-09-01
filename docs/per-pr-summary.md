@@ -25,7 +25,9 @@ report.
 | Insertions | 380 |
 | Surface | State machine, preimage primitive, swap state panel, `/swap` view, threat model section 18 |
 
-## PR 3 — Zcash P2SH tx lab and wallet adapter (40 commits)
+## PR 3 — Historical Zcash HASH160 display helpers (40 commits)
+
+This historical PR is superseded by `docs/ZCASH_TRANSACTION_LAB.md`. Its transaction-shaped values are incomplete synthetic displays, not transactions or a wallet adapter.
 
 | Aspect | Detail |
 | --- | --- |

@@ -530,6 +530,8 @@ PR 2 added the deterministic state machine and the read-only `/swap` view. Both 
 
 ## Done this batch (PR 24 + Zcash P2SH tx lab)
 
+Historical note: this batch's HASH160 and wallet-adapter claims are superseded by `docs/ZCASH_TRANSACTION_LAB.md`. The legacy module now exposes only incomplete synthetic display shapes, not transactions, a wallet adapter, or a signing boundary.
+
 PR 3 added the ZEC half of the atomic swap. The address encoder, the
 P2SH script builder, and the wallet adapter are all key-independent.
 The signing surface stays gated. The browser path for `ripemd160` is a

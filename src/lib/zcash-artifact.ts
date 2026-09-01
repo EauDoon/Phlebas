@@ -520,8 +520,13 @@ function validateManifestShape(value: unknown): asserts value is UnsignedTranspa
       || authorization.fundingLockCutoff !== undefined) {
       throw new TypeError("Refund artifact contains claim or funding-only policy fields");
     }
-  } else if (authorization.refundSafetyMargin === undefined || authorization.fundingLockCutoff === undefined) {
-    throw new TypeError("Funding artifact must commit its refund safety policy");
+  } else {
+    if (authorization.preimageHex !== undefined) {
+      throw new TypeError("Funding artifact must not contain a claim preimage");
+    }
+    if (authorization.refundSafetyMargin === undefined || authorization.fundingLockCutoff === undefined) {
+      throw new TypeError("Funding artifact must commit its refund safety policy");
+    }
   }
   if (manifest.kind === "fund") {
     const margin = recordValue(authorization.refundSafetyMargin, "Funding artifact refund safety margin");

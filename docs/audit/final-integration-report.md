@@ -1,5 +1,7 @@
 # Final integration report
 
+Status: Historical snapshot, superseded for Zcash construction and wallet claims by `docs/ZCASH_TRANSACTION_LAB.md`.
+
 This document is the final integration report for the Phlebas
 project. The report summarizes the seven PRs that delivered the
 key-independent components of the native-ZEC atomic swap
@@ -11,7 +13,7 @@ exchange.
 | --- | --- | --- | --- | --- | --- |
 | PR 1 | `feat/evm-conditional-lock` | 10 | 6 | 320 | EVM conditional-lock contracts (Solidity) |
 | PR 2 | `feat/atomic-swap-state-machine` | 8 | 6 | 380 | Atomic-swap state machine + `/swap` view |
-| PR 3 | `feat/zcash-p2sh-wallet-adapter` | 40 | 39 | 2237 | Zcash P2SH tx lab and wallet adapter |
+| PR 3 | `feat/zcash-p2sh-wallet-adapter` | 40 | 39 | 2237 | Historical HASH160 display helpers, now superseded |
 | PR 4 | `feat/atomic-swap-observer` | 42 | 40 | 2827 | Read-only observers, persistent coordinator, watchtower |
 | PR 5 | `feat/matcher-public-market-data` | 30 | 25 | 1554 | Public market data lib + matcher HTTP endpoints |
 | PR 6 | `feat/operations-hardening` | 30 | 27 | 1335 | Operations hardening: metrics, SLO, health aggregator, alert router, log format |
@@ -25,10 +27,10 @@ native-ZEC atomic swap exchange:
 * **EVM leg**: ConditionalLock contract, EIP-712 typed orders,
   EIP-712 verifying contract, pauser and governor roles,
   Foundry test suite.
-* **ZEC leg**: transparent P2SH lock script, ZIP-300 atomic-swap
-  script, preimage primitive, wallet adapter with
-  `buildFundTransaction`, `buildClaimTransaction`,
-  `buildRefundTransaction`, and `hashAtomicSwapParams`.
+* **ZEC leg**: the current key-independent transaction lab commits exact
+  SHA-256 HTLC funding, claim, and refund effecting-data manifests. Complete
+  canonical transactions, a signing wallet adapter, extraction, and broadcast
+  remain unavailable.
 * **State machine**: 11 states, 9 transitions, per-role
   `nextAction` for buyer, seller, and watcher.
 * **Observers**: EVM observer for ConditionalLock events, ZEC
@@ -45,10 +47,10 @@ native-ZEC atomic swap exchange:
 * **Final integration**: release readiness gate, audit
   checklist, evidence pack.
 
-The signing surface is intentionally absent. The wallet
-adapter's `buildFundTransaction`, `buildClaimTransaction`, and
-`buildRefundTransaction` return unsigned transactions. The
-signing surface is the only gated step.
+The historical transaction-shaped values are incomplete synthetic display
+shapes, not unsigned transactions. Full serialization, wallet compatibility,
+signing, extraction, relayability, and broadcast are all separate unresolved
+gates.
 
 ## Test coverage
 

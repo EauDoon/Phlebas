@@ -257,7 +257,7 @@ Phlebas fails closed on:
 * chain reorganization beyond the active policy;
 * matcher sequence gap;
 * coordinator journal mismatch;
-* wallet adapter mismatch;
+* candidate PCZT adapter mismatch;
 * contract pause or code-hash mismatch.
 
 Failing closed preserves the user's refund route whenever the chain permits it. A service outage must not give Phlebas a new spending power.
@@ -294,7 +294,7 @@ contract and a set of P2SH lock addresses, reduces the events to
 coordinator transitions, and persists the snapshot to disk. The
 watchtower reads the coordinator state and emits alerts on stop
 conditions. The observer never holds a key and never signs a
-transaction; the signing surface lives in the wallet adapter.
+transaction. No signing surface exists in the legacy adapter or the current header-only PCZT boundary.
 
 #### Components
 

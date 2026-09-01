@@ -29,7 +29,7 @@ The version bytes are:
 | Mainnet | `0x1CB8` | `0x1CBD` |
 | Testnet | `0x1D25` | `0x1CBA` |
 
-The project targets testnet. The encoder accepts a `network` parameter and defaults to testnet. The encoder refuses the mainnet version on a public deployment, the same way the existing `inspectTransparentDestination` works for both.
+The historical encoder supports both testnet and mainnet primitives. The active legacy `/zcash` display is restricted to testnet and no longer displays a funding address.
 
 ### P2SH script
 
@@ -69,7 +69,7 @@ The historical address and script helpers are key-independent. The synthetic dis
 
 ## Why this design
 
-The P2SH script is the smallest script that satisfies the deterministic safety rules in ADR 0002. One script encodes both terminal outcomes. The hash function is `OP_HASH160`, which is what every Zcash P2SH script uses for hash locks. The lock time is `OP_CHECKLOCKTIMEVERIFY`, which is the standard opcode and the only opcode that the project relies on for the refund deadline.
+The historical script used `OP_HASH160`; the canonical transaction lab instead uses `OP_SHA256`. The historical builder does not enforce the cross-chain refund-margin policy and must not be used for funding.
 
 The legacy display helper is not a wallet adapter. Any future signing boundary requires a separate design and approval.
 
@@ -97,16 +97,16 @@ Zcash transparent addresses use Base58Check. Unified addresses use Bech32m, but 
 
 The historical ZEC encoding surface remains documented, but it is superseded and must not be treated as transaction or wallet evidence.
 
-The ZEC transaction construction, the sighash, the witness assembly, and the live wallet binding remain in a later PR. This PR is the encoding half of the lab; the next PR is the transaction half.
+The superseding transaction lab commits unsigned effecting data, but complete serialization, sighash construction, witness assembly, and live wallet binding remain unavailable.
 
 The legacy display helper accepts preimage bytes only to render an incomplete shape. It provides no cross-chain digest equivalence or signing assurance.
 
 ## Required guardrails
 
-* The address encoder refuses the mainnet version on a public deployment.
+* The active legacy display is testnet-only and displays no funding address.
 * The script builder rejects a buyer pubkey and a seller pubkey that are equal.
-* The script builder rejects a lock time that is not strictly later than the EVM refund deadline.
-* The hash function is `OP_HASH160`, which is `RIPEMD160(SHA256(x))`. No other hash function is used on the ZEC leg.
+* The historical builder does not establish deadline-margin or cross-chain digest equivalence and must not be used for funding.
+* The canonical transaction lab uses `OP_SHA256`; the historical display uses `OP_HASH160` only for legacy vectors.
 * The legacy display module returns only explicitly labeled incomplete synthetic shapes. It has no signer surface and no transaction ID.
 * The signing flag stays off. No live ZEC transaction is broadcast in this PR.
 
@@ -115,7 +115,7 @@ The legacy display helper accepts preimage bytes only to render an incomplete sh
 This ADR advances to a production decision only after:
 
 * the transparent transaction template ships and the sighash is verified against a current Zcash testnet;
-* the wallet adapter ships with a signing surface that the user explicitly authorizes;
+* a separately designed and approved wallet integration proves full transaction compatibility;
 * the ZEC lock time construction is reviewed and tested against a current wallet;
 * an independent review of the script and the address encoding;
 * executed wallet tests for funding, claim, and refund paths;
