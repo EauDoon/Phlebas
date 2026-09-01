@@ -17,10 +17,11 @@ import {
 } from "@/lib/blotter-copy";
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
-import type { RestingOrder } from "@/lib/matcher";
+import type { Book, RestingOrder } from "@/lib/matcher";
 import type { SessionLogEvent } from "@/lib/replay";
 import type { PaperAccount, UserFill } from "@/lib/session";
 import { availableZec, availableQuote, markToMarketQuote, startingMarkQuote } from "@/lib/session";
+import { buildSessionSnapshot, describeSessionSnapshot, serializeSessionSnapshot } from "@/lib/session-export";
 import { ZEC_DECIMALS, PRICE_DECIMALS, QUOTE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
@@ -29,6 +30,7 @@ export function OrderBlotter({
   marketId,
   account,
   lastTicks,
+  book,
   openOrders,
   fills,
   events,
@@ -40,6 +42,7 @@ export function OrderBlotter({
   marketId: MarketId;
   account: PaperAccount;
   lastTicks: bigint;
+  book: Book;
   openOrders: RestingOrder[];
   fills: UserFill[];
   events: SessionLogEvent[];
@@ -94,6 +97,30 @@ export function OrderBlotter({
     }
   }
 
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
+
+  function copySessionSnapshot() {
+    const market = markets[marketId];
+    const snapshot = buildSessionSnapshot({
+      market,
+      account,
+      book,
+      fills,
+      sessionLog: events,
+    });
+    const json = serializeSessionSnapshot(snapshot);
+    const description = describeSessionSnapshot(snapshot);
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      setCopyStatus("failed");
+      return;
+    }
+    void navigator.clipboard.writeText(json).then(
+      () => setCopyStatus("copied"),
+      () => setCopyStatus("failed"),
+    );
+    void description;
+  }
+
   return (
     <section id="session-blotter" tabIndex={-1} className={`${styles.panel} ${styles.blotter}`} aria-labelledby="blotter-title">
       <div className={styles.panelHeader}>
@@ -101,9 +128,14 @@ export function OrderBlotter({
           <span className={styles.eyebrow}>Session blotter</span>
           <h2 id="blotter-title">Open orders, fills, inventory</h2>
         </div>
-        <button type="button" className={styles.textButton} onClick={onReset}>
-          Reset session
-        </button>
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.textButton} onClick={copySessionSnapshot} aria-label="Copy session snapshot JSON to clipboard">
+            {copyStatus === "copied" ? "Copied session JSON" : copyStatus === "failed" ? "Copy failed" : "Copy session JSON"}
+          </button>
+          <button type="button" className={styles.textButton} onClick={onReset}>
+            Reset session
+          </button>
+        </div>
       </div>
 
       <div className={styles.orderTypes} role="tablist" aria-label="Blotter views" aria-orientation="horizontal">
