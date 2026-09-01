@@ -18,11 +18,9 @@ export function LandingPage() {
   return (
     <div className={styles.page}>
       <nav className={styles.skipNav} aria-label="Skip links">
-        {LANDING_SKIP_LINKS.map((link) => {
-          const href = link.href === "#pzec" ? "#pairs" : link.href;
-          const label = link.href === "#pzec" ? "Skip to native pairs" : link.label;
-          return <a className={styles.skipLink} href={href} key={href}>{label}</a>;
-        })}
+        {LANDING_SKIP_LINKS.map((link) => (
+          <a className={styles.skipLink} href={link.href} key={link.href}>{link.label}</a>
+        ))}
       </nav>
       <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
         <strong>Simulation only</strong>
