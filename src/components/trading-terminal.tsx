@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import type { AccessDemo } from "@/lib/access-demo";
 import { CHART_RANGES, nextChartRange } from "@/lib/chart-ranges";
 import { disconnectedWallet, type WalletState } from "@/lib/evm-wallet";
+import { useSkipNavController } from "@/lib/use-skip-nav-controller.ts";
 import {
   INCIDENT_DEMO_QUERY,
   getIncidentDemoServerSnapshot,
@@ -487,10 +488,17 @@ export function TradingTerminal({
   const fixtureTape = feed.showFixtures ? recentTrades[marketId] : [];
 
   const operatingView = initialAccess === "open" && (view === "trade" || view === "liquidity");
+  const skipNavRef = useRef<HTMLElement | null>(null);
+  useSkipNavController(skipNavRef);
 
   return (
     <div className={operatingView ? `${styles.shell} ${styles.operatingShell}` : styles.shell}>
-      <nav className={styles.skipNav} aria-label="Skip links">
+      <nav
+        ref={skipNavRef}
+        className={styles.skipNav}
+        aria-label="Skip links"
+        data-skip-nav-state="hidden"
+      >
         <a className={styles.skipLink} href="#main-content" onClick={activateSkipLink}>Skip to main content</a>
         {initialAccess === "blocked" ? (
           <a className={styles.skipLink} href="#country-block" onClick={activateSkipLink}>Skip to country-block notice</a>
