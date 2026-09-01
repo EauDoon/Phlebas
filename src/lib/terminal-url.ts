@@ -1,6 +1,7 @@
 import { INCIDENT_DEMO_QUERY, isIncidentDemoQuery } from "./gateway-incidents.ts";
 import type { MarketId } from "./market-data.ts";
 import type { FeedStatus } from "./market-state.ts";
+import { DEFAULT_TERMINAL_MODE, isTerminalMode, type TerminalMode } from "./terminal-mode.ts";
 
 export type TerminalView = "trade" | "liquidity" | "bridge" | "architecture";
 
@@ -9,10 +10,14 @@ export function terminalUrl(options: {
   market: MarketId;
   feed?: FeedStatus;
   demo?: string;
+  mode?: TerminalMode;
 }): string {
   const params = new URLSearchParams({ market: options.market });
   if (options.feed && options.feed !== "illustrative") {
     params.set("feed", options.feed);
+  }
+  if (options.mode && options.mode !== DEFAULT_TERMINAL_MODE && isTerminalMode(options.mode)) {
+    params.set("mode", options.mode);
   }
   if (options.view === "architecture" && isIncidentDemoQuery(options.demo)) {
     params.set("demo", INCIDENT_DEMO_QUERY);
