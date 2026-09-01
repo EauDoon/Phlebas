@@ -847,16 +847,16 @@ export function TradeTicket({
               <dt>Leaves the session</dt>
               <dd>
                 {review.side === "buy"
-                  ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote} on Arbitrum Sepolia`
-                  : `${formatAtomicUnits(review.clobDebitAtoms, ZEC_DECIMALS)} ZEC on Arbitrum Sepolia`}
+                  ? `${formatAtomicUnits(review.clobDebitAtoms, QUOTE_DECIMALS, 2)} ${market.quote} in the simulation session`
+                  : `${formatAtomicUnits(review.clobDebitAtoms, ZEC_DECIMALS)} ZEC in the simulation session`}
               </dd>
             </div>
             <div>
               <dt>Arrives in the session</dt>
               <dd>
                 {review.side === "buy"
-                  ? `ZEC on Arbitrum Sepolia, settled as ${market.settlementPair}`
-                  : `${market.quote} on Arbitrum Sepolia, settled as ${market.settlementPair}`}
+                  ? "ZEC in the simulation session"
+                  : `${market.quote} in the simulation session`}
               </dd>
             </div>
             <div>

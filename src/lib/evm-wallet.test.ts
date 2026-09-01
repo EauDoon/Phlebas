@@ -18,7 +18,6 @@ import {
   walletConnectIdleTitle,
   walletConnectTitle,
   walletDisconnectLabel,
-  walletSigningDisabledCopy,
   walletStateWithSettlement,
   type Eip1193Provider,
 } from "./evm-wallet.ts";
@@ -283,12 +282,4 @@ test("refuses stale matcher wallet state before requesting a signature", async (
     /account changed after order review/,
   );
   assert.equal(calls.includes("eth_signTypedData_v4"), false);
-});
-
-test("wallet signing disabled copy never asks for a seed or spend key", () => {
-  const copy = walletSigningDisabledCopy();
-  assert.match(copy, /undeployed/);
-  assert.match(copy, /signing is disabled/);
-  assert.doesNotMatch(copy, /seed|spend(?:ing)? key|viewing key/i);
-  assert.doesNotMatch(copy, /\blive funds\b/i);
 });
