@@ -31,11 +31,11 @@ not a production-readiness or value-safety attestation.
 | --- | --- |
 | ESLint | pass, 0 errors and 0 warnings |
 | TypeScript | pass, 0 errors |
-| Node tests | pass, 867 of 867 |
+| Node tests | pass, 951 of 951 |
 | Foundry tests | pass, 70 of 70 |
-| Secret scan | pass, 452 files scanned |
+| Secret scan | pass, 472 files scanned |
 | Production build | pass, 15 routes |
-| Browser acceptance | pass, 231 of 231; rerun required on the exact candidate commit |
+| Browser acceptance | pass, 231 of 231 on the current candidate commit |
 
 The diagnostic observer and coordinator are deliberately isolated from
 production value authority. They may describe candidate state, but they
