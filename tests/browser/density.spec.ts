@@ -127,13 +127,13 @@ test.describe("desktop operating density", () => {
 });
 
 test.describe("stacked viewports stay inside the page", () => {
-  for (const width of [320, 390, 768, 1440] as const) {
-    test(`${width}px trade and liquidity have no horizontal overflow`, async ({ page }) => {
+  for (const width of [320, 390, 768, 820, 1440] as const) {
+    test(`${width}px landing, trade and liquidity have no horizontal overflow`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
-      await expectNoHorizontalOverflow(page);
-      await page.goto("/liquidity", { waitUntil: "networkidle" });
-      await expectNoHorizontalOverflow(page);
+      for (const path of ["/", "/trade", "/liquidity"] as const) {
+        await page.goto(path, { waitUntil: "networkidle" });
+        await expectNoHorizontalOverflow(page);
+      }
     });
   }
 });

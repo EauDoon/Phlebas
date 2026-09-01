@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { SimulationFrame } from "@/components/simulation-frame";
+import { SITE_FOOTER_SENTENCE } from "@/components/site-footer";
 import { COUNTRY_ACCESS } from "@/lib/country-access";
 
 export const metadata: Metadata = {
   title: "Legal and compliance",
-  description: "Phlebas simulation legal boundary. No licensed entity is operating and no financial service is offered.",
+  description: "Phlebas legal boundary. No licensed entity is operating and no financial service is offered.",
 };
 
 export default function LegalPage() {
@@ -21,7 +22,7 @@ export default function LegalPage() {
     >
       <article id="legal-article" tabIndex={-1} aria-label="Legal and compliance">
         <p>
-          Phlebas is a protocol preview, not a live exchange or an offer of financial services.
+          {SITE_FOOTER_SENTENCE}{" "}
           No licensed entity is operating this interface. Nothing here can be bought, sold,
           deposited, withdrawn, or redeemed.
         </p>

@@ -227,10 +227,15 @@ test("status page links to legal and security without a live-funds claim", async
   assert.match(statusPage, /href="\/trade\?view=architecture"/);
   assert.match(statusPage, /href="\/#launch-gates"/);
   assert.match(statusPage, /from "next\/link"/);
+  assert.match(statusPage, /title="Status"/);
   assert.match(statusPage, /No live funds or custody/);
+  assert.match(statusPage, /This preview does not accept funds/);
+  assert.match(statusPage, /No mainnet funds/);
   assert.match(statusPage, /labeled historical-state demonstrations/);
   assert.match(statusPage, /not an incident feed/);
   assert.doesNotMatch(statusPage, /is audited/);
+  assert.doesNotMatch(statusPage, /Simulation status/);
+  assert.doesNotMatch(statusPage, /no-value interface/);
 });
 
 test("landing and terminal banners stay a public preview", async () => {
@@ -577,13 +582,15 @@ test("landing and terminal banners stay a public preview", async () => {
     /skipNavFocused/,
   );
   assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /id="status-ledger"/);
-  assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /role="list" aria-label="Simulation status ledger"/);
+  assert.match(await readFile(join(root, "src/app/status/page.tsx"), "utf8"), /role="list" aria-label="Status ledger"/);
   assert.match(await readFile(join(root, "src/lib/copy-uri.ts"), "utf8"), /Nothing was sent/);
   assert.match(await readFile(join(root, "src/lib/ticket-shortcuts.ts"), "utf8"), /reviewOpen/);
   const liquidity = await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8");
   assert.match(liquidity, /aria-errormessage/);
   assert.match(liquidity, /amountErrorId/);
   assert.match(liquidity, /id="pool-stats"/);
+  assert.match(liquidity, /Historical pool size/);
+  assert.doesNotMatch(liquidity, /Historical pool volume/);
   assert.match(liquidity, /Retry illustrative feed/);
   assert.match(liquidity, /emptyShareCopy\(selectedPool\.id\)/);
   assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /No session LP shares/);
@@ -746,7 +753,9 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(blotter, /describeSessionLogEvent/);
   assert.match(blotter, /nextBlotterTab/);
   assert.match(blotter, /Enter" \|\| event\.key === " "/);
-  assert.match(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /not a live exchange/);
+  assert.match(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /SITE_FOOTER_SENTENCE/);
+  assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /protocol preview/);
+  assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /simulation legal boundary/);
   assert.match(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /Skip to legal article/);
   assert.match(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /id="legal-article"/);
   assert.match(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /aria-label="Legal and compliance ledger"/);

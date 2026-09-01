@@ -178,15 +178,15 @@ export function BridgePanel({ initialJourney = "deposit" }: { initialJourney?: G
           id="destination-inspector"
           tabIndex={-1}
           role="region"
-          aria-label="Transparent destination inspector"
+          aria-label="Transparent destination check"
         >
           <label className={styles.inputLabel}>
-            <span>Transparent destination inspector</span>
+            <span>Transparent destination check</span>
             <div className={styles.inputShell}>
               <input
                 value={destination}
                 onChange={(event) => setDestination(event.target.value)}
-                aria-label="Transparent destination to inspect"
+                aria-label="Transparent destination to check"
                 autoComplete="off"
                 spellCheck={false}
               />

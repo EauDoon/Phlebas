@@ -76,7 +76,7 @@ export function ArchitecturePanel({ highlightIncidents = false }: { highlightInc
           <strong id="historical-models-title">Historical models</strong>
           <span className={styles.warningPill}>Retired</span>
           <span>
-            Custody and AMM tours remain reachable. They are not the current liquidity product.
+            Custody tours and the AMM are retired historical models. They are not the featured product.
             {" "}
             <Link href="/trade?view=bridge">Deposit states</Link>
             {" · "}

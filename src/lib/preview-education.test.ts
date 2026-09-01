@@ -20,24 +20,28 @@ test("education returns when local storage is empty or stale", () => {
 test("education copy stays a public-preview briefing, not consent", () => {
   assert.equal(PREVIEW_EDUCATION_STEPS.length, 3);
   for (const step of PREVIEW_EDUCATION_STEPS) {
-    assert.doesNotMatch(step.title, /I agree/i);
-    assert.doesNotMatch(step.body, /I agree/i);
-    assert.doesNotMatch(step.title, /\bsimulation\b/i);
-    assert.doesNotMatch(step.body, /\bsimulation\b/i);
+    const copy = `${step.title} ${step.body}`;
+    assert.doesNotMatch(copy, /I agree/i);
+    assert.doesNotMatch(copy, /\bsimulation\b/i);
+    assert.doesNotMatch(copy, /\bsimulator\b/i);
+    assert.doesNotMatch(copy, /\bfixture\b/i);
+    assert.doesNotMatch(copy, /\bno-value\b/i);
+    assert.doesNotMatch(copy, /\binspect\b/i);
+    assert.doesNotMatch(copy, /\bwalkthrough\b/i);
     assert.doesNotMatch(step.body, /\blive funds\b/i);
     assert.doesNotMatch(step.body, /is trustless/);
   }
   assert.equal(PREVIEW_EDUCATION_STEPS[0].title, "This public preview uses illustrative data.");
   assert.equal(PREVIEW_EDUCATION_STEPS[0].body, "No chain is connected.");
   assert.equal(PREVIEW_EDUCATION_STEPS[1].title, "Pairs are native ZEC against USDC and USDT.");
-  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /not live settlement/i);
-  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /not shielded/i);
-  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /not a trustless bridge/i);
-  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /USDT0 is abandoned/);
+  assert.equal(
+    PREVIEW_EDUCATION_STEPS[1].body,
+    "Not live settlement, not shielded, not a trustless bridge. USDT0 is abandoned.",
+  );
   assert.doesNotMatch(PREVIEW_EDUCATION_STEPS[1].body, /pZEC is the planned settlement receipt/);
   assert.equal(PREVIEW_EDUCATION_STEPS[2].title, "Actions stay in this browser.");
-  assert.match(PREVIEW_EDUCATION_STEPS[2].body, /wallets and contracts are enabled/);
-  assert.equal(PREVIEW_EDUCATION_VERSION, "2026-09-01-2");
+  assert.equal(PREVIEW_EDUCATION_STEPS[2].body, "Until wallets and contracts are enabled.");
+  assert.equal(PREVIEW_EDUCATION_VERSION, "2026-09-01-3");
   assert.equal(PREVIEW_EDUCATION_STORAGE_KEY, "phlebas.previewEducationVersion");
 });
 
