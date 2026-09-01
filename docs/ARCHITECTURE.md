@@ -30,7 +30,7 @@ The current repository contains a Next.js no-value simulation, undeployed Arbitr
 | --- | --- | --- |
 | Web application | Vercel-hosted no-value simulation | Public interface and unsigned transaction preparation |
 | Market data | Illustrative fixtures plus session fills | Signed and independently monitored public feeds |
-| Order book | In-browser matcher and optional loopback operator | Persistent signed-order matcher with receipts |
+| Order book | In-browser matcher plus a persistent loopback no-value matcher | Privately hosted signed-order matcher with receipts after release approval |
 | Settlement | Local inventory updates and undeployed legacy Sepolia contracts | One two-chain atomic swap per fill |
 | Zcash path | Key-independent transparent HTLC and unsigned-artifact lab, plus superseded gateway stubs | Wallet-reviewed P2SH fund, claim, and refund transactions |
 | EVM path | Optional Sepolia wallet flow against an undeployed legacy manifest | Exact-token conditional-lock contract |
@@ -164,6 +164,8 @@ The matcher accepts versioned signed orders that bind:
 EVM authorization uses [EIP-712](https://eips.ethereum.org/EIPS/eip-712). Zcash wallet authorization requires a separate, wallet-supported format. The matcher cannot treat an EVM signature as authority over ZEC.
 
 Price-time matching, GTC, IOC, FOK, partial fills, cancellation, fee caps, and side-aware integer rounding are deterministic. Sequence receipts and checkpoints make omission or reordering visible. They do not make the matcher trustless.
+
+The loopback matcher validates signed order and solver intents, applies one immutable zero-fee policy, appends a hash-chained single-writer journal, reconstructs state by deterministic replay, and exposes bounded feeds with stable cursors. Every selected fill produces only a blocked no-value plan. The service contains no wallet key, transaction builder, signer, broadcast path, or chain authority, and it never runs on Vercel. Its journal is coordination evidence, not canonical settlement evidence.
 
 ## Solver liquidity
 

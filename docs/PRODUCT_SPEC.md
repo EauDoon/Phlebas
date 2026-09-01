@@ -113,6 +113,8 @@ Contract wallets require ERC-1271 validation on the EVM path. That support remai
 
 The matcher applies deterministic price-time priority.
 
+Implementation status on 01-09-2026: the local persistent domain implements the semantics below, authenticated control messages, signed wallet-held solver quotes, bounded route comparison, hash-chained replay, atomic checkpoints, and blocked no-value swap plans. The public Vercel interface still uses the in-browser simulation. No transaction builder, chain action, live fund, or production matcher deployment is included.
+
 It supports:
 
 * GTC resting orders;

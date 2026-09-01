@@ -1,9 +1,11 @@
 # Primary sources
 
-This register supports the reference design as reviewed on 30-08-2026. Runtime implementations must pin and recheck the applicable version before use.
+This register supports the reference design as reviewed on 01-09-2026. Runtime implementations must pin and recheck the applicable version before use.
 
 ## Zcash
 
+- [Zcash Protocol Specification](https://zips.z.cash/protocol/protocol.pdf)
+- [BIP 65: OP_CHECKLOCKTIMEVERIFY](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)
 - [NU6.3 activation](https://z.cash/upgrade/nu6-3/)
 - [zcashd deprecation and end of support](https://z.cash/support/zcashd-deprecation/)
 - [Zebra releases](https://github.com/ZcashFoundation/zebra/releases/latest)
@@ -13,6 +15,7 @@ This register supports the reference design as reviewed on 30-08-2026. Runtime i
 - [ZIP 321: Payment Request URIs](https://zips.z.cash/zip-0321)
 - [ZIP 315: Best Practices for Wallet Handling of Chain Rollbacks](https://zips.z.cash/zip-0315)
 - [ZIP 203: Transaction Expiry](https://zips.z.cash/zip-0203)
+- [ZIP 229: NU6.3 Transaction Format](https://zips.z.cash/zip-0229)
 - [ZIP 317: Proportional Transfer Fee Mechanism](https://zips.z.cash/zip-0317)
 - [ZIP 48: Multi-signature Support](https://zips.z.cash/zip-0048)
 - [ZIP 300: Cross-Chain Atomic Transactions](https://zips.z.cash/zip-0300)
@@ -32,7 +35,10 @@ This register supports the reference design as reviewed on 30-08-2026. Runtime i
 ## Arbitrum, tokens, and contracts
 
 - [Arbitrum chain information](https://docs.arbitrum.io/for-devs/dev-tools-and-resources/chain-info)
+- [Inside Arbitrum Nitro](https://docs.arbitrum.io/how-arbitrum-works/inside-arbitrum-nitro)
 - [Circle USDC contract addresses](https://developers.circle.com/stablecoins/usdc-contract-addresses)
+- [Circle EIP-3009 signing and USDC base units](https://developers.circle.com/gateway/nanopayments/howtos/eip-3009-signing)
+- [Tether supported protocols](https://tether.to/en/supported-protocols/)
 - [Tether legal](https://tether.to/en/legal/)
 - USDT0 sources are retained only as the abandoned listing path: [USDT0 on Arbitrum](https://usdt0.to/ecosystem/arbitrum), [USDT0 developer documentation](https://docs.usdt0.to/technical-documentation/developer/)
 - [ERC-20](https://eips.ethereum.org/EIPS/eip-20)

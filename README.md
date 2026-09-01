@@ -42,6 +42,7 @@ Native ZEC and an EVM token cannot share one Uniswap v2 contract state. Phlebas 
 * Responsive landing page and trading terminal for `ZEC/USDC` and `ZEC/USDT`
 * Dense order book, recent trades, chart, order ticket, open orders, fills, and settlement views
 * In-browser price-time matcher with GTC, IOC, FOK, partial fills, cancellation, and deterministic replay
+* Loopback-only persistent matcher with authenticated order and solver intents, one hash-chained single-writer journal, deterministic recovery, stable feed cursors, and blocked no-value swap plans
 * Integer prices, sizes, quote amounts, fees, and side-aware rounding
 * Click-to-price depth, worst-price market protection, and feed-state safety gates
 * No-value native swap walkthrough for authorization, funding, observation, confirmation, and claim, with explicit dispute, refund, expiry, and recovery domain states
@@ -66,9 +67,9 @@ The native-swap reference engine accepts only a zero protocol fee. The fee field
 
 ### Local and legacy surfaces
 
-The repository still contains an undeployed Arbitrum Sepolia contract candidate, a loopback matcher, a local testnet TEX gateway, and historical pZEC and AMM simulations. These are development fixtures. They do not define the native-settlement target and must not run on Vercel.
+The repository still contains an undeployed Arbitrum Sepolia contract candidate, a persistent loopback matcher, a local testnet TEX gateway, and historical pZEC and AMM simulations. These are development fixtures. The matcher starts unconfigured, holds no keys, constructs no transactions, and cannot sign or broadcast. None of these local services may run on Vercel.
 
-The active architecture is recorded in [ADR 0002](docs/adr/0002-native-zec-atomic-settlement.md).
+The active settlement architecture is recorded in [ADR 0002](docs/adr/0002-native-zec-atomic-settlement.md). The persistent no-value matcher boundary is recorded in [ADR 0003](docs/adr/0003-persistent-native-matcher.md).
 
 ## User journey
 
@@ -98,6 +99,7 @@ The current public app simulates this journey. Wallet signing and chain broadcas
 | `docs/THREAT_MODEL.md` | Native settlement threats, controls, tests, and stop conditions |
 | `docs/WALLET_COMPATIBILITY.md` | Wallet evidence requirements and Testnet qualification |
 | `docs/ZCASH_TRANSACTION_LAB.md` | Exact transparent HTLC, unsigned artifact, fee, expiry, and wallet-review boundaries |
+| `docs/adr/0003-persistent-native-matcher.md` | Persistent matcher, recovery, HTTP, and no-value settlement boundaries |
 | `docs/OPERATIONS.md` | Service, observability, recovery, and incident requirements |
 | `docs/BROWSER_ACCEPTANCE.md` | Reproducible interface and responsive checks |
 | `docs/SOURCES.md` | Primary protocol, contract, wallet, and regulatory references |

@@ -8,8 +8,10 @@ import {
 } from "./order-domain.ts";
 
 export const VENUE_CLOB = 1;
-export const VENUE_AMM = 2;
-export const KNOWN_VENUES = VENUE_CLOB | VENUE_AMM;
+export const VENUE_SOLVER = 2;
+/** Legacy alias. Native settlement treats bit 2 as wallet-held solver liquidity. */
+export const VENUE_AMM = VENUE_SOLVER;
+export const KNOWN_VENUES = VENUE_CLOB | VENUE_SOLVER;
 const ZERO_BYTES32 = `0x${"00".repeat(32)}`;
 
 export type OrderPair = Readonly<{

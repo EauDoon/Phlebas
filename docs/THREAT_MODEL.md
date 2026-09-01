@@ -155,6 +155,16 @@ Phlebas depends on the following trusted or governed parties:
 - Native USDT depends on Tether issuer, blacklist, freeze, and contract controls. USDT0 is abandoned and is not a listed quote.
 - Vercel and the domain provider can censor or replace one interface.
 
+### Persistent matcher threat delta
+
+| Threat | Current control | Residual risk |
+| --- | --- | --- |
+| Journal mutation, truncation, gaps, or configuration drift | Hash-chained records, checkpoint and state-root verification, immutable configuration hash, and fail-closed replay | Pre-acceptance omission and delayed publication remain possible |
+| Concurrent writers or unsafe stale-lock removal | One owned writer lock and refusal to remove changed lock bytes | Production fencing, backups, supervision, and recovery drills remain release gates |
+| Signature replay, request confusion, or abusive JSON | Domain-bound digests, nonce and account epochs, exact idempotency, strict bounded JSON, rate limits, and state caps | Production authentication, access control, and load evidence remain unresolved |
+| Fee-bearing or non-deterministic settlement output | Explicit zero-fee policy, integer matching, bounded routes, deterministic replay, and blocked per-fill plans | Wallet commitment and canonical chain evidence are not implemented by the matcher |
+| Matcher custody or unilateral settlement | No keys, transaction bytes, signer, broadcast method, or unilateral spending authority | The operator can still censor, delay, or reorder before publishing evidence |
+
 Accurate claim: Phlebas is planned as a hybrid exchange with onchain settlement and constrained AMM contracts. Whether mainnet contracts may be called without an approved eligibility mechanism remains unresolved.
 
 Inaccurate claims:
