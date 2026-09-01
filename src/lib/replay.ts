@@ -97,7 +97,7 @@ export function replayLog(events: readonly SessionLogEvent[]): {
 export function describeSessionLogEvent(event: SessionLogEvent): string {
   if (event.kind === "submit") {
     const expiry = event.expiryUnix === 0n ? "none" : event.expiryUnix.toString();
-    return `${event.side} ${event.tif} ${event.id} expiry ${expiry}`;
+    return `${event.side} ${event.tif} expiry ${expiry}`;
   }
   if (event.kind === "cancel") {
     return event.orderId;

@@ -85,7 +85,7 @@ test("session log lines include expiry when a ticket is confirmed", () => {
       sizeAtoms: 1_00000000n,
       expiryUnix: 0n,
     }),
-    "buy GTC user-1 expiry none",
+    "buy GTC expiry none",
   );
   assert.equal(
     describeSessionLogEvent({
@@ -98,6 +98,6 @@ test("session log lines include expiry when a ticket is confirmed", () => {
       sizeAtoms: 1_00000000n,
       expiryUnix: 1700000000n,
     }),
-    "sell IOC user-2 expiry 1700000000",
+    "sell IOC expiry 1700000000",
   );
 });
