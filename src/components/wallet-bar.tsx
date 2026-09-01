@@ -28,6 +28,7 @@ import {
   walletSessionInvalidationCopy,
   type WalletSessionSubscription,
 } from "@/lib/evm-wallet-session";
+import { shortenEvmDisplay } from "@/lib/wallet-bar-copy";
 
 import styles from "./terminal.module.css";
 
@@ -150,10 +151,12 @@ export function WalletBar({
     }
   }
 
-  if (wallet.address && !wallet.error) {
-    return (
-      <div className={styles.headerActions}>
-        <span className={styles.network}>Ethereum Mainnet</span>
+  const connectedAddress = wallet.address && !wallet.error ? wallet.address : null;
+
+  return (
+    <div className={styles.headerActions} role="group" aria-label="Wallet">
+      <span className={styles.network}>Ethereum Mainnet</span>
+      {connectedAddress ? (
         <button
           type="button"
           className={styles.connectButton}
@@ -161,45 +164,45 @@ export function WalletBar({
             invalidateConnection();
             onChange(disconnectedWallet);
           }}
-          aria-label={walletDisconnectLabel(wallet.address, settlementPair)}
+          aria-label={walletDisconnectLabel(connectedAddress, settlementPair)}
         >
-          {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
+          {shortenEvmDisplay(connectedAddress)}
         </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.headerActions}>
-      <span className={styles.network}>Ethereum Mainnet</span>
-      {providers.length > 1 ? (
-        <select
-          aria-label="EVM wallet provider"
-          value={selectedProviderId ?? providers[0]?.info.uuid}
-          onChange={(event) => setSelectedProviderId(event.currentTarget.value)}
-          disabled={busy}
-        >
-          {providers.map((entry) => (
-            <option key={entry.info.uuid} value={entry.info.uuid}>
-              {entry.info.name} ({entry.info.rdns})
-            </option>
-          ))}
-        </select>
-      ) : null}
-      <button
-        type="button"
-        className={styles.connectButton}
-        onClick={() => void connect()}
-        disabled={busy}
-        aria-label="Connect Ethereum Mainnet wallet"
-        title={walletConnectBarTitle(settlementPair, { busy, error: errorCopy })}
-      >
-        {busy ? "Connecting" : "Connect wallet"}
-      </button>
-      {wallet.error && (
-        <span className={styles.inlineNotice} role="status" aria-label="Wallet connection rejection">
-          {errorCopy}
-        </span>
+      ) : (
+        <>
+          {providers.length > 1 ? (
+            <div className={styles.inputShell}>
+              <select
+                aria-label="EVM wallet provider"
+                value={selectedProviderId ?? providers[0]?.info.uuid}
+                onChange={(event) => setSelectedProviderId(event.currentTarget.value)}
+                disabled={busy}
+              >
+                {providers.map((entry) => (
+                  <option key={entry.info.uuid} value={entry.info.uuid}>
+                    {entry.info.name} ({entry.info.rdns})
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className={styles.connectButton}
+            onClick={() => void connect()}
+            disabled={busy}
+            aria-busy={busy || undefined}
+            aria-label="Connect Ethereum Mainnet wallet"
+            title={walletConnectBarTitle(settlementPair, { busy, error: errorCopy })}
+          >
+            {busy ? "Connecting" : "Connect wallet"}
+          </button>
+          {wallet.error && (
+            <span className={styles.inlineNotice} role="status" aria-label="Wallet connection rejection">
+              {errorCopy}
+            </span>
+          )}
+        </>
       )}
     </div>
   );

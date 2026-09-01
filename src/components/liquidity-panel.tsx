@@ -83,29 +83,142 @@ const QUOTE_FIELD_LABELS = {
   recipients: "Recipients",
 } as const;
 
-export function LiquidityPanel({
+function SolverQuotesDocument({
   marketId,
-  feedStatus,
   onMarketChange,
-  onFeedChange,
-  onRetryFeed,
-  variant = "quotes",
 }: {
   marketId: MarketId;
-  feedStatus: FeedStatus;
   onMarketChange: (market: MarketId) => void;
-  onFeedChange: (status: FeedStatus) => void;
-  onRetryFeed: () => void;
-  variant?: "quotes" | "historical-amm";
 }) {
-  const amountHelpId = useId();
-  const amountErrorId = useId();
   const poolRefs = useRef<Partial<Record<PoolId, HTMLButtonElement | null>>>({});
-  const feedRefs = useRef<Partial<Record<FeedStatus, HTMLButtonElement | null>>>({});
-  const [feedFocusId, setFeedFocusId] = useState<FeedStatus>(feedStatus);
   const selectedPool = marketId === "ZEC/USDT" ? pools[1] : pools[0];
   const quoteFields = solverQuoteFieldCopy(selectedPool.id);
   const quoteRisks = solverQuoteRiskEntries();
+
+  function selectPool(id: PoolId) {
+    onMarketChange(id);
+  }
+
+  function onPoolKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: PoolId) {
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      const next = nextMarketId(id, 1);
+      selectPool(next);
+      poolRefs.current[next]?.focus();
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const next = nextMarketId(id, -1);
+      selectPool(next);
+      poolRefs.current[next]?.focus();
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      selectPool(MARKET_IDS[0]);
+      poolRefs.current[MARKET_IDS[0]]?.focus();
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      selectPool(MARKET_IDS[MARKET_IDS.length - 1]);
+      poolRefs.current[MARKET_IDS[MARKET_IDS.length - 1]]?.focus();
+    }
+  }
+
+  return (
+    <div className={styles.featureGrid}>
+      <section className={`${styles.panel} ${styles.featurePrimary}`} aria-labelledby="liquidity-title">
+        <div className={styles.panelHeader}>
+          <div>
+            <span className={styles.eyebrow}>Maker and solver quotes</span>
+            <h2 id="liquidity-title">Solver quotes</h2>
+          </div>
+          <span className={styles.statusDot}>Wallet-held inventory</span>
+        </div>
+
+        <div
+          id="liquidity-pools"
+          className={styles.poolTabs}
+          role="radiogroup"
+          aria-label="Quote pair"
+          tabIndex={-1}
+        >
+          {pools.map((pool) => (
+            <button
+              type="button"
+              key={pool.id}
+              role="radio"
+              aria-checked={selectedPool.id === pool.id}
+              className={selectedPool.id === pool.id ? styles.poolActive : undefined}
+              tabIndex={selectedPool.id === pool.id ? 0 : -1}
+              ref={(node) => {
+                poolRefs.current[pool.id] = node;
+              }}
+              onClick={() => selectPool(pool.id)}
+              onKeyDown={(event) => onPoolKeyDown(event, pool.id)}
+            >
+              <span>{pool.id}</span>
+            </button>
+          ))}
+        </div>
+
+        <p className={styles.featureLead}>{solverQuoteInventoryCopy()}</p>
+        <p className={styles.gateNotice} aria-label="Review custody notice">
+          This panel labels native ZEC. It is not live settlement. The matcher is not trustless.
+        </p>
+
+        <dl className={styles.ticketSummary}>
+          {SOLVER_QUOTE_SIGNED_FIELDS.map((field) => (
+            <div key={field}>
+              <dt>{QUOTE_FIELD_LABELS[field]}</dt>
+              <dd>{quoteFields[field]}</dd>
+            </div>
+          ))}
+        </dl>
+
+        <p className={styles.inlineNotice}>
+          No shared AMM shares. Unused capacity stays in the provider wallet.
+        </p>
+        <button type="button" className={styles.primaryAction} disabled>
+          Wallet actions stay disabled
+        </button>
+      </section>
+
+      <aside className={`${styles.panel} ${styles.riskCard}`} aria-labelledby="lp-risk-title">
+        <span className={styles.eyebrow}>Quote risk</span>
+        <h2 id="lp-risk-title" tabIndex={-1}>Named quote risks</h2>
+        <ul className={styles.cleanList}>
+          {quoteRisks.map((entry) => (
+            <li key={entry.risk}>
+              <strong>{entry.risk}</strong>
+              {" — "}
+              {entry.copy}
+            </li>
+          ))}
+        </ul>
+      </aside>
+    </div>
+  );
+}
+
+function HistoricalAmmPanel({
+  marketId,
+  feedStatus,
+  onFeedChange,
+  onRetryFeed,
+}: {
+  marketId: MarketId;
+  feedStatus: FeedStatus;
+  onFeedChange: (status: FeedStatus) => void;
+  onRetryFeed: () => void;
+}) {
+  const amountHelpId = useId();
+  const amountErrorId = useId();
+  const feedRefs = useRef<Partial<Record<FeedStatus, HTMLButtonElement | null>>>({});
+  const [feedFocusId, setFeedFocusId] = useState<FeedStatus>(feedStatus);
+  const selectedPool = marketId === "ZEC/USDT" ? pools[1] : pools[0];
   const [amount, setAmount] = useState("10");
   const [poolState, setPoolState] = useState(initialPools);
   const [heldShares, setHeldShares] = useState<Record<PoolId, bigint>>(emptyShares);
@@ -190,10 +303,6 @@ export function LiquidityPanel({
       : { hodlQuoteAtoms: 0n, positionQuoteAtoms: 0n, lossQuoteAtoms: 0n },
   }));
 
-  function selectPool(id: PoolId) {
-    onMarketChange(id);
-  }
-
   function selectFeed(id: FeedStatus) {
     setReview(null);
     setFeedFocusId(id);
@@ -228,34 +337,6 @@ export function LiquidityPanel({
       return;
     }
     selectFeed(id);
-  }
-
-  function onPoolKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: PoolId) {
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      event.preventDefault();
-      const next = nextMarketId(id, 1);
-      selectPool(next);
-      poolRefs.current[next]?.focus();
-      return;
-    }
-    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      event.preventDefault();
-      const next = nextMarketId(id, -1);
-      selectPool(next);
-      poolRefs.current[next]?.focus();
-      return;
-    }
-    if (event.key === "Home") {
-      event.preventDefault();
-      selectPool(MARKET_IDS[0]);
-      poolRefs.current[MARKET_IDS[0]]?.focus();
-      return;
-    }
-    if (event.key === "End") {
-      event.preventDefault();
-      selectPool(MARKET_IDS[MARKET_IDS.length - 1]);
-      poolRefs.current[MARKET_IDS[MARKET_IDS.length - 1]]?.focus();
-    }
   }
 
   function requestMintReview() {
@@ -376,306 +457,258 @@ export function LiquidityPanel({
 
   const liveNotice = isLpPauseNotice(notice) ? lpPauseNoticeCopy(markets[marketId].settlementPair, tradingPaused) : notice;
 
-  if (variant === "historical-amm") {
-    return (
-      <section
-        id="historical-amm"
-        className={`${styles.panel} ${styles.featurePrimary}`}
-        aria-labelledby="pool-stats-heading"
-        tabIndex={-1}
-      >
-        <div className={styles.panelHeader}>
-          <div>
-            <span className={styles.eyebrow}>Historical models</span>
-            <h2 id="pool-stats-heading">Historical AMM model</h2>
-          </div>
-          <span className={styles.warningPill}>Retired</span>
+  return (
+    <section
+      id="historical-amm"
+      className={`${styles.panel} ${styles.featurePrimary}`}
+      aria-labelledby="pool-stats-heading"
+      tabIndex={-1}
+    >
+      <div className={styles.panelHeader}>
+        <div>
+          <span className={styles.eyebrow}>Historical models</span>
+          <h2 id="pool-stats-heading">Historical AMM model</h2>
         </div>
-        <p className={styles.featureLead}>
-          Retired constant-product math. It is not the current liquidity product.
+        <span className={styles.warningPill}>Retired</span>
+      </div>
+      <p className={styles.featureLead}>
+        Retired constant-product math. It is not the current liquidity product.
+      </p>
+      {heldShares[selectedPool.id] === 0n && (
+        <p className={styles.inlineNotice}>
+          {emptyShareCopy(selectedPool.id)}
         </p>
-        {heldShares[selectedPool.id] === 0n && (
-          <p className={styles.inlineNotice}>
-            {emptyShareCopy(selectedPool.id)}
-          </p>
-        )}
+      )}
 
-        <div className={styles.inputLabel}>
-          <span>Market data</span>
-          <div className={styles.selectorTabs} role="radiogroup" aria-label="Market data state">
-            {FEED_STATUSES.map((id) => (
-              <button
-                type="button"
-                key={id}
-                role="radio"
-                aria-checked={feedStatus === id}
-                tabIndex={feedFocusId === id ? 0 : -1}
-                className={feedStatus === id ? styles.selectorActive : undefined}
-                ref={(node) => {
-                  feedRefs.current[id] = node;
-                }}
-                onClick={() => selectFeed(id)}
-                onKeyDown={(event) => onFeedKeyDown(event, id)}
-              >
-                {FEED_STATUS_LABELS[id]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {feedStatus !== "illustrative" && (
-          <div className={styles.ticketBlocked} role="status">
-            <strong>{gate.heading}</strong>
-            <p>
-              {gate.message}
-              {gate.asOf ? ` As of ${gate.asOf}.` : ""}
-              {" "}
-              {feedBlocksLp ? lpFeedBlockCopy() : lpEmptyBookCopy()}
-            </p>
-            {onRetryFeed && (
-              <button type="button" className={styles.textButton} onClick={onRetryFeed}>
-                Retry illustrative feed
-              </button>
-            )}
-          </div>
-        )}
-
-        {!gate.canReview && feedStatus === "illustrative" && (
-          <p className={styles.gateNotice}>
-            <strong>{gate.heading}</strong>
-            {" "}
-            {gate.message}
-            {" "}
-            <button type="button" className={styles.textButton} onClick={() => { setReview(null); setFeedFocusId("illustrative"); onRetryFeed(); }}>
-              Retry illustrative feed
-            </button>
-          </p>
-        )}
-
-        <div className={styles.depositStack}>
-          <label className={styles.assetInput}>
-            <span>ZEC amount</span>
-            <input
-              inputMode="decimal"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-              aria-label="ZEC liquidity amount"
-              aria-invalid={!amountPreview.valid}
-              aria-errormessage={!amountPreview.valid ? amountErrorId : undefined}
-              aria-describedby={!amountPreview.valid ? `${amountErrorId} ${amountHelpId}` : amountHelpId}
-            />
-            <strong>ZEC</strong>
-          </label>
-          <span className={styles.plusMark}>+</span>
-          <div className={styles.assetInput}>
-            <span>Balanced quote amount</span>
-            <output>
-              {amountPreview.valid ? amountPreview.balancedQuote : "0.00"}
-            </output>
-            <strong>{selectedPool.quote}</strong>
-          </div>
-        </div>
-        {!amountPreview.valid ? (
-          <p id={amountErrorId} className={styles.inlineNotice} role="alert">{amountPreview.message}</p>
-        ) : null}
-        <p id={amountHelpId} className={styles.inlineNotice} aria-live="polite">
-          {amountPreview.valid ? amountPreview.message : "Use a positive plain decimal with no more than 8 places. Integer quote."}
-        </p>
-
-        {review ? (
-          <div className={styles.reviewBlock}>
-            <p className={styles.gateNotice} aria-label="Historical AMM review notice">
-              This historical AMM model labels native ZEC. It is not live settlement. The matcher is not trustless.
-            </p>
-            <dl className={styles.ticketSummary}>
-              <div>
-                <dt>Leaves the session</dt>
-                <dd>
-                  {review.kind === "mint"
-                    ? `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} from local preview balances`
-                    : `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC from the local preview balance`}
-                </dd>
-              </div>
-              <div>
-                <dt>Arrives in the session</dt>
-                <dd>
-                  {review.kind === "mint"
-                    ? `${review.shares.toString()} local LP shares for ${selectedPool.id}`
-                    : `${review.swapOut} ${selectedPool.quote} in the local preview balance`}
-                </dd>
-              </div>
-              <div>
-                <dt>Worst acceptable price</dt>
-                <dd>
-                  {review.kind === "mint"
-                    ? "Balanced add. No swap price bound."
-                    : `${review.swapOut} ${selectedPool.quote} out, integer quote`}
-                </dd>
-              </div>
-              <div>
-                <dt>Fees</dt>
-                <dd>{feeEnvelopeCopy()} AMM swap fee paid in ZEC: {review.swapFee}.</dd>
-              </div>
-              <div>
-                <dt>Custody and redemption</dt>
-                <dd>{custodyRedemptionCopy()}</dd>
-              </div>
-              <div>
-                <dt>Public linkability</dt>
-                <dd>{publicLinkabilityCopy("LP action")}</dd>
-              </div>
-            </dl>
-            <p className={styles.inlineNotice}>
-              Any future transparent Zcash and Ethereum Mainnet LP-related activity would be publicly linkable. This local preview makes no chain transaction.
-              LPs also face stablecoin risk, smart-contract risk, impermanent loss, and toxic flow from the order book.
-            </p>
-            <p className={styles.inlineNotice}>
-              Confirm runs the local integer pool. Wallet actions stay disabled.
-            </p>
+      <div className={styles.inputLabel}>
+        <span>Market data</span>
+        <div className={styles.selectorTabs} role="radiogroup" aria-label="Market data state">
+          {FEED_STATUSES.map((id) => (
             <button
               type="button"
-              className={styles.primaryAction}
-              onClick={review.kind === "mint" ? executeMint : executeSwap}
+              key={id}
+              role="radio"
+              aria-checked={feedStatus === id}
+              tabIndex={feedFocusId === id ? 0 : -1}
+              className={feedStatus === id ? styles.selectorActive : undefined}
+              ref={(node) => {
+                feedRefs.current[id] = node;
+              }}
+              onClick={() => selectFeed(id)}
+              onKeyDown={(event) => onFeedKeyDown(event, id)}
             >
-              Complete {review.kind}
+              {FEED_STATUS_LABELS[id]}
             </button>
-            <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
-              Back
-            </button>
-          </div>
-        ) : null}
+          ))}
+        </div>
+      </div>
 
-        <div className={styles.tourNav}>
-          <button type="button" onClick={requestMintReview} disabled={!mintEnabled}>Review mint</button>
-          <button type="button" onClick={burnSessionShares} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
-          <button type="button" onClick={requestSwapReview} disabled={!swapEnabled}>Review swap</button>
+      {feedStatus !== "illustrative" && (
+        <div className={styles.ticketBlocked} role="status">
+          <strong>{gate.heading}</strong>
+          <p>
+            {gate.message}
+            {gate.asOf ? ` As of ${gate.asOf}.` : ""}
+            {" "}
+            {feedBlocksLp ? lpFeedBlockCopy() : lpEmptyBookCopy()}
+          </p>
+          {onRetryFeed && (
+            <button type="button" className={styles.textButton} onClick={onRetryFeed}>
+              Retry illustrative feed
+            </button>
+          )}
+        </div>
+      )}
+
+      {!gate.canReview && feedStatus === "illustrative" && (
+        <p className={styles.gateNotice}>
+          <strong>{gate.heading}</strong>
+          {" "}
+          {gate.message}
+          {" "}
+          <button type="button" className={styles.textButton} onClick={() => { setReview(null); setFeedFocusId("illustrative"); onRetryFeed(); }}>
+            Retry illustrative feed
+          </button>
+        </p>
+      )}
+
+      <div className={styles.depositStack}>
+        <label className={styles.assetInput}>
+          <span>ZEC amount</span>
+          <input
+            inputMode="decimal"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            aria-label="ZEC liquidity amount"
+            aria-invalid={!amountPreview.valid}
+            aria-errormessage={!amountPreview.valid ? amountErrorId : undefined}
+            aria-describedby={!amountPreview.valid ? `${amountErrorId} ${amountHelpId}` : amountHelpId}
+          />
+          <strong>ZEC</strong>
+        </label>
+        <span className={styles.plusMark}>+</span>
+        <div className={styles.assetInput}>
+          <span>Balanced quote amount</span>
+          <output>
+            {amountPreview.valid ? amountPreview.balancedQuote : "0.00"}
+          </output>
+          <strong>{selectedPool.quote}</strong>
+        </div>
+      </div>
+      {!amountPreview.valid ? (
+        <p id={amountErrorId} className={styles.inlineNotice} role="alert">{amountPreview.message}</p>
+      ) : null}
+      <p id={amountHelpId} className={styles.inlineNotice} aria-live="polite">
+        {amountPreview.valid ? amountPreview.message : "Use a positive plain decimal with no more than 8 places. Integer quote."}
+      </p>
+
+      {review ? (
+        <div className={styles.reviewBlock}>
+          <p className={styles.gateNotice} aria-label="Historical AMM review notice">
+            This historical AMM model labels native ZEC. It is not live settlement. The matcher is not trustless.
+          </p>
+          <dl className={styles.ticketSummary}>
+            <div>
+              <dt>Leaves the session</dt>
+              <dd>
+                {review.kind === "mint"
+                  ? `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} from local preview balances`
+                  : `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC from the local preview balance`}
+              </dd>
+            </div>
+            <div>
+              <dt>Arrives in the session</dt>
+              <dd>
+                {review.kind === "mint"
+                  ? `${review.shares.toString()} local LP shares for ${selectedPool.id}`
+                  : `${review.swapOut} ${selectedPool.quote} in the local preview balance`}
+              </dd>
+            </div>
+            <div>
+              <dt>Worst acceptable price</dt>
+              <dd>
+                {review.kind === "mint"
+                  ? "Balanced add. No swap price bound."
+                  : `${review.swapOut} ${selectedPool.quote} out, integer quote`}
+              </dd>
+            </div>
+            <div>
+              <dt>Fees</dt>
+              <dd>{feeEnvelopeCopy()} AMM swap fee paid in ZEC: {review.swapFee}.</dd>
+            </div>
+            <div>
+              <dt>Custody and redemption</dt>
+              <dd>{custodyRedemptionCopy()}</dd>
+            </div>
+            <div>
+              <dt>Public linkability</dt>
+              <dd>{publicLinkabilityCopy("LP action")}</dd>
+            </div>
+          </dl>
+          <p className={styles.inlineNotice}>
+            Any future transparent Zcash and Ethereum Mainnet LP-related activity would be publicly linkable. This local preview makes no chain transaction.
+            LPs also face stablecoin risk, smart-contract risk, impermanent loss, and toxic flow from the order book.
+          </p>
+          <p className={styles.inlineNotice}>
+            Confirm runs the local integer pool. Wallet actions stay disabled.
+          </p>
           <button
             type="button"
-            aria-pressed={tradingPaused}
-            onClick={() => {
-              setTradingPaused((current) => !current);
-              setNotice(lpPauseNoticeCopy(markets[marketId].settlementPair, !tradingPaused));
-            }}
+            className={styles.primaryAction}
+            onClick={review.kind === "mint" ? executeMint : executeSwap}
           >
-            {tradingPaused ? "Resume trading preview" : "Pause trading preview"}
+            Complete {review.kind}
           </button>
-          <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setReview(null); setNotice(lpResetNoticeCopy(markets[marketId].settlementPair)); }}>
-            Reset pool
+          <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
+            Back
           </button>
         </div>
-        <p className={styles.inlineNotice} aria-live="polite">{liveNotice}</p>
+      ) : null}
 
-        <dl
-          id="pool-stats"
-          className={styles.statGrid}
-          role="group"
-          aria-label="Historical AMM pool stats"
-          tabIndex={-1}
+      <div className={styles.tourNav}>
+        <button type="button" onClick={requestMintReview} disabled={!mintEnabled}>Review mint</button>
+        <button type="button" onClick={burnSessionShares} disabled={!lpOperationAllowed("burn", tradingPaused)}>Burn session shares</button>
+        <button type="button" onClick={requestSwapReview} disabled={!swapEnabled}>Review swap</button>
+        <button
+          type="button"
+          aria-pressed={tradingPaused}
+          onClick={() => {
+            setTradingPaused((current) => !current);
+            setNotice(lpPauseNoticeCopy(markets[marketId].settlementPair, !tradingPaused));
+          }}
         >
-          <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
-          <div><dt>Historical pool size</dt><dd>{selectedPool.tvl}</dd></div>
-          <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveZecAtoms, ZEC_DECIMALS, 2)}</dd></div>
-          <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
-          <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
-          <div>
-            <dt>Session LP shares</dt>
-            <dd>{heldShares[selectedPool.id].toString()}</dd>
+          {tradingPaused ? "Resume trading preview" : "Pause trading preview"}
+        </button>
+        <button type="button" onClick={() => { setPoolState(initialPools()); setHeldShares(emptyShares()); setEntryDeposits(emptyDeposits()); setReview(null); setNotice(lpResetNoticeCopy(markets[marketId].settlementPair)); }}>
+          Reset pool
+        </button>
+      </div>
+      <p className={styles.inlineNotice} aria-live="polite">{liveNotice}</p>
+
+      <dl
+        id="pool-stats"
+        className={styles.statGrid}
+        role="group"
+        aria-label="Historical AMM pool stats"
+        tabIndex={-1}
+      >
+        <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
+        <div><dt>Historical pool size</dt><dd>{selectedPool.tvl}</dd></div>
+        <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveZecAtoms, ZEC_DECIMALS, 2)}</dd></div>
+        <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
+        <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
+        <div>
+          <dt>Session LP shares</dt>
+          <dd>{heldShares[selectedPool.id].toString()}</dd>
+        </div>
+        <div>
+          <dt>Session IL vs hold</dt>
+          <dd>{formatAtomicUnits(sessionIl.lossQuoteAtoms, QUOTE_DECIMALS, 2)} {selectedPool.quote}</dd>
+        </div>
+        {hypotheticalIl.map((scenario) => (
+          <div key={scenario.label}>
+            <dt>IL vs hold at {scenario.label}</dt>
+            <dd>{formatAtomicUnits(scenario.preview.lossQuoteAtoms, QUOTE_DECIMALS, 2)} {selectedPool.quote}</dd>
           </div>
-          <div>
-            <dt>Session IL vs hold</dt>
-            <dd>{formatAtomicUnits(sessionIl.lossQuoteAtoms, QUOTE_DECIMALS, 2)} {selectedPool.quote}</dd>
-          </div>
-          {hypotheticalIl.map((scenario) => (
-            <div key={scenario.label}>
-              <dt>IL vs hold at {scenario.label}</dt>
-              <dd>{formatAtomicUnits(scenario.preview.lossQuoteAtoms, QUOTE_DECIMALS, 2)} {selectedPool.quote}</dd>
-            </div>
-          ))}
-        </dl>
-        <p className={styles.inlineNotice}>
-          Not a return or profit projection. Local integer constant-product divergence versus holding the same deposited assets.
-        </p>
-        <p className={styles.inlineNotice}>
-          The 0.30% pool fee applies to swaps, not the exactly balanced add. Swap fee paid in ZEC: {amountPreview.swapFee}.
-          {amountPreview.swapNote ? ` ${amountPreview.swapNote}` : ""}
-        </p>
-        <p className={styles.inlineNotice}>{lpRiskCopy()}</p>
-      </section>
+        ))}
+      </dl>
+      <p className={styles.inlineNotice}>
+        Not a return or profit projection. Local integer constant-product divergence versus holding the same deposited assets.
+      </p>
+      <p className={styles.inlineNotice}>
+        The 0.30% pool fee applies to swaps, not the exactly balanced add. Swap fee paid in ZEC: {amountPreview.swapFee}.
+        {amountPreview.swapNote ? ` ${amountPreview.swapNote}` : ""}
+      </p>
+      <p className={styles.inlineNotice}>{lpRiskCopy()}</p>
+    </section>
+  );
+}
+
+export function LiquidityPanel({
+  marketId,
+  feedStatus,
+  onMarketChange,
+  onFeedChange,
+  onRetryFeed,
+  variant = "quotes",
+}: {
+  marketId: MarketId;
+  feedStatus: FeedStatus;
+  onMarketChange: (market: MarketId) => void;
+  onFeedChange: (status: FeedStatus) => void;
+  onRetryFeed: () => void;
+  variant?: "quotes" | "historical-amm";
+}) {
+  if (variant === "historical-amm") {
+    return (
+      <HistoricalAmmPanel
+        marketId={marketId}
+        feedStatus={feedStatus}
+        onFeedChange={onFeedChange}
+        onRetryFeed={onRetryFeed}
+      />
     );
   }
 
-  return (
-    <div className={styles.featureGrid}>
-      <section className={`${styles.panel} ${styles.featurePrimary}`} aria-labelledby="liquidity-title">
-        <div className={styles.panelHeader}>
-          <div>
-            <span className={styles.eyebrow}>Maker and solver quotes</span>
-            <h2 id="liquidity-title">Solver quotes</h2>
-          </div>
-          <span className={styles.statusDot}>Wallet-held inventory</span>
-        </div>
-
-        <div
-          id="liquidity-pools"
-          className={styles.poolTabs}
-          role="radiogroup"
-          aria-label="Quote pair"
-          tabIndex={-1}
-        >
-          {pools.map((pool) => (
-            <button
-              type="button"
-              key={pool.id}
-              role="radio"
-              aria-checked={selectedPool.id === pool.id}
-              className={selectedPool.id === pool.id ? styles.poolActive : undefined}
-              tabIndex={selectedPool.id === pool.id ? 0 : -1}
-              ref={(node) => {
-                poolRefs.current[pool.id] = node;
-              }}
-              onClick={() => selectPool(pool.id)}
-              onKeyDown={(event) => onPoolKeyDown(event, pool.id)}
-            >
-              <span>{pool.id}</span>
-            </button>
-          ))}
-        </div>
-
-        <p className={styles.featureLead}>{solverQuoteInventoryCopy()}</p>
-        <p className={styles.gateNotice} aria-label="Review custody notice">
-          This panel labels native ZEC. It is not live settlement. The matcher is not trustless.
-        </p>
-
-        <dl className={styles.ticketSummary}>
-          {SOLVER_QUOTE_SIGNED_FIELDS.map((field) => (
-            <div key={field}>
-              <dt>{QUOTE_FIELD_LABELS[field]}</dt>
-              <dd>{quoteFields[field]}</dd>
-            </div>
-          ))}
-        </dl>
-
-        <p className={styles.inlineNotice}>
-          No shared AMM shares. Unused capacity stays in the provider wallet.
-        </p>
-        <button type="button" className={styles.primaryAction} disabled>
-          Wallet actions stay disabled
-        </button>
-      </section>
-
-      <aside className={`${styles.panel} ${styles.riskCard}`} aria-labelledby="lp-risk-title">
-        <span className={styles.eyebrow}>Quote risk</span>
-        <h2 id="lp-risk-title" tabIndex={-1}>Named quote risks</h2>
-        <ul className={styles.cleanList}>
-          {quoteRisks.map((entry) => (
-            <li key={entry.risk}>
-              <strong>{entry.risk}</strong>
-              {" — "}
-              {entry.copy}
-            </li>
-          ))}
-        </ul>
-      </aside>
-    </div>
-  );
+  return <SolverQuotesDocument marketId={marketId} onMarketChange={onMarketChange} />;
 }
