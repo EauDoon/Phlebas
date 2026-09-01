@@ -1,4 +1,4 @@
-// Zcash observer for the testnet P2SH lock surface. The observer watches
+// Zcash observer for an explicitly selected transparent P2SH lock network. The observer watches
 // public transparent outpoints and classifies a terminal spend only from
 // the exact input that spends the expected outpoint. It never holds a key,
 // signs, extracts, or broadcasts a transaction.
@@ -10,7 +10,7 @@ import {
   isHtlcP2shAddress,
   validateHtlcRedeemScript,
 } from "./zcash-htlc.ts";
-import { hash160 } from "./zcash-transparent.ts";
+import { hash160, type ZcashNetwork } from "./zcash-transparent.ts";
 import { hexToBytes } from "./keccak.ts";
 
 const MAX_SCRIPT_SIG_LENGTH = 1_650;
@@ -55,6 +55,7 @@ export type ZcashEventSource = Readonly<{
 }>;
 
 export type ZcashObserverConfig = Readonly<{
+  network: ZcashNetwork;
   addresses: ReadonlyArray<string>;
   fromHeight: bigint;
   source: ZcashEventSource;
@@ -65,6 +66,13 @@ type ParsedPush = Readonly<{ data: Uint8Array; nextOffset: number }>;
 
 function fail(outpoint: string, reason: string): never {
   throw new Error(`Unverifiable Zcash spend for ${outpoint}: ${reason}`);
+}
+
+function exactNetwork(value: unknown): ZcashNetwork {
+  if (value !== "testnet" && value !== "mainnet") {
+    throw new TypeError("Zcash observer network must be exactly testnet or mainnet");
+  }
+  return value;
 }
 
 function exactTxid(value: string, label: string): string {
@@ -233,6 +241,7 @@ function classifyMatchedInput(
 function classifySpend(
   outpoint: string,
   address: string,
+  network: ZcashNetwork,
   expectedRedeemScriptHex: string | undefined,
   spend: Extract<ZcashSpendEvidence, { spent: true }>,
 ): "claimed" | "refunded" {
@@ -244,8 +253,8 @@ function classifySpend(
   if (!expectedRedeemScriptHex) fail(outpoint, "no expected redeemScript is configured for the outpoint");
   const expectedRedeemScript = exactHex(expectedRedeemScriptHex, "expected HTLC redeemScript", 520);
   validateHtlcRedeemScript(expectedRedeemScript);
-  if (!isHtlcP2shAddress(address, "testnet", expectedRedeemScript)) {
-    fail(outpoint, "watched address is not the testnet P2SH address for the expected redeemScript");
+  if (!isHtlcP2shAddress(address, network, expectedRedeemScript)) {
+    fail(outpoint, `watched address is not the ${network} P2SH address for the expected redeemScript`);
   }
 
   const matchingInputs = spend.transparentInputs.filter((input) => {
@@ -262,6 +271,7 @@ function classifySpend(
 }
 
 export async function pollZcashOnce(config: ZcashObserverConfig): Promise<ReadonlyArray<ZcashOutpointEvent>> {
+  const network = exactNetwork(config.network);
   const events: ZcashOutpointEvent[] = [];
   for (const address of config.addresses) {
     const outpoints = await config.source.fetchAddressOutpoints(address);
@@ -273,7 +283,7 @@ export async function pollZcashOnce(config: ZcashObserverConfig): Promise<Readon
         if (spend.spendTxid !== null) fail(key, "unspent evidence names a spending transaction");
         kind = "funded";
       } else if (spend.spent === true) {
-        kind = classifySpend(key, address, config.expectedRedeemScriptByOutpoint?.[key], spend);
+        kind = classifySpend(key, address, network, config.expectedRedeemScriptByOutpoint?.[key], spend);
       } else {
         fail(key, "spend evidence does not contain an explicit spent state");
       }
