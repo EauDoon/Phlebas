@@ -19,8 +19,9 @@ export function resolveTerminalMode(
   if (isTerminalMode(query)) {
     return query;
   }
-  if (isTerminalMode(stored ?? undefined)) {
-    return stored;
+  const storedMode = stored ?? undefined;
+  if (isTerminalMode(storedMode)) {
+    return storedMode;
   }
   return DEFAULT_TERMINAL_MODE;
 }
