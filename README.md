@@ -91,7 +91,9 @@ The current public app simulates this journey. Asset-moving wallet signing and c
 
 A cancellation is verified against the accepted order's authorized signer, account epoch, and nonce. An epoch advance is verified for its account signer and invalidates that account's open orders. Neither control signs, constructs, broadcasts, or moves an asset transaction.
 
-Every matcher mutation requires JSON, an `Idempotency-Key` equal to the payload `requestId`, and the exact active `x-phlebas-matcher-configuration` value. The matcher rejects a missing or stale configuration binding, an action sent to the wrong endpoint, or a receipt that does not bind the submitted request and checkpoint.
+Every matcher mutation requires JSON, an `Idempotency-Key` equal to the payload `requestId`, and the exact active `x-phlebas-matcher-configuration` value. A successful response separates the historical `receiptCheckpoint` that accepted the command from the current `checkpoint`. An exact idempotent replay remains verifiable if later matcher activity advanced the current head. Equal-sequence checkpoints must have the same record hash and state root.
+
+New control ingress is marker-free and always becomes `eip712-v1` inside the matcher. The journal writes that scheme explicitly. A one-time system event commits the legacy authorization cutoff to the hash chain. Old unmarked raw controls can replay only before that exact record. Restoring the old initialization marker cannot move the cutoff. Fresh initialization uses a configuration-bound transitional marker and resumes only exact canonical crash states. The system cutover has reserved journal capacity and does not reduce the configured user record or byte limits.
 
 The browser control workflow is implemented and fails closed. Cancellation review requires an immutable confirmed native buy artifact with an `open` or `partially-filled` receipt, plus fresh matcher health, account, wallet, and checkpoint state. Epoch review requires an immutable confirmed native buy artifact, then derives the next epoch as the fresh account epoch plus one.
 
