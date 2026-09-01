@@ -57,6 +57,9 @@ The terminal takes structural cues from Hyperliquid, Lighter, and Nado while usi
 * Canonical order encoding, SHA-256 digests, and keccak EIP-712 typed-data hashes
 * Exact chain and asset identities, deterministic fill IDs, and one swap ID per fill
 * Immutable terms binding price, amounts, a zero-fee invariant, fee recipient, market policy, timing policy, observer policy, and chain-specific finality policies
+* Exact Mainnet `SwapTermsV1` projection into one SHA-256 Zcash HTLC, including derived P2SH lock address, P2PKH claim and refund recipients, amount, funding cutoff, and timestamp refund lock
+* Content-addressed Zcash funding, claim, and refund artifacts bound to the swap ID and terms hash, with confirmed-funding provenance required before either spend artifact can be constructed
+* PCZT review bundles bind the exact swap, terms, artifact manifest, and header-checked PCZT bytes while remaining explicitly blocked on full ZIP 374 verification and a qualified wallet lifecycle
 * Two-leg state machine with timestamped authorizations, artifact preparation, ZEC-first funding, causal chain-time checks, staggered refunds, mutually exclusive claim and refund outcomes, and policy-confirmed secret release
 * Content-addressed funding and spend facts separated from observer attestations
 * Quorum, confirmation-depth, execution-age, staleness, and source allowlist checks
@@ -69,7 +72,7 @@ The native-swap reference engine accepts only a zero protocol fee. The fee field
 
 ### Local and legacy surfaces
 
-The repository still contains an undeployed Arbitrum Sepolia contract candidate, a persistent loopback matcher, atomic-swap observer reference code, and historical pZEC and AMM simulations. No local TEX issuance or custody gateway is part of the current runtime. The matcher starts unconfigured, holds no keys, constructs no transactions, and cannot sign, broadcast, or move funds. None of these local services may run on Vercel.
+The repository still contains historical Arbitrum Sepolia artifacts, a persistent loopback matcher, atomic-swap observer reference code, and historical pZEC and AMM simulations. They are not active settlement targets. No local TEX issuance or custody gateway is part of the current runtime. The matcher starts unconfigured, holds no keys, constructs no transactions, and cannot sign, broadcast, or move funds. None of these local services may run on Vercel.
 
 The active settlement architecture is recorded in [ADR 0002](docs/adr/0002-native-zec-atomic-settlement.md). The persistent no-value matcher boundary is recorded in [ADR 0003](docs/adr/0003-persistent-native-matcher.md).
 

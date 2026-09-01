@@ -5,7 +5,7 @@ Status: legacy gateway evidence only, not native-settlement compatibility
 The current matrix covers transparent payments, TEX, and ZIP 321 for the superseded ADR 0001 gateway. It does not prove compatibility with the fund, claim, or refund transactions required by [ADR 0002](adr/0002-native-zec-atomic-settlement.md). No wallet is approved for native atomic settlement. All deposit, mint, burn, custody-signer, and withdrawal procedures below are historical simulation requirements, not target-product instructions.
 
 Status: Simulation only
-As of: 30-08-2026
+As of: 02-09-2026
 
 Phlebas has no live Zcash wallet integration, deposit address service, chain observer, custody wallet, or withdrawal signer. No wallet has completed the Phlebas acceptance suite. The application does not accept ZEC or mint redeemable `tZEC` today.
 
@@ -30,6 +30,17 @@ A wallet release must not appear in a user-facing recommended list unless it is 
 [Ironwood NU6.3 activated on Zcash mainnet on 28-07-2026](https://z.cash/upgrade/nu6-3/). Wallet evidence from before Ironwood is useful only as feature history. Current-network support must be shown by a current release and then tested. This matters because YWallet and the historical Nighthawk Zcash apps are no longer current Zcash choices.
 
 The current repository is a simulation. Zcash Testnet and a controlled regression network are planned verification environments; neither has been executed by this repository. Nothing here authorizes mainnet wallet creation, custody, deposits, refunds, or withdrawals.
+
+## Native HTLC adapter status
+
+No current documented wallet interface supports the full Phlebas lifecycle for an arbitrary transparent HTLC: fund the exact P2SH output, then sign and finalize both the custom claim and timeout-refund inputs.
+
+* [Noir Wallet](https://docs.zknoir.com/developers/provider-api/) documents browser connection, accounts, balances, messages, and ordinary payments. Its published provider API does not expose raw transaction or PCZT control for arbitrary P2SH inputs, sequence, or locktime.
+* [Zallet](https://zcash.github.io/zallet/rpc/index.html) documents beta PCZT create, inspect, sign, combine, prove, and extract RPCs. It is a useful loopback qualification harness, but current official transparent signer support does not establish Phlebas HTLC claim and refund compatibility.
+* [ZIP 374](https://zips.z.cash/zip-0374) defines the PCZT artifact fields needed to represent redeem scripts, preimages, sequence, and locktime. A standard artifact format is not wallet compatibility evidence.
+* The [Zcash WalletConnect grant application](https://github.com/ZcashCommunityGrants/zcashcommunitygrants/issues/391) remains a proposal to define and implement the namespace. Phlebas must not invent provider methods ahead of a shipped standard.
+
+Phlebas therefore uses a transport-neutral, content-addressed PCZT review boundary. Browser-to-Zallet RPC, speculative `window.zcash` APIs, and fund-only enablement remain prohibited. Mainnet funding, claim, refund, extraction, and broadcast must qualify together for one exact wallet release.
 
 ## Protocol contract
 

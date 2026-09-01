@@ -2,7 +2,7 @@
 
 Status: key-independent candidate implementation
 
-Updated: 01-09-2026
+Updated: 02-09-2026
 
 ## Boundary
 
@@ -11,6 +11,14 @@ The lab builds deterministic plans for transparent Zcash P2SH funding, claim, an
 Each committed artifact identifies itself as `candidate-unsigned-effecting-data-manifest`. Its SHA-256 manifest digest binds the ordered inputs, outputs, values, scripts, fee, profile, target height, expiry height, locktime, sequence, and authorization plan. The digest is an artifact commitment. It is not a Zcash transaction ID.
 
 No API in this lab accepts a seed, spending key, private key, signature, wallet database, funded address fixture, or private endpoint. Claim artifacts contain the preimage by design, so they remain sensitive before the claim is public.
+
+## Exact Mainnet settlement provenance
+
+The Mainnet projection accepts only native ZEC on the canonical Zcash BIP-122 identity and exact Ethereum Mainnet USDC or USDT. It reconstructs the SHA-256 HTLC solely from the signed secret hash, claim and refund public-key hashes, and timestamp refund lock. The reconstructed redeem-script HASH160 must equal the signed `zcashLockScriptHash`.
+
+The terms-bound funding builder accepts public UTXO, height, fee, size, and change evidence, but it does not accept caller-selected contract value, redeem script, funding cutoff, or refund margin. Those effecting fields are derived from `SwapTermsV1`. Claim and refund builders require a policy-confirmed canonical ZEC funding fact from the authoritative swap state. They derive the exact funded outpoint, P2SH script, P2PKH recipient, value, and branch from that state and the signed terms.
+
+Every artifact receives a canonical binding over the swap ID, terms hash, action, and artifact-manifest digest. The authoritative journal helper records the binding digest, not an unscoped artifact hash. The bound PCZT review package additionally commits the header-checked PCZT bytes and carries an immutable `blocked` release state. This closes artifact-substitution paths in the key-independent construction layer. It does not supply participant signature evidence, full ZIP 374 parsing, a transaction serializer, wallet compatibility, or chain authority.
 
 ## Current source findings
 
@@ -107,7 +115,7 @@ The key-independent observer accepts parsed public transparent-input evidence fr
 
 ## PCZT and wallet review
 
-The candidate adapter binds the committed manifest to opaque PCZT bytes and wallet inspection fields. It fixes `SIGHASH_ALL` and `tx_modifiable = 0`. Transaction version 6 requires PCZT version 2. Review-request and restart boundaries require a caller-supplied expected manifest digest. Equality binds the artifact to that expectation, but does not prove the expectation's provenance or approval.
+The candidate adapter binds the committed manifest to opaque PCZT bytes and wallet inspection fields. The Mainnet review wrapper also binds that manifest to the exact swap ID and terms hash. It fixes `SIGHASH_ALL` and `tx_modifiable = 0`. Transaction version 6 requires PCZT version 2. Review-request and restart boundaries require a caller-supplied expected manifest digest. Equality binds the artifact to that expectation, but does not prove a wallet signature, full PCZT semantics, transaction extraction, or broadcast acceptance.
 
 Readiness requires proven support for:
 
@@ -140,6 +148,7 @@ The focused tests cover:
 * fee, transparent byte sizing, unresolved complete-serialization sizing, value conservation, explicit change, and below-minimum change;
 * immediate or early refund, locktime-domain mismatch, absent maturity evidence, observed-height mismatch, expiry boundaries, and unresolved replacement policy;
 * canonical serialization, restart, duplicate outpoints, semantic artifact validation, and expected-digest substitution checks;
+* exact Mainnet terms projection, swap and terms artifact bindings, confirmed-funding spend provenance, and journaled binding digests;
 * PCZT header, capability, inspection, and lifecycle boundaries.
 
 Run the lab checks with:
