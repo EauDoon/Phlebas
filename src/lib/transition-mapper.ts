@@ -25,7 +25,7 @@ export function mapEVMEvent(
   blockTimestamp: bigint,
 ): MappedTransition {
   switch (kind) {
-    case "deposited":
+    case "funded":
       return { side: "evm", transition: "evm-leg-funded", observedAt: blockTimestamp, fillId };
     case "claimed":
       return { side: "evm", transition: "evm-leg-claimed", observedAt: blockTimestamp, fillId };

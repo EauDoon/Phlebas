@@ -1,14 +1,17 @@
 // EVM observer for the ConditionalLock contract. The observer polls a
-// JSON-RPC endpoint for the contract's Deposited, Claimed, and
+// JSON-RPC endpoint for the contract's Funded, Claimed, and
 // Refunded events and emits a per-fill event record that the
 // coordinator consumes. The observer never holds a key and never
 // signs a transaction. The signing surface lives in the wallet
 // adapter, not here.
 
-import { sha256d } from "./sha256d.ts";
-import { bytesToHex } from "./bytes-hex.ts";
+import {
+  CLAIMED_EVENT_SIGNATURE,
+  FUNDED_EVENT_SIGNATURE,
+  REFUNDED_EVENT_SIGNATURE,
+} from "./conditional-lock-abi.ts";
 
-export type EVMEventKind = "deposited" | "claimed" | "refunded";
+export type EVMEventKind = "funded" | "claimed" | "refunded";
 
 export type EVMEvent = Readonly<{
   kind: EVMEventKind;
@@ -20,7 +23,8 @@ export type EVMEvent = Readonly<{
 }>;
 
 export type EVMEventSource = Readonly<{
-  fetchLogs: (fromBlock: bigint) => Promise<ReadonlyArray<{
+  fetchLogs: (fromBlock: bigint, contractAddress: string) => Promise<ReadonlyArray<{
+    address: string;
     blockNumber: bigint;
     txHash: string;
     logIndex: number;
@@ -35,52 +39,52 @@ export type EVMObserverConfig = Readonly<{
   source: EVMEventSource;
 }>;
 
-const DEPOSITED_TOPIC = keccakTopic("Deposited(address,bytes32,address,uint128,uint64,uint64,address,address)");
-const CLAIMED_TOPIC = keccakTopic("Claimed(bytes32,address)");
-const REFUNDED_TOPIC = keccakTopic("Refunded(bytes32,address)");
-
-function keccakTopic(signature: string): `0x${string}` {
-  // Tiny keccak256 of the topic signature. The full keccak primitive
-  // is in keccak.ts; this just exposes the literal topic hashes that
-  // the contract emits. The literals are pinned and verified by the
-  // topic-hash test.
-  const hash = sha256d(new TextEncoder().encode(signature));
-  return bytesToHex(hash);
-}
+const FUNDED_TOPIC = `0x${FUNDED_EVENT_SIGNATURE}` as const;
+const CLAIMED_TOPIC = `0x${CLAIMED_EVENT_SIGNATURE}` as const;
+const REFUNDED_TOPIC = `0x${REFUNDED_EVENT_SIGNATURE}` as const;
+const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
+const BYTES32_PATTERN = /^0x[0-9a-fA-F]{64}$/;
+const ZERO_ADDRESS = `0x${"0".repeat(40)}`;
 
 export const EVMTOPICS: Readonly<Record<EVMEventKind, `0x${string}`>> = {
-  deposited: DEPOSITED_TOPIC,
+  funded: FUNDED_TOPIC,
   claimed: CLAIMED_TOPIC,
   refunded: REFUNDED_TOPIC,
 };
 
 export function classifyTopic(topic: string): EVMEventKind | null {
-  if (topic === DEPOSITED_TOPIC) return "deposited";
-  if (topic === CLAIMED_TOPIC) return "claimed";
-  if (topic === REFUNDED_TOPIC) return "refunded";
+  const normalized = topic.toLowerCase();
+  if (normalized === FUNDED_TOPIC) return "funded";
+  if (normalized === CLAIMED_TOPIC) return "claimed";
+  if (normalized === REFUNDED_TOPIC) return "refunded";
   return null;
 }
 
-export function fillIdFromTopic(topicData: ReadonlyArray<string>): string {
+export function fillIdFromTopic(topicData: ReadonlyArray<string>): string | null {
   // EVM events place the event signature at topic[0] and the first
   // indexed parameter at topic[1]. The ConditionalLock contract
-  // emits `uint256 indexed lockId` as the first indexed parameter,
-  // so topicData[1] is the lock id that the coordinator uses as a
-  // fill id. Missing values fall back to a zero fill id rather than
-  // throwing, because the watchtower wants to keep polling even
-  // when an event log is malformed.
-  return topicData[1] ?? "0x" + "0".repeat(64);
+  // emits `bytes32 indexed swapId` first. A malformed or missing
+  // indexed value is ignored so it cannot create a synthetic fill.
+  const fillId = topicData[1];
+  return fillId && BYTES32_PATTERN.test(fillId) ? fillId.toLowerCase() : null;
 }
 
 export async function pollOnce(config: EVMObserverConfig): Promise<ReadonlyArray<EVMEvent>> {
-  const logs = await config.source.fetchLogs(config.fromBlock);
+  if (!ADDRESS_PATTERN.test(config.contractAddress) || config.contractAddress.toLowerCase() === ZERO_ADDRESS) {
+    throw new RangeError("ConditionalLock contract address must be a nonzero 20-byte address");
+  }
+  const contractAddress = config.contractAddress.toLowerCase();
+  const logs = await config.source.fetchLogs(config.fromBlock, contractAddress);
   const events: EVMEvent[] = [];
   for (const log of logs) {
+    if (!ADDRESS_PATTERN.test(log.address) || log.address.toLowerCase() !== contractAddress) continue;
     const kind = classifyTopic(log.topics[0] ?? "");
     if (kind === null) continue;
+    const fillId = fillIdFromTopic(log.topics);
+    if (fillId === null) continue;
     events.push({
       kind,
-      fillId: fillIdFromTopic(log.topics),
+      fillId,
       blockNumber: log.blockNumber,
       txHash: log.txHash,
       logIndex: log.logIndex,
