@@ -3898,7 +3898,7 @@ test("education Continue stays in 320px and leftover skip links stay 44px", asyn
       gutter: getComputedStyle(element).scrollbarGutter,
     };
   });
-  expect(twoUp.padding).toBe("8px");
+  expect(twoUp.padding).toBe("4px");
   expect(twoUp.gutter).toBe("stable");
   expect(twoUp.firstWidth).toBeGreaterThanOrEqual(44);
   expect(twoUp.secondWidth).toBeGreaterThanOrEqual(44);
