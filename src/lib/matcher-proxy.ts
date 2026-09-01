@@ -12,6 +12,7 @@ const ORDER_RECEIPT_STATUSES = new Set([
   "fok-rejected",
   "unfilled",
 ]);
+const MATCHER_REQUEST_BYTES = 64 * 1024;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -85,6 +86,36 @@ function unavailable() {
 
 function noStoreJson(body: unknown, status = 200) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+}
+
+async function readBoundedRequestBody(request: Request): Promise<string | null> {
+  const declaredLength = request.headers.get("content-length");
+  if (declaredLength && (!/^(?:0|[1-9][0-9]*)$/.test(declaredLength)
+    || BigInt(declaredLength) > BigInt(MATCHER_REQUEST_BYTES))) {
+    await request.body?.cancel();
+    return null;
+  }
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    length += value.byteLength;
+    if (length > MATCHER_REQUEST_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 function healthResponse(body: string): Response {
@@ -184,8 +215,8 @@ export async function matcherOrderProxy(
   if (request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
     return noStoreJson({ ok: false, reason: "content-type-must-be-application-json" }, 415);
   }
-  const body = await request.text();
-  if (new TextEncoder().encode(body).length > 64 * 1024) {
+  const body = await readBoundedRequestBody(request);
+  if (body === null) {
     return noStoreJson({ ok: false, reason: "request-body-too-large" }, 413);
   }
   const requestId = request.headers.get("idempotency-key");

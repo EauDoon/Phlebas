@@ -158,6 +158,25 @@ test("matcher POST rejects invalid transport boundaries before proxying", async 
     body: JSON.stringify({ value: "x".repeat(64 * 1024) }),
   }));
   assert.equal(tooLarge.status, 413);
+
+  let cancelled = false;
+  const streamedBody = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array(40 * 1024));
+      controller.enqueue(new Uint8Array(40 * 1024));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const streamedTooLarge = await matcherOrderProxy(new Request("http://localhost/api/matcher", {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": "order-one" },
+    body: streamedBody,
+    duplex: "half",
+  } as RequestInit & { duplex: "half" }));
+  assert.equal(streamedTooLarge.status, 413);
+  assert.equal(cancelled, true);
   assert.equal(calls, 0);
 });
 
