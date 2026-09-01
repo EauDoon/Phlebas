@@ -23,7 +23,7 @@ export default function AppError({
 
   return (
     <SimulationFrame
-      title="The simulation failed to render"
+      title="The page failed to render"
       skipTo={{ href: "#retry-copy", label: "Skip to retry copy" }}
     >
       <div id="retry-copy" tabIndex={-1} aria-label="Retry copy">

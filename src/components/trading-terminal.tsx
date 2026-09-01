@@ -15,6 +15,7 @@ import {
   subscribeIncidentDemo,
 } from "@/lib/gateway-incidents";
 import { activateSkipLink } from "@/lib/skip-link";
+import { PreviewChip } from "./preview-chip";
 import { NO_TEX_ISSUED, ZEC_DESTINATION_LABEL } from "@/lib/wallet-bar-copy";
 import { terminalUrl } from "@/lib/terminal-url";
 import {
@@ -488,7 +489,7 @@ export function TradingTerminal({
   }
 
   const sessionTape = fills.filter((fill) => fill.marketId === marketId).slice(0, 6);
-  const fixtureTape = feed.showFixtures ? recentTrades[marketId] : [];
+  const publicTape = feed.showFixtures ? recentTrades[marketId] : [];
 
   const operatingView = initialAccess === "open" && (view === "trade" || view === "liquidity");
 
@@ -533,14 +534,7 @@ export function TradingTerminal({
           </>
         ) : null}
       </nav>
-      <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
-        <strong>{view === "settlement" ? "Fill ticket" : "Protocol preview"}</strong>
-        <span>
-          {view === "settlement"
-            ? "ZEC P2SH lock first with the longer refund. Exact-token EVM lock second with the shorter refund. Claim and refund are mutually exclusive. The matcher can sequence or omit orders. It cannot move funds. It is not trustless."
-            : "Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless."}
-        </span>
-      </div>
+      <PreviewChip />
 
       <header className={styles.topbar}>
         <Link href="/" className={styles.brand} aria-label="Phlebas home">
@@ -599,7 +593,7 @@ export function TradingTerminal({
               <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
             </>
           ) : (
-            <span className={styles.fixturePill}>No wallet</span>
+            <span className={styles.statusPill}>No wallet</span>
           )}
         </div>
       </header>
@@ -673,7 +667,7 @@ export function TradingTerminal({
                 </div>
                 <div><dt>24h high</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
                 <div><dt>24h low</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
-                <div><dt>24h volume</dt><dd>{feed.showFixtures ? `Fixture ${market.volume}` : "—"}</dd></div>
+                <div><dt>24h volume</dt><dd>{feed.showFixtures ? market.volume : "—"}</dd></div>
               </dl>
               <p className={styles.inlineNotice}>{feed.statsNote}</p>
             </section>
@@ -764,8 +758,8 @@ export function TradingTerminal({
                         <td>{trade.time}</td>
                       </tr>
                     ))}
-                    {fixtureTape.map((trade) => (
-                      <tr key={`fixture-${trade.time}-${trade.priceTicks.toString()}`}>
+                    {publicTape.map((trade) => (
+                      <tr key={`tape-${trade.time}-${trade.priceTicks.toString()}`}>
                         <th scope="row" className={trade.side === "buy" ? styles.buyText : styles.sellText}>
                           {tapeSideCopy(trade.side)} {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
                         </th>
@@ -773,7 +767,7 @@ export function TradingTerminal({
                         <td>{trade.time}</td>
                       </tr>
                     ))}
-                    {sessionTape.length === 0 && fixtureTape.length === 0 && (
+                    {sessionTape.length === 0 && publicTape.length === 0 && (
                       <tr>
                         <td colSpan={3}>
                           <p className={styles.emptyState}>{feedWithheldCopy(feedStatus, market.settlementPair)}</p>

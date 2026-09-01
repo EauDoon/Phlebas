@@ -398,7 +398,7 @@ a.skipLink:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(45, 212, 191, 0.46);
+  border: 1px solid rgba(240, 193, 75, 0.46);
   border-radius: 7px;
   color: var(--accent-fg);
   background: var(--accent);
@@ -1942,7 +1942,7 @@ a.skipLink:focus-visible {
   line-height: 1.5;
 }
 
-.fixturePill {
+.statusPill {
   display: inline-flex;
   min-height: 32px;
   align-items: center;

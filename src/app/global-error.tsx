@@ -47,7 +47,7 @@ export default function GlobalError({
               alignItems: "center",
               padding: "9px 12px",
               color: "#042f2e",
-              background: "#2dd4bf",
+              background: "#f0c14b",
               fontSize: 12,
               fontWeight: 700,
             }}
@@ -63,7 +63,7 @@ export default function GlobalError({
               alignItems: "center",
               padding: "9px 12px",
               color: "#042f2e",
-              background: "#2dd4bf",
+              background: "#f0c14b",
               fontSize: 12,
               fontWeight: 700,
             }}
@@ -72,8 +72,8 @@ export default function GlobalError({
           </a>
         </nav>
         <main id="main-content" tabIndex={-1} style={{ maxWidth: 720, padding: 28 }}>
-          <p style={{ color: "#2dd4bf", letterSpacing: "0.08em", textTransform: "uppercase", fontSize: 11 }}>Simulation only</p>
-          <h1>The simulation failed to start</h1>
+          <p style={{ color: "#f0c14b", letterSpacing: "0.08em", textTransform: "uppercase", fontSize: 11 }}>Public preview</p>
+          <h1>The page failed to start</h1>
           <p>Nothing was submitted to a chain, matcher, or custody system.</p>
           <p>An unexpected rendering error occurred. No private diagnostic details are shown here.</p>
           <div id="retry-copy" tabIndex={-1} aria-label="Retry copy">
@@ -85,7 +85,7 @@ export default function GlobalError({
                 minWidth: 44,
                 minHeight: 44,
                 alignItems: "center",
-                color: "#2dd4bf",
+                color: "#f0c14b",
                 background: "transparent",
                 border: 0,
                 font: "inherit",

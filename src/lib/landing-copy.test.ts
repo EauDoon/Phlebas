@@ -103,9 +103,10 @@ test("landing skip links follow the shipped section ids", () => {
       "#paths",
     ],
   );
-  assert.equal(LANDING_SKIP_LINKS.some((link) => link.href === "#exists-today"), false);
-  assert.equal(LANDING_SKIP_LINKS.some((link) => link.href === "#pairs"), false);
-  assert.equal(LANDING_SKIP_LINKS.some((link) => link.href === "#journeys"), false);
+  const hrefs = LANDING_SKIP_LINKS.map((link) => link.href as string);
+  assert.equal(hrefs.includes("#exists-today"), false);
+  assert.equal(hrefs.includes("#pairs"), false);
+  assert.equal(hrefs.includes("#journeys"), false);
   assert.equal(LANDING_SKIP_LINKS.some((link) => /pZEC|deposit/i.test(link.href + link.label)), false);
 });
 

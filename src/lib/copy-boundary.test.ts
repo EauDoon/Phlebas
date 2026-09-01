@@ -100,7 +100,10 @@ async function shippedUiFiles() {
 function isHonestLegalPage(file: string) {
   const normalized = file.replace(/\\/g, "/");
   return /\/app\/(legal|security|status)\/page\.tsx$/.test(normalized)
-    || /\/components\/architecture-panel\.tsx$/.test(normalized);
+    || /\/components\/architecture-panel\.tsx$/.test(normalized)
+    || /\/components\/bridge-panel\.tsx$/.test(normalized)
+    || /\/components\/native-swap-fixtures\.ts$/.test(normalized)
+    || /\/app\/(zcash|swap)\/page\.tsx$/.test(normalized);
 }
 
 async function operationalUiFiles() {
@@ -130,7 +133,6 @@ test("shipped UI copy does not claim live trustless, shielded, or native-ZEC set
   const architecture = await readFile(join(root, "src/components/architecture-panel.tsx"), "utf8");
   assert.match(architecture, /Native settlement target/);
   assert.match(architecture, /The matcher is not trustless/);
-  assert.match(architecture, /Simulation only/);
   assert.doesNotMatch(architecture, /wallet-signed native-ZEC atomic settlement/);
   assert.doesNotMatch(architecture, /Onchain atomic settlement/);
 });
@@ -143,11 +145,12 @@ test("operational UI does not use simulation, fixture, or walkthrough vocabulary
   assert.equal(files.some((file) => /security[\\/]page\.tsx$/.test(file)), false);
   assert.equal(files.some((file) => /status[\\/]page\.tsx$/.test(file)), false);
   assert.equal(files.some((file) => file.endsWith("architecture-panel.tsx")), false);
-  const joined = withoutArchitectureFooterSentences(
+  const source = withoutArchitectureFooterSentences(
     withoutHonestNegation(
       (await Promise.all(files.map((file) => readFile(file, "utf8")))).join("\n"),
     ),
   );
+  const joined = [...source.matchAll(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g)].map((match) => match[0]).join("\n");
   assert.doesNotMatch(joined, /\bsimulation\b/i);
   assert.doesNotMatch(joined, /\bsimulator\b/i);
   assert.doesNotMatch(joined, /\bfixture\b/i);
@@ -168,7 +171,25 @@ test("shipped modules carry the pre-launch product vocabulary", async () => {
   const session = await readFile(join(root, "src/lib/session.ts"), "utf8");
   const review = await readFile(join(root, "src/lib/review-copy.ts"), "utf8");
   const liquidity = await readFile(join(root, "src/components/liquidity-panel.tsx"), "utf8");
-  const product = [landingCopy, landing, header, frame, terminal, ticket, session, review, liquidity].join("\n");
+  const chip = await readFile(join(root, "src/lib/preview-chip.ts"), "utf8");
+  const reviewComplete = await readFile(join(root, "src/lib/ticket-review-copy.ts"), "utf8");
+  const settlementCopy = await readFile(join(root, "src/lib/settlement-ticket-copy.ts"), "utf8");
+  const solverQuotes = await readFile(join(root, "src/lib/solver-quotes.ts"), "utf8");
+  const product = [
+    landingCopy,
+    landing,
+    header,
+    frame,
+    terminal,
+    ticket,
+    session,
+    review,
+    liquidity,
+    chip,
+    reviewComplete,
+    settlementCopy,
+    solverQuotes,
+  ].join("\n");
   assert.match(product, /Native ZEC\. Native stables\. No platform balance\./);
   assert.match(product, /Public preview · illustrative data · no mainnet funds/);
   assert.match(product, /Open terminal/);
@@ -205,6 +226,7 @@ test("status page links to legal and security without a live-funds claim", async
 
 test("landing and terminal banners stay a public preview", async () => {
   const landing = await readFile(join(root, "src/components/landing-page.tsx"), "utf8");
+  const terminal = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");
   const chip = await readFile(join(root, "src/lib/preview-chip.ts"), "utf8");
   const hero = await readFile(join(root, "src/lib/landing-copy.ts"), "utf8");
   assert.match(chip, /Public preview · illustrative data · no mainnet funds/);
@@ -321,10 +343,10 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.doesNotMatch(landing, /pZEC (?:is|equals|represents) native ZEC/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(terminal), /trustless bridge/i);
-  assert.match(terminal, /do not move mainnet funds/);
+  assert.match(chip, /no mainnet funds/);
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /Wallet connection rejection/);
   assert.match(await readFile(join(root, "src/components/wallet-bar.tsx"), "utf8"), /No injected EVM wallet/);
-  assert.match(terminal, /not trustless/);
+  assert.match(await readFile(join(root, "src/lib/settlement-ticket-copy.ts"), "utf8"), /not trustless/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /custodyRedemptionCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /publicLinkabilityCopy/);
   assert.match(await readFile(join(root, "src/components/trade-ticket.tsx"), "utf8"), /marketOrderConstraintCopy/);

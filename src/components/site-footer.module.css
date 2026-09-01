@@ -34,7 +34,7 @@
   border-radius: 7px 2px 7px 2px;
   color: var(--accent-fg);
   background: var(--accent);
-  box-shadow: 0 0 22px rgba(45, 212, 191, 0.14);
+  box-shadow: 0 0 22px rgba(240, 193, 75, 0.14);
   font-family: var(--font-geist-mono), monospace;
   font-weight: 800;
 }

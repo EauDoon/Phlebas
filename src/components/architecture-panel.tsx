@@ -7,7 +7,7 @@ const layers = [
   {
     label: "Public interface",
     title: "Vercel web application",
-    items: ["Read-only fixture market data", "In-browser matcher; optional Sepolia signing", "No local operator service is hosted on Vercel", "No custody keys or Zcash node"],
+    items: ["Read-only illustrative market data", "In-browser matcher; optional Sepolia signing", "No local operator service is hosted on Vercel", "No custody keys or Zcash node"],
   },
   {
     label: "Trading network",

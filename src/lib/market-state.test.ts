@@ -165,14 +165,14 @@ test("depth and tape empty copy names the settlement pair", () => {
   );
   assert.equal(
     tapeCaptionCopy("ZEC/USDC", true),
-    "Recent ZEC/USDC trades withheld. Settled as ZEC-USDC. Fixture tape is not shown.",
+    "Recent ZEC/USDC trades withheld. Settled as ZEC-USDC. Public tape is not shown.",
   );
   assert.match(tapeCaptionCopy("ZEC/USDT", false), /settled as ZEC-USDT/);
   assert.equal(sessionLastStatLabel("ZEC-USDC", true), "Session last · ZEC-USDC");
   assert.equal(sessionLastStatLabel("ZEC-USDT", false), "Session last");
-  assert.equal(tapeMiniLabel(false, true, "ZEC-USDC"), "Fixture tape");
+  assert.equal(tapeMiniLabel(false, true, "ZEC-USDC"), "Public tape");
   assert.equal(tapeMiniLabel(false, false, "ZEC-USDT"), "Withheld · ZEC-USDT");
-  assert.equal(tapeMiniLabel(true, false, "ZEC-USDC"), "Session + fixture");
+  assert.equal(tapeMiniLabel(true, false, "ZEC-USDC"), "Session + public tape");
   assert.equal(chartRangeTabLabel("4H", markets["ZEC/USDC"].settlementPair), "4H · ZEC-USDC");
   assert.equal(chartRangeTabLabel("1D", markets["ZEC/USDT"].settlementPair), "1D · ZEC-USDT");
   assert.doesNotMatch(chartRangeTabLabel("1H", "ZEC-USDC"), /native ZEC/);
@@ -266,7 +266,7 @@ test("settlement-aware market copy follows the selected pair", () => {
   assert.equal(feedWithheldCopy("unavailable", usdt), "Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as ZEC-USDT.");
   assert.equal(orderBookCaptionCopy("ZEC/USDT").includes("settled as ZEC-USDT"), true);
   assert.equal(depthSessionLastCopy(usdt, "0.13"), "session last · ZEC-USDT · spread 0.13");
-  assert.equal(tapeCaptionCopy("ZEC/USDC", true), "Recent ZEC/USDC trades withheld. Settled as ZEC-USDC. Fixture tape is not shown.");
+  assert.equal(tapeCaptionCopy("ZEC/USDC", true), "Recent ZEC/USDC trades withheld. Settled as ZEC-USDC. Public tape is not shown.");
   assert.equal(sessionLastStatLabel(usdc, true), "Session last · ZEC-USDC");
   assert.equal(tapeMiniLabel(false, false, usdt), "Withheld · ZEC-USDT");
   assert.equal(chartRangeTabLabel("1D", usdt), "1D · ZEC-USDT");
