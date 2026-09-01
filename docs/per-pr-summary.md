@@ -84,3 +84,21 @@ This historical PR is superseded by `docs/ZCASH_TRANSACTION_LAB.md`. Its transac
 | Files | TBD |
 | Insertions | TBD |
 | Surface | Per-IP rate limiter middleware, wiring into matcher and observer services, tests, audit checklist updates |
+
+## PR 11 — Session export (TBD commits)
+
+| Aspect | Detail |
+| --- | --- |
+| Branch | `feat/session-export` |
+| Files | 5 |
+| Insertions | 200+ |
+| Surface | `src/lib/session-export.ts` deterministic JSON snapshot, `OrderBlotter` `Copy session JSON` button with clipboard feedback, 2 Playwright tests for the happy path and the no-clipboard fallback, PROGRESS.md entry |
+
+## PR 12 — Session import (TBD commits)
+
+| Aspect | Detail |
+| --- | --- |
+| Branch | `feat/session-import` |
+| Files | 4 |
+| Insertions | 200+ |
+| Surface | `src/lib/session-import.ts` parser, validator, and apply function; 9 unit tests for the happy path and every rejection kind; `docs/runbooks/session-roundtrip.md` for the export + import roundtrip procedure; PROGRESS.md entry |
