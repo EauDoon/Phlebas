@@ -1,15 +1,16 @@
 # ADR 0002: Native ZEC, native USDC, native USDT
 
 Date: 01-09-2026
-Status: Accepted for simulation labels only
+Status: Superseded simulation-label record
 Production status: Not approved
 Supersedes: ADR 0001 pair mapping (`pZEC/USDC` and `pZEC/USDT0`)
+Superseded by: [Native ZEC Atomic Settlement](0002-native-zec-atomic-settlement.md)
 
 ## Context
 
 ADR 0001 selected Arbitrum One and a custody-backed `pZEC` ERC-20 so the order book and Uniswap v2 style pools could share one settlement domain. Its candidate pair mapping used `pZEC/USDC` and `pZEC/USDT0`, and it treated USDT0 as the quote for the displayed `ZEC/USDT` market.
 
-The product now presents two native settlement pairs. USDT0 is abandoned as a listed quote. The public app remains a no-value simulation.
+The product now presents two native market labels. USDT0 is abandoned as a listed quote. The public app remains a no-value simulation. This record does not define settlement architecture; the wallet-controlled per-fill atomic-swap ADR does.
 
 ## Decision
 
@@ -24,7 +25,7 @@ Those labels are native ZEC against native USDC or native USDT. The later-listin
 
 This ADR does not authorize live funds, a payable gateway, shielded ZEC, or live native-ZEC execution. Session encoding names `baseAsset` `ZEC`. Undeployed contract sources use `tZEC` as the 8-decimal receipt symbol and `tUSDT` as the quote faucet. The Solidity type is `Zec`. Product copy must not present those names as live settlement.
 
-Arbitrum One remains the candidate settlement chain from ADR 0001. The undeployed 8-decimal receipt symbol is `tZEC`. ADR 0001 historically named the custody-backed ERC-20 claim `pZEC`; that name is not the current listed form. The interface must keep saying the matcher is not trustless and that this preview moves no live funds.
+The undeployed `tZEC` receipt and Arbitrum pool described by the earlier simulation are legacy fixtures. They are not the current listed form or the native-settlement target. The interface must keep saying that the preview moves no live funds.
 
 ## Why this design
 

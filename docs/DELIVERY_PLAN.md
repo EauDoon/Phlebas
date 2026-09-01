@@ -1,7 +1,7 @@
 # Phlebas Delivery Plan
 
 Status: active full-build goal
-Updated: 31-08-2026
+Updated: 01-09-2026
 
 The public app now includes an in-browser matcher, integer seed books, legacy AMM previews, split-route comparison, LP share previews, feed-state ticket gates, SHA-256 session digests, keccak EIP-712 typed data, an optional Arbitrum Sepolia wallet connection, local testnet TEX issuance, a local matcher operator, `/status`, and branded error surfaces. The in-repository Sepolia contracts remain undeployed and belong to the legacy pZEC testnet slice, not the native-settlement target.
 
@@ -101,7 +101,9 @@ Acceptance:
 * an independent reviewer finds no unresolved P0, P1, or P2 issue;
 * the exact PR commit has a working Vercel preview before merge.
 
-### PR 20: native swap state machine and UI journey
+### Native swap state machine and UI journey
+
+Status: key-independent domain and no-value walkthrough implemented locally. Exact-head review, integration with current main, GitHub checks, and Vercel preview remain release gates. The eventual GitHub PR number is assigned at publication time and is not encoded into the architecture.
 
 Deliverables:
 
@@ -109,20 +111,24 @@ Deliverables:
 * Zcash and EVM leg states;
 * funding order and staggered refund deadlines;
 * claim, refund, replacement, and reorganization transitions;
+* policy-bound facts, observer attestations, finality qualification, and recovery audit records;
 * deterministic replay;
 * a no-value lock, claim, and refund journey in the trading UI;
-* removal of active pZEC deposit, withdrawal, mint, burn, and platform-balance language.
+* explicit separation of the native target from remaining legacy pZEC simulation language.
 
 Acceptance:
 
 * one fill creates one swap identifier;
 * duplicate or conflicting evidence fails closed;
+* observer quorum agrees on one exact tip height and block hash;
+* authorization, artifact preparation, funding, confirmation, and spend times remain causally ordered;
 * claim and refund are mutually exclusive;
+* protocol fees remain exactly zero until escrow routing and accounting pass separate review;
 * every incomplete swap retains a wallet-controlled refund path;
 * stale or disagreeing observations move the workflow to a disputed state;
 * browser tests cover every user action and unsafe state.
 
-### PR 21: Zcash transparent transaction lab
+### Zcash transparent transaction lab
 
 Deliverables:
 

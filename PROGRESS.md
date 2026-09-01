@@ -2,11 +2,29 @@
 
 Read this first on every continue. Update it after every batch: done, next, blockers, branch.
 
-Last updated: 01-09-2026 after native ZEC-USDC/ZEC-USDT pair labels, reserve tZEC refund helper, and leftover 44px education/skip-nav work.
+Last updated: 01-09-2026 while reconciling the hardened native-settlement stack with live `main` at `46a222ba4a92b5facb6a5adb35028a327c57e6a4`.
 
 ## Branch
 
-`feat/native-zec-usdc-usdt` stacked on `feat/simulation-hardening` (open PR #23 at `146069e`). Do not add commits to PR #22 or PR #23. This merge brings current `main` audit/atomic-swap and leftover product-ui tests into the native-pair branch.
+Integration worktree: `feat/native-swap-state-machine` at `4b4e224`, merging live `main` at `46a222b`.
+
+The committed native-settlement stack is 27 commits beyond its original base, which satisfies the requested minimum of eight meaningful commits and remains below the 100-commit PR cap. Do not publish the merge until conflicts are resolved, full checks pass, an independent exact-head review is clean, and a Vercel preview resolves to that exact head.
+
+## Canonical authority
+
+- `src/lib/swap-state.ts` and `src/lib/swap-journal.ts` are the only canonical native-settlement authority.
+- The older `Fill` observer model is a legacy, untrusted, no-value diagnostic. It must not create a swap, recommend a wallet action, or substitute a lock ID for a signed swap ID.
+- pZEC/tZEC receipt, gateway, reserve, custody, and AMM components remain legacy simulation or Testnet fixtures, not the production settlement target.
+- Production remains on HOLD. No exact-merge-SHA Vercel success exists for current `main`; the latest attempt hit the Hobby deployment limit.
+
+## Active integration batch
+
+- Reconcile native settlement with live-main accessibility, market, service, and operations work.
+- Preserve the signed ZEC-first SwapState and hash-chained journal as authority.
+- Add the native settlement walkthrough to the shared terminal view model without exposing a wallet or broadcast surface.
+- Replace public error details with fixed non-sensitive copy.
+- Restack PR #26 after this integration. Do not merge its stale, conflicted head.
+- Run the complete Node, Foundry, production-build, secret-scan, and Chromium gates on the resolved tree.
 
 ## Done
 
@@ -479,28 +497,21 @@ Last updated: 01-09-2026 after native ZEC-USDC/ZEC-USDT pair labels, reserve tZE
 
 ## Next
 
-- Education Back should stay inside the 320px viewport on the last step
-- Education sticky tourNav `z-index: 1` should not cover the heading 2px ring
-- Legal leftover skip link should stay at least 44px at 320px
-- Architecture leftover skip links should stay at least 44px at 320px
-- Error-page leftover skip link should stay at least 44px at 768px
-- Country-block leftover skip link should stay at least 44px at 320px
-- Education dialog flex column should keep the heading scroll-margin inside overflow-y auto
-- Record a real Arbitrum Sepolia broadcast in the manifest (skipped this session: blocked on an approved deployer key; do not `--mark-deployed` without a tx)
-- Redeploy the public Vercel UI after this PR merges (skipped this session: blocked on a Vercel deploy token; do not set `PHLEBAS_GATEWAY_URL` or `PHLEBAS_MATCHER_URL`)
-- Public Vercel UI still serves the last merged production build until a deploy token is available
-- ADR 0001 remains historical pZEC mapping, superseded for pair labels by ADR 0002
-- Reserve `WithdrawalClaimStatus` still has no `refunded` status token; refund removes the payable claim instead
-- Gateway stub is text-only; 320px density of stub states across USDT markets is still thin
-- Deposit Unavailable covers observer disagreement in the tour; architecture demo remains a separate surface
+- Bind matcher receipts and complete signed-order witnesses into exact `SwapTermsV1`, swap IDs, terms hashes, integer quote amounts, and the zero-fee invariant.
+- Verify the exact-token EVM lock against one separately approved testnet deployment manifest. It now binds `swapId` and `termsHash`; USDT remains disabled until one exact network and token contract are approved.
+- Replace heuristic Zcash spend classification with exact transaction, branch, witness, and preimage decoding. Pin the SHA-256 to HASH160 commitment vector.
+- Replace legacy observer transitions and v1 Fill snapshots with exact evidence adapters and a verified journal/snapshot store.
+- Complete Testnet wallet interoperability, recovery, reorganization, and wrong-network scenarios without embedding keys.
+- Restack and re-review PR #26 against the integrated native-settlement tree.
+- Create an exact-head Vercel preview after the deployment quota permits it. Promote only a release-approved artifact.
 
 ## Blockers
 
-- None for this slice
-- Mainnet remains a no-go: there is no production custody, reserve attester, mint controller, redemption service, identity/compliance tier, surveillance system, or independently audited deployment.
-- The local JSON persistence added for testnet is intentionally single-process and is not the production authoritative ledger.
-- Language bar still holds: never imply live, audited, trustless, private, shielded, or live native-ZEC execution
-- Vercel still must not hold spend keys, issue mainnet TEX, or run the authoritative matcher
+- No blocker prevents local development, review, or Testnet-safe verification.
+- Mainnet remains a no-go until the contract, wallet, observer, matcher-to-terms, legal, operations, audit, and capped rollout gates have current evidence.
+- Vercel must never hold spend keys, node credentials, authoritative journals, or signing and broadcast services.
+- The language bar still holds: never imply live, audited, trustless, private, shielded, or production-ready execution.
+- Real deployment and broadcast remain gated on exact approved keys and exact reviewed artifacts. Missing keys do not block key-independent development.
 
 ## Done this batch (PR 22 + conditional lock)
 
@@ -529,6 +540,8 @@ PR 2 added the deterministic state machine and the read-only `/swap` view. Both 
 - 361 node tests pass, secret-pattern scan clean over 250 files, production build clean
 
 ## Done this batch (PR 24 + Zcash P2SH tx lab)
+
+Historical note: this batch's HASH160 and wallet-adapter claims are superseded by `docs/ZCASH_TRANSACTION_LAB.md`. The legacy module now exposes only incomplete synthetic display shapes, not transactions, a wallet adapter, or a signing boundary.
 
 PR 3 added the ZEC half of the atomic swap. The address encoder, the
 P2SH script builder, and the wallet adapter are all key-independent.

@@ -13,13 +13,14 @@ import type { ZcashEventSource } from "../../src/lib/zcash-observer.ts";
 import type { AtomicSwapObserverServiceConfig } from "./types.ts";
 
 const FILL_A = "0x" + "aa".repeat(32);
+const CONTRACT = "0x" + "11".repeat(20);
 
 const evmSource: EVMEventSource = { fetchLogs: async () => [] };
 const zcashSource: ZcashEventSource = { fetchAddressOutpoints: async () => [], fetchSpend: async () => ({ spent: false, spendTxid: null }) };
 
 function mkConfig(snapshotPath: string): AtomicSwapObserverServiceConfig {
   return {
-    evm: { contractAddress: "0x" + "00".repeat(20), fromBlock: 0n, source: evmSource },
+    evm: { contractAddress: CONTRACT, fromBlock: 0n, source: evmSource },
     zcash: { addresses: ["t1" + "aa".repeat(19)], fromHeight: 0n, source: zcashSource },
     watchtower: { reorgDepth: 10n, deadlineBuffer: 60n },
     fillIdByOutpoint: {},
@@ -80,7 +81,7 @@ test("buildController poll advances the cursor and persists the snapshot", async
   try {
     const path = join(dir, "snap.json");
     const { EVMTOPICS } = await import("../../src/lib/evm-observer.ts");
-    const evm: EVMEventSource = { fetchLogs: async () => [{ blockNumber: 100n, txHash: "0x" + "11".repeat(32), logIndex: 0, topics: [EVMTOPICS.deposited, FILL_A, "0x" + "00".repeat(20), "0x" + "00".repeat(20)], data: "0x" }] };
+    const evm: EVMEventSource = { fetchLogs: async () => [{ address: CONTRACT, blockNumber: 100n, txHash: "0x" + "11".repeat(32), logIndex: 0, topics: [EVMTOPICS.funded, FILL_A, "0x" + "00".repeat(32), "0x" + "00".repeat(32)], data: "0x" }] };
     const cfg = mkConfig(path);
     const evmOriginal = cfg.evm.source;
     // The poller reads cfg.evm.source; replace with the new source.
@@ -106,7 +107,7 @@ test("startService exposes /health, /state, /fills, /alerts, and /fills/:fillId"
   try {
     const path = join(dir, "snap.json");
     const { EVMTOPICS } = await import("../../src/lib/evm-observer.ts");
-    const evm: EVMEventSource = { fetchLogs: async () => [{ blockNumber: 100n, txHash: "0x" + "11".repeat(32), logIndex: 0, topics: [EVMTOPICS.deposited, FILL_A, "0x" + "00".repeat(20), "0x" + "00".repeat(20)], data: "0x" }] };
+    const evm: EVMEventSource = { fetchLogs: async () => [{ address: CONTRACT, blockNumber: 100n, txHash: "0x" + "11".repeat(32), logIndex: 0, topics: [EVMTOPICS.funded, FILL_A, "0x" + "00".repeat(32), "0x" + "00".repeat(32)], data: "0x" }] };
     const cfg = mkConfig(path);
     const cfgWithEvm = { ...cfg, evm: { ...cfg.evm, source: evm } };
     const initial = { state: emptyCoordinator(), bootstrap: "ready" as const, bootstrapError: null };
@@ -114,9 +115,10 @@ test("startService exposes /health, /state, /fills, /alerts, and /fills/:fillId"
     await once(server, "listening");
     const port = (server.address() as AddressInfo).port;
     try {
-      const health = await (await fetch(`http://127.0.0.1:${port}/health`)).json() as { ok: boolean; bootstrap: string };
+      const health = await (await fetch(`http://127.0.0.1:${port}/health`)).json() as { ok: boolean; bootstrap: string; authority: string };
       assert.equal(health.ok, true);
       assert.equal(health.bootstrap, "ready");
+      assert.equal(health.authority, "diagnostic-untrusted");
       const missing = await fetch(`http://127.0.0.1:${port}/nope`);
       assert.equal(missing.status, 404);
 
@@ -125,9 +127,10 @@ test("startService exposes /health, /state, /fills, /alerts, and /fills/:fillId"
       assert.equal(observe.ok, true);
       assert.equal(observe.cursor, "1");
 
-      const fills = await (await fetch(`http://127.0.0.1:${port}/fills`)).json() as { count: number; fills: { fillId: string }[] };
+      const fills = await (await fetch(`http://127.0.0.1:${port}/fills`)).json() as { count: number; fills: { fillId: string }[]; authority: string };
       assert.equal(fills.count, 1);
       assert.equal(fills.fills[0].fillId, FILL_A);
+      assert.equal(fills.authority, "diagnostic-untrusted");
 
       const oneFill = await (await fetch(`http://127.0.0.1:${port}/fills/${FILL_A}`)).json() as { ok: boolean; state: string };
       assert.equal(oneFill.ok, true);

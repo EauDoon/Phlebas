@@ -96,7 +96,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(await readFile(join(root, "src/lib/matcher.ts"), "utf8"), /8-decimal ZEC atoms/);
   assert.doesNotMatch(await readFile(join(root, "src/lib/session.test.ts"), "utf8"), /credits pZEC/);
   assert.match(await readFile(join(root, "src/lib/session.test.ts"), "utf8"), /credits ZEC and debits quote/);
-  assert.match(await readFile(join(root, "README.md"), "utf8"), /does not mint/);
+  assert.match(await readFile(join(root, "README.md"), "utf8"), /not wrapped, minted, or represented as a Phlebas platform balance/);
   assert.match(await readFile(join(root, "contracts/src/amm/Factory.sol"), "utf8"), /address public immutable zec;/);
   assert.doesNotMatch(await readFile(join(root, "contracts/src/amm/Factory.sol"), "utf8"), /address public immutable pzec;/);
   assert.match(await readFile(join(root, "src/lib/units.ts"), "utf8"), /ZEC_DECIMALS = 8/);
@@ -129,7 +129,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(landing, /LANDING_SKIP_LINKS/);
   assert.match(
     await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"),
-    /not native ZEC, shielded ZEC, or a trustless bridge asset/,
+    /wallet-held solver liquidity/,
   );
   const skipCopy = await readFile(join(root, "src/lib/landing-copy.ts"), "utf8");
   assert.match(skipCopy, /Skip to markets/);
@@ -139,8 +139,8 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(skipCopy, /Skip to terminal preview/);
   assert.match(skipCopy, /Skip to journeys/);
   assert.match(skipCopy, /Skip to launch gates/);
-  assert.match(await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"), /No shielded deposit or withdrawal is planned for v1/);
-  assert.match(await readFile(join(root, "src/lib/landing-copy.ts"), "utf8"), /zips\.z\.cash\/zip-0320/);
+  assert.match(landing, /No shielded deposit or withdrawal is planned for v1/);
+  assert.match(landing, /zips\.z\.cash\/zip-0320/);
   assert.doesNotMatch(landing, /pZEC (?:is|equals|represents) native ZEC/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(landing), /trustless bridge/i);
   assert.doesNotMatch(withoutHonestBridgeNegation(terminal), /trustless bridge/i);
@@ -325,7 +325,7 @@ test("landing and terminal banners stay simulation-only", async () => {
   assert.match(liquidity, /Fixture \{selectedPool\.tvl\}/);
   assert.match(liquidity, /Fixture \{selectedPool\.volume\}/);
   assert.match(liquidity, /Retry illustrative feed/);
-  assert.match(liquidity, /No session LP shares/);
+  assert.match(await readFile(join(root, "src/lib/lp.ts"), "utf8"), /No session LP shares/);
   assert.match(liquidity, /not a return or profit projection/i);
   assert.match(liquidity, /feeEnvelopeCopy/);
   assert.match(liquidity, /Confirm simulated \{review\.kind\}/);
@@ -599,66 +599,34 @@ test("design docs do not claim the repo has no matcher or wallet stubs", async (
   assert.doesNotMatch(architecture, /It has no database, wallet connection/);
 });
 
-test("architecture and accounting no longer list pZEC as the candidate ERC-20 form", async () => {
+test("native settlement target never presents a receipt token as ZEC authority", async () => {
   const architecture = await readFile(join(root, "docs/ARCHITECTURE.md"), "utf8");
   const accounting = await readFile(join(root, "docs/ASSET_AND_ACCOUNTING.md"), "utf8");
-  assert.match(architecture, /undeployed 8-decimal receipt symbol is `tZEC`/);
-  assert.match(architecture, /That name is not the current listed form/);
-  assert.match(architecture, /ADR 0001 remains historical/);
-  assert.match(architecture, /tZEC mint controller/);
-  assert.match(architecture, /\| `tZEC` \|/);
-  assert.match(architecture, /Each pool holds `tZEC`/);
-  assert.doesNotMatch(architecture, /The candidate design uses custody-backed `pZEC`/);
-  assert.doesNotMatch(architecture, /\| `pZEC` \|/);
-  assert.doesNotMatch(architecture, /pZEC mint controller/);
-  assert.doesNotMatch(architecture, /Each pool holds `pZEC`/);
-  assert.match(accounting, /### Settlement ZEC \(`tZEC`\)/);
-  assert.match(accounting, /that name is not the current listed form/);
-  assert.match(accounting, /Outstanding tZEC/);
-  assert.doesNotMatch(accounting, /### pZEC/);
-  assert.doesNotMatch(accounting, /`pZEC` means Phlebas ZEC/);
-  assert.doesNotMatch(accounting, /Outstanding pZEC/);
-  assert.doesNotMatch(accounting, /pzatoshi/);
-  assert.doesNotMatch(accounting, /`pZEC` is custody-backed and is not native ZEC/);
+  assert.match(architecture, /It never becomes a Phlebas receipt or platform balance/);
+  assert.match(architecture, /supersedes the custody-backed pZEC design/);
+  assert.match(accounting, /Status: superseded custody model/);
+  assert.match(accounting, /Do not extend this model into a live path/);
   const spec = await readFile(join(root, "docs/PRODUCT_SPEC.md"), "utf8");
-  assert.match(spec, /Cannot mint tZEC without a valid deposit attestation/);
-  assert.match(spec, /The ZEC custody and redemption dependency/);
-  assert.match(spec, /One tZEC burn can produce at most one native payout/);
-  assert.doesNotMatch(spec, /pZEC/);
-  assert.match(await readFile(join(root, "src/lib/review-copy.ts"), "utf8"), /ZEC custody and redemption/);
-  assert.doesNotMatch(await readFile(join(root, "src/lib/review-copy.ts"), "utf8"), /pZEC/);
+  assert.match(spec, /Users and liquidity providers keep control of their wallets/);
+  assert.match(spec, /custody-backed pZEC/);
+  const readme = await readFile(join(root, "README.md"), "utf8");
+  assert.match(readme, /It is not wrapped, minted, or represented as a Phlebas platform balance/);
+  assert.match(readme, /historical pZEC and AMM simulations/);
 });
 
-test("remaining docs no longer list pZEC as the candidate ERC-20 form", async () => {
+test("simulation-label ADR is explicitly superseded by wallet-controlled settlement", async () => {
   const adr2 = await readFile(join(root, "docs/adr/0002-native-zec-usdc-usdt.md"), "utf8");
-  assert.match(adr2, /undeployed 8-decimal receipt symbol is `tZEC`/);
-  assert.match(adr2, /that name is not the current listed form/);
-  assert.doesNotMatch(adr2, /Custody-backed `pZEC` remains the candidate ERC-20 claim/);
+  assert.match(adr2, /Status: Superseded simulation-label record/);
+  assert.match(adr2, /Superseded by: \[Native ZEC Atomic Settlement\]/);
+  assert.match(adr2, /legacy fixtures/);
   const journeys = await readFile(join(root, "docs/LANDING_AND_USER_JOURNEYS.md"), "utf8");
   assert.match(journeys, /Section ID: `pairs`/);
   assert.match(journeys, /Native labels are simulation names, not live settlement/);
-  assert.doesNotMatch(journeys, /### pZEC boundary/);
-  assert.doesNotMatch(journeys, /Section ID: `pzec`/);
-  assert.doesNotMatch(journeys, /understand_pzec/);
   const threat = await readFile(join(root, "docs/THREAT_MODEL.md"), "utf8");
-  assert.match(threat, /represented on Arbitrum One as tZEC/);
-  assert.doesNotMatch(threat, /represented on Arbitrum One as pZEC/);
-  assert.doesNotMatch(threat, /The candidate ERC-20 form remains pZEC/);
+  assert.match(threat, /retained as historical simulation evidence/);
+  assert.match(threat, /does not define the production target/);
   const readme = await readFile(join(root, "README.md"), "utf8");
-  assert.match(readme, /Settlement ZEC \(`tZEC`\)/);
-  assert.doesNotMatch(readme, /ASSET_AND_ACCOUNTING\.md` \| pZEC/);
-  assert.doesNotMatch(await readFile(join(root, "docs/LAUNCH_PLAN.md"), "utf8"), /mint redeemable pZEC/);
-  assert.doesNotMatch(await readFile(join(root, "docs/LEGAL_AND_COMPLIANCE.md"), "utf8"), /mints or burns pZEC/);
-  assert.doesNotMatch(await readFile(join(root, "docs/OPERATIONS.md"), "utf8"), /pZEC supply plus pending deposit refunds/);
-  assert.doesNotMatch(await readFile(join(root, "docs/DELIVERY_PLAN.md"), "utf8"), /what pZEC means/);
-  const wallet = await readFile(join(root, "docs/WALLET_COMPATIBILITY.md"), "utf8");
-  assert.match(wallet, /mint redeemable `tZEC`/);
-  assert.doesNotMatch(wallet, /mint redeemable `pZEC`/);
-  assert.match(wallet, /which remains historical/);
-  const spec = await readFile(join(root, "docs/PRODUCT_SPEC.md"), "utf8");
-  assert.match(spec, /tZEC restored/);
-  assert.match(spec, /refund authorization/);
-  assert.doesNotMatch(spec, /pZEC/);
+  assert.match(readme, /wallet-held maker and solver inventory instead of passive cross-chain LP shares/);
 });
 
 test("source identifiers no longer use listed pZEC leftovers", async () => {
@@ -704,11 +672,11 @@ test("journeys pin unresolved recovery without live payout", async () => {
   assert.doesNotMatch(journeys, /\blive payout/i);
 });
 
-test("PRODUCT_SPEC 9.3 pins unresolved recovery branches", async () => {
+test("PRODUCT_SPEC keeps native settlement and legacy recovery boundaries distinct", async () => {
   const spec = await readFile(join(root, "docs/PRODUCT_SPEC.md"), "utf8");
-  assert.match(spec, /unresolved -> exact committed transaction observed -> broadcast \| mined/);
-  assert.match(spec, /unresolved -> verified input restoration -> payable/);
-  assert.doesNotMatch(spec, /pZEC/);
+  assert.match(spec, /one two-chain atomic-swap workflow per fill/);
+  assert.match(spec, /custody-backed pZEC/);
+  assert.match(spec, /The current public application is a simulation/);
 });
 
 test("journeys pin deposit fail-closed Unavailable Rejected Stale without minting", async () => {
@@ -732,4 +700,46 @@ test("accounting pins refunded tZEC not listed pZEC", async () => {
   assert.match(accounting, /refunded|tZEC restoration/);
   assert.doesNotMatch(accounting, /Outstanding pZEC/);
   assert.doesNotMatch(accounting, /### pZEC/);
+});
+
+test("public error boundaries never render exception details", async () => {
+  for (const path of ["src/app/error.tsx", "src/app/global-error.tsx"]) {
+    const source = await readFile(join(root, path), "utf8");
+    assert.match(source, /No private diagnostic details are shown here/);
+    assert.doesNotMatch(source, /error\.message|error\.stack|error\.digest/);
+  }
+});
+
+test("legacy fill projection cannot emit wallet instructions", async () => {
+  const projection = await readFile(join(root, "src/lib/swap-fill-projection.ts"), "utf8");
+  const coordinator = await readFile(join(root, "src/lib/atomic-coordinator.ts"), "utf8");
+  assert.match(projection, /not settlement authority/);
+  assert.match(projection, /projectedDiagnosticNextStep/);
+  assert.doesNotMatch(projection, /export type (?:Fill|Transition)\b/);
+  assert.doesNotMatch(projection, /export function transition\b/);
+  assert.doesNotMatch(projection, /return "(?:fund|claim|refund)-/);
+  assert.match(coordinator, /Legacy observer projection/);
+  assert.match(coordinator, /not settlement authority/);
+  assert.doesNotMatch(coordinator, /source of truth/);
+});
+
+test("canonical settlement and wallet modules cannot import the diagnostic projection", async () => {
+  const restrictedConsumers = [
+    "src/lib/swap-state.ts",
+    "src/lib/swap-journal.ts",
+    "src/lib/swap-replay.ts",
+    "src/lib/evm-wallet.ts",
+    "src/lib/matcher-operator.ts",
+    "src/lib/settlement-accounting.ts",
+    "src/lib/sepolia-submit.ts",
+    "src/components/trade-ticket.tsx",
+    "src/components/native-swap-panel.tsx",
+    "src/app/api/matcher/route.ts",
+  ];
+  for (const path of restrictedConsumers) {
+    const source = await readFile(join(root, path), "utf8");
+    assert.doesNotMatch(source, /swap-fill-projection|atomic-coordinator/, path);
+  }
+  const observerServer = await readFile(join(root, "services/atomic-swap-observer/server.ts"), "utf8");
+  assert.match(observerServer, /diagnostic-untrusted/);
 });

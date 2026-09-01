@@ -1,11 +1,11 @@
 # Phlebas Product Specification
 
-Status: native-settlement target, no-value simulation
-As of: 01-09-2026
+Status: native-settlement target, no-value implementation
+Updated: 01-09-2026
 
 ## 1. Product statement
 
-Phlebas is being built as a non-custodial spot exchange for native transparent ZEC against USDC and USDT. Display markets are `ZEC/USDC` and `ZEC/USDT`; settlement pairs are `ZEC-USDC` and `ZEC-USDT`. Settlement assets are native ZEC, native USDC, and native USDT. USDT0 is abandoned. It combines a professional offchain order book with one two-chain atomic-swap workflow per fill.
+Phlebas is being built as a non-custodial spot exchange for native transparent ZEC against USDC and USDT. It combines a professional offchain order book with one two-chain atomic-swap workflow per fill.
 
 Users and liquidity providers keep control of their wallets. Phlebas cannot sign, redirect, claim, refund, or custody either asset.
 
@@ -27,13 +27,13 @@ Version 1 includes:
 * responsive web, mobile, and keyboard-accessible interfaces;
 * public system, matcher, observer, and incident status.
 
-USDC is the first quote candidate. Native USDT is listed. USDT0 is abandoned. Exact USDT contract identity remains unresolved until issuer, network, legal, and operational review.
+USDC is the first quote candidate. USDT and USDT0 remain unresolved until one exact asset passes issuer, contract, network, legal, and operational review.
 
 ## 3. Non-goals
 
 Version 1 excludes:
 
-* custody-backed ERC-20 receipts;
+* custody-backed pZEC;
 * platform customer balances;
 * minting, burns, reserve wallets, deposits into Phlebas, or withdrawals from Phlebas;
 * shielded atomic swaps;
@@ -68,11 +68,9 @@ The operator runs the matcher and coordinator, publishes receipts and status, an
 | Display market | Base settlement | Quote settlement |
 | --- | --- | --- |
 | `ZEC/USDC` | Native transparent ZEC | Exact approved USDC contract |
-| `ZEC/USDT` | Native transparent ZEC | Exact approved native USDT contract |
+| `ZEC/USDT` | Native transparent ZEC | Exact approved USDT or USDT0 contract |
 
 ZEC quantities use integer zatoshis with 8 decimals. Quote quantities use the exact token's integer base units. Price uses a versioned integer tick.
-
-Every order ticket, confirmation, fill, and history record names the settlement pair `ZEC-USDC` or `ZEC-USDT`. Those pairs are native ZEC against native USDC or native USDT. USDT0 is not a listed quote asset. The undeployed 8-decimal receipt symbol is `tZEC`; product copy labels native ZEC. That is not live native-ZEC execution.
 
 The reference ticket uses:
 
@@ -107,13 +105,15 @@ verifying domain
 
 EVM signatures use EIP-712. Zcash authorization uses a separate wallet-supported format. One signature never grants authority on both chains.
 
-A market order is IOC with a signed worst acceptable price. There is no unbounded market order. A market worst price rounds outward to the next tick, up for buys and down for sells.
+A market order is IOC with a signed worst acceptable price. There is no unbounded market order.
 
 Contract wallets require ERC-1271 validation on the EVM path. That support remains a later contract milestone.
 
 ## 7. Matching
 
 The matcher applies deterministic price-time priority.
+
+Implementation status on 01-09-2026: the local persistent domain implements the semantics below, authenticated control messages, signed wallet-held solver quotes, bounded route comparison, hash-chained replay, atomic checkpoints, and blocked no-value swap plans. The public Vercel interface still uses the in-browser simulation. No transaction builder, chain action, live fund, or production matcher deployment is included.
 
 It supports:
 
@@ -140,25 +140,26 @@ One fill creates immutable terms for two legs:
 | Leg | Asset | Candidate lock | Funder | Claimant | Refund rule |
 | --- | --- | --- | --- | --- | --- |
 | Native | Transparent ZEC | Zcash P2SH conditional lock | ZEC seller | Stablecoin seller | Later deadline |
-| Quote | USDC or selected native USDT | EVM exact-token conditional lock | Stablecoin seller | ZEC seller | Earlier deadline |
+| Quote | USDC or selected USDT | EVM exact-token conditional lock | Stablecoin seller | ZEC seller | Earlier deadline |
 
-Both legs bind the same hash. The exact deadline margin is a versioned policy.
+Both legs bind the same SHA-256 hash over a 32-byte secret. The exact deadline margin is a versioned policy. The local walkthrough uses synthetic times and does not approve production durations.
 
-The workflow states are:
+The reference domain derives these workflow phases:
 
 ```text
-matched
-terms accepted
-first funding prepared
-first funded
-first confirmed
-second funding prepared
-both funded
-redeemable
+awaiting authorizations
+awaiting ZEC funding
+awaiting ZEC confirmation
+awaiting EVM funding
+awaiting EVM confirmation
+awaiting EVM claim
+secret observed
+awaiting ZEC claim
 settled
-refundable
+refund recovery
 refunded
 disputed
+expired
 ```
 
 Required invariants:
@@ -172,7 +173,14 @@ Required invariants:
 * duplicate or conflicting evidence fails closed;
 * wrong-chain, wrong-asset, stale, or reorganized evidence moves the workflow to disputed;
 * every incomplete funded swap retains a wallet-controlled refund path;
+* a swap expires only after its active signed deadline and only when no chain evidence exists;
+* an unconfirmed retracted observer report can be replaced only for the same canonical fact, with the full audit history retained;
+* authorization, preparation, funding, confirmation, and spend facts preserve causal timestamp order;
 * deterministic replay yields the same state and next safe action.
+
+Both parties separately authorize the exact per-fill terms digest. Signed terms include the deterministically derived fill identity, order identities, party roles, chains, assets, amounts, execution price, exact quote relation, fee amount, fee recipient, fee cap, Zcash script identities, EVM addresses and escrow identity, shared hash, all cutoffs and refund times, and the market, timeout, observer, and finality policy identifiers. Terms cannot change after authorization. The current native-swap reference accepts only a zero fee. A positive protocol fee remains invalid until the exact EVM escrow settlement route and its accounting are implemented and independently reviewed.
+
+The append-only journal binds every event to the swap and prior state root. It accepts only known event kinds with exact runtime fields. Exact duplicate events are idempotent only when the caller supplies the exact journal-head state. A different event in an occupied semantic slot is a conflict, while an abandoned funding generation may be represented by a newly hashed artifact. Restart accepts only a complete semantically replayable journal from the pristine created state and a matching snapshot root, including dispute, retraction, resolution, and terminal state. It never silently initializes over malformed persistence.
 
 ## 9. Liquidity
 
@@ -205,7 +213,7 @@ The router compares complete executable routes only. It may choose an order-book
 7. Each fill opens a settlement ticket.
 8. The ticket shows the next safe wallet action and the evidence supporting it.
 9. The user signs funding, claim, or refund transactions only after reviewing exact terms.
-10. The ticket ends as settled, refunded, or disputed.
+10. The ticket ends as settled, refunded, expired without chain evidence, or disputed.
 
 ## 11. Settlement ticket
 
@@ -227,6 +235,8 @@ Every ticket shows:
 * public-linkability warning for transparent ZEC.
 
 The ticket never asks the user to deposit into Phlebas.
+
+The public no-value settlement walkthrough renders a deterministic projection of this domain. It prepares no transaction, connects no wallet, calls no chain service, and moves no asset. Unsafe fixtures must disable funding and claim controls while keeping the refund-path status visible.
 
 ## 12. Wallet behavior
 
@@ -254,7 +264,7 @@ The UI must represent:
 * EVM observers agreeing, stale, or conflicting;
 * contract identity verified, unresolved, paused, or mismatched;
 * wallet unsupported, disconnected, wrong network, ready, rejected, or failed;
-* swap matched, funding, both funded, redeemable, refundable, settled, refunded, or disputed;
+* swap matched, funding, both funded, redeemable, refundable, settled, refunded, expired without chain evidence, or disputed;
 * incident active and recovery pending.
 
 No unsafe state may enable a signing action.
@@ -296,22 +306,3 @@ The no-value milestone needs:
 Testnet needs current protocol evidence, wallet execution, contract and transaction-builder review, observer recovery, legal approval, and a named authorization.
 
 Mainnet needs successful Testnet operation, independent audits, verified contract bytecode, reproducible services, monitoring, incident drills, legal approval, exact deployment manifests, production key controls, and separate authorization for real assets.
-
-## Simulation gateway (current public UI)
-
-The public application still demos a no-value gateway tour. Cannot mint tZEC without a valid deposit attestation. One tZEC burn can produce at most one native payout. High-risk confirmations repeat The ZEC custody and redemption dependency. Nothing is minted or sent.
-
-The simulation withdrawal walker is:
-
-```text
-requested -> screened -> burn submitted -> burn finalized -> payable
-requested | screened -> rejected before burn with review reason
-burn submitted -> expired or reorganized evidence -> closed without finalized burn
-burn finalized | payable -> tZEC restored only on unrecoverable pre-signature failure
-payable -> transaction_prepared -> signed -> broadcast -> mined -> confirmed
-signed | broadcast | mined -> unresolved
-unresolved -> exact committed transaction observed -> broadcast | mined
-unresolved -> verified input restoration -> payable
-```
-
-A single-use refund authorization must permanently cancel the unpaid claim before restoring tZEC. Once a native transaction is signed, the claim cannot be refunded. The public simulation exposes each fail-closed and walker preview state as a clickable tour step on both ZEC-USDC and ZEC-USDT labels.

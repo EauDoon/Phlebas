@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { buildAtomicSwapScript, parseAtomicSwapScript } from "./zcash-atomic-swap.ts";
 import { parseCompressedPubkey } from "./zcash-pubkey.ts";
-import { hashAtomicSwapParams } from "./zcash-wallet-adapter.ts";
+import { legacyAtomicSwapScriptHex } from "./zcash-wallet-adapter.ts";
 
 // Explicit atomic-swap test vectors. The script hash is the source of
 // truth for the matcher, the wallet adapter, and the offchain
@@ -23,7 +23,7 @@ test("vector 1: simple script with 20-byte zero hash and round lock time", () =>
   const seller = parseCompressedPubkey(makePubkey(22));
   const lock = 1_900_000_000n;
   const script = buildAtomicSwapScript({ hash20, buyerPubkey: buyer, sellerPubkey: seller, lockTime: lock });
-  const hash = hashAtomicSwapParams({ hash20, buyerPubkey: buyer, sellerPubkey: seller, lockTime: lock });
+  const hash = legacyAtomicSwapScriptHex({ hash20, buyerPubkey: buyer, sellerPubkey: seller, lockTime: lock });
   // The hash is deterministic. Any change to the script layout breaks it.
   assert.equal(hash, "0x" + scriptHashHex(script));
 });
@@ -63,8 +63,8 @@ test("vector 4: same script reproduces the same hash on a second call", () => {
   const seller = parseCompressedPubkey(makePubkey(77));
   const lock = 1_800_000_000n;
   const params = { hash20, buyerPubkey: buyer, sellerPubkey: seller, lockTime: lock };
-  const a = hashAtomicSwapParams(params);
-  const b = hashAtomicSwapParams(params);
+  const a = legacyAtomicSwapScriptHex(params);
+  const b = legacyAtomicSwapScriptHex(params);
   assert.equal(a, b);
 });
 

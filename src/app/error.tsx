@@ -4,7 +4,6 @@ import { SimulationFrame } from "@/components/simulation-frame";
 import styles from "@/components/terminal.module.css";
 
 export default function AppError({
-  error,
   reset,
 }: {
   error: Error & { digest?: string };
@@ -17,7 +16,7 @@ export default function AppError({
     >
       <div id="retry-copy" tabIndex={-1} aria-label="Retry copy">
         <p>Nothing was submitted to a chain, matcher, or custody system.</p>
-        <p>{error.message || "An unexpected rendering error occurred."}</p>
+        <p>An unexpected rendering error occurred. No private diagnostic details are shown here.</p>
         <p>
           <button type="button" className={styles.primaryAction} onClick={reset}>Retry</button>
         </p>

@@ -1,13 +1,11 @@
-# Atomic-swap observer SLO
+# Diagnostic observer objectives
 
-This document is the SLO (service level objective) for the
-atomic-swap observer. The observer is the read-only surface that
-watches the ConditionalLock contract and the P2SH lock addresses,
-applies transitions to a persistent coordinator, and surfaces the
-watchtower's alerts. The SLO is the contract between the operator
-and the user: the user trusts the observer to keep the
-coordinator in sync with the chains, and the operator commits to
-the numbers below.
+This document records non-production objectives for the legacy no-value
+observer. Its projections are diagnostic and untrusted. They are not
+canonical swap state, do not establish chain settlement facts, and do
+not authorize claim, refund, release, or wallet action. The targets below
+apply only to a local or isolated test deployment and create no user-facing
+availability commitment.
 
 ## Availability
 
@@ -27,8 +25,8 @@ disk-write of the snapshot.
 
 ## Data freshness
 
-The coordinator's snapshot is at most 1 poll-interval behind the
-chains. The poll interval is configured by
+The diagnostic snapshot aims to be at most 1 poll interval behind its
+configured fixtures or test clients. The poll interval is configured by
 `PHLEBAS_OBSERVER_POLL_INTERVAL_SECONDS` and defaults to 15 seconds.
 A poll that observes no new events advances the cursor and
 overwrites the snapshot; a poll that observes new events applies
@@ -39,17 +37,17 @@ returning.
 
 The watchtower emits an alert when:
 
-* the EVM leg is funded past the EVM refund deadline
+* the diagnostic projection labels an EVM leg funded past the EVM refund deadline
   (`deadline-breach`);
 * both legs are funded but no terminal event has arrived past the
   configured buffer (`missing-terminal-event`);
 * a claim or refund was observed within the configured reorg depth
   (`reorg-depth-exceeded`).
 
-Each alert is a structured record with `fillId`, `alert`, `message`,
-`recommendedAction`, and `at`. The `recommendedAction` field is a
-short human-readable string; the operator maps the string to a
-paging surface in the runbook.
+Each alert is a structured diagnostic record with `fillId`, `alert`,
+`message`, `recommendedAction`, and `at`. A `recommendedAction` is an
+operator investigation hint only. It must never be passed to a wallet or
+canonical settlement state machine as authority.
 
 ## Data integrity
 
@@ -61,7 +59,6 @@ snapshot is missing after the marker is present.
 
 ## Out of scope
 
-The SLO does not cover the matcher, the wallet adapter, or the
-frontend. The SLO does not cover the chains themselves. A
-chain-side incident (Arbitrum reorg, Zebrad outage) is reflected
-in the SLO only through the watchtower's alert volume.
+These objectives do not cover the matcher, wallet adapter, frontend,
+chains, production settlement, or any value-bearing service. A chain-side
+incident is reflected only as untrusted diagnostic output.

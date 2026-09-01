@@ -1,24 +1,27 @@
 # Audit open items
 
-This file tracks the audit items that are not yet `done` and
-the blockers that prevent them from being closed. The file is
-the input to the audit prep runbook.
+This file summarizes required checklist rows that are not yet `done`.
+The canonical status remains `docs/audit/audit-checklist.md`.
 
-## Open items
+| ID | Item | Blocker |
+| --- | --- | --- |
+| contracts-10 | Exact reviewed testnet deployment and verified manifest | separately approved RPC and deploy authority |
+| contracts-11 | Independent contract and protocol security review | exact release artifact not frozen |
+| services-9 | Strict Zcash spend, branch, witness, destination, and finality evidence | strict adapter integration and review |
+| services-10 | Strict EVM chain, contract, ABI, receipt, and finality evidence | exact deployment and authoritative journal adapter |
+| services-11 | Canonical signed matcher terms consumed by both legs | matcher integration and cross-leg verification |
+| services-12 | Durable authoritative settlement journals | production storage and reorganization evidence |
+| operations-7 | Production alert destination | approved routing configuration |
+| operations-8 | Production metrics destination | approved metrics configuration |
+| operations-9 | End-to-end testnet claim, refund, failure, and recovery evidence | exact deployment and compatible wallets |
+| docs-6 | Exact release evidence pack publication | exact release process |
+| docs-7 | Exact-commit Vercel preview and browser evidence | candidate artifact and deployment quota |
+| keys-2 | Production deployment-key separation | production key-control design |
+| keys-5 | Production wallet signing documentation | production wallet design |
+| keys-6 | Independent signing and broadcast-path review | exact deployment and wallet artifact |
+| compliance-1 | Legal approval of exchange model and jurisdictions | counsel review |
+| compliance-2 | Approved access, disclosure, privacy, sanctions, and incident controls | legal decision and implementation evidence |
 
-| ID | Item | Owner | Blocker |
-| --- | --- | --- | --- |
-| contracts-1 | ConditionalLock contract is deployed to Arbitrum Sepolia with the verified deployment manifest | contracts | needs Sepolia RPC + deploy key |
-| contracts-2 | ConditionalLock contract is verified on the block explorer | contracts | depends on contracts-1 |
-| services-7 | Rate limiter is applied to public endpoints | services | closed in feat/rate-limit-wiring (PR 8) |
-| services-8 | Per-IP rate limit is enforced at the HTTP layer | services | closed in feat/rate-limit-wiring (PR 8) |
-| operations-7 | PagerDuty / Slack integration is wired to the alert router | operations | needs routing table override |
-| operations-8 | Prometheus remote-write adapter is wired to the metrics counter | operations | needs scrape config |
-| docs-6 | Release readiness evidence pack is published on every release | docs | depends on release process |
-| keys-2 | Project deploy key has no production keys | security | needs production key |
-| keys-5 | Wallet adapter signing surface is documented for the production deploy | security | depends on production design |
-
-## Closed items
-
-All other items are `done`. The closed items are tracked in
-`docs/audit/audit-checklist.md`.
+Completed service rate-limiting and undeployed-manifest controls remain
+recorded in the canonical checklist. Closing one row cannot implicitly
+close another row.

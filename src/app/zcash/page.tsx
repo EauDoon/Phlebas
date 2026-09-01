@@ -6,24 +6,16 @@ import {
   buildAtomicSwapScript,
 } from "@/lib/zcash-atomic-swap.ts";
 import {
-  p2pkhAddress,
-  p2shAddress,
-  pubkeyHash160,
-  VERSION_BYTES,
-  type ZcashNetwork,
-} from "@/lib/zcash-address.ts";
-import { parseCompressedPubkey } from "@/lib/zcash-pubkey.ts";
-import {
-  buildClaimTransaction,
-  buildFundTransaction,
-  buildRefundTransaction,
-  hashAtomicSwapParams,
+  previewLegacyClaimShape,
+  previewLegacyFundShape,
+  previewLegacyRefundShape,
 } from "@/lib/zcash-wallet-adapter.ts";
+import { parseCompressedPubkey } from "@/lib/zcash-pubkey.ts";
 
 export const metadata: Metadata = {
-  title: "Zcash P2SH lab",
+  title: "Legacy Zcash HASH160 display",
   description:
-    "No-value address and atomic-swap script builder. Read-only. Signing and broadcast remain gated.",
+    "Historical, testnet-only, no-value HASH160 display. Not a transaction, wallet, or funding surface.",
   robots: { index: false, follow: false },
 };
 
@@ -36,8 +28,9 @@ function isHex66(value: string): value is `0x${string}` {
 }
 
 function hexToBytes(hex: string): Uint8Array {
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16);
+  const normalized = hex.startsWith("0x") ? hex.slice(2) : hex;
+  const out = new Uint8Array(normalized.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(normalized.slice(i * 2, i * 2 + 2), 16);
   return out;
 }
 
@@ -47,8 +40,21 @@ function bytesToHex(bytes: Uint8Array): string {
   return out;
 }
 
-function parseNetwork(value: string | undefined): ZcashNetwork {
-  return value === "mainnet" ? "mainnet" : "testnet";
+function stringifyLegacyShape(value: unknown): string {
+  return JSON.stringify(value, (_key, entry) => typeof entry === "bigint" ? entry.toString() : entry);
+}
+
+function parseNetwork(value: string | undefined): "testnet" {
+  if (value !== undefined && value !== "testnet") notFound();
+  return "testnet";
+}
+
+function parseLegacyLock(value: string | undefined): bigint {
+  if (value === undefined) return 1_900_000_000n;
+  if (!/^[0-9]+$/.test(value)) notFound();
+  const lock = BigInt(value);
+  if (lock < 500_000_000n || lock > 0xffff_ffffn) notFound();
+  return lock;
 }
 
 export default async function ZcashPage({
@@ -74,52 +80,47 @@ export default async function ZcashPage({
   const hash20 = hexToBytes(hash20Hex as `0x${string}`);
   const buyer = parseCompressedPubkey(hexToBytes(buyerHex as `0x${string}`));
   const seller = parseCompressedPubkey(hexToBytes(sellerHex as `0x${string}`));
-  const lock = lockStr ? BigInt(lockStr) : 1_900_000_000n;
+  const lock = parseLegacyLock(lockStr);
   const script = buildAtomicSwapScript({ hash20, buyerPubkey: buyer, sellerPubkey: seller, lockTime: lock });
   const scriptHex = bytesToHex(script);
-  const scriptHash160 = pubkeyHash160(script);
-  const p2sh = p2shAddress(scriptHash160, network);
-  const fakeBuyerPubkeyHash = pubkeyHash160(hexToBytes(buyerHex as `0x${string}`));
-  const p2pkh = p2pkhAddress(fakeBuyerPubkeyHash, network);
-  const fund = buildFundTransaction({
+  const fund = previewLegacyFundShape({
     fundOutput: { valueZat: 1_000_000n, scriptPubKey: script },
     changeOutput: { valueZat: 0n, scriptPubKey: new Uint8Array(0) },
     lockTime: Number(lock),
   });
-  const claim = buildClaimTransaction({
+  const claim = previewLegacyClaimShape({
     utxo: { txid: "ab".repeat(32), vout: 0, valueZat: 1_000_000n, scriptPubKey: script },
     preimage: new Uint8Array(32),
     recipientOutput: { valueZat: 900_000n, scriptPubKey: new Uint8Array(0) },
     changeOutput: { valueZat: 100_000n, scriptPubKey: new Uint8Array(0) },
     sequence: 0xfffffffe,
   });
-  const refund = buildRefundTransaction({
+  const refund = previewLegacyRefundShape({
     utxo: { txid: "ab".repeat(32), vout: 0, valueZat: 1_000_000n, scriptPubKey: script },
     recipientOutput: { valueZat: 990_000n, scriptPubKey: new Uint8Array(0) },
     changeOutput: { valueZat: 10_000n, scriptPubKey: new Uint8Array(0) },
     sequence: 0xfffffffe,
   });
-  const versionHex = `0x${VERSION_BYTES[`${network}_p2sh`].toString(16).padStart(4, "0")}`;
-  const hashAtomic = hashAtomicSwapParams({ hash20, buyerPubkey: buyer, sellerPubkey: seller, lockTime: lock });
 
   return (
     <SimulationFrame
-      title="Zcash P2SH lab"
-      skipTo={{ href: "#zcash-ledger", label: "Skip to Zcash ledger" }}
+      title="Legacy Zcash HASH160 display"
+      skipTo={{ href: "#zcash-ledger", label: "Skip to legacy display" }}
     >
       <p data-testid="zcash-simulation-notice">
-        This is a no-value simulation of the Zcash side of the atomic swap. The address
-        encoder, the script builder, and the wallet adapter are all key-independent.
-        No signing or broadcast happens on this page.
+        This is a historical, testnet-only, no-value HASH160 display. The script and every
+        fund, claim, and refund value are legacy synthetic incomplete shapes. They are not the
+        canonical SHA-256 transaction lab, Zcash transactions, addresses to fund, wallet inputs,
+        or signing evidence. No signing or broadcast happens on this page.
       </p>
 
       <dl id="zcash-ledger" tabIndex={-1} role="list" aria-label="Zcash ledger">
         <div role="listitem">
           <dt>Network</dt>
-          <dd>{network}</dd>
+          <dd>{network} display only</dd>
         </div>
         <div role="listitem">
-          <dt>Hash 20</dt>
+          <dt>Legacy HASH160 input</dt>
           <dd>
             <code data-testid="zcash-hash20">{hash20Hex}</code>
           </dd>
@@ -141,47 +142,23 @@ export default async function ZcashPage({
           <dd data-testid="zcash-lock">{lock.toString()}</dd>
         </div>
         <div role="listitem">
-          <dt>Version bytes</dt>
-          <dd>
-            <code data-testid="zcash-version">{versionHex}</code>
-          </dd>
-        </div>
-        <div role="listitem">
-          <dt>Script</dt>
+          <dt>Legacy redeem-script bytes</dt>
           <dd>
             <code data-testid="zcash-script">{scriptHex}</code>
           </dd>
         </div>
-        <div role="listitem">
-          <dt>Script hash 20</dt>
-          <dd>
-            <code data-testid="zcash-script-hash20">{bytesToHex(scriptHash160)}</code>
-          </dd>
-        </div>
-        <div role="listitem">
-          <dt>P2SH address</dt>
-          <dd>
-            <code data-testid="zcash-p2sh">{p2sh}</code>
-          </dd>
-        </div>
-        <div role="listitem">
-          <dt>Demo P2PKH (buyer)</dt>
-          <dd>
-            <code data-testid="zcash-p2pkh">{p2pkh}</code>
-          </dd>
-        </div>
       </dl>
 
-      <h2>Wallet adapter (unsigned)</h2>
-      <ul role="list" aria-label="Unsigned transactions">
+      <h2>Legacy synthetic shapes</h2>
+      <ul role="list" aria-label="Legacy synthetic incomplete shapes">
         <li role="listitem">
-          <strong>Fund:</strong> <code data-testid="zcash-tx-fund">{JSON.stringify(fund, null, 0)}</code>
+          <strong>Fund:</strong> <code data-testid="zcash-tx-fund">{stringifyLegacyShape(fund)}</code>
         </li>
         <li role="listitem">
-          <strong>Claim:</strong> <code data-testid="zcash-tx-claim">{JSON.stringify(claim, null, 0)}</code>
+          <strong>Claim:</strong> <code data-testid="zcash-tx-claim">{stringifyLegacyShape(claim)}</code>
         </li>
         <li role="listitem">
-          <strong>Refund:</strong> <code data-testid="zcash-tx-refund">{JSON.stringify(refund, null, 0)}</code>
+          <strong>Refund:</strong> <code data-testid="zcash-tx-refund">{stringifyLegacyShape(refund)}</code>
         </li>
       </ul>
 
@@ -191,11 +168,6 @@ export default async function ZcashPage({
         <code data-testid="zcash-replay-query">
           {`?network=${network}&hash20=${hash20Hex}&buyer=${buyerHex}&seller=${sellerHex}&lock=${lock}`}
         </code>
-      </p>
-      <p>
-        The atomic-swap script hash is{" "}
-        <code data-testid="zcash-atomic-hash">{hashAtomic}</code> (deterministic, identical on
-        the matcher, the wallet adapter, and the offchain coordinator).
       </p>
     </SimulationFrame>
   );

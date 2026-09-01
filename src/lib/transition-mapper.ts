@@ -7,14 +7,14 @@
 
 import type { EVMEventKind } from "./evm-observer.ts";
 import type { ZcashOutpointKind } from "./zcash-observer.ts";
-import type { Transition } from "./swap-state.ts";
+import type { DiagnosticTransition } from "./swap-fill-projection.ts";
 import type { Hex32 } from "./order-domain.ts";
 
 export type EventSide = "evm" | "zec";
 
 export type MappedTransition = Readonly<{
   side: EventSide;
-  transition: Transition;
+  transition: DiagnosticTransition;
   observedAt: bigint;
   fillId: Hex32;
 }>;
@@ -25,7 +25,7 @@ export function mapEVMEvent(
   blockTimestamp: bigint,
 ): MappedTransition {
   switch (kind) {
-    case "deposited":
+    case "funded":
       return { side: "evm", transition: "evm-leg-funded", observedAt: blockTimestamp, fillId };
     case "claimed":
       return { side: "evm", transition: "evm-leg-claimed", observedAt: blockTimestamp, fillId };

@@ -1,25 +1,22 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { access, readFile } from "node:fs/promises";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { sepoliaDomain, timeInForceCode, type TypedOrder } from "../../src/lib/eip712.ts";
 import {
-  createMatcherOperator,
-  intakeSignedOrder,
-  restoreOperator,
-  sequenceRoot,
-  snapshotOperator,
-  type MatcherOperator,
-} from "../../src/lib/matcher-operator.ts";
-import { listenHost } from "../../src/lib/operator-url.ts";
+  matcherBookFeed,
+  matcherExecutionFeedPage,
+  matcherSolverQuoteFeedPage,
+  MAX_FEED_PAGE_SIZE,
+} from "../../src/lib/matcher-feeds.ts";
+import { createEvmEoaSignatureVerifier, type MatcherSignatureVerifier } from "../../src/lib/matcher-auth.ts";
 import {
-  depthFromBook,
-  marketsFromOperator,
-  tickerFromOperator,
-  tradesFromReceipts,
-} from "../../src/lib/market-data.ts";
-import { buildPublicSnapshot } from "../../src/lib/market-data-snapshot.ts";
+  findRequestReceipt,
+  matcherConfigurationHash,
+  matcherStateRoot,
+  type PersistentMatcherConfiguration,
+  type PersistentMatcherEvent,
+  type PersistentMatcherState,
+} from "../../src/lib/persistent-matcher.ts";
 import { emptyMetricsState, defineCounter, incCounter, renderPrometheusText, type MetricsState } from "../../src/lib/metrics.ts";
 import {
   emptySloState,
@@ -37,71 +34,370 @@ import {
   sendRateLimitHeaders,
   type RateLimitMiddleware,
 } from "../../src/lib/rate-limit-http.ts";
-import { TESTNET } from "../../src/lib/testnet.ts";
-import { atomicWriteFile } from "../durable-file.ts";
-import { readOperator, writeOperator } from "./persist.ts";
+import { UINT64_MAX } from "../../src/lib/order-domain.ts";
+import { listenHost } from "../../src/lib/operator-url.ts";
+import type { JournalValue } from "./journal.ts";
+import {
+  PersistentMatcherStore,
+  MatcherPersistenceUnavailableError,
+  assertMatcherEventTime,
+  deserializePersistentMatcherEvent,
+  type PersistentMatcherStoreOptions,
+} from "./persistent-store.ts";
+import { parseStrictJson } from "./strict-json.ts";
 
-const ZERO = "0x0000000000000000000000000000000000000000";
-const dataPath = join(dirname(fileURLToPath(import.meta.url)), ".data", "state.json");
+const DEFAULT_DATA_DIRECTORY = join(dirname(fileURLToPath(import.meta.url)), ".data", "native-v1");
+const DEFAULT_BODY_BYTES = 64 * 1024;
+const DEFAULT_BODY_READ_TIMEOUT_MILLISECONDS = 10_000;
+const DEFAULT_REQUEST_TIMEOUT_MILLISECONDS = 30_000;
+const DEFAULT_HEADERS_TIMEOUT_MILLISECONDS = 10_000;
+const DEFAULT_KEEP_ALIVE_TIMEOUT_MILLISECONDS = 5_000;
+const DEFAULT_PENDING_MUTATIONS = 64;
+const DEFAULT_RATE_WINDOW_MILLISECONDS = 60_000;
+const DEFAULT_RATE_LIMIT = 120;
+const DEFAULT_RATE_LIMIT_ENTRIES = 10_000;
+const MAX_BODY_READ_TIMEOUT_MILLISECONDS = 5 * 60 * 1_000;
+const MAX_HTTP_TIMEOUT_MILLISECONDS = 5 * 60 * 1_000;
+const MUTATION_KINDS = new Map<string, PersistentMatcherEvent["kind"]>([
+  ["/v1/orders", "accept-order"],
+  ["/v1/order-cancellations", "cancel-order"],
+  ["/v1/account-epochs", "advance-epoch"],
+  ["/v1/solver-quotes", "accept-solver-quote"],
+  ["/v1/solver-quote-cancellations", "cancel-solver-quote"],
+]);
 
-function send(response: ServerResponse, status: number, body: unknown) {
-  response.writeHead(status, { "content-type": "application/json" });
+type RateWindow = { startedAt: number; count: number };
+
+export type MatcherServerOptions = Readonly<{
+  host?: string;
+  port?: number;
+  dataDirectory?: string;
+  persistPath?: string;
+  configuration?: PersistentMatcherConfiguration;
+  verifier?: MatcherSignatureVerifier;
+  maximumBodyBytes?: number;
+  bodyReadTimeoutMilliseconds?: number;
+  requestTimeoutMilliseconds?: number;
+  headersTimeoutMilliseconds?: number;
+  keepAliveTimeoutMilliseconds?: number;
+  maximumPendingMutations?: number;
+  mutationRateLimit?: number;
+  mutationRateWindowMilliseconds?: number;
+  maximumRateLimitEntries?: number;
+  maximumJournalRecords?: number;
+  maximumJournalLineBytes?: number;
+  maximumJournalBytes?: number;
+  maximumFutureEventSeconds?: bigint;
+  clockSeconds?: () => bigint;
+}>;
+
+class HttpError extends Error {
+  readonly status: number;
+  readonly destroyRequest: boolean;
+
+  constructor(status: number, message: string, destroyRequest = false) {
+    super(message);
+    this.status = status;
+    this.destroyRequest = destroyRequest;
+  }
+}
+
+function positiveBoundedInteger(value: number, label: string, maximum: number): number {
+  if (!Number.isSafeInteger(value) || value <= 0 || value > maximum) throw new RangeError(`${label} is outside its allowed range`);
+  return value;
+}
+
+function send(response: ServerResponse, status: number, body: unknown): void {
+  if (response.headersSent) {
+    response.destroy();
+    return;
+  }
+  response.writeHead(status, {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+    "x-content-type-options": "nosniff",
+  });
   response.end(JSON.stringify(body, (_key, value) => typeof value === "bigint" ? value.toString() : value));
 }
 
-async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
-  const chunks: Buffer[] = [];
-  let length = 0;
-  for await (const chunk of request) {
-    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    length += bytes.length;
-    if (length > 64 * 1024) throw new RangeError("request-body-too-large");
-    chunks.push(bytes);
+async function readJson(
+  request: IncomingMessage,
+  maximumBodyBytes: number,
+  bodyReadTimeoutMilliseconds: number,
+): Promise<Record<string, JournalValue>> {
+  if (request.headers["content-type"]?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
+    if (hasRequestBody(request)) await drainUnexpectedBody(request, maximumBodyBytes, bodyReadTimeoutMilliseconds);
+    throw new HttpError(415, "content-type-must-be-application-json");
   }
-  if (chunks.length === 0) return {};
-  return JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
+  const declaredLength = request.headers["content-length"];
+  if (declaredLength && (!/^(?:0|[1-9][0-9]*)$/.test(declaredLength) || BigInt(declaredLength) > BigInt(maximumBodyBytes))) {
+    throw new HttpError(413, "request-body-too-large", true);
+  }
+  const readBody = async (): Promise<Record<string, JournalValue>> => {
+    const chunks: Buffer[] = [];
+    let length = 0;
+    for await (const chunk of request) {
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      length += bytes.length;
+      if (length > maximumBodyBytes) {
+        request.destroy();
+        throw new HttpError(413, "request-body-too-large");
+      }
+      chunks.push(bytes);
+    }
+    if (length === 0) throw new HttpError(400, "request-body-required");
+    let parsed: unknown;
+    try {
+      parsed = parseStrictJson(Buffer.concat(chunks).toString("utf8"));
+    } catch {
+      throw new HttpError(400, "request-body-invalid-json");
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new HttpError(400, "request-body-must-be-object");
+    return parsed as Record<string, JournalValue>;
+  };
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      request.destroy();
+      reject(new HttpError(408, "request-body-timeout"));
+    }, bodyReadTimeoutMilliseconds);
+  });
+  try {
+    return await Promise.race([readBody(), deadline]);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
 }
 
-function parseOrder(body: Record<string, unknown>): TypedOrder & { tif: "GTC" | "IOC" | "FOK"; signature: string } {
-  const tif = (body.tif as "GTC" | "IOC" | "FOK") ?? "GTC";
+function hasRequestBody(request: IncomingMessage): boolean {
+  const contentLength = request.headers["content-length"];
+  if (Array.isArray(contentLength)) return true;
+  if (typeof contentLength === "string") return contentLength !== "0";
+  return typeof request.headers["transfer-encoding"] === "string";
+}
+
+async function drainUnexpectedBody(
+  request: IncomingMessage,
+  maximumBodyBytes: number,
+  bodyReadTimeoutMilliseconds: number,
+): Promise<void> {
+  const declaredLength = request.headers["content-length"];
+  if (typeof declaredLength === "string"
+    && (!/^(?:0|[1-9][0-9]*)$/.test(declaredLength) || BigInt(declaredLength) > BigInt(maximumBodyBytes))) {
+    throw new HttpError(413, "request-body-too-large", true);
+  }
+  const readBody = async (): Promise<void> => {
+    let length = 0;
+    for await (const chunk of request) {
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      length += bytes.length;
+      if (length > maximumBodyBytes) {
+        request.destroy();
+        throw new HttpError(413, "request-body-too-large");
+      }
+    }
+  };
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      request.destroy();
+      reject(new HttpError(408, "request-body-timeout"));
+    }, bodyReadTimeoutMilliseconds);
+  });
+  try {
+    await Promise.race([readBody(), deadline]);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
+}
+
+function decimalCursor(value: string | null, label: string): bigint {
+  const input = value ?? "0";
+  if (!/^(?:0|[1-9][0-9]*)$/.test(input)) throw new HttpError(400, `${label}-must-be-canonical-decimal`);
+  const parsed = BigInt(input);
+  if (parsed > UINT64_MAX) throw new HttpError(400, `${label}-outside-uint64`);
+  return parsed;
+}
+
+function pageLimit(value: string | null): number {
+  if (value === null) return 50;
+  if (!/^[1-9][0-9]*$/.test(value)) throw new HttpError(400, "limit-must-be-positive-decimal");
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed > MAX_FEED_PAGE_SIZE) throw new HttpError(400, `limit-must-not-exceed-${MAX_FEED_PAGE_SIZE}`);
+  return parsed;
+}
+
+function persistenceOptions(options: MatcherServerOptions): PersistentMatcherStoreOptions | null {
+  if (!options.configuration) return null;
+  const directory = options.dataDirectory ?? (options.persistPath ? dirname(options.persistPath) : DEFAULT_DATA_DIRECTORY);
   return {
-    maker: String(body.maker),
-    side: Number(body.side) as 0 | 1,
-    baseAsset: String(body.baseAsset),
-    quoteAsset: String(body.quoteAsset),
-    baseAmount: BigInt(String(body.baseAmount)),
-    limitPriceTicks: BigInt(String(body.limitPriceTicks)),
-    timeInForce: timeInForceCode(tif),
-    nonce: BigInt(String(body.nonce)),
-    accountEpoch: BigInt(String(body.accountEpoch)),
-    expiry: BigInt(String(body.expiry ?? "0")),
-    salt: BigInt(String(body.salt ?? "1")),
-    recipient: String(body.recipient),
-    maximumFeeBps: Number(body.maximumFeeBps),
-    allowedVenues: Number(body.allowedVenues),
-    tif,
-    signature: String(body.signature),
+    journalPath: join(directory, "events.jsonl"),
+    checkpointPath: join(directory, "checkpoint.json"),
+    markerPath: join(directory, "initialized"),
+    lockPath: join(directory, "writer.lock"),
+    configuration: options.configuration,
+    verifier: options.verifier ?? createEvmEoaSignatureVerifier(options.configuration.domain.chainId),
+    maximumJournalBytes: options.maximumJournalBytes,
+    maximumJournalRecords: options.maximumJournalRecords,
+    maximumJournalLineBytes: options.maximumJournalLineBytes,
+    maximumFutureEventSeconds: options.maximumFutureEventSeconds,
+    clockSeconds: options.clockSeconds,
   };
 }
 
-export function createMatcherService(verifyingContract?: string, lastTicks = 5291n): MatcherOperator {
-  const settlement = verifyingContract ?? (TESTNET.deployed ? TESTNET.settlement : ZERO);
-  return createMatcherOperator(sepoliaDomain(settlement), lastTicks, {
-    baseAsset: TESTNET.zec,
-    quoteAssets: [TESTNET.usdc, TESTNET.usdt],
+function remoteKey(request: IncomingMessage): string {
+  return request.socket.remoteAddress ?? "unknown";
+}
+
+function errorStatus(error: unknown): number {
+  if (error instanceof HttpError) return error.status;
+  if (error instanceof MatcherPersistenceUnavailableError
+    || (typeof error === "object" && error !== null && (error as { code?: unknown }).code === "MATCHER_PERSISTENCE_UNAVAILABLE")) {
+    return 503;
+  }
+  const message = error instanceof Error ? error.message : "matcher-error";
+  if (/already used for a different command|already has a matcher receipt|replayed|already cancelled/.test(message)) return 409;
+  if (/limit reached|outside matcher limits/.test(message)) return 422;
+  return 400;
+}
+
+function errorReason(error: unknown): string {
+  return error instanceof Error ? error.message : "matcher-error";
+}
+
+function boundedPublicParameter(value: string | null, fallback: number, maximum: number, label: string): number {
+  const parsed = value === null ? fallback : Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > maximum) {
+    throw new HttpError(400, `${label}-must-be-an-integer-between-0-and-${maximum}`);
+  }
+  return parsed;
+}
+
+function publicDepth(state: PersistentMatcherState | null, nowSeconds: bigint, levels: number) {
+  if (!state || levels === 0) return { bids: [], asks: [], sequence: state ? Number(state.sequence) : 0, generatedAt: nowSeconds };
+  const book = matcherBookFeed(state, nowSeconds, Math.min(levels, MAX_FEED_PAGE_SIZE));
+  const mapLevel = (level: { priceTicks: bigint; baseAmountAtoms: bigint; orderCount: number }) => ({
+    priceTicks: level.priceTicks.toString(),
+    sizeAtoms: level.baseAmountAtoms.toString(),
+    orderCount: level.orderCount,
   });
+  return {
+    bids: book.bids.map(mapLevel),
+    asks: book.asks.map(mapLevel),
+    sequence: Number(state.sequence),
+    generatedAt: nowSeconds,
+  };
 }
 
-function isConfiguredDomain(operator: MatcherOperator): boolean {
-  return TESTNET.deployed
-    && operator.domain.chainId === TESTNET.chainId
-    && operator.domain.verifyingContract === TESTNET.settlement;
+function publicTrades(state: PersistentMatcherState | null, nowSeconds: bigint, limit: number) {
+  if (!state || limit === 0) return { trades: [], count: 0, generatedAt: nowSeconds };
+  const trades: Array<{
+    receiptSequence: number;
+    side: "buy" | "sell";
+    priceTicks: string;
+    sizeAtoms: string;
+    makerId: string;
+    observedAt: bigint;
+  }> = [];
+  for (let index = state.executions.length - 1; index >= 0 && trades.length < limit; index -= 1) {
+    const execution = state.executions[index];
+    if (!execution?.route) continue;
+    const taker = state.orderReference.acceptedOrders[execution.takerOrderHash];
+    const receipt = state.receipts[Number(execution.sequence - 1n)];
+    if (!taker || !receipt) continue;
+    for (const fill of execution.route.fills) {
+      trades.push({
+        receiptSequence: Number(execution.sequence),
+        side: taker.order.side === 0 ? "buy" : "sell",
+        priceTicks: fill.executionPriceTicks.toString(),
+        sizeAtoms: fill.baseAmountAtoms.toString(),
+        makerId: fill.counterpartyOrderHash,
+        observedAt: receipt.occurredAtSeconds,
+      });
+      if (trades.length >= limit) break;
+    }
+  }
+  return { trades, count: trades.length, generatedAt: nowSeconds };
 }
 
-export function startMatcher(options: { host?: string; port?: number; operator?: MatcherOperator; persistPath?: string } = {}) {
+function publicTicker(state: PersistentMatcherState | null, nowSeconds: bigint) {
+  const depth = publicDepth(state, nowSeconds, 1);
+  const trades = publicTrades(state, nowSeconds, 1_000);
+  const cutoff = nowSeconds > 86_400n ? nowSeconds - 86_400n : 0n;
+  const windowTrades = trades.trades.filter((trade) => trade.observedAt >= cutoff);
+  const bestBid = depth.bids[0]?.priceTicks ?? null;
+  const bestAsk = depth.asks[0]?.priceTicks ?? null;
+  const prices = windowTrades.map((trade) => BigInt(trade.priceTicks));
+  const volumeBase = windowTrades.reduce((total, trade) => total + BigInt(trade.sizeAtoms), 0n);
+  const volumeQuote = windowTrades.reduce((total, trade) => total + ((BigInt(trade.sizeAtoms) * BigInt(trade.priceTicks)) / 10_000n), 0n);
+  return {
+    bestBidTicks: bestBid,
+    bestAskTicks: bestAsk,
+    midTicks: bestBid !== null && bestAsk !== null ? ((BigInt(bestBid) + BigInt(bestAsk)) / 2n).toString() : null,
+    spreadTicks: bestBid !== null && bestAsk !== null ? (BigInt(bestAsk) - BigInt(bestBid)).toString() : null,
+    lastPriceTicks: trades.trades[0]?.priceTicks ?? null,
+    highTicks24h: prices.length > 0 ? prices.reduce((left, right) => left > right ? left : right).toString() : null,
+    lowTicks24h: prices.length > 0 ? prices.reduce((left, right) => left < right ? left : right).toString() : null,
+    volumeBase24h: volumeBase.toString(),
+    volumeQuote24h: volumeQuote.toString(),
+    tradeCount24h: windowTrades.length,
+    windowTruncated: trades.count === 1_000,
+    sequence: state ? Number(state.sequence) : 0,
+    generatedAt: nowSeconds,
+  };
+}
+
+function pruneRateLimitMiddleware(middleware: RateLimitMiddleware, nowSeconds: bigint, maximumEntries: number): RateLimitMiddleware {
+  const idleSeconds = middleware.config.capacity / middleware.config.refillPerSecond + 1n;
+  const active = Object.entries(middleware.state)
+    .filter(([, bucket]) => nowSeconds < bucket.lastRefillAt + idleSeconds)
+    .sort((left, right) => left[1].lastRefillAt < right[1].lastRefillAt ? -1
+      : left[1].lastRefillAt > right[1].lastRefillAt ? 1 : left[0].localeCompare(right[0]));
+  const retained = active.length > maximumEntries ? active.slice(active.length - maximumEntries) : active;
+  return {
+    config: middleware.config,
+    state: Object.fromEntries(retained),
+  };
+}
+
+export function startMatcher(options: MatcherServerOptions = {}): Server {
   const host = listenHost(options.host);
   const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8788);
-  const persistPath = options.persistPath ?? dataPath;
+  const maximumBodyBytes = positiveBoundedInteger(options.maximumBodyBytes ?? DEFAULT_BODY_BYTES, "Maximum request body bytes", 1024 * 1024);
+  const bodyReadTimeoutMilliseconds = positiveBoundedInteger(
+    options.bodyReadTimeoutMilliseconds ?? DEFAULT_BODY_READ_TIMEOUT_MILLISECONDS,
+    "Body read timeout",
+    MAX_BODY_READ_TIMEOUT_MILLISECONDS,
+  );
+  const requestTimeoutMilliseconds = positiveBoundedInteger(
+    options.requestTimeoutMilliseconds ?? DEFAULT_REQUEST_TIMEOUT_MILLISECONDS,
+    "HTTP request timeout",
+    MAX_HTTP_TIMEOUT_MILLISECONDS,
+  );
+  const headersTimeoutMilliseconds = positiveBoundedInteger(
+    options.headersTimeoutMilliseconds ?? DEFAULT_HEADERS_TIMEOUT_MILLISECONDS,
+    "HTTP headers timeout",
+    MAX_HTTP_TIMEOUT_MILLISECONDS,
+  );
+  const keepAliveTimeoutMilliseconds = positiveBoundedInteger(
+    options.keepAliveTimeoutMilliseconds ?? DEFAULT_KEEP_ALIVE_TIMEOUT_MILLISECONDS,
+    "HTTP keep-alive timeout",
+    MAX_HTTP_TIMEOUT_MILLISECONDS,
+  );
+  const maximumPending = positiveBoundedInteger(options.maximumPendingMutations ?? DEFAULT_PENDING_MUTATIONS, "Maximum pending mutations", 10_000);
+  const mutationRateLimit = positiveBoundedInteger(options.mutationRateLimit ?? DEFAULT_RATE_LIMIT, "Mutation rate limit", 1_000_000);
+  const rateWindowMilliseconds = positiveBoundedInteger(
+    options.mutationRateWindowMilliseconds ?? DEFAULT_RATE_WINDOW_MILLISECONDS,
+    "Mutation rate window",
+    24 * 60 * 60 * 1000,
+  );
+  const maximumRateLimitEntries = positiveBoundedInteger(
+    options.maximumRateLimitEntries ?? DEFAULT_RATE_LIMIT_ENTRIES,
+    "Maximum rate-limit entries",
+    1_000_000,
+  );
+  const clockSeconds = options.clockSeconds ?? (() => BigInt(Math.floor(Date.now() / 1_000)));
+  const configured = persistenceOptions(options);
   let metricsState: MetricsState = defineCounter(emptyMetricsState(), "requests_total", "Total HTTP requests");
   let sloState: SloState = emptySloState();
   let rateLimit: RateLimitMiddleware = emptyRateLimitMiddleware({ capacity: 60n, refillPerSecond: 1n });
@@ -112,127 +408,113 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
     threshold: 0.995,
     comparison: "ge",
   };
-  const initializedPath = `${persistPath}.initialized`;
   const startedAt = Date.now();
-  let lastSequenceAt = startedAt;
-  let operator = options.operator;
-  let mutation = Promise.resolve();
+  const rateWindows = new Map<string, RateWindow>();
+  let pendingMutations = 0;
+  let storeError: unknown;
+  const storeReady = configured
+    ? PersistentMatcherStore.open(configured).catch((error: unknown) => {
+        storeError = error;
+        return null;
+      })
+    : Promise.resolve(null);
 
-  const ready = (async () => {
-    if (operator) return;
-    const loaded = await readOperator(persistPath);
-    if (loaded) {
-      const expected = createMatcherService().domain;
-      if (
-        loaded.domain.name !== expected.name
-        || loaded.domain.version !== expected.version
-        || loaded.domain.chainId !== expected.chainId
-        || loaded.domain.verifyingContract !== expected.verifyingContract
-      ) {
-        throw new Error("Persisted matcher domain does not match the configured settlement manifest");
+  function checkRate(request: IncomingMessage): void {
+    const now = Date.now();
+    const key = remoteKey(request);
+    let oldestKey: string | undefined;
+    for (const [entryKey, entry] of rateWindows) {
+      if (now - entry.startedAt >= rateWindowMilliseconds) {
+        rateWindows.delete(entryKey);
+      } else if (oldestKey === undefined || (rateWindows.get(oldestKey)?.startedAt ?? now) > entry.startedAt) {
+        oldestKey = entryKey;
       }
-      operator = loaded;
-      return;
     }
-    try {
-      const marker = await readFile(initializedPath, "utf8");
-      if (marker.trim() === "initialized") {
-        throw new Error("Matcher state is missing after initialization; refusing replay reset");
-      }
-      throw new Error("Matcher initialization marker is invalid");
-    } catch (error: unknown) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
-    operator = createMatcherService();
-    await writeOperator(persistPath, operator);
-    await atomicWriteFile(initializedPath, "initialized\n");
-  })();
+    const prior = rateWindows.get(key);
+    if (!prior && rateWindows.size >= maximumRateLimitEntries && oldestKey !== undefined) rateWindows.delete(oldestKey);
+    const current = !prior || now - prior.startedAt >= rateWindowMilliseconds
+      ? { startedAt: now, count: 1 }
+      : { ...prior, count: prior.count + 1 };
+    rateWindows.set(key, current);
+    if (current.count > mutationRateLimit) throw new HttpError(429, "mutation-rate-limit-exceeded");
+  }
 
   const server = createServer((request, response) => {
+    request.socket.setTimeout(requestTimeoutMilliseconds);
     void (async () => {
-      const now = BigInt(Math.floor(Date.now() / 1000));
+      const requestNow = clockSeconds();
       const clientKey = extractClientKey(request);
-      const rl = checkRateLimit(rateLimit, clientKey, now);
+      rateLimit = pruneRateLimitMiddleware(rateLimit, requestNow, maximumRateLimitEntries);
+      const rl = checkRateLimit(rateLimit, clientKey, requestNow);
       rateLimit = { state: rl.state, config: rateLimit.config };
       if (!rl.allowed) {
         sendRateLimitExceeded(response, rl.remaining, rl.retryAfterSeconds);
+        if (hasRequestBody(request)) response.once("finish", () => request.destroy());
         return;
       }
       sendRateLimitHeaders(response, rl.remaining, 0n);
-      await ready;
-      if (!operator) throw new Error("Matcher failed to initialize");
       const url = new URL(request.url ?? "/", `http://${host}:${port}`);
+      const expectedKind = request.method === "POST" ? MUTATION_KINDS.get(url.pathname) : undefined;
+      if (!expectedKind && hasRequestBody(request)) {
+        await drainUnexpectedBody(request, maximumBodyBytes, bodyReadTimeoutMilliseconds);
+        throw new HttpError(400, "unexpected-request-body");
+      }
       if (request.method === "GET" && url.pathname === "/health") {
-        let persistReadable = false;
-        try {
-          await access(persistPath);
-          persistReadable = true;
-        } catch {
-          persistReadable = false;
+        if (!configured) {
+          send(response, 200, {
+            ok: true,
+            matcher: "persistent-native-v1",
+            configured: false,
+            acceptingMutations: false,
+            mode: "no-value",
+            custody: false,
+            reason: "matcher-configuration-unavailable",
+            startedAt,
+          });
+          return;
+        }
+        const store = await storeReady;
+        if (!store) {
+          send(response, 503, {
+            ok: false,
+            matcher: "persistent-native-v1",
+            configured: true,
+            acceptingMutations: false,
+            reason: errorReason(storeError),
+          });
+          return;
+        }
+        if (!store.acceptingMutations) {
+          send(response, 503, {
+            ok: false,
+            matcher: "persistent-native-v1",
+            configured: true,
+            acceptingMutations: false,
+            reason: store.faultReason ?? "matcher-store-closed",
+            sequence: store.state.sequence,
+            stateRoot: matcherStateRoot(store.state),
+            configurationHash: matcherConfigurationHash(store.state.configuration),
+            checkpoint: store.checkpoint,
+            startedAt,
+          });
+          return;
         }
         send(response, 200, {
           ok: true,
-          sequence: operator.sequence,
-          sequenceRoot: sequenceRoot(operator),
-          matcher: "local-operator",
-          persist: persistPath,
-          persistReadable,
+          matcher: "persistent-native-v1",
+          configured: true,
+          acceptingMutations: true,
+          mode: "no-value",
+          custody: false,
+          sequence: store.state.sequence,
+          stateRoot: matcherStateRoot(store.state),
+          configurationHash: matcherConfigurationHash(store.state.configuration),
+          checkpoint: store.checkpoint,
           startedAt,
-          lastSequenceAt,
-          acceptingOrders: isConfiguredDomain(operator),
         });
         return;
       }
-      if (request.method === "GET" && url.pathname === "/sequence") {
-        const after = Number(url.searchParams.get("after") ?? "0");
-        const receipts = Number.isInteger(after) && after > 0
-          ? operator.receipts.filter((receipt) => receipt.sequence > after)
-          : operator.receipts;
-        send(response, 200, {
-          sequence: operator.sequence,
-          sequenceRoot: sequenceRoot(operator),
-          after: Number.isInteger(after) && after > 0 ? after : 0,
-          receipts,
-        });
-        return;
-      }
-      if (request.method === "GET" && url.pathname === "/book") {
-        send(response, 200, operator.book);
-        return;
-      }
-      if (request.method === "GET" && url.pathname === "/ticker") {
-        const now = Math.floor(Date.now() / 1000);
-        const t = tickerFromOperator(operator.book, operator.receipts, BigInt(now));
-        send(response, 200, t);
-        return;
-      }
-      if (request.method === "GET" && url.pathname === "/trades") {
-        const limit = Number(url.searchParams.get("limit") ?? "50");
-        if (!Number.isInteger(limit) || limit < 0 || limit > 1000) {
-          send(response, 400, { ok: false, reason: "limit-must-be-an-integer-between-0-and-1000" });
-          return;
-        }
-        const now = Math.floor(Date.now() / 1000);
-        const snap = tradesFromReceipts(operator.receipts, limit, BigInt(now));
-        send(response, 200, snap);
-        return;
-      }
-      if (request.method === "GET" && url.pathname === "/depth") {
-        const levels = Number(url.searchParams.get("levels") ?? "20");
-        if (!Number.isInteger(levels) || levels < 0 || levels > 200) {
-          send(response, 400, { ok: false, reason: "levels-must-be-an-integer-between-0-and-200" });
-          return;
-        }
-        const now = Math.floor(Date.now() / 1000);
-        const snap = depthFromBook(operator.book, levels, BigInt(now));
-        send(response, 200, snap);
-        return;
-      }
-      if (request.method === "GET" && url.pathname === "/markets") {
-        const m = marketsFromOperator(operator.baseAsset, operator.quoteAssets, operator.book);
-        send(response, 200, m);
-        return;
-      }
+
       if (request.method === "GET" && url.pathname === "/version") {
         send(response, 200, { ok: true, service: "matcher", version: "0.1.0" });
         return;
@@ -244,68 +526,190 @@ export function startMatcher(options: { host?: string; port?: number; operator?:
         return;
       }
       if (request.method === "GET" && url.pathname === "/slo") {
-        const now = BigInt(Math.floor(Date.now() / 1000));
         const sample: SloSample = {
           service: "matcher",
           metric: "availability",
-          observedAt: now,
+          observedAt: requestNow,
           value: 1,
-          success: response.statusCode === 200,
+          success: true,
         };
         sloState = recordSample(sloState, sample);
-        const verdict = sloVerdict(sloState, availabilityTarget, now);
-        send(response, 200, { ok: true, verdict });
+        send(response, 200, { ok: true, verdict: sloVerdict(sloState, availabilityTarget, requestNow) });
         return;
       }
-      if (request.method === "GET" && url.pathname === "/snapshot") {
-        const depthLevels = Number(url.searchParams.get("depth") ?? "20");
-        const tradeLimit = Number(url.searchParams.get("trades") ?? "50");
-        if (!Number.isInteger(depthLevels) || depthLevels < 0 || depthLevels > 200) {
-          send(response, 400, { ok: false, reason: "depth-must-be-an-integer-between-0-and-200" });
+      if (request.method === "GET" && ["/ticker", "/trades", "/depth", "/markets", "/snapshot"].includes(url.pathname)) {
+        const publicStore = await storeReady;
+        if (!publicStore) throw new HttpError(503, configured ? errorReason(storeError) : "matcher-configuration-unavailable");
+        if (!publicStore.acceptingMutations) throw new HttpError(503, publicStore.faultReason ?? "matcher-store-closed");
+        const state = publicStore.state;
+        if (url.pathname === "/ticker") {
+          send(response, 200, publicTicker(state, requestNow));
           return;
         }
-        if (!Number.isInteger(tradeLimit) || tradeLimit < 0 || tradeLimit > 1000) {
-          send(response, 400, { ok: false, reason: "trades-must-be-an-integer-between-0-and-1000" });
+        if (url.pathname === "/trades") {
+          const limit = boundedPublicParameter(url.searchParams.get("limit"), 50, 1_000, "limit");
+          send(response, 200, publicTrades(state, requestNow, limit));
           return;
         }
-        const now = Math.floor(Date.now() / 1000);
-        const snap = buildPublicSnapshot(operator.book, operator.receipts, BigInt(now), depthLevels, tradeLimit);
-        send(response, 200, snap);
-        return;
-      }
-      if (request.method === "POST" && url.pathname === "/orders") {
-        if (request.headers["content-type"]?.split(";", 1)[0] !== "application/json") {
-          send(response, 415, { ok: false, reason: "content-type-must-be-application-json" });
+        if (url.pathname === "/depth") {
+          const levels = boundedPublicParameter(url.searchParams.get("levels"), 20, 200, "levels");
+          send(response, 200, publicDepth(state, requestNow, levels));
           return;
         }
-        if (!isConfiguredDomain(operator)) {
-          send(response, 503, { ok: false, reason: "settlement-domain-unavailable" });
+        if (url.pathname === "/markets") {
+          const pair = state?.configuration.atomicSwapPolicy.pair;
+          const last = publicTrades(state, requestNow, 1).trades[0]?.priceTicks ?? "0";
+          send(response, 200, {
+            baseAsset: pair?.base.asset ?? null,
+            quoteAssets: pair ? [pair.quote.asset] : [],
+            lastTicks: last,
+            sequence: state ? Number(state.sequence) : 0,
+            configured: state !== null,
+          });
           return;
         }
-        const order = parseOrder(await readJson(request));
-        const issued = mutation.then(async () => {
-          const candidate = restoreOperator(snapshotOperator(operator!), { verify: false });
-          const receipt = intakeSignedOrder(candidate, order);
-          await writeOperator(persistPath, candidate);
-          operator = candidate;
-          lastSequenceAt = Date.now();
-          return receipt;
+        const depthLevels = boundedPublicParameter(url.searchParams.get("depth"), 20, 200, "depth");
+        const tradeLimit = boundedPublicParameter(url.searchParams.get("trades"), 50, 1_000, "trades");
+        send(response, 200, {
+          ticker: publicTicker(state, requestNow),
+          depth: publicDepth(state, requestNow, depthLevels),
+          trades: publicTrades(state, requestNow, tradeLimit),
         });
-        mutation = issued.then(() => undefined, () => undefined);
-        const receipt = await issued;
-        send(response, 201, receipt);
+        return;
+      }
+
+      const store = await storeReady;
+      if (!store) throw new HttpError(503, configured ? errorReason(storeError) : "matcher-configuration-unavailable");
+      if (!store.acceptingMutations) throw new HttpError(503, store.faultReason ?? "matcher-store-closed");
+
+      if (request.method === "GET" && url.pathname === "/v1/checkpoint") {
+        send(response, 200, { checkpoint: store.checkpoint, stateRoot: matcherStateRoot(store.state) });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/v1/sequence") {
+        const after = decimalCursor(url.searchParams.get("after"), "after");
+        const limit = pageLimit(url.searchParams.get("limit"));
+        const matching = store.state.receipts.filter((receipt) => receipt.sequence > after);
+        const receipts = matching.slice(0, limit);
+        send(response, 200, {
+          checkpoint: store.checkpoint,
+          after,
+          nextAfter: receipts.at(-1)?.sequence ?? after,
+          hasMore: matching.length > receipts.length,
+          receipts,
+        });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/v1/market/book") {
+        send(response, 200, { checkpoint: store.checkpoint, book: matcherBookFeed(store.state, clockSeconds(), pageLimit(url.searchParams.get("limit"))) });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/v1/solver-quotes") {
+        const after = decimalCursor(url.searchParams.get("after"), "after");
+        const limit = pageLimit(url.searchParams.get("limit"));
+        const page = matcherSolverQuoteFeedPage(store.state, clockSeconds(), limit, after);
+        send(response, 200, {
+          checkpoint: store.checkpoint,
+          after: page.after,
+          nextAfter: page.nextAfter,
+          hasMore: page.hasMore,
+          quotes: page.quotes,
+        });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/v1/executions") {
+        const after = decimalCursor(url.searchParams.get("after"), "after");
+        const limit = pageLimit(url.searchParams.get("limit"));
+        const page = matcherExecutionFeedPage(store.state, after, limit);
+        send(response, 200, {
+          checkpoint: store.checkpoint,
+          after,
+          nextAfter: page.nextAfter,
+          hasMore: page.hasMore,
+          executions: page.executions,
+        });
+        return;
+      }
+      if (request.method === "GET" && url.pathname.startsWith("/v1/requests/")) {
+        const encoded = url.pathname.slice("/v1/requests/".length);
+        if (!encoded || encoded.includes("/")) throw new HttpError(404, "not-found");
+        let requestId: string;
+        try {
+          requestId = decodeURIComponent(encoded);
+        } catch {
+          throw new HttpError(400, "request-id-invalid-encoding");
+        }
+        const receipt = findRequestReceipt(store.state, requestId);
+        if (!receipt) throw new HttpError(404, "request-receipt-not-found");
+        send(response, 200, { checkpoint: store.checkpoint, receipt });
+        return;
+      }
+
+      if (expectedKind) {
+        checkRate(request);
+        if (pendingMutations >= maximumPending) throw new HttpError(503, "mutation-queue-capacity-reached");
+        pendingMutations += 1;
+        try {
+          const body = await readJson(request, maximumBodyBytes, bodyReadTimeoutMilliseconds);
+          const event = deserializePersistentMatcherEvent(store.state.configuration, {
+            type: "persistent-matcher-event",
+            configurationHash: matcherConfigurationHash(store.state.configuration),
+            payload: body,
+          });
+          if (event.kind !== expectedKind) throw new HttpError(400, "matcher-event-kind-does-not-match-endpoint");
+          const idempotencyKey = request.headers["idempotency-key"];
+          if (typeof idempotencyKey !== "string" || idempotencyKey !== event.requestId) {
+            throw new HttpError(400, "idempotency-key-must-match-request-id");
+          }
+          assertMatcherEventTime(event, requestNow, options.maximumFutureEventSeconds ?? 30n);
+          const result = await store.mutate(event);
+          send(response, result.replayed ? 200 : 201, { ok: true, ...result });
+        } finally {
+          pendingMutations -= 1;
+        }
         return;
       }
       send(response, 404, { ok: false, reason: "not-found" });
     })().catch((error: unknown) => {
-      send(response, 400, { ok: false, reason: error instanceof Error ? error.message : "matcher-error" });
+      send(response, errorStatus(error), { ok: false, reason: errorReason(error) });
+      if (error instanceof HttpError && error.destroyRequest) {
+        response.once("finish", () => request.destroy());
+      }
     });
   });
+  server.requestTimeout = requestTimeoutMilliseconds;
+  server.headersTimeout = headersTimeoutMilliseconds;
+  server.keepAliveTimeout = keepAliveTimeoutMilliseconds;
+  server.timeout = requestTimeoutMilliseconds;
+  server.on("connection", (socket) => {
+    socket.setTimeout(headersTimeoutMilliseconds);
+    socket.once("timeout", () => socket.destroy());
+  });
 
+  const originalClose = server.close.bind(server);
+  server.close = ((callback?: (error?: Error) => void) => {
+    originalClose((error?: Error) => {
+      void storeReady.then((store) => store?.close()).catch(() => undefined).finally(() => callback?.(error));
+    });
+    return server;
+  }) as typeof server.close;
   server.listen(port, host);
   return server;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  startMatcher();
+  const server = startMatcher();
+  let stopping = false;
+  const stop = () => {
+    if (stopping) return;
+    stopping = true;
+    server.close((error?: Error) => {
+      if (error) {
+        process.exitCode = 1;
+        process.stderr.write(`${error.message}\n`);
+      }
+    });
+  };
+  process.once("SIGINT", stop);
+  process.once("SIGTERM", stop);
 }

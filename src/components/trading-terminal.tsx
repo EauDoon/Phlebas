@@ -68,6 +68,7 @@ import { ArchitecturePanel } from "./architecture-panel";
 import { BridgePanel } from "./bridge-panel";
 import { CountryBlock } from "./country-block";
 import { LiquidityPanel } from "./liquidity-panel";
+import { NativeSwapPanel } from "./native-swap-panel";
 import { OrderBlotter } from "./order-blotter";
 import { OrderBook } from "./order-book";
 import { PreviewEducation } from "./preview-education";
@@ -419,6 +420,9 @@ export function TradingTerminal({
             <a className={styles.skipLink} href="#recent-trades">Skip to recent trades</a>
           </>
         ) : null}
+        {initialAccess === "open" && view === "settlement" ? (
+          <a className={styles.skipLink} href="#native-swap-title">Skip to native settlement walkthrough</a>
+        ) : null}
         {initialAccess === "open" && view === "architecture" ? (
           <>
             <a className={styles.skipLink} href="#architecture-layers">Skip to architecture layers</a>
@@ -440,8 +444,12 @@ export function TradingTerminal({
         ) : null}
       </nav>
       <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
-        <strong>Protocol preview</strong>
-        <span>Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless.</span>
+        <strong>{view === "settlement" ? "No-value walkthrough" : "Protocol preview"}</strong>
+        <span>
+          {view === "settlement"
+            ? "No-value native settlement walkthrough. It prepares no transaction, connects no wallet, and moves no asset."
+            : "Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless."}
+        </span>
       </div>
 
       <header className={styles.topbar}>
@@ -475,13 +483,19 @@ export function TradingTerminal({
             </button>
           ))}
         </nav>
-        <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
+        {view !== "settlement" ? (
+          <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
+        ) : (
+          <span className={styles.fixturePill}>No wallet · fixture only</span>
+        )}
       </header>
 
-      <PreviewEducation force={forceEducation} />
+      {view !== "settlement" && <PreviewEducation force={forceEducation} />}
 
       <main id="main-content" tabIndex={-1}>
-        <h1 className={styles.srOnly}>Phlebas ZEC trading terminal</h1>
+        <h1 className={styles.srOnly}>
+          {view === "settlement" ? "Phlebas native settlement walkthrough" : "Phlebas ZEC trading terminal"}
+        </h1>
         {initialAccess === "blocked" && <CountryBlock />}
         {initialAccess === "open" && view === "trade" && (
           <>
@@ -675,6 +689,9 @@ export function TradingTerminal({
             onFeedChange={selectFeed}
             onRetryFeed={() => selectFeed("illustrative")}
           />
+        )}
+        {initialAccess === "open" && view === "settlement" && (
+          <NativeSwapPanel marketId={marketId} onMarketChange={selectMarket} />
         )}
         {initialAccess === "open" && view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
         {initialAccess === "open" && view === "architecture" && <ArchitecturePanel highlightIncidents={incidentDemo} />}

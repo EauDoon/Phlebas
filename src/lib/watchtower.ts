@@ -41,7 +41,7 @@ export function detectAlerts(
           fillId,
           alert: "reorg-depth-exceeded",
           message: `EVM leg ${fill.evmLeg.state} observed within reorg depth ${config.reorgDepth}`,
-          recommendedAction: "freeze fill and wait for confirmation depth",
+          recommendedAction: "verify the canonical journal independently; do not act from this diagnostic",
           at: nowSeconds,
         });
       }
@@ -56,7 +56,7 @@ export function detectAlerts(
           fillId,
           alert: "missing-terminal-event",
           message: `Both legs funded but no terminal event by ${minTerminalDeadline}`,
-          recommendedAction: "investigate offchain state and decide on refund",
+          recommendedAction: "verify the canonical journal independently; do not claim or refund from this diagnostic",
           at: nowSeconds,
         });
       }
@@ -66,7 +66,7 @@ export function detectAlerts(
         fillId,
         alert: "deadline-breach",
         message: `EVM refund deadline ${fill.evmRefundAfter} passed with EVM leg still funded`,
-        recommendedAction: "buyer should refund before ZEC leg claim window opens",
+        recommendedAction: "verify the canonical journal independently; do not refund from this diagnostic",
         at: nowSeconds,
       });
     }

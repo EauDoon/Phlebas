@@ -6,17 +6,17 @@
 // coordinator-persistence and the output of coordinator-restore.
 
 import type { CoordinatorState } from "./atomic-coordinator.ts";
-import type { Fill } from "./swap-state.ts";
+import type { DiagnosticFill } from "./swap-fill-projection.ts";
 import { emptyCoordinator } from "./atomic-coordinator.ts";
-import { emptyFill } from "./swap-state.ts";
+import { emptyDiagnosticFill } from "./swap-fill-projection.ts";
 import { normalizeHex32, type Hex32 } from "./order-domain.ts";
 
 export const SNAPSHOT_FORMAT_VERSION = 1 as const;
 
 export type SnapshotFill = Readonly<{
   fillId: Hex32;
-  evmLeg: Readonly<{ state: Fill["evmLeg"]["state"]; observedAt: string }>;
-  zecLeg: Readonly<{ state: Fill["zecLeg"]["state"]; observedAt: string }>;
+  evmLeg: Readonly<{ state: DiagnosticFill["evmLeg"]["state"]; observedAt: string }>;
+  zecLeg: Readonly<{ state: DiagnosticFill["zecLeg"]["state"]; observedAt: string }>;
   evmRefundAfter: string;
   zecRefundAfter: string;
   disputed: boolean;
@@ -29,7 +29,7 @@ export type Snapshot = Readonly<{
   alertLog: ReadonlyArray<{ fillId: string; alert: string; at: string }>;
 }>;
 
-function fillToSnapshot(fill: Fill): SnapshotFill {
+function fillToSnapshot(fill: DiagnosticFill): SnapshotFill {
   return {
     fillId: fill.fillId,
     evmLeg: { state: fill.evmLeg.state, observedAt: fill.evmLeg.observedAt.toString() },
@@ -40,10 +40,10 @@ function fillToSnapshot(fill: Fill): SnapshotFill {
   };
 }
 
-function fillFromSnapshot(snap: SnapshotFill): Fill {
+function fillFromSnapshot(snap: SnapshotFill): DiagnosticFill {
   const evmRefundAfter = BigInt(snap.evmRefundAfter);
   const zecRefundAfter = BigInt(snap.zecRefundAfter);
-  const base = emptyFill(normalizeHex32(snap.fillId, "snapshot fill id"), evmRefundAfter, zecRefundAfter);
+  const base = emptyDiagnosticFill(normalizeHex32(snap.fillId, "snapshot fill id"), evmRefundAfter, zecRefundAfter);
   return {
     ...base,
     evmLeg: { state: snap.evmLeg.state, observedAt: BigInt(snap.evmLeg.observedAt) },
@@ -69,7 +69,7 @@ export function snapshotFromJSON(snapshot: Snapshot): CoordinatorState {
   if (snapshot.version !== SNAPSHOT_FORMAT_VERSION) {
     throw new RangeError(`Unsupported snapshot version: ${String(snapshot.version)}`);
   }
-  const fills: Record<string, Fill> = {};
+  const fills: Record<string, DiagnosticFill> = {};
   for (const snap of snapshot.fills) {
     const fill = fillFromSnapshot(snap);
     fills[fill.fillId] = fill;

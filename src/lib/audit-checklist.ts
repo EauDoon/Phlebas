@@ -14,6 +14,20 @@ export type AuditItem = Readonly<{
 
 export type AuditChecklist = ReadonlyArray<AuditItem>;
 
+export type ParsedAuditChecklistRow = Readonly<{
+  id: string;
+  required: boolean;
+  status: string;
+}>;
+
+export function parseAuditChecklistRows(markdown: string): ReadonlyArray<ParsedAuditChecklistRow> {
+  return markdown.split(/\r?\n/)
+    .filter((line) => line.trim().startsWith("|") && !/^\|\s*-/.test(line.trim()))
+    .map((line) => line.split("|").slice(1, -1).map((cell) => cell.trim().toLowerCase()))
+    .filter((cells) => cells.length === 5 && cells[0] !== "id")
+    .map((cells) => ({ id: cells[0], required: cells[2] === "yes", status: cells[4] }));
+}
+
 export function emptyAuditChecklist(): AuditChecklist {
   return [];
 }

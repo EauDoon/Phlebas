@@ -1,7 +1,7 @@
 # Phlebas Architecture
 
 Status: native-settlement target, no-value simulation
-As of: 01-09-2026
+Updated: 01-09-2026
 
 Phlebas is being built as a non-custodial exchange for native transparent ZEC against USDC and USDT. The current public application is a no-value browser simulation. Optional loopback stubs exist for a textest gateway, matcher, and observer, and an optional wallet connector is limited to undeployed Arbitrum Sepolia terms. Those services are never hosted on Vercel and do not move mainnet funds.
 
@@ -18,12 +18,6 @@ The target markets are:
 
 `ZEC` means native transparent ZEC on Zcash. It never becomes a Phlebas receipt or platform balance. The quote asset remains the exact issuer-approved token on the selected EVM chain.
 
-The product UI labels `ZEC-USDC` and `ZEC-USDT` as native ZEC against native USDC and native USDT. USDT0 is abandoned. Shielded ZEC stays out of scope. The public app is still a no-value simulation.
-
-The undeployed 8-decimal receipt symbol is `tZEC`. The Solidity type is `Zec`. Those names are simulation labels, not live native-ZEC execution. [ADR 0001](adr/0001-arbitrum-and-pzec.md) historically named the custody-backed ERC-20 `pZEC`. That name is not the current listed form. ADR 0001 remains historical.
-
-Transparent Zcash exposes transaction and balance information publicly, as described by [Zcash's comparison of transparent and shielded ZEC](https://z.cash/learn/what-is-the-difference-between-shielded-and-transparent-zcash/).
-
 Each fill settles through a pair of chain-native conditional locks. The matcher does not control either lock. Users and solvers sign asset-moving transactions in their own wallet boundary.
 
 Version 1 is transparent. It does not provide shielded settlement or privacy.
@@ -36,13 +30,11 @@ The current repository contains a Next.js no-value simulation, undeployed Arbitr
 | --- | --- | --- |
 | Web application | Vercel-hosted no-value simulation | Public interface and unsigned transaction preparation |
 | Market data | Illustrative fixtures plus session fills | Signed and independently monitored public feeds |
-| Order book | In-browser matcher and optional loopback operator | Persistent signed-order matcher with receipts |
+| Order book | In-browser matcher plus a persistent loopback no-value matcher | Privately hosted signed-order matcher with receipts after release approval |
 | Settlement | Local inventory updates and undeployed legacy Sepolia contracts | One two-chain atomic swap per fill |
-| Zcash path | Local textest gateway, ZIP 321, TEX, and payout-tour stubs | Transparent P2SH fund, claim, and refund transactions |
+| Zcash path | Key-independent transparent HTLC and unsigned-artifact lab, plus superseded gateway stubs | Wallet-reviewed P2SH fund, claim, and refund transactions |
 | EVM path | Optional Sepolia wallet flow against an undeployed legacy manifest | Exact-token conditional-lock contract |
-| Liquidity | Simulation AMM and LP previews. Each pool holds `tZEC` | Wallet-held maker and solver quotes |
-| Simulation mint | tZEC mint controller in undeployed Sepolia sources | Not live native-ZEC execution |
-| `tZEC` | Undeployed 8-decimal receipt; display label is native ZEC | Simulation label, not live native-ZEC execution |
+| Liquidity | Superseded pZEC AMM and LP previews | Wallet-held maker and solver quotes |
 | Wallets | Optional EIP-1193 testnet flow; no native swap adapter | Explicit adapters that keep every key in the wallet |
 | Observers | Optional loopback textest stub | Independent read-only Zcash and EVM evidence |
 | Coordinator | None | Persistent state, recovery, and safe-action policy |
@@ -75,25 +67,25 @@ The dotted relationship is data, not custody. Both legs bind the same approved h
 
 ## Fill and settlement lifecycle
 
-One fill creates one immutable swap workflow:
+One fill creates one immutable, independently replayable swap workflow. The reference domain uses these derived phases:
 
 ```text
-matched
-  -> terms accepted
-  -> first leg funding prepared
-  -> first leg funded
-  -> first leg confirmed
-  -> second leg funding prepared
-  -> both legs funded
-  -> redeemable
+awaiting authorizations
+  -> awaiting ZEC funding
+  -> awaiting ZEC confirmation
+  -> awaiting EVM funding
+  -> awaiting EVM confirmation
+  -> awaiting EVM claim
+  -> secret observed
+  -> awaiting ZEC claim
   -> settled
 
-first leg funded -> first leg refundable -> first leg refunded
-both legs funded -> second leg refundable -> second leg refunded
-any observed state -> disputed
+funded leg -> refund recovery -> refunded
+unsafe or conflicting evidence -> disputed
+no chain evidence after the active signed deadline -> expired
 ```
 
-Each partial fill creates a separate workflow. A match is never presented as settled.
+Each partial fill has a unique fill index and creates a separate swap identifier. A match is never presented as settled. Exact terms are separately authorized by both swap parties because an order signature does not authorize per-fill hashlocks, deadlines, destinations, or contract identities.
 
 The candidate funding order is:
 
@@ -104,11 +96,25 @@ The candidate funding order is:
 5. The stablecoin seller uses that preimage to claim native ZEC.
 6. If progress stops, each funder uses its own wallet-controlled refund path after the applicable deadline.
 
-The exact funding order and deadline margin require current protocol analysis and adversarial Testnet evidence. The local state machine must treat them as versioned policy.
+The local state machine enforces strict deadline ordering and a configurable minimum safety margin. Fixture durations are synthetic. Production durations remain unset until current protocol analysis and adversarial Testnet evidence approve a versioned timeout policy.
+
+The hashlock is SHA-256 with a 32-byte preimage. The canonical terms digest, swap identifier, event chain, and snapshot root also use SHA-256. A successful canonical EVM claim observation records the public preimage, but it becomes claim authority only after the exact chain fact satisfies the signed observer and finality policies. Failed calls and conflicting observations do not create claim authority. Once publicly revealed, the secret remains known even if the reveal transaction reorganizes.
+
+Every finality quorum must agree on one exact observer tip height and block hash. Reports for the same fact that disagree on that view remain auditable but force the swap into dispute. The reference engine also requires `protocolFeeQuoteAtoms` to be zero until the exact-token EVM escrow proves a separate fee transfer without reducing or redirecting either signed principal amount.
+
+Authorization times and funding-artifact preparation times are persisted in the state root. Funding cannot predate both authorizations or its prepared artifact, EVM funding cannot predate policy-confirmed ZEC funding, and a spend cannot predate its own funded and confirmed leg. Replacement resolutions retain the leg, evidence kind, fact, old observer, and new observer so a state root cannot redirect recovery provenance to an unrelated active report.
 
 ## Zcash leg
 
 The candidate Zcash leg uses transparent P2SH. The [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf) states that transparent addresses include P2SH and that BIP 16 and BIP 65 apply from genesis. [ZIP 300](https://zips.z.cash/zip-0300) gives a candidate transparent atomic-swap construction with a hash-protected claim branch and a lock-time refund branch. [BIP 65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki) defines `OP_CHECKLOCKTIMEVERIFY` lock-time semantics.
+
+The current transaction lab commits deterministic unsigned funding,
+claim, and refund effecting-data manifests and validates canonical
+transparent spend branch shapes. It does not yet produce a complete
+wallet-signable transaction, validate a signature against the full
+transaction digest, prove destination outputs or chain finality, or
+broadcast. Its exact boundary is documented in
+[`ZCASH_TRANSACTION_LAB.md`](ZCASH_TRANSACTION_LAB.md).
 
 The final implementation must verify:
 
@@ -136,12 +142,7 @@ The candidate EVM leg is a non-upgradeable exact-token contract with these opera
 
 The contract has no token registry controlled by an administrator, callback, arbitrary recipient change, protocol balance, seizure path, hidden fee, proxy, or upgrade path.
 
-USDC is the first quote candidate. Circle publishes its [current contract registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). Native USDT is the listed second quote. USDT0 is abandoned. No USDT address is approved by this document.
-
-| Product label | Candidate settlement asset | Source checked on 31-08-2026 |
-| --- | --- | --- |
-| `ZEC/USDC` | Native Circle USDC on Arbitrum | [Circle USDC address registry](https://developers.circle.com/stablecoins/usdc-contract-addresses) |
-| `ZEC/USDT` | Native USDT. USDT0 is abandoned. | Issuer-native USDT at the mainnet gate. No address is approved by this document. |
+USDC is the first quote candidate. Circle publishes its [current contract registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). USDT and USDT0 remain unresolved until one exact asset, chain, contract, proxy, admin model, and issuer policy is approved.
 
 Contract code and test dependencies remain local until Testnet deployment receives separate approval.
 
@@ -163,6 +164,8 @@ The matcher accepts versioned signed orders that bind:
 EVM authorization uses [EIP-712](https://eips.ethereum.org/EIPS/eip-712). Zcash wallet authorization requires a separate, wallet-supported format. The matcher cannot treat an EVM signature as authority over ZEC.
 
 Price-time matching, GTC, IOC, FOK, partial fills, cancellation, fee caps, and side-aware integer rounding are deterministic. Sequence receipts and checkpoints make omission or reordering visible. They do not make the matcher trustless.
+
+The loopback matcher validates signed order and solver intents, applies one immutable zero-fee policy, appends a hash-chained single-writer journal, reconstructs state by deterministic replay, and exposes bounded feeds with stable cursors. Every selected fill produces only a blocked no-value plan. The service contains no wallet key, transaction builder, signer, broadcast path, or chain authority, and it never runs on Vercel. Its journal is coordination evidence, not canonical settlement evidence.
 
 ## Solver liquidity
 
@@ -193,7 +196,7 @@ The [Zallet PCZT interface](https://zcash.github.io/zallet/rpc/index.html) separ
 
 At least two independent Zcash observations and two independent EVM observations feed the coordinator. The exact provider and node diversity policy remains a release decision.
 
-Every observation binds:
+Chain facts are content-addressed separately from observer attestations. A funding or spend fact binds:
 
 * network and chain identity;
 * block height or number;
@@ -202,12 +205,17 @@ Every observation binds:
 * output or log index;
 * contract or script identity;
 * amount;
-* confirmations or finality state;
-* observation time and observer identity.
+* execution time;
+* exact funded outpoint or escrow record;
+* action, recipient, and preimage when applicable.
+
+Each attestation then binds one fact ID, observer source, signed observer policy, signed chain-specific finality policy, observation time, and observed chain tip. Confirmation is derived from the policy's source quorum, confirmation depth, execution age, and freshness limits. No boolean observer field can declare a fact final.
 
 The coordinator stores an append-only journal and derives the current state by deterministic replay. It recommends a wallet action but cannot sign it.
 
-Observer disagreement, staleness, wrong-chain evidence, wrong-asset evidence, duplicate evidence, replacement, or reorganization moves the workflow to `disputed`. Automatic progress stops until a versioned recovery rule has enough evidence.
+Observer disagreement, staleness, wrong-chain evidence, wrong-asset evidence, conflicting replacement, or reorganization moves the workflow to `disputed`. Exact duplicate events are idempotent. Automatic funding and claim progress stops until a versioned recovery rule has enough evidence. An unbroadcast funding artifact may be abandoned. A swap with no observed chain evidence may expire after its active signed deadline. A retracted unconfirmed observer report may be replaced only by a new approved attestation for the same canonical fact, with the retraction and resolution retained in the state root and journal. Confirmed or conflicting chain facts require manual recovery and cannot use this replacement path. A refund deadline is derived chain-time eligibility, not proof that an output remains unspent or that a refund occurred.
+
+Every journal receipt binds the swap identifier, terms hash, global sequence, previous event hash, semantic slot, prior state root, and next state root. Event payloads use strict known discriminants and exact runtime fields. A snapshot binds the complete journal head and replayed state, including terminal, dispute, retraction, and resolution metadata. Missing, truncated, reordered, unknown, conflicting, unreplayable, or root-mismatched persistence fails closed.
 
 ## Service and deployment boundaries
 
@@ -267,120 +275,3 @@ Testnet needs current protocol evidence, deterministic vectors, local execution,
 Mainnet needs successful Testnet operation, independent audits, exact contract and service identities, reproducible builds, verified bytecode, monitoring, incident drills, legal approval, and separate authorization for real assets.
 
 The current Vercel deployment remains a simulation until every applicable gate passes.
-
-## ZEC half of the atomic swap
-
-The ZEC half of the atomic swap is a transparent P2SH output that holds ZEC until either the buyer reveals the preimage on the Zcash claim path or the seller refunds after the lock time. The address encoder, the P2SH script builder, and the wallet adapter are documented in [ADR 0005](adr/0005-zcash-p2sh-atomic-swap.md).
-
-### Components
-
-- **Address encoder** (`src/lib/zcash-address.ts`) — Base58Check transparent address encoder and decoder. Testnet and mainnet version bytes are pinned. The address surface is the only surface in PR 3 that depends on a hash function.
-- **P2SH script builder** (`src/lib/zcash-atomic-swap.ts`) — claim branch, refund branch, and full atomic-swap script. The script round-trips through the parser.
-- **Wallet adapter** (`src/lib/zcash-wallet-adapter.ts`) — typed `buildFundTransaction`, `buildClaimTransaction`, `buildRefundTransaction`, and `hashAtomicSwapParams`. The adapter returns unsigned transactions; the signing surface is an injected callback that the production code wires to a real Zcash wallet.
-- **Compressed pubkey parser** (`src/lib/zcash-pubkey.ts`) — 33-byte compressed secp256k1 public key parser and encoder.
-
-### Hash function
-
-The hash function is `RIPEMD160(SHA256(x))`, which the Zcash script engine exposes as `OP_HASH160`. The preimage primitive in `src/lib/preimage.ts` produces 32 random bytes; the same preimage and the same hash are valid on both the EVM leg (via `SHA256`) and the ZEC leg (via `RIPEMD160(SHA256)`).
-
-### Observer and watchtower (PR 4)
-
-The observer and the watchtower close the read-only half of the
-two-chain atomic swap. The observer polls the ConditionalLock
-contract and a set of P2SH lock addresses, reduces the events to
-coordinator transitions, and persists the snapshot to disk. The
-watchtower reads the coordinator state and emits alerts on stop
-conditions. The observer never holds a key and never signs a
-transaction; the signing surface lives in the wallet adapter.
-
-#### Components
-
-- **EVM observer** (src/lib/evm-observer.ts) — classifies the
-  ConditionalLock event topics and emits per-fill event records.
-- **ZEC observer** (src/lib/zcash-observer.ts) — polls each P2SH
-  address for outpoints and classifies them as funded, claimed, or
-  refunded.
-- **Event reducers** (src/lib/evm-event-reducer.ts,
-  src/lib/zcash-event-reducer.ts) — turn the event records into
-  sorted sequences of mapped transitions.
-- **Transition mapper** (src/lib/transition-mapper.ts) — names a
-  transition per event kind and side.
-- **Coordinator** (src/lib/atomic-coordinator.ts) — applies
-  transitions, persists fills by id, and records rejected
-  transitions in the alert log.
-- **Snapshot and persistence**
-  (src/lib/coordinator-snapshot.ts,
-  src/lib/coordinator-persistence.ts) — JSON-on-disk snapshot with
-  atomic write and bootstrap-time marker.
-- **Watchtower** (src/lib/watchtower.ts) — emits
-  reorg-depth-exceeded, missing-terminal-event, and deadline-breach
-  alerts.
-- **Service** (services/atomic-swap-observer/) — wires the
-  observers, the coordinator, and the watchtower into one HTTP
-  process with /health, /state, /fills, /fills/:fillId,
-  /alerts, and /observe.
-
-### Public market data (PR 5)
-
-The public market data surface is four read-only HTTP endpoints
-on the matcher service. The surface is the public read-only view
-of the matcher operator's in-memory state. The surface is the
-companion to the paper-trading fixtures in src/lib/market-data.ts:
-the fixtures drive the no-value simulation; the new endpoints
-drive matcher operator data once a real Sepolia deployment is recorded.
-
-#### Components
-
-- **Pure functions** (src/lib/market-data.ts) — tickerFromOperator,
-  tradesFromReceipts, depthFromBook, marketsFromOperator,
-  topFills. The functions take the operator state and a clock
-  and return a typed snapshot. The functions never mutate the
-  operator.
-- **HTTP endpoints** (services/matcher/server.ts) — /ticker,
-  /trades?limit=N, /depth?levels=N, /markets. The
-  endpoints bound the limit and levels parameters to
-  prevent memory exhaustion.
-
-### Operations hardening (PR 6)
-
-The operations hardening surface is a set of pure-function
-libraries that the services consume and an HTTP layer that the
-operator calls. The surface is the single source of truth for
-the operator's on-call rotation.
-
-#### Components
-
-- **Metrics counter** (src/lib/metrics.ts) — in-memory counter
-  with Prometheus text rendering. Pure function over a state
-  record.
-- **SLO tracker** (src/lib/slo-tracker.ts) — rolling-window
-  compliance verdict for a service against a target SLO.
-- **Health aggregator** (src/lib/health-aggregator.ts) —
-  composes the health of every service into a single response.
-- **Alert router** (src/lib/alert-router.ts) — maps watchtower
-  alerts to channels (pagerduty, slack, email, log) based on
-  severity and service.
-
-### Final integration and audit prep (PR 7)
-
-The final integration surface is the set of pure-function
-libraries and documents that gate the project's readiness for
-the production deployment.
-
-#### Components
-
-- **Release readiness gate** (src/lib/release-readiness.ts) —
-  pure function that evaluates a collection of per-gate
-  results into a single verdict.
-- **Audit checklist** (src/lib/audit-checklist.ts) — pure
-  data structure with required, blocked, and owner tracking.
-- **Release readiness script** (scripts/release-readiness.mjs)
-  — runs the automated gates and prints the verdict.
-- **Audit checklist doc** (docs/audit/audit-checklist.md) —
-  canonical record of the audit surface.
-- **Release readiness evidence pack**
-  (docs/audit/release-readiness-evidence.md) — the source
-  of truth for the release verdict.
-- **Final integration report**
-  (docs/audit/final-integration-report.md) — summary of the
-  seven PRs that delivered the project.

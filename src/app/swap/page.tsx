@@ -5,24 +5,24 @@ import { SimulationFrame } from "@/components/simulation-frame";
 import { SwapPreimagePanel } from "@/components/swap-state-panel.tsx";
 import { isValidPreimage } from "@/lib/preimage.ts";
 import {
-  emptyFill,
-  isTerminal,
-  nextAction,
-  stateOf,
-  type Fill,
-  type FillState,
-  type LegState,
-} from "@/lib/swap-state.ts";
+  diagnosticStateOf,
+  emptyDiagnosticFill,
+  isDiagnosticTerminal,
+  projectedDiagnosticNextStep,
+  type DiagnosticFill,
+  type DiagnosticFillState,
+  type DiagnosticLegState,
+} from "@/lib/swap-fill-projection.ts";
 
 export const metadata: Metadata = {
-  title: "Atomic swap state",
+  title: "Legacy fill diagnostic",
   description:
-    "No-value state machine for one native ZEC atomic swap. Read-only. Signing and broadcast remain gated.",
+    "Untrusted no-value projection for an older fill event stream. Read-only. Signing and broadcast remain gated.",
   robots: { index: false, follow: false },
 };
 
-const LEG_STATES: ReadonlySet<LegState> = new Set(["pending", "funded", "claimed", "refunded"]);
-const FILL_STATES: ReadonlySet<FillState> = new Set([
+const LEG_STATES: ReadonlySet<DiagnosticLegState> = new Set(["pending", "funded", "claimed", "refunded"]);
+const FILL_STATES: ReadonlySet<DiagnosticFillState> = new Set([
   "proposed",
   "awaiting-zec-fund",
   "awaiting-zec-claim",
@@ -37,8 +37,8 @@ const FILL_STATES: ReadonlySet<FillState> = new Set([
 ]);
 type Role = "buyer" | "seller" | "watcher";
 
-function parseLeg(value: string | undefined, fallback: LegState): LegState {
-  if (value && LEG_STATES.has(value as LegState)) return value as LegState;
+function parseLeg(value: string | undefined, fallback: DiagnosticLegState): DiagnosticLegState {
+  if (value && LEG_STATES.has(value as DiagnosticLegState)) return value as DiagnosticLegState;
   return fallback;
 }
 
@@ -47,9 +47,9 @@ function parseFillId(value: string | undefined): Hex32 | null {
   return isValidPreimage(value) ? (value as Hex32) : null;
 }
 
-function parseState(value: string | undefined): FillState | null {
+function parseState(value: string | undefined): DiagnosticFillState | null {
   if (!value) return null;
-  return FILL_STATES.has(value as FillState) ? (value as FillState) : null;
+  return FILL_STATES.has(value as DiagnosticFillState) ? (value as DiagnosticFillState) : null;
 }
 
 function parseRole(value: string | undefined): Role {
@@ -72,21 +72,21 @@ type Hex32 = `0x${string}`;
 
 function buildFill(params: {
   fillId: Hex32;
-  evmState: LegState;
-  zecState: LegState;
+  evmState: DiagnosticLegState;
+  zecState: DiagnosticLegState;
   evmRefundAfter: bigint;
   zecRefundAfter: bigint;
-  fillState: FillState | null;
-}): Fill {
-  const base = emptyFill(params.fillId, params.evmRefundAfter, params.zecRefundAfter);
-  let fill: Fill = { ...base, evmLeg: { state: params.evmState, observedAt: 0n }, zecLeg: { state: params.zecState, observedAt: 0n } };
+  fillState: DiagnosticFillState | null;
+}): DiagnosticFill {
+  const base = emptyDiagnosticFill(params.fillId, params.evmRefundAfter, params.zecRefundAfter);
+  let fill: DiagnosticFill = { ...base, evmLeg: { state: params.evmState, observedAt: 0n }, zecLeg: { state: params.zecState, observedAt: 0n } };
   if (params.fillState === "disputed") {
     fill = { ...fill, disputed: true };
   }
   return fill;
 }
 
-const STATE_LABELS: Readonly<Record<FillState, string>> = {
+const STATE_LABELS: Readonly<Record<DiagnosticFillState, string>> = {
   "proposed": "Proposed",
   "awaiting-zec-fund": "EVM funded, waiting for ZEC fund",
   "awaiting-zec-claim": "Both funded, waiting for ZEC claim",
@@ -100,25 +100,15 @@ const STATE_LABELS: Readonly<Record<FillState, string>> = {
   "disputed": "Disputed",
 };
 
-const ACTION_LABELS: Readonly<Record<string, string>> = {
-  "halt": "Halt — fill is disputed",
-  "done": "Done",
-  "fund-evm": "Lock the stablecoin on the EVM leg",
-  "wait-for-evm-fund": "Wait for the buyer to lock the stablecoin on the EVM leg",
-  "fund-zec": "Lock ZEC on the ZEC leg",
-  "wait-for-zec-fund": "Wait for the seller to lock ZEC on the ZEC leg",
-  "claim-zec": "Reveal the preimage by claiming ZEC",
-  "wait-for-zec-claim": "Wait for the buyer to reveal the preimage on ZEC",
-  "claim-evm": "Claim the EVM leg with the revealed preimage",
-  "wait-for-evm-claim": "Wait for the seller to claim the EVM leg",
-  "refund-evm": "Refund the EVM leg",
-  "wait-for-evm-refund": "Wait for the EVM leg to be refunded",
-  "refund-zec": "Refund the ZEC leg",
-  "wait-for-zec-refund": "Wait for the ZEC leg to be refunded",
-  "observe": "Observe",
+const OBSERVATION_LABELS: Readonly<Record<string, string>> = {
+  "observe-dispute": "Dispute recorded. Verify the canonical journal before proceeding.",
+  "observe-evm-funding": "Waiting for an EVM funding observation",
+  "observe-zec-funding": "Waiting for a Zcash funding observation",
+  "observe-zec-spend": "Waiting for a Zcash spend observation",
+  "observe-evm-spend": "Waiting for an EVM spend observation",
   "observe-evm-timeout": "EVM leg refund deadline has passed",
   "observe-zec-timeout": "ZEC leg refund deadline has passed",
-  "wait": "Wait",
+  "observe-terminal": "The legacy projection is terminal",
 };
 
 function formatUnix(seconds: bigint): string {
@@ -171,21 +161,19 @@ export default async function SwapPage({
     fillState,
   });
 
-  const state = stateOf(fill);
-  const terminal = isTerminal(state);
-  const buyerAction = nextAction(fill, nowSeconds, "buyer");
-  const sellerAction = nextAction(fill, nowSeconds, "seller");
-  const watcherAction = nextAction(fill, nowSeconds, "watcher");
+  const state = diagnosticStateOf(fill);
+  const terminal = isDiagnosticTerminal(state);
+  const observation = projectedDiagnosticNextStep(fill, nowSeconds);
 
   return (
     <SimulationFrame
-      title="Atomic swap state"
+      title="Legacy fill diagnostic"
       skipTo={{ href: "#swap-state-ledger", label: "Skip to swap state" }}
     >
       <p data-testid="swap-simulation-notice">
-        This is a no-value simulation of the atomic swap state machine. The preimage,
-        the hash, the deadlines, and the next action are derived from URL parameters. No
-        wallet, no signature, and no broadcast happen on this page.
+        This is an untrusted no-value projection built from URL parameters. It is not the
+        signed SwapState, it does not verify a SwapJournal, and it cannot authorize a wallet
+        action. No wallet, signature, or broadcast happens on this page.
       </p>
 
       <dl id="swap-state-ledger" tabIndex={-1} role="list" aria-label="Swap state ledger">
@@ -223,18 +211,10 @@ export default async function SwapPage({
         </div>
       </dl>
 
-      <h2>Next action</h2>
-      <ul role="list" aria-label="Next action by role">
-        <li role="listitem">
-          <strong>Buyer:</strong> <span data-testid="swap-action-buyer">{ACTION_LABELS[buyerAction] ?? buyerAction}</span>
-        </li>
-        <li role="listitem">
-          <strong>Seller:</strong> <span data-testid="swap-action-seller">{ACTION_LABELS[sellerAction] ?? sellerAction}</span>
-        </li>
-        <li role="listitem">
-          <strong>Watcher:</strong> <span data-testid="swap-action-watcher">{ACTION_LABELS[watcherAction] ?? watcherAction}</span>
-        </li>
-      </ul>
+      <h2>Observation status</h2>
+      <p data-testid="swap-observation">
+        {OBSERVATION_LABELS[observation] ?? observation}
+      </p>
 
       <h2>Preimage</h2>
       <SwapPreimagePanel />
@@ -248,7 +228,7 @@ export default async function SwapPage({
       </p>
       <p>
         The current viewer role is <strong data-testid="swap-role">{role}</strong>. This is
-        a read-only view. Action buttons are no-value simulation controls.
+        a read-only diagnostic view. It exposes no action controls.
       </p>
     </SimulationFrame>
   );

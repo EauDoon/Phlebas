@@ -1,9 +1,11 @@
 # Primary sources
 
-This register supports the reference design as reviewed on 30-08-2026. Runtime implementations must pin and recheck the applicable version before use.
+This register supports the reference design as reviewed on 01-09-2026. Runtime implementations must pin and recheck the applicable version before use.
 
 ## Zcash
 
+- [Zcash Protocol Specification](https://zips.z.cash/protocol/protocol.pdf)
+- [BIP 65: OP_CHECKLOCKTIMEVERIFY](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)
 - [NU6.3 activation](https://z.cash/upgrade/nu6-3/)
 - [zcashd deprecation and end of support](https://z.cash/support/zcashd-deprecation/)
 - [Zebra releases](https://github.com/ZcashFoundation/zebra/releases/latest)
@@ -13,23 +15,38 @@ This register supports the reference design as reviewed on 30-08-2026. Runtime i
 - [ZIP 321: Payment Request URIs](https://zips.z.cash/zip-0321)
 - [ZIP 315: Best Practices for Wallet Handling of Chain Rollbacks](https://zips.z.cash/zip-0315)
 - [ZIP 203: Transaction Expiry](https://zips.z.cash/zip-0203)
+- [ZIP 229: NU6.3 Transaction Format](https://zips.z.cash/zip-0229)
 - [ZIP 317: Proportional Transfer Fee Mechanism](https://zips.z.cash/zip-0317)
 - [ZIP 48: Multi-signature Support](https://zips.z.cash/zip-0048)
 - [ZIP 300: Cross-Chain Atomic Transactions](https://zips.z.cash/zip-0300)
+- [ZIP 374: Partially Created Zcash Transaction Format](https://zips.z.cash/zip-0374)
+- [ZIP 244: Transaction Identifier Non-Malleability](https://zips.z.cash/zip-0244)
+- [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf)
+- [BIP 16: Pay to Script Hash](https://github.com/bitcoin/bips/blob/master/bip-0016.mediawiki)
+- [BIP 65: OP_CHECKLOCKTIMEVERIFY](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)
 - [Zallet documentation](https://zcash.github.io/zallet/)
+- [Zallet RPC reference](https://zcash.github.io/zallet/rpc/index.html)
 - [Zallet releases](https://github.com/zcash/zallet/releases/latest)
+- [zcashd transparent standardness policy](https://github.com/zcash/zcash/blob/v6.11.0/src/policy/policy.cpp)
+- [Zebra transaction lock checks](https://github.com/ZcashFoundation/zebra/blob/main/zebra-consensus/src/transaction/check.rs)
 - [NU7 status](https://z.cash/upgrade/nu7/)
 - [Draft ZIP 218: Reducing Block Interval](https://zips.z.cash/zip-0218)
 
 ## Arbitrum, tokens, and contracts
 
 - [Arbitrum chain information](https://docs.arbitrum.io/for-devs/dev-tools-and-resources/chain-info)
+- [Inside Arbitrum Nitro](https://docs.arbitrum.io/how-arbitrum-works/inside-arbitrum-nitro)
 - [Circle USDC contract addresses](https://developers.circle.com/stablecoins/usdc-contract-addresses)
+- [Circle EIP-3009 signing and USDC base units](https://developers.circle.com/gateway/nanopayments/howtos/eip-3009-signing)
+- [Tether supported protocols](https://tether.to/en/supported-protocols/)
 - [Tether legal](https://tether.to/en/legal/)
 - USDT0 sources are retained only as the abandoned listing path: [USDT0 on Arbitrum](https://usdt0.to/ecosystem/arbitrum), [USDT0 developer documentation](https://docs.usdt0.to/technical-documentation/developer/)
 - [ERC-20](https://eips.ethereum.org/EIPS/eip-20)
 - [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271)
 - [EIP-712](https://eips.ethereum.org/EIPS/eip-712)
+- [OpenZeppelin ERC-20 and SafeERC20 documentation](https://docs.openzeppelin.com/contracts/5.x/api/token/erc20)
+- [OpenZeppelin ReentrancyGuard documentation](https://docs.openzeppelin.com/contracts/5.x/api/utils#ReentrancyGuard)
+- [Solidity 0.8.28 contract metadata and source verification](https://docs.soliditylang.org/en/v0.8.28/metadata.html)
 - [Uniswap v2 pair reference](https://github.com/Uniswap/v2-core/blob/master/contracts/UniswapV2Pair.sol)
 - [Uniswap concepts](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works)
 - [OpenZeppelin governance contracts](https://docs.openzeppelin.com/contracts/5.x/api/governance)

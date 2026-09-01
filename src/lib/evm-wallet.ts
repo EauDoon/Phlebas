@@ -27,6 +27,38 @@ export function walletConnectFailureCopy(
   return `${punctuated} Settled as ${settlementPair}.`;
 }
 
+function providerErrorCode(error: unknown): unknown {
+  if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
+  return (error as { code?: unknown }).code;
+}
+
+function isRejectedProviderRequest(error: unknown): boolean {
+  const code = providerErrorCode(error);
+  return code === 4001 || code === "4001" || code === "ACTION_REJECTED";
+}
+
+export function publicWalletConnectionError(error: unknown): string {
+  if (isRejectedProviderRequest(error)) return "Wallet request was rejected.";
+  const code = providerErrorCode(error);
+  if (code === -32002 || code === "-32002") return "A wallet request is already pending.";
+  if (code === 4200 || code === "4200") return "The connected wallet does not support this request.";
+  return "Wallet connection failed.";
+}
+
+export function publicTestnetSigningError(error: unknown): string {
+  if (isRejectedProviderRequest(error)) return "Wallet signature request was rejected.";
+  if (error instanceof Error && error.message === "Switch to Arbitrum Sepolia before signing.") {
+    return error.message;
+  }
+  if (error instanceof Error && error.message === "Provider did not return a signature") {
+    return "The wallet did not return a valid signature.";
+  }
+  if (error instanceof Error && /^Matcher rejected the signed order \(\d{3}\)\.$/.test(error.message)) {
+    return "The Testnet matcher rejected the signed order.";
+  }
+  return "Testnet signing failed.";
+}
+
 export function missingProviderCopy(settlementPair: Market["settlementPair"]): string {
   return walletConnectFailureCopy("No injected EVM wallet. Arbitrum Sepolia only.", settlementPair);
 }

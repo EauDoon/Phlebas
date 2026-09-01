@@ -13,7 +13,7 @@ test("320px ticket unavailable gate disables review and retries", async ({ page 
 
   const gate = ticketGate("unavailable", false, SETTLEMENT_PAIR);
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
-  await expect(page.getByText(gate.heading, { exact: true })).toBeVisible();
+  await expect(page.getByRole("status", { name: "Ticket blocked" }).getByText(gate.heading, { exact: true })).toBeVisible();
   await expect(page.getByText(unavailableGateCopy(SETTLEMENT_PAIR))).toBeVisible();
   await expect(page.getByText(feedWithheldCopy("unavailable", SETTLEMENT_PAIR)).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
@@ -22,11 +22,10 @@ test("320px ticket unavailable gate disables review and retries", async ({ page 
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
 });
-
 test("320px ticket unavailable gate names ZEC-USDT after market switch", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await expect(page.getByText(unavailableGateCopy("ZEC-USDT"))).toBeVisible();
   await expect(page.getByText(feedWithheldCopy("unavailable", "ZEC-USDT")).first()).toBeVisible();

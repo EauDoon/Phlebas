@@ -1,396 +1,381 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.28;
 
-import {TestBase} from "./TestBase.sol";
-import {QuoteToken} from "../src/token/QuoteToken.sol";
-import {ConditionalLock} from "../src/swap/ConditionalLock.sol";
 import {IConditionalLock} from "../src/swap/IConditionalLock.sol";
-
-contract ConditionalLockTest is TestBase {
-    bytes32 internal constant PREIMAGE = bytes32(uint256(0xC0FFEE));
-    bytes32 internal constant HASHLOCK = bytes32(0x5b20697604703c31c910b528899cfcd8fc4b623c0582032d0fa8fb854ed48017);
-
-    QuoteToken internal usdc;
-    QuoteToken internal usdt0;
-    ConditionalLock internal lock;
-
-    address internal buyer = address(0xBEEF);
-    address internal seller = address(0xC0DE);
-    address internal bystander = address(0xDEAD);
-    address internal pauser = address(0xA1);
-    address internal governor = address(0xA2);
-
-    function setUp() public {
-        usdc = new QuoteToken("Phlebas Testnet USDC", "tUSDC");
-        usdt0 = new QuoteToken("Phlebas Testnet USDT0", "tUSDT0");
-        lock = new ConditionalLock(address(usdc), address(usdt0), pauser, governor);
-
-        vm.prank(buyer);
-        usdc.faucet(10_000e6);
-        vm.prank(seller);
-        usdc.faucet(10_000e6);
-
-        vm.prank(buyer);
-        usdt0.faucet(10_000e6);
-        vm.prank(seller);
-        usdt0.faucet(10_000e6);
-    }
-
-    function testConstructorRejectsBrokenConfiguration() public {
-        vm.expectRevert(ConditionalLock.InvalidConfiguration.selector);
-        new ConditionalLock(address(0), address(usdt0), pauser, governor);
-        vm.expectRevert(ConditionalLock.InvalidConfiguration.selector);
-        new ConditionalLock(address(usdc), address(0), pauser, governor);
-        vm.expectRevert(ConditionalLock.InvalidConfiguration.selector);
-        new ConditionalLock(address(usdc), address(usdt0), address(0), governor);
-        vm.expectRevert(ConditionalLock.InvalidConfiguration.selector);
-        new ConditionalLock(address(usdc), address(usdt0), pauser, address(0));
-        vm.expectRevert(ConditionalLock.InvalidConfiguration.selector);
-        new ConditionalLock(address(usdc), address(usdc), pauser, governor);
-    }
-
-    function testDepositStoresAllFieldsAndPullsTokens() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-
-        IConditionalLock.LockParams memory params = _params(address(usdc), 100e6, HASHLOCK, seller, buyer);
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(params);
-
-        assertEq(lockId, 1);
-        assertEq(lock.nextLockId(), 2);
-        assertEq(usdc.balanceOf(address(lock)), 100e6);
-        assertEq(usdc.balanceOf(buyer), 10_000e6 - 100e6);
-
-        IConditionalLock.Lock memory stored = lock.getLock(lockId);
-        assertEq(stored.depositor, buyer);
-        assertEq(stored.token, address(usdc));
-        assertEq(stored.amount, 100e6);
-        assertEq(stored.hashlock, HASHLOCK);
-        assertEq(stored.refundTo, buyer);
-        assertEq(stored.claimTo, seller);
-        assertEq(stored.refundAfter, params.refundAfter);
-        assertFalse(stored.claimed);
-        assertFalse(stored.refunded);
-    }
-
-    function testClaimHappyPathTransfersToClaimant() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
-
-        uint256 sellerBefore = usdc.balanceOf(seller);
-        vm.prank(seller);
-        lock.claim(lockId, PREIMAGE);
-
-        assertEq(usdc.balanceOf(seller), sellerBefore + 100e6);
-        assertEq(usdc.balanceOf(address(lock)), 0);
-        assertTrue(lock.getLock(lockId).claimed);
-        assertFalse(lock.getLock(lockId).refunded);
-    }
-
-    function testClaimRejectsWrongPreimage() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
-
-        vm.prank(seller);
-        vm.expectRevert(ConditionalLock.WrongPreimage.selector);
-        lock.claim(lockId, bytes32(uint256(0xBADF00D)));
-    }
-
-    function testClaimRejectsBystander() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
-
-        vm.prank(bystander);
-        vm.expectRevert(ConditionalLock.NotClaimant.selector);
-        lock.claim(lockId, PREIMAGE);
-    }
-
-    function testClaimRejectsDoubleClaim() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
-
-        vm.prank(seller);
-        lock.claim(lockId, PREIMAGE);
-        vm.prank(seller);
-        vm.expectRevert(ConditionalLock.AlreadyClaimed.selector);
-        lock.claim(lockId, PREIMAGE);
-    }
-
-    function testRefundHappyPathAfterDeadline() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-
-        uint64 refundAfter = uint64(block.timestamp + lock.MIN_REFUND_DELAY() + 60);
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_paramsAt(address(usdc), 100e6, HASHLOCK, seller, buyer, refundAfter));
-
-        vm.warp(block.timestamp + lock.MIN_REFUND_DELAY() + 60);
-
-        uint256 buyerBefore = usdc.balanceOf(buyer);
-        vm.prank(buyer);
-        lock.refund(lockId);
-
-        assertEq(usdc.balanceOf(buyer), buyerBefore + 100e6);
-        assertEq(usdc.balanceOf(address(lock)), 0);
-        assertTrue(lock.getLock(lockId).refunded);
-        assertFalse(lock.getLock(lockId).claimed);
-    }
-
-    function testRefundRejectsBeforeDeadline() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
-
-        vm.prank(buyer);
-        vm.expectRevert(
-            abi.encodeWithSelector(ConditionalLock.RefundTooEarly.selector, lock.getLock(lockId).refundAfter, block.timestamp)
-        );
-        lock.refund(lockId);
-    }
-
-    function testRefundRejectsNonDepositor() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-
-        uint64 refundAfter = uint64(block.timestamp + lock.MIN_REFUND_DELAY() + 60);
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_paramsAt(address(usdc), 100e6, HASHLOCK, seller, buyer, refundAfter));
-
-        vm.warp(block.timestamp + lock.MIN_REFUND_DELAY() + 60);
-        vm.prank(bystander);
-        vm.expectRevert(ConditionalLock.NotDepositor.selector);
-        lock.refund(lockId);
-    }
-
-    function testRefundRejectsAfterClaim() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
-
-        vm.prank(seller);
-        lock.claim(lockId, PREIMAGE);
-
-        vm.warp(block.timestamp + lock.MIN_REFUND_DELAY() + 60);
-        vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.AlreadyClaimed.selector);
-        lock.refund(lockId);
-    }
-
-    function testClaimRejectsAfterRefund() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-
-        uint64 refundAfter = uint64(block.timestamp + lock.MIN_REFUND_DELAY() + 60);
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_paramsAt(address(usdc), 100e6, HASHLOCK, seller, buyer, refundAfter));
-
-        vm.warp(block.timestamp + lock.MIN_REFUND_DELAY() + 60);
-        vm.prank(buyer);
-        lock.refund(lockId);
-
-        vm.prank(seller);
-        vm.expectRevert(ConditionalLock.AlreadyRefunded.selector);
-        lock.claim(lockId, PREIMAGE);
-    }
-
-    function testDepositRejectsUnapprovedToken() public {
-        vm.prank(buyer);
-        QuoteToken extra = new QuoteToken("Nope", "NOPE");
-        vm.prank(buyer);
-        extra.faucet(100e6);
-        vm.prank(buyer);
-        extra.approve(address(lock), type(uint256).max);
-
-        vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.TokenNotApproved.selector);
-        lock.deposit(_params(address(extra), 100e6, HASHLOCK, seller, buyer));
-    }
-
-    function testDepositRejectsZeroAmount() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-
-        vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.ZeroAmount.selector);
-        lock.deposit(_params(address(usdc), 0, HASHLOCK, seller, buyer));
-    }
-
-    function testDepositRejectsZeroHashlock() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-
-        vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.ZeroHashlock.selector);
-        lock.deposit(_params(address(usdc), 100e6, bytes32(0), seller, buyer));
-    }
-
-    function testDepositRejectsZeroAddresses() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-
-        vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.ZeroAddress.selector);
-        lock.deposit(_params(address(usdc), 100e6, HASHLOCK, address(0), buyer));
-
-        vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.ZeroAddress.selector);
-        lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, address(0)));
-    }
-
-    function testDepositRejectsRefundDelayBelowMinimum() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-
-        uint64 tooEarly = uint64(block.timestamp + 60);
-        vm.prank(buyer);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ConditionalLock.RefundDelayTooShort.selector, tooEarly, uint64(block.timestamp) + lock.MIN_REFUND_DELAY()
-            )
-        );
-        lock.deposit(_paramsAt(address(usdc), 100e6, HASHLOCK, seller, buyer, tooEarly));
-    }
-
-    function testDepositRejectsAtExactMinimumPlusOne() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-
-        uint64 boundary = uint64(block.timestamp + lock.MIN_REFUND_DELAY());
-        vm.prank(buyer);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ConditionalLock.RefundDelayTooShort.selector, boundary, uint64(block.timestamp) + lock.MIN_REFUND_DELAY()
-            )
-        );
-        lock.deposit(_paramsAt(address(usdc), 100e6, HASHLOCK, seller, buyer, boundary));
-    }
-
-    function testDepositWorksForUsdt0() public {
-        vm.prank(buyer);
-        usdt0.approve(address(lock), type(uint256).max);
-
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_params(address(usdt0), 250e6, HASHLOCK, seller, buyer));
-
-        assertEq(usdt0.balanceOf(address(lock)), 250e6);
-        assertEq(lock.getLock(lockId).token, address(usdt0));
-
-        vm.prank(seller);
-        lock.claim(lockId, PREIMAGE);
-        assertEq(usdt0.balanceOf(seller), 10_000e6 + 250e6);
-    }
-
-    function testPauseBlocksDepositsButKeepsRefundAvailable() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
-
-        lock.pause();
-
-        vm.prank(buyer);
-        vm.expectRevert(ConditionalLock.Paused.selector);
-        lock.deposit(_params(address(usdc), 50e6, HASHLOCK, seller, buyer));
-
-        vm.warp(block.timestamp + lock.MIN_REFUND_DELAY() + 60);
-        vm.prank(buyer);
-        lock.refund(lockId);
-        assertTrue(lock.getLock(lockId).refunded);
-    }
-
-    function testUnpauseByPauserIsRejected() public {
-        lock.pause();
-        vm.prank(pauser);
-        vm.expectRevert(ConditionalLock.NotGovernor.selector);
-        lock.unpause();
-    }
-
-    function testUnpauseByGovernorRestoresDeposits() public {
-        lock.pause();
-        vm.prank(governor);
-        lock.unpause();
-        assertFalse(lock.paused());
-
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
-        assertEq(lockId, 1);
-    }
-
-    function testVerifyPreimagePublicView() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-        vm.prank(buyer);
-        uint256 lockId = lock.deposit(_params(address(usdc), 100e6, HASHLOCK, seller, buyer));
-
-        assertTrue(lock.verifyPreimage(lockId, PREIMAGE));
-        assertFalse(lock.verifyPreimage(lockId, bytes32(uint256(0xBADF00D))));
-        assertFalse(lock.verifyPreimage(0, PREIMAGE));
-        assertFalse(lock.verifyPreimage(lockId + 1, PREIMAGE));
-    }
-
-    function testGetLockRejectsUnknownId() public {
-        vm.expectRevert(ConditionalLock.LockNotFound.selector);
-        lock.getLock(0);
-        vm.expectRevert(ConditionalLock.LockNotFound.selector);
-        lock.getLock(99);
-    }
-
-    function testSequentialLockIds() public {
-        vm.prank(buyer);
-        usdc.approve(address(lock), type(uint256).max);
-        vm.prank(buyer);
-        usdt0.approve(address(lock), type(uint256).max);
-
-        vm.startPrank(buyer);
-        uint256 first = lock.deposit(_params(address(usdc), 10e6, HASHLOCK, seller, buyer));
-        uint256 second = lock.deposit(_params(address(usdt0), 20e6, HASHLOCK, seller, buyer));
-        uint256 third = lock.deposit(_params(address(usdc), 30e6, bytes32(uint256(0xA1)), seller, buyer));
-        vm.stopPrank();
-
-        assertEq(first, 1);
-        assertEq(second, 2);
-        assertEq(third, 3);
-        assertEq(lock.nextLockId(), 4);
-    }
-
-    function _params(address token, uint256 amount, bytes32 hashlock, address claimTo, address refundTo)
-        internal
-        view
-        returns (IConditionalLock.LockParams memory)
-    {
-        return _paramsAt(token, amount, hashlock, claimTo, refundTo, uint64(block.timestamp + lock.MIN_REFUND_DELAY() + 60));
-    }
-
-    function _paramsAt(
-        address token,
+import {ConditionalLock} from "../src/swap/ConditionalLock.sol";
+import {ConditionalLockTestBase} from "./ConditionalLockTestBase.sol";
+
+contract ConditionalLockTest is ConditionalLockTestBase {
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event LockCreated(
+        bytes32 indexed swapId,
+        bytes32 indexed termsHash,
+        address indexed token,
+        address funder,
+        address claimRecipient,
+        address refundRecipient,
         uint256 amount,
         bytes32 hashlock,
-        address claimTo,
-        address refundTo,
-        uint64 refundAfter
-    ) internal pure returns (IConditionalLock.LockParams memory) {
-        return IConditionalLock.LockParams({
-            token: token,
-            amount: amount,
-            hashlock: hashlock,
-            refundAfter: refundAfter,
-            refundTo: refundTo,
-            claimTo: claimTo
-        });
+        uint64 fundingCutoff,
+        uint64 claimCutoff,
+        uint64 refundTime
+    );
+    event Funded(bytes32 indexed swapId, address indexed funder, address indexed token, uint256 amount);
+    event Claimed(bytes32 indexed swapId, address indexed claimRecipient, uint256 amount);
+    event Refunded(bytes32 indexed swapId, address indexed refundRecipient, uint256 amount);
+
+    function testConstructorBindsEveryTermAndStartsUnfunded() public view {
+        assertEq(conditionalLock.swapId(), SWAP_ID);
+        assertEq(conditionalLock.termsHash(), TERMS_HASH);
+        assertEq(conditionalLock.token(), address(quoteToken));
+        assertEq(conditionalLock.funder(), funder);
+        assertEq(conditionalLock.claimRecipient(), claimRecipient);
+        assertEq(conditionalLock.refundRecipient(), funder);
+        assertEq(conditionalLock.amount(), AMOUNT);
+        assertEq(conditionalLock.hashlock(), HASHLOCK);
+        assertEq(conditionalLock.fundingCutoff(), fundingCutoff);
+        assertEq(conditionalLock.claimCutoff(), claimCutoff);
+        assertEq(conditionalLock.refundTime(), refundTime);
+        assertEq(uint256(conditionalLock.state()), uint256(IConditionalLock.State.Unfunded));
+    }
+
+    function testSha256FixtureMatchesLockVerification() public view {
+        assertEq(sha256(abi.encode(PREIMAGE)), HASHLOCK);
+        assertTrue(conditionalLock.verifyPreimage(PREIMAGE));
+        assertFalse(conditionalLock.verifyPreimage(bytes32(uint256(0xBAD))));
+    }
+
+    function testConstructorEmitsEveryBoundTerm() public {
+        bytes32 eventSwapId = keccak256("event-swap");
+        vm.expectEmit(true, true, true, true);
+        emit LockCreated(
+            eventSwapId,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+        _deploy(
+            eventSwapId,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+    }
+
+    function testFundAndClaimEmitBoundLifecycleEvents() public {
+        vm.prank(funder);
+        quoteToken.approve(address(conditionalLock), AMOUNT);
+
+        vm.expectEmit(true, true, false, true, address(quoteToken));
+        emit Transfer(funder, address(conditionalLock), AMOUNT);
+        vm.expectEmit(true, true, true, true, address(conditionalLock));
+        emit Funded(SWAP_ID, funder, address(quoteToken), AMOUNT);
+        vm.prank(funder);
+        conditionalLock.fund();
+
+        vm.expectEmit(true, true, false, true, address(quoteToken));
+        emit Transfer(address(conditionalLock), claimRecipient, AMOUNT);
+        vm.expectEmit(true, true, false, true, address(conditionalLock));
+        emit Claimed(SWAP_ID, claimRecipient, AMOUNT);
+        vm.prank(claimRecipient);
+        conditionalLock.claim(PREIMAGE);
+    }
+
+    function testRefundEmitsBoundLifecycleEvent() public {
+        _fund(conditionalLock, AMOUNT);
+        vm.warp(refundTime);
+
+        vm.expectEmit(true, true, false, true, address(quoteToken));
+        emit Transfer(address(conditionalLock), funder, AMOUNT);
+        vm.expectEmit(true, true, false, true, address(conditionalLock));
+        emit Refunded(SWAP_ID, funder, AMOUNT);
+        vm.prank(funder);
+        conditionalLock.refund();
+    }
+
+    function testFundAndClaimTransferExactlyOnce() public {
+        _fund(conditionalLock, AMOUNT);
+        assertEq(uint256(conditionalLock.state()), uint256(IConditionalLock.State.Funded));
+        assertEq(quoteToken.balanceOf(address(conditionalLock)), AMOUNT);
+
+        uint256 recipientBefore = quoteToken.balanceOf(claimRecipient);
+        vm.prank(claimRecipient);
+        conditionalLock.claim(PREIMAGE);
+
+        assertEq(uint256(conditionalLock.state()), uint256(IConditionalLock.State.Claimed));
+        assertEq(quoteToken.balanceOf(address(conditionalLock)), 0);
+        assertEq(quoteToken.balanceOf(claimRecipient), recipientBefore + AMOUNT);
+
+        vm.prank(claimRecipient);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IConditionalLock.InvalidState.selector, IConditionalLock.State.Funded, IConditionalLock.State.Claimed
+            )
+        );
+        conditionalLock.claim(PREIMAGE);
+
+        vm.warp(refundTime);
+        vm.prank(funder);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IConditionalLock.InvalidState.selector, IConditionalLock.State.Funded, IConditionalLock.State.Claimed
+            )
+        );
+        conditionalLock.refund();
+    }
+
+    function testRefundTransfersOnlyToOriginalFunderAndEndsLock() public {
+        _fund(conditionalLock, AMOUNT);
+        vm.warp(refundTime);
+
+        uint256 funderBefore = quoteToken.balanceOf(funder);
+        vm.prank(funder);
+        conditionalLock.refund();
+
+        assertEq(uint256(conditionalLock.state()), uint256(IConditionalLock.State.Refunded));
+        assertEq(quoteToken.balanceOf(funder), funderBefore + AMOUNT);
+        assertEq(quoteToken.balanceOf(address(conditionalLock)), 0);
+
+        vm.prank(claimRecipient);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IConditionalLock.InvalidState.selector, IConditionalLock.State.Funded, IConditionalLock.State.Refunded
+            )
+        );
+        conditionalLock.claim(PREIMAGE);
+    }
+
+    function testRolesAndPreimageFailClosedWithoutStateChange() public {
+        vm.prank(bystander);
+        vm.expectRevert(IConditionalLock.OnlyFunder.selector);
+        conditionalLock.fund();
+
+        _fund(conditionalLock, AMOUNT);
+
+        vm.prank(bystander);
+        vm.expectRevert(IConditionalLock.OnlyClaimRecipient.selector);
+        conditionalLock.claim(PREIMAGE);
+
+        vm.prank(claimRecipient);
+        vm.expectRevert(IConditionalLock.WrongPreimage.selector);
+        conditionalLock.claim(bytes32(uint256(0xBAD)));
+
+        vm.warp(refundTime);
+        vm.prank(bystander);
+        vm.expectRevert(IConditionalLock.OnlyFunder.selector);
+        conditionalLock.refund();
+
+        assertEq(uint256(conditionalLock.state()), uint256(IConditionalLock.State.Funded));
+        assertEq(quoteToken.balanceOf(address(conditionalLock)), AMOUNT);
+    }
+
+    function testSecondFundingAttemptIsReplayRejected() public {
+        _fund(conditionalLock, AMOUNT);
+
+        vm.prank(funder);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IConditionalLock.InvalidState.selector, IConditionalLock.State.Unfunded, IConditionalLock.State.Funded
+            )
+        );
+        conditionalLock.fund();
+    }
+
+    function testConstructorRejectsUnboundIdentityValueAndRoles() public {
+        vm.expectRevert(IConditionalLock.InvalidSwapId.selector);
+        _deploy(
+            bytes32(0),
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidTermsHash.selector);
+        _deploy(
+            SWAP_ID,
+            bytes32(0),
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidToken.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(0x1234),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidAmount.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            0,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidHashlock.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            funder,
+            AMOUNT,
+            bytes32(0),
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidRole.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            funder,
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.RefundRecipientNotFunder.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            bystander,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+    }
+
+    function testConstructorRejectsZeroAndTokenRoles() public {
+        vm.expectRevert(IConditionalLock.InvalidRole.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            address(0),
+            claimRecipient,
+            address(0),
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidRole.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            address(0),
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidRole.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            claimRecipient,
+            address(0),
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidRole.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            address(quoteToken),
+            claimRecipient,
+            address(quoteToken),
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
+
+        vm.expectRevert(IConditionalLock.InvalidRole.selector);
+        _deploy(
+            SWAP_ID,
+            TERMS_HASH,
+            address(quoteToken),
+            funder,
+            address(quoteToken),
+            funder,
+            AMOUNT,
+            HASHLOCK,
+            fundingCutoff,
+            claimCutoff,
+            refundTime
+        );
     }
 }

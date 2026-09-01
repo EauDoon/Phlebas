@@ -18,7 +18,7 @@ import { buildHealth, type ServiceHealth } from "./health.ts";
 import type { AtomicSwapObserverServiceConfig } from "./types.ts";
 import { detectAlerts, type WatchtowerAlert } from "../../src/lib/watchtower.ts";
 import type { CoordinatorState } from "../../src/lib/atomic-coordinator.ts";
-import { stateOf } from "../../src/lib/swap-state.ts";
+import { diagnosticStateOf } from "../../src/lib/swap-fill-projection.ts";
 import { defineCounter, emptyMetricsState, incCounter, renderPrometheusText, type MetricsState } from "../../src/lib/metrics.ts";
 import { emptySloState, recordSample, sloVerdict, type SloSample, type SloState, type SloTarget } from "../../src/lib/slo-tracker.ts";
 import {
@@ -31,11 +31,15 @@ import {
 } from "../../src/lib/rate-limit-http.ts";
 
 const DEFAULT_PORT = 8790;
+const DIAGNOSTIC_AUTHORITY = "diagnostic-untrusted" as const;
 
 function send(response: ServerResponse, status: number, body: unknown): void {
+  const labeledBody = typeof body === "object" && body !== null && !Array.isArray(body)
+    ? { ...(body as Record<string, unknown>), authority: DIAGNOSTIC_AUTHORITY }
+    : { payload: body, authority: DIAGNOSTIC_AUTHORITY };
   response.writeHead(status, { "content-type": "application/json" });
   response.end(
-    JSON.stringify(body, (_key, value) => (typeof value === "bigint" ? value.toString() : value)),
+    JSON.stringify(labeledBody, (_key, value) => (typeof value === "bigint" ? value.toString() : value)),
   );
 }
 
@@ -211,7 +215,7 @@ export function startService(options: StartServiceOptions): Server {
         send(response, statusFor(snap.bootstrap), {
           ok: snap.bootstrap === "ready",
           bootstrap: snap.bootstrap,
-          bootstrapError: snap.bootstrapError,
+          bootstrapError: snap.bootstrapError ? "diagnostic-bootstrap-error" : null,
           fillCount: Object.keys(snap.state.fills).length,
           cursor: snap.state.cursor.toString(),
           alertCount: snap.state.alertLog.length,
@@ -229,7 +233,7 @@ export function startService(options: StartServiceOptions): Server {
         const snap = controller.snapshot();
         const fills = Object.values(snap.state.fills).map((f) => ({
           fillId: f.fillId,
-          state: stateOf(f),
+          state: diagnosticStateOf(f),
           evmLeg: f.evmLeg,
           zecLeg: f.zecLeg,
           evmRefundAfter: f.evmRefundAfter.toString(),
@@ -251,7 +255,7 @@ export function startService(options: StartServiceOptions): Server {
         send(response, 200, {
           ok: true,
           fillId: fill.fillId,
-          state: stateOf(fill),
+          state: diagnosticStateOf(fill),
           evmLeg: fill.evmLeg,
           zecLeg: fill.zecLeg,
           evmRefundAfter: fill.evmRefundAfter.toString(),
@@ -278,8 +282,8 @@ export function startService(options: StartServiceOptions): Server {
         return;
       }
       send(response, 404, { ok: false, reason: "not-found" });
-    })().catch((err: unknown) => {
-      send(response, 500, { ok: false, reason: err instanceof Error ? err.message : "service-error" });
+    })().catch(() => {
+      send(response, 500, { ok: false, reason: "diagnostic-service-error" });
     });
   });
   server.listen(port, host);

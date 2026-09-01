@@ -1,7 +1,13 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 
-import { addItem, blockedItems, emptyAuditChecklist, incompleteRequiredItems } from "./audit-checklist.ts";
+import {
+  addItem,
+  blockedItems,
+  emptyAuditChecklist,
+  incompleteRequiredItems,
+  parseAuditChecklistRows,
+} from "./audit-checklist.ts";
 
 const item = (id: string, required: boolean, status: "todo" | "in-progress" | "done" | "blocked") => ({
   id,
@@ -36,4 +42,18 @@ test("addItem appends without mutating the input", () => {
   const next = addItem(original, item("a", true, "todo"));
   assert.equal(original.length, 0);
   assert.equal(next.length, 1);
+});
+
+test("markdown parsing cannot cancel a required todo with an optional done row", () => {
+  const rows = parseAuditChecklistRows(`
+| ID | Item | Required | Owner | Status |
+| --- | --- | --- | --- | --- |
+| required-1 | required item | yes | security | todo |
+| optional-1 | optional item | no | security | done |
+`);
+  assert.deepEqual(rows, [
+    { id: "required-1", required: true, status: "todo" },
+    { id: "optional-1", required: false, status: "done" },
+  ]);
+  assert.deepEqual(rows.filter((row) => row.required && row.status !== "done").map((row) => row.id), ["required-1"]);
 });

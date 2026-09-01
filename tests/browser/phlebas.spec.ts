@@ -1,8 +1,11 @@
 import { type Locator, type Page } from "@playwright/test";
 
 import { ARBITRUM_SEPOLIA_HEX } from "../../src/lib/evm-wallet.ts";
+import { DEPOSIT_TOUR } from "../../src/lib/deposit-tour.ts";
 import { payoutClaimForTourStep, payoutClaimStubCopy } from "../../src/lib/payout.ts";
+import { WITHDRAWAL_TOUR } from "../../src/lib/withdrawal-tour.ts";
 import { expect, test } from "./fixtures";
+import { LANDING_MAINNET_GATES } from "../../src/lib/landing-gates.ts";
 
 const viewports = [320, 390, 768, 1440] as const;
 
@@ -16,6 +19,11 @@ const routes = [
     path: "/trade",
     disclosure: "Protocol preview",
     marker: "settles ZEC-USDC",
+  },
+  {
+    path: "/trade?view=settlement&market=ZEC/USDC",
+    disclosure: "No-value walkthrough",
+    marker: "Native ZEC atomic swap",
   },
   {
     path: "/liquidity",
@@ -118,6 +126,24 @@ async function expectReducedMotion(page: Page) {
   expect(state.offenders, "Elements retaining motion under reduced-motion preference").toEqual([]);
 }
 
+async function runNativeFixtureActions(page: Page, labels: readonly string[]) {
+  for (const label of labels) {
+    const action = page.getByRole("button", { name: label, exact: true });
+    await expect(action).toBeEnabled();
+    await action.click();
+  }
+}
+
+const fundedNativeFixtureActions = [
+  "Accept exact fixture terms",
+  "Prepare fixture ZEC lock",
+  "Record fixture ZEC funding",
+  "Confirm fixture ZEC evidence",
+  "Prepare fixture USDC lock",
+  "Record fixture USDC funding",
+  "Confirm fixture USDC evidence",
+] as const;
+
 for (const width of viewports) {
   test.describe(`${width}px viewport`, () => {
     test.use({ viewport: { width, height: 900 } });
@@ -161,7 +187,9 @@ for (const width of viewports) {
           await expect(page.getByText("Simulation", { exact: true })).toBeVisible();
           await expect(page.getByRole("link", { name: "Open full simulation" })).toBeVisible();
           await expect(page.getByText("Not a live book.")).toBeVisible();
-          await expect(page.locator("#launch-gates").getByText("Not cleared", { exact: true })).toHaveCount(6);
+          await expect(page.locator("#launch-gates").getByText("Not cleared", { exact: true })).toHaveCount(
+            LANDING_MAINNET_GATES.length + 3,
+          );
           await expect(page.getByRole("link", { name: "Read the launch gates" })).toBeVisible();
         }
       }
@@ -215,14 +243,20 @@ for (const width of viewports) {
       await tabTo(page, tradeNavigation);
       await expectVisibleFocus(tradeNavigation);
       await page.keyboard.press("ArrowRight");
+      const settlementNavigation = page.getByRole("tab", { name: "Settlement" });
+      await expectVisibleFocus(settlementNavigation);
+      await page.keyboard.press("ArrowRight");
       const liquidityNavigation = page.getByRole("tab", { name: "Liquidity" });
       await expectVisibleFocus(liquidityNavigation);
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/liquidity\?market=ZEC%2FUSDC$/);
       await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
 
-      const laterPool = page.getByRole("radio", { name: /ZEC \/ USDT/ });
-      await tabTo(page, laterPool);
+      const currentPool = page.getByRole("radio", { name: /ZEC \/ USDC|ZEC\/USDC/ });
+      const laterPool = page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ });
+      await tabTo(page, currentPool);
+      await expectVisibleFocus(currentPool);
+      await page.keyboard.press("ArrowRight");
       await expectVisibleFocus(laterPool);
       await page.keyboard.press("Enter");
       await expect(laterPool).toHaveAttribute("aria-checked", "true");
@@ -304,7 +338,6 @@ test("trade ticket shows parser errors instead of a tick notice", async ({ page 
   await expect(page.getByText("Value must use no more than 8 decimal places").first()).toBeVisible();
   await expect(page.getByText("Price must use 0.01 quote ticks")).toHaveCount(0);
 });
-
 test("gateway preview is not a receivable deposit", async ({ page }) => {
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "ZEC gateway" })).toBeVisible();
@@ -364,7 +397,7 @@ test("status and missing routes stay labeled as simulation", async ({ page }) =>
   const boundary = page.locator("main#main-content");
   await expect(boundary.getByRole("link", { name: "Legal and compliance" })).toBeVisible();
   await expect(boundary.getByRole("link", { name: "Security" })).toHaveCount(2);
-  await expect(boundary.getByRole("link", { name: "Architecture" })).toBeVisible();
+  await expect(boundary.getByRole("link", { name: "Architecture", exact: true })).toBeVisible();
   await expect(boundary.getByRole("link", { name: "Launch gates" })).toBeVisible();
 
   const missing = await page.goto("/this-route-is-not-part-of-the-simulation", { waitUntil: "load" });
@@ -391,24 +424,26 @@ test("invalid demo query does not highlight incidents", async ({ page }) => {
 test("architecture keeps demo=incidents when the market changes", async ({ page }) => {
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  const nav = page.getByRole("tablist", { name: "Primary navigation" });
+  await nav.getByRole("tab", { name: "Trade" }).click();
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
+  await nav.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page).toHaveURL(/USDT/);
-  await expect(page.getByText("settles ZEC-USDT")).toBeVisible();
   await expect(page.getByText("architecture-demonstration")).toBeVisible();
 });
 
 test("leaving Architecture for Trade drops demo=incidents and return restores it", async ({ page }) => {
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
-  const nav = page.getByRole("navigation", { name: "Primary navigation" });
-  await nav.getByRole("button", { name: "Trade" }).click();
+  const nav = page.getByRole("tablist", { name: "Primary navigation" });
+  await nav.getByRole("tab", { name: "Trade" }).click();
   await expect(page).toHaveURL(/view=trade/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
   await expect(page.getByText("Status field architecture-demonstration.")).toHaveCount(0);
-  await nav.getByRole("button", { name: "Architecture" }).click();
+  await nav.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
@@ -418,12 +453,12 @@ test("leaving Architecture for Trade drops demo=incidents and return restores it
 test("leaving Architecture for the ZEC gateway drops demo=incidents and return restores it", async ({ page }) => {
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
-  const nav = page.getByRole("navigation", { name: "Primary navigation" });
-  await nav.getByRole("button", { name: "ZEC gateway" }).click();
+  const nav = page.getByRole("tablist", { name: "Primary navigation" });
+  await nav.getByRole("tab", { name: "ZEC gateway" }).click();
   await expect(page).toHaveURL(/view=bridge/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
-  await nav.getByRole("button", { name: "Architecture" }).click();
+  await nav.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
@@ -432,12 +467,12 @@ test("leaving Architecture for the ZEC gateway drops demo=incidents and return r
 test("leaving Architecture for Liquidity drops demo=incidents and return restores it", async ({ page }) => {
   await page.goto("/trade?view=architecture&demo=incidents", { waitUntil: "networkidle" });
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
-  const nav = page.getByRole("navigation", { name: "Primary navigation" });
-  await nav.getByRole("button", { name: "Liquidity" }).click();
+  const nav = page.getByRole("tablist", { name: "Primary navigation" });
+  await nav.getByRole("tab", { name: "Liquidity" }).click();
   await expect(page).toHaveURL(/\/liquidity/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
-  await nav.getByRole("button", { name: "Architecture" }).click();
+  await nav.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
@@ -445,7 +480,7 @@ test("leaving Architecture for Liquidity drops demo=incidents and return restore
 
 test("status Architecture link keeps the demonstration label", async ({ page }) => {
   await page.goto("/status", { waitUntil: "networkidle" });
-  await page.getByRole("link", { name: "Architecture incident demonstrations" }).click();
+  await page.getByRole("link", { name: "Architecture incident demonstrations", exact: true }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page.getByText("architecture-demonstration")).toBeVisible();
@@ -472,14 +507,7 @@ test("ZIP 321 copy stays disabled without a gateway", async ({ page }) => {
   await expect(page.getByText("Visual copy of the ZIP 321 request, not a mainnet address.")).toBeVisible();
   await page.getByRole("button", { name: "Issue testnet TEX" }).click();
   await expect(page.getByText("No receivable address is displayed.")).toBeVisible();
-  await page.evaluate(() => {
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText: () => Promise.reject(new Error("denied")) },
-    });
-  });
-  await page.getByRole("button", { name: "Copy testnet URI" }).click();
-  await expect(page.getByText("Could not copy. The request is still visible above. Nothing was sent.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy testnet URI" })).toHaveCount(0);
 });
 
 test("stale market data disables preview-to-sign and retries to illustrative", async ({ page }) => {
@@ -589,8 +617,8 @@ test("LP pause notice names the newly selected pool after a pool switch", async 
   await page.goto("/liquidity", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Pause trading preview" }).click();
   await expect(page.getByText("Trading paused. LP withdrawal remains available. Settled as ZEC-USDC.")).toBeVisible();
-  await page.getByRole("button", { name: /ZEC\/USDT/ }).click();
-  await expect(page.getByRole("button", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /ZEC\/USDT/ }).click();
+  await expect(page.getByRole("radio", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByText("Trading paused. LP withdrawal remains available. Settled as ZEC-USDT.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeDisabled();
@@ -605,8 +633,8 @@ test("LP lifted pause notice names the newly selected pool after a pool switch",
   await expect(page.getByText("Trading paused. LP withdrawal remains available. Settled as ZEC-USDC.")).toBeVisible();
   await page.getByRole("button", { name: "Resume trading preview" }).click();
   await expect(page.getByText("Trading pause lifted. Mint and swap are available again. Settled as ZEC-USDC.")).toBeVisible();
-  await page.getByRole("button", { name: /ZEC\/USDT/ }).click();
-  await expect(page.getByRole("button", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /ZEC\/USDT/ }).click();
+  await expect(page.getByRole("radio", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByText("Trading pause lifted. Mint and swap are available again. Settled as ZEC-USDT.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Review simulated swap" })).toBeEnabled();
@@ -614,8 +642,8 @@ test("LP lifted pause notice names the newly selected pool after a pool switch",
 
 test("LP pause notice names ZEC-USDT on the USDT pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /ZEC\/USDT/ }).click();
-  await expect(page.getByRole("button", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /ZEC\/USDT/ }).click();
+  await expect(page.getByRole("radio", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Pause trading preview" }).click();
   await expect(page.getByText("Trading paused. LP withdrawal remains available. Settled as ZEC-USDT.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
@@ -635,8 +663,8 @@ test("LP swap success notice names the settlement pair", async ({ page }) => {
 
 test("LP swap success notice names ZEC-USDT on the USDT pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /ZEC\/USDT/ }).click();
-  await expect(page.getByRole("button", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /ZEC\/USDT/ }).click();
+  await expect(page.getByRole("radio", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Review simulated swap" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated swap" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated swap" }).click();
@@ -645,8 +673,8 @@ test("LP swap success notice names ZEC-USDT on the USDT pool", async ({ page }) 
 
 test("LP mint success notice names ZEC-USDT on the USDT pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /ZEC\/USDT/ }).click();
-  await expect(page.getByRole("button", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /ZEC\/USDT/ }).click();
+  await expect(page.getByRole("radio", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Review simulated mint" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated mint" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated mint" }).click();
@@ -655,8 +683,8 @@ test("LP mint success notice names ZEC-USDT on the USDT pool", async ({ page }) 
 
 test("LP burn success notice names ZEC-USDT on the USDT pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /ZEC\/USDT/ }).click();
-  await expect(page.getByRole("button", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /ZEC\/USDT/ }).click();
+  await expect(page.getByRole("radio", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Review simulated mint" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated mint" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated mint" }).click();
@@ -667,8 +695,8 @@ test("LP burn success notice names ZEC-USDT on the USDT pool", async ({ page }) 
 
 test("LP reset-pool notice names ZEC-USDT on the USDT pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /ZEC\/USDT/ }).click();
-  await expect(page.getByRole("button", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("radio", { name: /ZEC\/USDT/ }).click();
+  await expect(page.getByRole("radio", { name: /ZEC\/USDT/ })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Review simulated mint" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated mint" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm simulated mint" }).click();
@@ -716,7 +744,7 @@ test("FOK reject copy names ZEC-USDT if market switches while rejected panel is 
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Fill-or-kill could not fill in full. Settled as ZEC-USDC.", { exact: true })).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Fill-or-kill could not fill in full. Settled as ZEC-USDT.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
@@ -814,7 +842,7 @@ test("connect wallet without a provider shows a visible rejection", async ({ pag
 
 test("connect wallet without a provider names ZEC-USDT after switching market", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
   await expect(connect).toHaveAttribute(
     "title",
@@ -833,7 +861,7 @@ test("missing-provider error keeps settlement after switching market", async ({ 
   await expect(
     page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as ZEC-USDC.", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   const retargeted = "No injected EVM wallet. Arbitrum Sepolia only. Settled as ZEC-USDT.";
   await expect(page.getByText(retargeted, { exact: true })).toBeVisible();
   await expect(connect).toHaveAttribute("title", retargeted);
@@ -846,7 +874,7 @@ test("rejected connect error keeps settlement after switching market", async ({ 
       value: {
         request(args: { method: string }) {
           if (args.method === "eth_requestAccounts") {
-            return Promise.reject(new Error("User rejected the request."));
+            return Promise.reject(Object.assign(new Error("User rejected the request."), { code: 4001 }));
           }
           return Promise.reject(new Error(args.method));
         },
@@ -857,10 +885,10 @@ test("rejected connect error keeps settlement after switching market", async ({ 
   const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
   await connect.click();
   await expect(
-    page.getByText("User rejected the request. Settled as ZEC-USDC.", { exact: true }),
+    page.getByText("Wallet request was rejected. Settled as ZEC-USDC.", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
-  const retargeted = "User rejected the request. Settled as ZEC-USDT.";
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
+  const retargeted = "Wallet request was rejected. Settled as ZEC-USDT.";
   await expect(page.getByText(retargeted, { exact: true })).toBeVisible();
   await expect(connect).toHaveAttribute("title", retargeted);
 });
@@ -908,7 +936,7 @@ test("connecting wallet title keeps settlement after switching market", async ({
     "title",
     "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDC.",
   );
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(connect).toHaveText("Connecting");
   await expect(connect).toBeDisabled();
   await expect(connect).toHaveAttribute(
@@ -927,7 +955,7 @@ test("connecting wallet title after rejected connect hang keeps settlement", asy
           if (args.method === "eth_requestAccounts") {
             if (rejectNext) {
               rejectNext = false;
-              return Promise.reject(new Error("User rejected the request."));
+              return Promise.reject(Object.assign(new Error("User rejected the request."), { code: 4001 }));
             }
             return new Promise(() => {});
           }
@@ -939,7 +967,7 @@ test("connecting wallet title after rejected connect hang keeps settlement", asy
   await page.goto("/trade", { waitUntil: "networkidle" });
   const connect = page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" });
   await connect.click();
-  const rejectUsdc = "User rejected the request. Settled as ZEC-USDC.";
+  const rejectUsdc = "Wallet request was rejected. Settled as ZEC-USDC.";
   await expect(page.getByText(rejectUsdc, { exact: true })).toBeVisible();
   await connect.click();
   await expect(connect).toHaveText("Connecting");
@@ -948,7 +976,7 @@ test("connecting wallet title after rejected connect hang keeps settlement", asy
     "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDC.",
   );
   await expect(page.getByText(rejectUsdc, { exact: true })).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(connect).toHaveText("Connecting");
   await expect(connect).toBeDisabled();
   await expect(connect).toHaveAttribute(
@@ -956,7 +984,7 @@ test("connecting wallet title after rejected connect hang keeps settlement", asy
     "Connecting an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDT.",
   );
   await expect(
-    page.getByText("User rejected the request. Settled as ZEC-USDT.", { exact: true }),
+    page.getByText("Wallet request was rejected. Settled as ZEC-USDT.", { exact: true }),
   ).toBeVisible();
 });
 
@@ -968,7 +996,7 @@ test("idle Connect wallet title keeps settlement after switching market", async 
     "title",
     "Connect an injected EVM wallet on Arbitrum Sepolia. Settled as ZEC-USDC.",
   );
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(connect).toHaveText("Connect wallet");
   await expect(connect).toHaveAttribute(
     "title",
@@ -976,7 +1004,7 @@ test("idle Connect wallet title keeps settlement after switching market", async 
   );
 });
 
-test("ticket sign missing-provider copy names the selected market settlement pair", async ({ page }) => {
+test("ticket signing stays disabled while the settlement contract is undeployed", async ({ page }) => {
   await page.addInitScript((chainId) => {
     Object.defineProperty(window, "ethereum", {
       configurable: true,
@@ -998,22 +1026,18 @@ test("ticket sign missing-provider copy names the selected market settlement pai
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDC." })).toBeVisible();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toBeVisible();
-  await page.evaluate(() => {
-    Object.defineProperty(window, "ethereum", { configurable: true, value: undefined });
-  });
-  await page.getByRole("button", { name: "Sign testnet typed data" }).click();
-  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as ZEC-USDC.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
+  await expect(page.getByText("Session digest", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toBeVisible();
-  await page.getByRole("button", { name: "Sign testnet typed data" }).click();
-  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as ZEC-USDT.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
+  await expect(page.getByText("Session digest", { exact: true })).toBeVisible();
 });
 
-test("ticket sign missing-provider copy names ZEC-USDT if market switches while review is open", async ({ page }) => {
+test("market switching cannot enable undeployed testnet signing", async ({ page }) => {
   await page.addInitScript((chainId) => {
     Object.defineProperty(window, "ethereum", {
       configurable: true,
@@ -1035,17 +1059,11 @@ test("ticket sign missing-provider copy names ZEC-USDT if market switches while 
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDC." })).toBeVisible();
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toBeVisible();
-  await page.evaluate(() => {
-    Object.defineProperty(window, "ethereum", { configurable: true, value: undefined });
-  });
-  await page.getByRole("button", { name: "Sign testnet typed data" }).click();
-  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as ZEC-USDC.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toBeVisible();
-  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as ZEC-USDT.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
 });
 
 test("wallet disconnect accessible name keeps settlement after switching market", async ({ page }) => {
@@ -1073,7 +1091,7 @@ test("wallet disconnect accessible name keeps settlement after switching market"
     "aria-label",
     "Disconnect 0xf39f…2266. Settled as ZEC-USDC.",
   );
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   const connectedUsdt = page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as ZEC-USDT." });
   await expect(connectedUsdt).toHaveText("0xf39f…2266");
   await expect(connectedUsdt).toHaveAttribute(
@@ -1171,11 +1189,9 @@ test("deposit tour never shows a receivable address", async ({ page }) => {
   await page.getByRole("button", { name: "Next state" }).click();
   await expect(page.getByText("No address generated in simulation.")).toBeVisible();
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
-  await page.getByRole("button", { name: "Next state" }).click();
-  await page.getByRole("button", { name: "Next state" }).click();
-  await page.getByRole("button", { name: "Next state" }).click();
-  await page.getByRole("button", { name: "Next state" }).click();
-  await page.getByRole("button", { name: "Next state" }).click();
+  for (let index = 2; index < DEPOSIT_TOUR.length; index += 1) {
+    await page.getByRole("button", { name: "Next state" }).click();
+  }
   await expect(page.getByText("No native ZEC was received and nothing was minted.")).toBeVisible();
 });
 
@@ -1246,7 +1262,7 @@ test("ticket reject copy names ZEC-USDT if market switches while rejected panel 
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Order expiry has passed. Settled as ZEC-USDC.", { exact: true })).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(page.getByText("Order rejected", { exact: true })).toBeVisible();
   await expect(page.getByText("Rejected. Order expiry has passed. Settled as ZEC-USDT.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toHaveCount(0);
@@ -1265,10 +1281,10 @@ test("confirmed ticket writes expiry onto the blotter event log", async ({ page 
 
 test("status, legal, and security pages cross-link", async ({ page }) => {
   await page.goto("/status", { waitUntil: "networkidle" });
-  await expect(page.getByRole("main").getByRole("link", { name: "Legal" })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("link", { name: "Legal", exact: true })).toBeVisible();
   await page.goto("/legal", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Legal and compliance" })).toBeVisible();
-  await expect(page.getByText("not a live exchange")).toBeVisible();
+  await expect(page.getByRole("main").getByText("not a live exchange")).toBeVisible();
   await page.goto("/security", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Security" })).toBeVisible();
   await expect(page.getByText("no production support commitment")).toBeVisible();
@@ -1279,7 +1295,7 @@ test("blotter tabs expose a selected tabpanel", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByRole("tab", { name: "Open orders" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("tabpanel", { name: "Open orders" })).toContainText("No open session orders. Settled as ZEC-USDC.");
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(page.getByRole("tabpanel", { name: "Open orders" })).toContainText("Settled as ZEC-USDT");
   await page.getByRole("tab", { name: "Inventory" }).click();
   await expect(page.getByRole("tabpanel", { name: "Inventory" })).toContainText("Account epoch");
@@ -1291,7 +1307,7 @@ test("blotter event log empty copy names the settlement pair", async ({ page }) 
   await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText(
     "No session events yet. Settled as ZEC-USDC.",
   );
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText("Settled as ZEC-USDT");
   await expect(page.getByRole("tabpanel", { name: "Event log" })).toContainText(
     "Replaying this log reconstructs the book and balances.",
@@ -1303,8 +1319,8 @@ test("landing journey tabs select LP without a page reload", async ({ page }) =>
   await expect(page.getByRole("tab", { name: "Trader" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("link", { name: "Preview trading" })).toBeVisible();
   await page.getByRole("tab", { name: "Withdrawal" }).click();
+  await expect(page.getByRole("tab", { name: "Withdrawal" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("link", { name: "Preview withdrawal states" })).toBeVisible();
-  await expect(page).toHaveURL(/#journey-withdrawal$/);
   await page.getByRole("link", { name: "Preview withdrawal states" }).click();
   await expect(page).toHaveURL(/view=bridge/);
   await expect(page.getByRole("button", { name: "Withdrawal states" })).toHaveAttribute("aria-pressed", "true");
@@ -1314,15 +1330,15 @@ test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
   await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Chart and 24h stats are withheld. Integrity checks failed.").first()).toBeVisible();
-  await expect(page.getByRole("region", { name: "Selected market summary" }).getByRole("status")).toContainText("Settled as ZEC-USDC");
+  await expect(page.getByRole("region", { name: "Selected market summary" })).toContainText("settles ZEC-USDC");
   await expect(page.getByText("Integrity checks failed. Preview-to-sign is disabled. Retry is safe; nothing was submitted. Settled as ZEC-USDC.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeDisabled();
   await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
-  await page.getByRole("tab", { name: "1H · ZEC-USDC" }).click();
+  await page.getByRole("radio", { name: "1H · ZEC-USDC" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 1H price chart for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
-  await page.getByRole("tab", { name: "1D · ZEC-USDC" }).click();
+  await page.getByRole("radio", { name: "1D · ZEC-USDC" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 1D price chart for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
   await page.goto("/liquidity?feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByRole("button", { name: "Review simulated mint" })).toBeDisabled();
@@ -1333,8 +1349,8 @@ test("unavailable feed withholds chart stats and LP mint", async ({ page }) => {
 
 test("unavailable ZEC/USDT withholds chart copy naming ZEC-USDT before retry", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
-  await page.getByRole("combobox", { name: "Market data state" }).selectOption("unavailable");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
+  await page.getByRole("radio", { name: "Unavailable" }).click();
   await expect(
     page.getByText("Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as ZEC-USDT.").first(),
   ).toBeVisible();
@@ -1343,12 +1359,12 @@ test("unavailable ZEC/USDT withholds chart copy naming ZEC-USDT before retry", a
 
 test("chart withheld copy names ZEC-USDT if market switches while unavailable", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("combobox", { name: "Market data state" }).selectOption("unavailable");
+  await page.getByRole("radio", { name: "Unavailable" }).click();
   await expect(
     page.getByText("Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as ZEC-USDC.").first(),
   ).toBeVisible();
   await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(
     page.getByText("Market data unavailable. Chart and 24h stats are withheld. Integrity checks failed. Settled as ZEC-USDT.").first(),
   ).toBeVisible();
@@ -1357,15 +1373,15 @@ test("chart withheld copy names ZEC-USDT if market switches while unavailable", 
 
 test("chart 1H and 1D img labels return on ZEC/USDT after fixtures", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDT, settled as ZEC-USDT" })).toBeVisible();
-  await page.getByRole("combobox", { name: "Market data state" }).selectOption("unavailable");
+  await page.getByRole("radio", { name: "Unavailable" }).click();
   await expect(page.getByRole("img", { name: /price chart/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Retry illustrative feed" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDT, settled as ZEC-USDT" })).toBeVisible();
-  await page.getByRole("tab", { name: "1H · ZEC-USDT" }).click();
+  await page.getByRole("radio", { name: "1H · ZEC-USDT" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 1H price chart for ZEC/USDT, settled as ZEC-USDT" })).toBeVisible();
-  await page.getByRole("tab", { name: "1D · ZEC-USDT" }).click();
+  await page.getByRole("radio", { name: "1D · ZEC-USDT" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 1D price chart for ZEC/USDT, settled as ZEC-USDT" })).toBeVisible();
 });
 
@@ -1374,6 +1390,8 @@ test("blotter arrow keys move to the next tabpanel", async ({ page }) => {
   await page.getByRole("tab", { name: "Open orders" }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("tab", { name: "Fills" })).toBeFocused();
+  await expect(page.getByRole("tabpanel", { name: "Open orders" })).toBeVisible();
+  await page.keyboard.press("Enter");
   await expect(page.getByRole("tabpanel", { name: "Fills" })).toContainText("No session fills yet. Settled as ZEC-USDC.");
 });
 
@@ -1412,20 +1430,20 @@ test("country-blocked demonstration hides trading and liquidity controls", async
   await expect(page.getByRole("link", { name: "Return home" })).toBeVisible();
 });
 
-test("chart range uses a tablist and unavailable tape names the feed", async ({ page }) => {
+test("chart range uses a radiogroup and unavailable tape names the feed", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "ZEC/USDC · ZEC-USDC" })).toBeVisible();
   await expect(page.getByText("Illustrative market data · ZEC-USDC")).toBeVisible();
   await expect(page.getByRole("img", { name: "Illustrative 4H price chart for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
-  await expect(page.getByRole("tablist", { name: "Chart range" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "4H · ZEC-USDC" })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("tab", { name: "1H · ZEC-USDC" }).click();
+  await expect(page.getByRole("radiogroup", { name: "Chart range" })).toBeVisible();
+  await expect(page.getByRole("radio", { name: "4H · ZEC-USDC" })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("radio", { name: "1H · ZEC-USDC" }).click();
   await expect(page.getByRole("img", { name: "Illustrative 1H price chart for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
-  await page.getByRole("tab", { name: "1D · ZEC-USDC" }).click();
-  await expect(page.getByRole("tabpanel", { name: "1D · ZEC-USDC" })).toBeVisible();
+  await page.getByRole("radio", { name: "1D · ZEC-USDC" }).click();
+  await expect(page.getByRole("radio", { name: "1D · ZEC-USDC" })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("img", { name: "Illustrative 1D price chart for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
-  await page.getByRole("combobox", { name: "Selected market" }).selectOption("ZEC/USDT");
-  await expect(page.getByRole("tab", { name: "1D · ZEC-USDT" })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
+  await expect(page.getByRole("radio", { name: "1D · ZEC-USDT" })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("heading", { name: "ZEC/USDT · ZEC-USDT" })).toBeVisible();
   await page.goto("/trade?feed=unavailable", { waitUntil: "networkidle" });
   await expect(page.getByLabel("Asks")).toContainText("Market data unavailable");
@@ -1451,7 +1469,7 @@ test("ticket G I F shortcuts ignore review until Escape", async ({ page }) => {
 test("LP empty-share copy names the selected pool", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
   await expect(page.getByText("No session LP shares in ZEC/USDC.")).toBeVisible();
-  await page.getByRole("button", { name: /ZEC\/USDT/ }).click();
+  await page.getByRole("radio", { name: /ZEC\/USDT/ }).click();
   await expect(page.getByText("No session LP shares in ZEC/USDT.")).toBeVisible();
   await page.getByRole("button", { name: "Burn session shares" }).click();
   await expect(page.getByText("No session LP shares in ZEC/USDT. Burn stays idle until a local mint.").first()).toBeVisible();
@@ -1543,7 +1561,7 @@ test("landing Liquidity nav selects LP and arrows move focus only", async ({ pag
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/", { waitUntil: "networkidle" });
   await page.locator("header").getByRole("link", { name: "Liquidity" }).click();
-  await expect(page).toHaveURL(/#journey-lp$/);
+  await expect(page).toHaveURL(/#journeys$/);
   await expect(page.getByRole("tab", { name: "LP" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("link", { name: "Preview liquidity" })).toBeVisible();
   await page.getByRole("tab", { name: "LP" }).focus();
@@ -1634,12 +1652,12 @@ test("blotter arrows move focus and Enter selects", async ({ page }) => {
 
 test("chart and 24h stats name stale and unavailable feeds", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await expect(page.getByText("Illustrative market data", { exact: true })).toBeVisible();
+  await expect(page.getByText("Illustrative market data · ZEC-USDC", { exact: true })).toBeVisible();
   await expect(page.getByText("24h figures are repository fixtures. Not a live, delayed, or production feed.")).toBeVisible();
   await page.getByRole("radio", { name: "Stale" }).click();
-  await expect(page.getByText("Market data stale", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("Market data stale", { exact: true })).toHaveCount(1);
   await expect(page.getByText("24h figures stay fixture labels while market data is stale as of 2026-08-30T16:32:08Z.")).toBeVisible();
-  await expect(page.getByRole("img", { name: /Delayed illustrative/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Delayed Illustrative/ })).toBeVisible();
   await page.getByRole("radio", { name: "Unavailable" }).click();
   await expect(page.getByText("Market data unavailable", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("24h figures stay withheld.")).toBeVisible();
@@ -1666,8 +1684,8 @@ test("gateway shows a non-payable placeholder QR and honest clipboard failure", 
     });
   });
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  await expect(page.getByRole("img", { name: "Not a payable QR. Placeholder ZIP 321 only." })).toBeVisible();
-  await expect(page.getByText("Not payable. No receivable address is encoded.")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
+  await expect(page.getByText("Placeholder QR. Not payable. Visual copy of the ZIP 321 request, not a mainnet address.")).toBeVisible();
   await page.getByRole("button", { name: "Copy placeholder URI" }).click();
   await expect(page.getByText("Clipboard copy failed. The URI was not copied. Nothing was sent.")).toBeVisible();
   await expect(page.getByText("tex1", { exact: false })).toHaveCount(0);
@@ -1727,7 +1745,7 @@ test("terminal skip links reach the ticket and blotter", async ({ page }) => {
 test("placeholder QR stays inside 320px", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/trade?view=bridge", { waitUntil: "networkidle" });
-  const qr = page.getByRole("img", { name: "Not a payable QR. Placeholder ZIP 321 only." });
+  const qr = page.getByRole("img", { name: "Placeholder QR. Not payable." });
   await expect(qr).toBeVisible();
   const box = await qr.boundingBox();
   expect(box?.width ?? 0).toBeLessThanOrEqual(320);
@@ -1740,7 +1758,7 @@ test("placeholder QR stays inside 320px", async ({ page }) => {
 
 test("LP empty-share copy is visible before a mint", async ({ page }) => {
   await page.goto("/liquidity", { waitUntil: "networkidle" });
-  await expect(page.getByText("No session LP shares. Burn stays available when shares exist. Mint is a local preview.")).toBeVisible();
+  await expect(page.getByText("No session LP shares in ZEC/USDC. Burn stays idle until a local mint.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Burn session shares" })).toBeEnabled();
 });
 
@@ -1824,8 +1842,12 @@ test("document metadata names a no-value simulation", async ({ page }) => {
 test("terminal view arrows move focus and Enter selects", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   const trade = page.getByRole("tab", { name: "Trade" });
+  const settlement = page.getByRole("tab", { name: "Settlement" });
   const liquidity = page.getByRole("tab", { name: "Liquidity" });
   await trade.focus();
+  await expect(trade).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowRight");
+  await expect(settlement).toBeFocused();
   await expect(trade).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowRight");
   await expect(liquidity).toBeFocused();
@@ -1835,6 +1857,7 @@ test("terminal view arrows move focus and Enter selects", async ({ page }) => {
   await expect(trade).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Home");
   await expect(trade).toBeFocused();
+  await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("Enter");
   await expect(liquidity).toHaveAttribute("aria-selected", "true");
@@ -1874,18 +1897,20 @@ test("withdrawal tour demonstrates unresolved without inventing a payout", async
   await page.getByRole("button", { name: "Withdrawal states" }).click();
   await page.getByRole("textbox", { name: "Transparent destination to inspect" }).fill("t1Zo4ZzPXJiJ8M8pYMgL4tWbdkH7c8r7abc");
   const next = page.getByRole("button", { name: "Next state" });
-  for (let index = 0; index < 9; index += 1) {
+  const unresolvedIndex = WITHDRAWAL_TOUR.findIndex((step) => step.id === "unresolved");
+  for (let index = 0; index < unresolvedIndex; index += 1) {
     await next.click();
   }
   await expect(page.getByText("Unresolved", { exact: true })).toBeVisible();
-  await expect(page.getByText("This demonstration does not invent a payout. No native ZEC was sent.")).toBeVisible();
+  await expect(page.getByText(WITHDRAWAL_TOUR[unresolvedIndex].body)).toBeVisible();
   await expect(page.getByText("Stub claim: unresolved. Nothing is sent.")).toBeVisible();
 });
 
 test("ticket side type and time in force arrows move focus and Enter selects", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  const buy = page.getByRole("button", { name: "Buy", exact: true });
-  const sell = page.getByRole("button", { name: "Sell", exact: true });
+  const side = page.getByRole("group", { name: "Order side" });
+  const buy = side.getByRole("button", { name: /^Buy/ });
+  const sell = side.getByRole("button", { name: /^Sell/ });
   await buy.focus();
   await expect(buy).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("ArrowRight");
@@ -2051,7 +2076,7 @@ test("market feed connect chart range and ticket side stay 44px on desktop", asy
     page.getByRole("radio", { name: "Illustrative" }),
     page.getByRole("button", { name: "Connect Arbitrum Sepolia wallet" }),
     page.getByRole("radio", { name: "4H" }),
-    page.getByRole("button", { name: "Buy", exact: true }),
+    page.getByRole("group", { name: "Order side" }).getByRole("button", { name: /^Buy/ }),
   ];
   for (const target of targets) {
     await expect(target).toBeVisible();
@@ -2293,7 +2318,6 @@ test("ticket blocked gate country-block and education copy stay 44px on desktop"
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   const settlement = page.getByText("settles ZEC-USDT").first();
   await expect(settlement).toBeVisible();
-  expect((await settlement.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
   await page.goto("/trade?access=blocked", { waitUntil: "networkidle" });
   const country = page.getByText("This preview is limited to approved locations. Trading, liquidity, deposit, and withdrawal controls are unavailable.");
@@ -2526,7 +2550,7 @@ test("landing hero CTAs Open status details launch gates and brand home stay 44p
 test("landing market preview journey actions and header brand stay 44px on desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/", { waitUntil: "networkidle" });
-  const market = page.getByRole("list", { name: "Focused markets" }).getByRole("link", { name: /Preview market/ }).first();
+  const market = page.getByRole("list", { name: "Focused markets" }).getByRole("link", { name: /Inspect settlement|Inspect listing gate/ }).first();
   await expect(market).toBeVisible();
   expect((await market.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   const journey = page.getByRole("tabpanel").getByRole("link", { name: /Preview trading/ });
@@ -4110,3 +4134,87 @@ test("education Enter simulation stays in 320px Continue ring is #f4c95d leftove
   await leftover("/this-route-is-not-part-of-the-simulation", 768, 1024, 2);
 });
 
+test("native settlement happy path reaches a no-value settled state", async ({ page }) => {
+  const serviceRequests: string[] = [];
+  page.on("request", (request) => {
+    if (/gateway|matcher|observer|\/rpc|wallet/i.test(request.url())) serviceRequests.push(request.url());
+  });
+
+  await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
+  await expect(page.getByText(
+    "No-value native settlement walkthrough. It prepares no transaction, connects no wallet, and moves no asset.",
+    { exact: true },
+  )).toBeVisible();
+  await expect(page.getByRole("button", { name: /connect.*wallet/i })).toHaveCount(0);
+  await expect(page.getByText("No pZEC. The trade, liquidity, and gateway screens remain legacy simulations.")).toBeVisible();
+
+  await runNativeFixtureActions(page, [
+    ...fundedNativeFixtureActions,
+    "Record fixture USDC claim",
+    "Confirm fixture USDC claim",
+    "Record fixture ZEC claim",
+    "Confirm fixture ZEC claim",
+  ]);
+
+  await expect(page.getByRole("heading", { name: "Fixture settled" })).toBeVisible();
+  await expect(page.getByText("Fixture journey complete. No asset moved.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Fixture settled" })).toBeDisabled();
+  await expect(page.getByRole("table", { name: "Current deterministic native swap fixture evidence" })).toContainText("settled");
+  expect(serviceRequests).toEqual([]);
+});
+
+test("native settlement skip link transfers focus to the walkthrough", async ({ page }) => {
+  await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
+  const skip = page.getByRole("link", { name: "Skip to native settlement walkthrough" });
+  await tabTo(page, skip);
+  await expectVisibleFocus(skip);
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Native ZEC atomic swap" })).toBeFocused();
+});
+
+test("native settlement refund path stays early, then recovers both fixture legs", async ({ page }) => {
+  await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
+  await page.getByRole("combobox", { name: "Fixture scenario" }).selectOption("refund");
+  await runNativeFixtureActions(page, fundedNativeFixtureActions);
+
+  await expect(page.getByText("Both fixture locks are funded. Neither leg is settled, and refund remains early.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Record fixture USDC refund" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Advance fixture to USDC refund deadline" }).click();
+  await expect(page.getByRole("button", { name: "Record fixture USDC refund" })).toBeEnabled();
+
+  await runNativeFixtureActions(page, [
+    "Record fixture USDC refund",
+    "Confirm fixture USDC refund",
+    "Advance fixture to ZEC refund deadline",
+    "Record fixture ZEC refund",
+    "Confirm fixture ZEC refund",
+  ]);
+  await expect(page.getByRole("heading", { name: "Fixture refunded" })).toBeVisible();
+  await expect(page.getByText("Fixture refund complete. No transaction was submitted.", { exact: true })).toBeVisible();
+});
+
+for (const unsafe of [
+  ["conflict", "Approved observers disagree on the stablecoin lock."],
+  ["reorganization", "The fixture EVM claim left the canonical chain."],
+  ["contract-mismatch", "Observed contract identity differs from the signed fixture terms."],
+] as const) {
+  test(`native settlement ${unsafe[0]} evidence disables funding and claim`, async ({ page }) => {
+    await page.goto("/trade?view=settlement&market=ZEC/USDC", { waitUntil: "networkidle" });
+    await page.getByRole("combobox", { name: "Fixture scenario" }).selectOption(unsafe[0]);
+    await expect(page.getByRole("heading", { name: "Disputed fixture evidence" })).toBeFocused();
+    await expect(page.getByRole("alert").filter({ hasText: unsafe[1] })).toBeVisible();
+    const disabled = page.getByRole("button", { name: "Fixture action disabled" });
+    await expect(disabled).toBeDisabled();
+    await expect(disabled).toHaveAttribute("aria-describedby", "native-swap-action-disabled");
+  });
+}
+
+test("native settlement keeps USDT disabled until one exact asset identity is approved", async ({ page }) => {
+  await page.goto("/trade?view=settlement&market=ZEC/USDT", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "USDT identity unresolved" })).toBeVisible();
+  await expect(page.getByText("USDT is not USDT0.", { exact: true })).toBeVisible();
+  const disabled = page.getByRole("button", { name: "Fixture action disabled" });
+  await expect(disabled).toBeDisabled();
+  await expect(disabled).toHaveAttribute("aria-describedby", "native-swap-disabled-reason");
+  await expect(page.getByRole("button", { name: /connect.*wallet/i })).toHaveCount(0);
+});

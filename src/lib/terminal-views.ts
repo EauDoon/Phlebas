@@ -1,9 +1,10 @@
-export const TERMINAL_VIEWS = ["trade", "liquidity", "bridge", "architecture"] as const;
+export const TERMINAL_VIEWS = ["trade", "settlement", "liquidity", "bridge", "architecture"] as const;
 
 export type TerminalView = (typeof TERMINAL_VIEWS)[number];
 
 export const TERMINAL_VIEW_LABELS: Record<TerminalView, string> = {
   trade: "Trade",
+  settlement: "Settlement",
   liquidity: "Liquidity",
   bridge: "ZEC gateway",
   architecture: "Architecture",

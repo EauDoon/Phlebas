@@ -1,12 +1,41 @@
 ﻿# Phlebas Threat Model
 
-Status: custody threat model superseded for the target product
+Status: native atomic-settlement threat model, no-value implementation
 
-The pZEC gateway, reserve, mint, burn, and passive AMM sections below describe ADR 0001. [ADR 0002](adr/0002-native-zec-atomic-settlement.md) replaces that target with native-ZEC atomic settlement and wallet-held solver liquidity. The next implementation milestone must add the corresponding two-chain timeout, claim, refund, observer, coordinator, and wallet threats before Testnet.
+The active target is [ADR 0002](adr/0002-native-zec-atomic-settlement.md): native transparent ZEC remains on Zcash, the exact stablecoin remains on its EVM chain, and one two-chain atomic swap settles each fill. Phlebas cannot sign, claim, refund, redirect, or custody either leg.
 
-> Status as of 31-08-2026: design document for a no-value simulation with undeployed Sepolia contract sources and optional local textest services. No production bridge, custody, contract, matching, routing, monitoring, or incident control is deployed or audited.
+> Status as of 01-09-2026: design document and key-independent reference domain for a no-value simulation with undeployed Sepolia contract sources and optional local textest services. No production contract, native transaction path, wallet execution, matching, routing, monitoring, or incident control is deployed or audited.
 
-## 1. Purpose and decision
+The active native-swap reference accepts only a zero protocol fee. Fee recipient and cap fields remain digest-bound, but a positive fee is rejected until the exact EVM escrow route can prove principal delivery and fee accounting separately. Fee proposals in the superseded pZEC design below are not active native-settlement behavior.
+
+## Active native-settlement threats
+
+| Threat | Failure | Required control |
+| --- | --- | --- |
+| Terms substitution | A party funds different assets, amounts, recipients, hashes, deadlines, or contracts | Both parties authorize one canonical per-fill terms digest; wallets independently review exact transaction bytes |
+| Noncausal history | Forged persistence claims funding or spending before its required authorization, artifact, or confirmed predecessor | Root authorization and preparation times; reject every chain fact that predates its causal prerequisite |
+| Funding-order violation | Stablecoin is locked before the ZEC leg has approved confidence | EVM funding is disabled until exact ZEC funding evidence is confirmed under the signed policy |
+| Unsafe timeout margin | One party lacks enough time to claim or refund across chains | Strictly ordered cutoffs, a versioned minimum safety window, chain-time checks, and Testnet approval of production durations |
+| False secret evidence | Mempool calldata, a failed EVM call, or one observer report is treated as claim authority | A successful canonical claim fact may record the observed preimage, but only signed-policy quorum and finality create confirmed claim authority; the preimage must match SHA-256 |
+| Reveal reorganization | The EVM claim leaves the best chain after exposing the preimage | Secret knowledge is monotonic, confirmed authority is invalidated by dispute, and normal signing recommendations stop |
+| Claim and refund race | Competing branches spend the same lock | Per-leg terminal outcomes are mutually exclusive; eligibility is not finality; observers track the exact outpoint or contract slot |
+| Observer compromise or staleness | Wrong-chain, wrong-asset, stale, or conflicting evidence advances the swap | Content-addressed facts, exact outpoint or escrow binding, signed source allowlist, source quorum, confirmation depth, execution age, freshness, and fail-closed dispute state |
+| Replacement ambiguity | A replacement changes the accepted chain fact or erases its history | Replacement is limited to a retracted unconfirmed attestation for the same canonical fact; retraction and resolution records remain rooted and replayable |
+| Journal rollback or corruption | Restart loses, rewrites, or invents an accepted event | Strict event kinds and fields, hash-chained receipts, semantic replay, prior and next state roots, and complete snapshot roots are required |
+| Unsafe expiry | A coordinator discards an active or funded swap | Expiry requires the active signed deadline and no observed chain evidence; funded swaps remain in claim or refund recovery |
+| Wallet adapter mismatch | A wallet signs bytes that differ from the reviewed artifact | Adapter and release allowlists, explicit inspection, executed compatibility tests, and no compatibility claim before evidence |
+| Stablecoin controls | Issuer pause, blacklist, upgrade, or token mismatch freezes a leg | Exact token and contract identity, affected-market stop, issuer-state monitoring, and no USDT/USDT0 substitution |
+| Transparent-chain privacy | Cross-chain addresses and timing link the parties | Persistent public-linkability warning; no privacy or shielded-settlement claim |
+
+The reference implementation rejects unsafe transitions without mutating accepted state. A refund deadline only makes a branch eligible; it does not prove the lock remains unspent or that the refund confirmed. The coordinator may recommend a wallet action, but every spend remains unilateral and wallet-controlled.
+
+Before any Testnet wallet action, Phlebas still needs exact Zcash script and PCZT execution, exact EVM escrow code, chain-specific finality policies, observer recovery, wallet compatibility, and adversarial timeout and reorganization evidence. Before Mainnet it additionally needs independent audits, legal approval, production identities, monitoring, incident drills, and separate real-asset authorization.
+
+## Legacy ADR 0001 threat model
+
+The pZEC gateway, reserve, mint, burn, passive AMM, and custody analysis below is retained as historical simulation evidence. It does not define the production target.
+
+## 1. Legacy purpose and decision
 
 Phlebas is intended to become a hybrid exchange for two markets:
 
@@ -125,6 +154,16 @@ Phlebas depends on the following trusted or governed parties:
 - Circle controls USDC minting, pausing, blacklisting, and upgrades.
 - Native USDT depends on Tether issuer, blacklist, freeze, and contract controls. USDT0 is abandoned and is not a listed quote.
 - Vercel and the domain provider can censor or replace one interface.
+
+### Persistent matcher threat delta
+
+| Threat | Current control | Residual risk |
+| --- | --- | --- |
+| Journal mutation, truncation, gaps, or configuration drift | Hash-chained records, checkpoint and state-root verification, immutable configuration hash, and fail-closed replay | Pre-acceptance omission and delayed publication remain possible |
+| Concurrent writers or unsafe stale-lock removal | One owned writer lock and refusal to remove changed lock bytes | Production fencing, backups, supervision, and recovery drills remain release gates |
+| Signature replay, request confusion, or abusive JSON | Domain-bound digests, nonce and account epochs, exact idempotency, strict bounded JSON, rate limits, and state caps | Production authentication, access control, and load evidence remain unresolved |
+| Fee-bearing or non-deterministic settlement output | Explicit zero-fee policy, integer matching, bounded routes, deterministic replay, and blocked per-fill plans | Wallet commitment and canonical chain evidence are not implemented by the matcher |
+| Matcher custody or unilateral settlement | No keys, transaction bytes, signer, broadcast method, or unilateral spending authority | The operator can still censor, delay, or reorder before publishing evidence |
 
 Accurate claim: Phlebas is planned as a hybrid exchange with onchain settlement and constrained AMM contracts. Whether mainnet contracts may be called without an approved eligibility mechanism remains unresolved.
 
@@ -476,98 +515,69 @@ No such review or deployment is claimed here.
 - [ZIP 300 transparent P2SH atomic-swap protocol](https://zips.z.cash/zip-0300)
 - [BIP 65 OP_CHECKLOCKTIMEVERIFY specification](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki)
 
-## 18. EVM conditional lock (native-ZEC atomic-swap path)
+## 18. Exact-token EVM conditional lock
 
-The EVM conditional lock under `contracts/src/swap/ConditionalLock.sol` is the
-EVM half of the native-ZEC atomic swap. It holds exactly one ERC-20 stablecoin
-deposit per lock and releases the deposit to a fixed counterparty on a correct
-SHA-256 preimage, or returns the deposit to the funder after a chain-local
-refund deadline. The design is set in [ADR 0003](adr/0003-evm-conditional-lock.md).
+`contracts/src/swap/ConditionalLock.sol` is the EVM primitive for one native ZEC atomic-swap fill. One contract instance binds one swap identity, one full-terms commitment, one token, three fixed roles, one amount, one SHA-256 hashlock, and three ordered deadlines. [ADR 0003](adr/0003-evm-conditional-lock.md) defines the behavior.
 
 ### 18.1 Contract guarantees
 
-The contract is non-upgradeable, has no proxy surface, no admin transfer, no
-fee, no callback, no flash-loan path, and no oracle. The pauser role can halt
-new deposits; the governor role can resume. In-flight locks always retain a
-wallet-controlled refund path. The pauser and governor cannot move a locked
-balance.
+The lock is non-upgradeable. It has no proxy, owner, governor, pauser, oracle, callback, native-value receiver, arbitrary call, arbitrary token, arbitrary recipient, fee, seizure, sweep, or rescue path.
 
-The contract holds no token balance outside an active lock. There is no
-`withdraw`, `sweep`, or `rescue` path. The minimum refund delay is set as
-`MIN_REFUND_DELAY` at construction and cannot be changed by any role.
+Only the immutable funder can fund. Only the immutable claim recipient can claim. Only the funder can refund, and the refund recipient must equal that funder. Funding and claiming close at separate inclusive cutoffs. Refund starts at the later inclusive refund time. The gap between claim cutoff and refund time permits neither outcome.
 
-### 18.2 Adversaries and required controls
+OpenZeppelin `SafeERC20` handles standard, false-returning, and no-return ERC-20 behavior. Exact contract and recipient balance deltas reject no-op and fee-on-transfer behavior. `ReentrancyGuard` protects every state change. A failed token interaction rolls back the state transition.
 
-| Adversary | Goal | Required control |
+### 18.2 Adversaries and controls
+
+| Adversary or failure | Goal or effect | Control and residual risk |
 | --- | --- | --- |
-| MEV searcher | Steal the stablecoin leg on a revealed preimage | `claimTo` is set at deposit; only that address can call `claim` |
-| Counterparty | Take the stablecoin and keep the ZEC | The preimage must be revealed on the ZEC leg first; the EVM leg is paid out only after the preimage is in the EVM mempool |
-| Frontend attacker | Trick the buyer into funding an attacker-controlled lock | The matcher and the coordinator must verify `claimTo` matches the agreed counterparty before the user signs the deposit |
-| Pauser abuse | Pause and trap user funds in a non-refundable state | In-flight locks are unaffected by pause; the refund path is independent |
-| Reorg or chain split | Reverse a claim or refund | The offchain coordinator and the watchtower must surface reorganizations and freeze the swap |
-| ERC-20 anomaly (fee-on-transfer, rebasing, blacklist) | Steal or freeze the deposit | Only `usdc` and `usdt0` are accepted; both are 6-decimal, non-rebasing, and pre-validated at construction |
-| Wrong chain or wrong asset | Misroute a fill | The contract reverts on any token other than the two immutables; the matcher validates the chain before submitting the deposit |
-| Reentrancy | Drain the lock | A single boolean guard wraps every state-changing call; checks precede effects precede interactions |
+| Copied-preimage submitter | Front-run the rightful claimant | Only `claimRecipient` may call, and payout cannot be redirected |
+| Malformed swap packet | Bind the wrong fill, asset, role, amount, hash, or time | Wallet and observer compare every immutable and `termsHash` before funding; the contract rejects zero or invalid constructor values |
+| Late claimant | Claim after the EVM refund process should begin | `claim` closes at `claimCutoff`, strictly before `refundTime` |
+| Refund redirector | Send the refund to another address | `refundRecipient == funder`, only `funder` may call, and the call accepts no recipient |
+| Replay | Fund twice or reach both terminal states | State transitions permit one funding and one terminal outcome |
+| Token anomaly | Deliver less than the exact amount or reenter | `SafeERC20`, exact balance deltas, and `nonReentrant`; issuer pause, upgrade, denylist, or freeze remains possible |
+| Direct token donor | Block funding or influence payout | Funding checks the incoming delta, not a zero starting balance; surplus cannot be swept and remains unreachable |
+| Duplicate deployer | Create another instance with the same `swapId` | No global registry exists; deterministic deployment records and observer indexes must reject duplicates |
+| Chain reorganization | Reverse observed funding, claim, or refund | Confirmation policy and reorganization handling remain offchain stop conditions |
 
 ### 18.3 Invariants and stop conditions
 
-The EVM leg of every fill must satisfy the following invariants. A violation
-moves the fill to a disputed state and triggers a watcher alert.
+The EVM leg must satisfy:
 
-1. The lock is the only state. There is no proxy, admin transfer, or fee path.
-2. Every lock has a `refundAfter` strictly greater than
-   `block.timestamp + MIN_REFUND_DELAY` at deposit.
-3. The EVM `refundAfter` is strictly earlier than the ZEC `refundAfter` for
-   the same fill. The matcher enforces this offchain; the contract trusts the
-   depositor's value.
-4. The `preimage` is never emitted by any onchain event. Observers reconstruct
-   it from the ZEC claim.
-5. The matcher and observers never hold a wallet key, never call `claim` or
-   `refund` on the user's behalf, and never see the preimage before the user
-   reveals it on Zcash.
-6. The contract holds no balance outside an active lock.
-7. `claim` and `refund` are mutually exclusive terminal outcomes for one lock.
-8. A `claim` by an address other than `claimTo` reverts.
-9. A `refund` by an address other than the depositor reverts.
-10. A `refund` before `refundAfter` reverts.
+1. Every immutable term matches the wallet-approved fill.
+2. `fundingCutoff < claimCutoff`, `claimCutoff + 1 < refundTime`, and funding starts with a future cutoff.
+3. The lock moves only through `Unfunded -> Funded -> Claimed` or `Unfunded -> Funded -> Refunded`.
+4. A successful incoming or outgoing transfer changes the relevant balances by exactly `amount`.
+5. Claim and refund are terminal and mutually exclusive.
+6. No event repeats the preimage.
+7. The matcher, coordinator, observers, and hosted UI never hold a wallet key, sign, broadcast, or submit on a user's behalf.
+8. The exact deployed bytecode, constructor packet, token identity, source commit, and manifest agree before any funding is enabled.
 
-Stop conditions that must halt the leg and surface to the user:
-
-* a successful `claim` is followed by a `refund` attempt on the same lock;
-* a `refund` is followed by a `claim` attempt on the same lock;
-* the contract enters a paused state with any in-flight locks (the watchtower
-  verifies the refund path is still available for each);
-* the depositor, `claimTo`, or `refundTo` addresses are zero, in the deny
-  list of the stablecoin, or otherwise non-functional;
-* the EVM chain reorganizes above the configured confirmation depth after a
-  `claim` or `refund` event;
-* the underlying stablecoin contract is paused, upgraded, or blacklisted.
+Stop the workflow if any immutable differs, any deadline order is unsafe, a duplicate `swapId` is observed, token behavior changes, issuer controls block a role or the lock, deployment evidence is absent or conflicting, or either chain reorganizes beyond the accepted observation state.
 
 ### 18.4 Test coverage
 
-| Invariant | Test |
+| Property | Test surface |
 | --- | --- |
-| 1 | `ConditionalLock.testConstructorRejectsBrokenConfiguration` |
-| 2 | `ConditionalLock.testDepositRejectsRefundDelayBelowMinimum`, `testDepositRejectsAtExactMinimumPlusOne` |
-| 3 | covered by matcher and order-policy tests in `src/lib/order-policy.test.ts` |
-| 4 | contract source review, no `preimage` in any event |
-| 5 | `src/lib/matcher.test.ts`, `src/lib/observer.test.ts` |
-| 6 | `ConditionalLock.testDepositStoresAllFieldsAndPullsTokens` |
-| 7 | `testClaimRejectsAfterRefund`, `testRefundRejectsAfterClaim` |
-| 8 | `testClaimRejectsBystander` |
-| 9 | `testRefundRejectsNonDepositor` |
-| 10 | `testRefundRejectsBeforeDeadline` |
+| Immutable terms, roles, happy paths, and replay | `contracts/test/ConditionalLock.t.sol` |
+| Inclusive cutoffs and the safety gap | `contracts/test/ConditionalLockDeadline.t.sol` |
+| False, absent, malformed, no-op, fee, revert, donation, and callback token behavior | `contracts/test/ConditionalLockMaliciousToken.t.sol` |
+| Amount, preimage, and timeline input ranges | `contracts/test/ConditionalLockFuzz.t.sol` |
+| Conservation, immutable terms, terminal exclusivity, and handler failures | `contracts/test/ConditionalLockInvariant.t.sol` |
+| Deployment, fund, claim, and refund ceilings | `contracts/test/ConditionalLockGas.t.sol` |
+| Selector, event, constructor, and calldata agreement | `src/lib/conditional-lock-abi.test.ts` |
+| False deployment record and fail-closed manifest mutations | `scripts/validate-conditional-lock-manifest.test.mjs` |
 
-### 18.5 Out of scope for the EVM leg
+### 18.5 Residual and out-of-scope risks
 
-* ZEC transaction construction. The ZEC P2SH leg is the subject of a
-  separate PR and a future ADR.
-* Shielded ZEC. The current lock surface uses the transparent pool.
-* Custodial or wrapped representations of ZEC. ADR 0001 is superseded.
-* Cross-chain generalized message passing. The swap is a strict
-  hash-and-deadline protocol.
+The contract cannot verify the native ZEC transaction, enforce the canonical offchain `termsHash` encoder, prevent a duplicate `swapId` across separate instances, reverse stablecoin issuer action, recover unsolicited tokens, or prove an offchain observer is current.
+
+Transparent ZEC transaction construction, wallet integration, chain clients, live token selection, deployment, signatures, broadcast, shielded ZEC, generalized cross-chain messaging, and production legal or compliance controls remain outside this workstream.
 
 ## 19. ZEC half of the atomic swap (transparent P2SH)
+
+Historical section: the HASH160 script and transaction-shaped adapter claims below are superseded by `docs/ZCASH_TRANSACTION_LAB.md`. The legacy route is a testnet-only display with no address, transaction, wallet, signing, extraction, or broadcast surface. Treat the numbered claims in this section as historical requirements, not implemented current guarantees.
 
 The ZEC leg of the atomic swap uses a transparent P2SH output that holds
 ZEC until either the buyer reveals the preimage on the Zcash claim
@@ -588,12 +598,10 @@ version bytes. The Base58Check checksum fails closed on a wrong-network
 or corrupt address. The compressed secp256k1 public key parser rejects
 a wrong length, a wrong prefix, and a leading zero in the x coordinate.
 
-The wallet adapter is a typed interface. It returns an unsigned
-transaction and a transaction id. The signing surface is an injected
-callback. The interface never reads a key from disk and never holds a
-key in memory. The hash function used by the address encoder is the
-Node-native `ripemd160`; the browser path is a follow-up because Web
-Crypto does not expose `ripemd160`.
+The legacy adapter name now fronts only explicitly labeled incomplete
+synthetic display shapes. It returns no transaction ID and has no signer
+callback. The canonical transaction lab remains key-independent and blocks
+wallet readiness while serialized size and relayability are unresolved.
 
 ### 19.2 Adversaries and required controls
 
@@ -643,7 +651,7 @@ Stop conditions that must halt the leg and surface to the user:
 | Invariant | Test |
 | --- | --- |
 | 1 | `zcash-atomic-swap.test.ts::buildAtomicSwapScript produces a script that round-trips through parseAtomicSwapScript` |
-| 2 | `zcash-wallet-adapter.test.ts::hashAtomicSwapParams returns a deterministic hex string` |
+| 2 | `zcash-wallet-adapter.test.ts::legacyAtomicSwapScriptHex returns a deterministic hex string` |
 | 3 | `zcash-atomic-swap.test.ts::buildRefundBranch rejects a lock time out of uint32 range` |
 | 4 | `zcash-atomic-swap.test.ts::buildAtomicSwapScript rejects identical buyer and seller pubkeys` |
 | 5 | `preimage.test.ts::hashPreimage matches the pinned vector` |
@@ -656,8 +664,7 @@ Stop conditions that must halt the leg and surface to the user:
 * Custodial or wrapped representations of ZEC. ADR 0001 is superseded.
 * Cross-chain generalized message passing. The swap is a strict
   hash-and-deadline protocol.
-* A live wallet integration. The signing surface ships only with the
-  wallet adapter in a later PR.
+* A live wallet integration. No signing surface exists or is authorized.
 
 
 ## 20. Atomic-swap observer and watchtower surface
@@ -667,8 +674,8 @@ of P2SH lock addresses, reduces the events to coordinator
 transitions, persists the snapshot to disk, and surfaces the
 watchtower's alerts over HTTP. The service is the second half of
 the read-only surface that PR 1 (EVM lock) and PR 3 (ZEC leg) leave
-open. The signing surface lives in the wallet adapter; the
-observer never holds a key and never signs a transaction.
+open. No signing surface exists in the legacy adapter or the current
+header-only PCZT boundary; the observer never holds a key and never signs a transaction.
 
 ### 20.1 Trust boundary
 
@@ -727,7 +734,7 @@ Stop conditions that must halt the leg and surface to the operator:
 | Invariant | Test |
 | --- | --- |
 | 1 | coordinator-snapshot.test.ts::snapshotFromJSON round-trips a multi-fill coordinator |
-| 2 | tomic-coordinator.test.ts::applyTransition increments the cursor on each transition |
+| 2 | `atomic-coordinator.test.ts::applyTransition` increments the cursor on each transition |
 | 3 | watchtower.test.ts::detectAlerts does not flag a fill that is already settled |
 | 4 | server.test.ts::bootstrapService returns missing when the marker is set but the snapshot is gone |
 | 5 | evm-event-reducer.test.ts::reduceEVMEvents sorts by observed timestamp then fill id |
@@ -735,8 +742,7 @@ Stop conditions that must halt the leg and surface to the operator:
 
 ### 20.5 Out of scope for the observer
 
-* Live wallet signing. The signing surface ships only with the
-  wallet adapter in a later PR.
+* Live wallet signing. No signing surface exists or is authorized.
 * Transaction submission. The poller never submits an EVM or ZEC
   transaction.
 * Shielded ZEC. The observer only watches transparent P2SH
@@ -765,9 +771,8 @@ caller; the public surface is by design unauthenticated.
 | Adversary | Goal | Required control |
 | --- | --- | --- |
 | Public reader | Probe the order book to front-run the next fill | The depth endpoint aggregates by price level and does not expose the maker identifier; the trades endpoint exposes the receipt sequence and the maker id but not the underlying order detail |
-| Rate-limit attacker | Saturate the operator with public read traffic | The HTTP layer applies a per-IP rate limit; the public surface is the only consumer of the per-request 
-owSeconds clock |
-| Reflected XSS | Inject a script into the JSON response | The endpoints return pplication/json; the response is not embedded in HTML; the frontend treats the response as data, not as HTML |
+| Rate-limit attacker | Saturate the operator with public read traffic | The HTTP layer applies a per-IP rate limit; the public surface is the only consumer of the per-request `nowSeconds` clock |
+| Reflected XSS | Inject a script into the JSON response | The endpoints return `application/json`; the response is not embedded in HTML; the frontend treats the response as data, not as HTML |
 | Parameter abuse | Send a limit of 2^31 to exhaust memory | The endpoints cap limit at 1000 and levels at 200; values outside the bound return 400 |
 | Order-book replay | Reconstruct the maker's resting order from the public depth | The depth endpoint aggregates size per price level only; the maker's order id and the receipt's order digest are not exposed |
 
@@ -777,15 +782,15 @@ The public market data surface must satisfy the following
 invariants. A violation halts the surface and surfaces an
 operator alert.
 
-1. The ticker is derived from the operator's ook and
-   eceipts; the function is pure and never mutates the
+1. The ticker is derived from the operator's `book` and
+   `receipts`; the function is pure and never mutates the
    operator.
 2. The trades feed walks receipts in reverse and stops at the
    requested limit; the function never returns more than
    limit trades.
 3. The depth endpoint aggregates size by price level; the
    aggregation is deterministic for a fixed book.
-4. The markets endpoint reflects the operator's aseAsset and
+4. The markets endpoint reflects the operator's `baseAsset` and
    quoteAssets; a misconfiguration in the operator is
    surfaced as a 503 on the matcher service's /orders
    endpoint, not on the public surface.
@@ -795,7 +800,7 @@ operator alert.
 Stop conditions that must halt the surface and surface to the
 operator:
 
-* the operator's ook and eceipts are out of sync (the
+* the operator's `book` and `receipts` are out of sync (the
   watchtower surfaces the desync as a coordinator alert);
 * the matcher service's /health returns 503 (the public
   surface inherits the 503);
@@ -854,8 +859,7 @@ endpoint validates its input and bounds its response size.
 3. The health aggregator reports ok: false when any service is
    unhealthy; the aggregator never silently drops a failing
    service.
-4. The alert router returns 
-ull for an unknown service or
+4. The alert router returns `null` for an unknown service or
    severity; the operator is responsible for the default
    routing.
 5. The operations surface never reaches out to the chain clients
@@ -868,7 +872,7 @@ ull for an unknown service or
 | 1 | metrics.test.ts::incCounter increments the named counter with no labels |
 | 2 | slo-tracker.test.ts::recordSample caps the per-key buffer at maxSamples |
 | 3 | health-aggregator.test.ts::aggregateHealth reports not-ok when any service is unhealthy |
-| 4 | lert-router.test.ts::routeAlert returns null when no route is registered |
+| 4 | `alert-router.test.ts::routeAlert` returns null when no route is registered |
 | 5 | metrics.test.ts::renderPrometheusText emits HELP, TYPE, and the value lines (the function is pure) |
 
 ### 22.5 Out of scope
@@ -907,7 +911,7 @@ gate is reproducible from the project root.
 1. The release verdict is reproducible from the project root.
 2. The audit checklist is the canonical record of the audit
    surface.
-3. The release verdict is eady only when all required gates
+3. The release verdict is `ready` only when all required gates
    pass.
 4. The on-call engineer's sign-off is the only manual gate.
 5. The release verdict is regenerated on every release.
@@ -916,10 +920,10 @@ gate is reproducible from the project root.
 
 | Invariant | Test |
 | --- | --- |
-| 1 | elease-readiness.test.ts::evaluateReadiness returns ready when no gates fail |
-| 2 | udit-checklist.test.ts::incompleteRequiredItems returns required items that are not done |
-| 3 | elease-readiness.test.ts::evaluateReadiness returns not-ready when any gate fails |
-| 4 | elease-readiness-evidence.md documents the sign-off requirement |
+| 1 | `release-readiness.test.ts::evaluateReadiness` returns ready when all required gates pass |
+| 2 | `audit-checklist.test.ts::incompleteRequiredItems` returns required items that are not done |
+| 3 | `release-readiness.test.ts::evaluateReadiness` returns not-ready when any gate fails or skips |
+| 4 | `release-readiness-evidence.md` documents the sign-off requirement |
 | 5 | scripts/release-readiness.mjs regenerates the verdict on every run |
 
 ### 23.5 Out of scope

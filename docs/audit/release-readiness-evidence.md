@@ -1,73 +1,84 @@
-# Release readiness evidence pack
+# Release readiness evidence snapshot
 
-This document is the release readiness evidence pack for the
-Phlebas project. The pack is the single source of truth for the
-release readiness gate. The pack is regenerated on every
-release.
+This file records the latest reproducible local evidence for the
+Phlebas release gate. It is not a substitute for the canonical audit
+checklist, deployment evidence, or an exact-commit production approval.
 
 ## Gates
 
 | Gate | Status | Detail |
 | --- | --- | --- |
-| lint | pass | 0 errors, 0 warnings |
-| typecheck | pass | 0 errors |
-| tests | pass | 612 node tests pass |
-| contracts | skip | Foundry not installed locally; CI runs the suite |
-| secret-scan | pass | 355 files clean |
-| build | pass | Next.js production build succeeds |
-| audit-checklist-required-incomplete | 5 of 26 items incomplete |
-| audit-checklist-blocked | 0 items blocked |
+| lint | pass | ESLint completes with 0 errors and 0 warnings |
+| contract-format | pass | Foundry formatting is exact |
+| typecheck | pass | TypeScript completes with 0 errors |
+| tests | pass | 951 Node tests pass |
+| manifests | pass | 18 manifest and mutation tests pass |
+| contract-build | pass | Exact ConditionalLock target builds at 3,808 runtime bytes |
+| contracts | pass | 70 Foundry tests pass |
+| secret-scan | pass | 472 files scanned with no detected secrets |
+| build | pass | Next.js production build succeeds with 15 routes |
+| browser acceptance | pass | 231 Playwright tests pass against the production build |
+| audit-checklist | fail | 16 of 47 required items remain incomplete |
 
 ## Verdict
 
-The current verdict is **not ready**. The five incomplete items
-in the audit checklist are:
+The current verdict is **not ready**. The incomplete required audit
+items are:
 
-* contracts-1, contracts-2: the contract deployment to Arbitrum
-  Sepolia is a deployment-time concern. The contract sources are
-  in `contracts/src/swap/`; the deployment manifest is in
-  `infra/testnet/`.
-* operations-7: the PagerDuty / Slack integration is not wired.
-  The alert router is in `src/lib/alert-router.ts`; the
-  integration is an operator-time concern.
-* operations-8: the Prometheus remote-write adapter is not wired.
-  The metrics counter is in `src/lib/metrics.ts`; the adapter is
-  a deployment-time concern.
-* docs-6: the release readiness evidence pack is published on
-  every release, but the pack itself is the source of truth for
-  this gate, so the gate can never pass without manual review.
-* keys-2, keys-5: the production deploy key and the wallet
-  adapter production signing surface are deployment-time
-  concerns.
+* `contracts-10` and `contracts-11`: deploy and verify the exact reviewed
+  contract on the approved test network, then complete independent
+  contract and protocol review.
+* `services-9` to `services-12`: complete strict Zcash and EVM chain
+  evidence, canonical matcher terms, and durable authoritative journals.
+* `operations-7` to `operations-9`: wire production alerting and metrics,
+  then produce complete testnet claim, refund, failure, and recovery
+  evidence.
+* `docs-6` and `docs-7`: publish exact-release evidence and bind a green
+  Vercel preview to the candidate commit.
+* `keys-2`, `keys-5`, and `keys-6`: establish key separation and complete
+  the wallet signing and broadcast design and independent review.
+* `compliance-1` and `compliance-2`: obtain legal approval and implement
+  the resulting jurisdiction, disclosure, privacy, sanctions, and
+  incident controls.
 
-Note: services-7 and services-8 (rate limiter wiring) were
-closed in `feat/rate-limit-wiring` (PR 8).
+These rows are minimum checklist blockers, not a claim that every other
+production dependency is already satisfied. New audit findings must be
+added to the canonical checklist and resolved before the verdict can
+become ready.
 
-## Reproducibility
+## Reproduction
 
-The gates are reproducible from the project root:
+Run the individual technical gates from the repository root:
 
 ```sh
 npm run lint
 npm run typecheck
 npm test
+npm run test:contracts
 npm run scan:secrets
 npm run build
 ```
 
-The `contracts` gate is `skip` locally and `pass` in CI. The
-CI run is at `.github/workflows/contracts.yml`; the workflow
-installs Foundry, runs `forge test --root contracts`, and
-reports the result to the release readiness gate.
+Run the combined fail-closed gate with:
 
-The `audit-checklist-*` gates are derived from
-`docs/audit/audit-checklist.md` and the
-`src/lib/audit-checklist.ts` lib. The release verdict is
-computed by the `src/lib/release-readiness.ts` lib.
+```sh
+node scripts/release-readiness.mjs
+```
 
-## Sign-off
+Browser acceptance is separate promotion evidence and passed for the
+current candidate commit. A later candidate must rerun it:
 
-The release readiness gate requires the on-call engineer's
-sign-off. The sign-off is recorded in the deploy channel in the
-team chat. The sign-off is the only manual gate in the pack; all
-other gates are automated.
+```sh
+npm run test:browser
+```
+
+The audit status is parsed from `docs/audit/audit-checklist.md`. The gate
+identities and release verdict are evaluated by
+`src/lib/release-readiness.ts`. Missing or duplicate required gate
+identities fail closed.
+
+## Approval boundary
+
+Operator sign-off records approval only after every required gate is
+satisfied. It cannot override a failing, missing, duplicate, skipped, or
+unverified gate.

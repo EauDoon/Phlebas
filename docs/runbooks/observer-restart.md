@@ -1,9 +1,10 @@
 # Atomic-swap observer restart runbook
 
-This runbook is the operator-facing procedure for restarting the
-atomic-swap observer. The procedure is safe to run on a live
-coordinator: the bootstrap path will refuse to start fresh if the
-snapshot is missing after initialization.
+This runbook covers only the legacy no-value diagnostic observer in a
+local or isolated test environment. It is not a production settlement
+runbook, its snapshots are not canonical swap state, and none of its
+responses authorize claim, refund, release, or wallet action. Do not use
+this procedure on a value-bearing coordinator.
 
 ## When to run
 
@@ -59,16 +60,16 @@ Start the observer with the same environment variables as the
 previous run. Confirm the `/health` endpoint returns 200 with
 `bootstrap: ready` within 30 seconds.
 
-### 5. Verify the coordinator
+### 5. Verify the diagnostic projection
 
 ```sh
 curl -s http://127.0.0.1:8790/state | jq
 ```
 
-The `fillCount` should match the count from the previous run. The
-`cursor` should resume from the previous value. A regression in
-either field indicates a recovery failure; revert the snapshot and
-repeat from step 3.
+The `fillCount` should match the count from the previous diagnostic run.
+The `cursor` should resume from the previous value. A regression in
+either field indicates a diagnostic recovery failure. It does not prove
+chain settlement state or authorize a value-bearing transition.
 
 ## After the restart
 

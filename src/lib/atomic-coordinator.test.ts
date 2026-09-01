@@ -9,7 +9,7 @@ import {
   isFillTerminal,
   listAlerts,
   listFills,
-  nextActionFor,
+  projectedNextStepFor,
   type CoordinatorState,
 } from "./atomic-coordinator.ts";
 
@@ -58,11 +58,10 @@ test("applyAlert appends to the alert log without touching fills", () => {
   assert.equal(listAlerts(state).length, 1);
 });
 
-test("nextActionFor delegates to the underlying state machine", () => {
+test("projectedNextStepFor emits observation-only status", () => {
   let state: CoordinatorState = emptyCoordinator();
   state = applyTransition(state, FILL_A, "evm-leg-funded", 100n);
-  assert.equal(nextActionFor(state, FILL_A, 100n, "buyer"), "wait-for-zec-fund");
-  assert.equal(nextActionFor(state, FILL_A, 100n, "seller"), "fund-zec");
+  assert.equal(projectedNextStepFor(state, FILL_A, 100n), "observe-zec-funding");
 });
 
 test("listFills aggregates all known fills", () => {
@@ -72,7 +71,7 @@ test("listFills aggregates all known fills", () => {
   assert.equal(listFills(state).length, 2);
 });
 
-test("nextActionFor returns unknown-fill for a fill that does not exist", () => {
+test("projectedNextStepFor returns unknown-fill for a fill that does not exist", () => {
   const state = emptyCoordinator();
-  assert.equal(nextActionFor(state, FILL_A, 100n, "buyer"), "unknown-fill");
+  assert.equal(projectedNextStepFor(state, FILL_A, 100n), "unknown-fill");
 });

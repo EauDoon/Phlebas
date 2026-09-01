@@ -5,8 +5,8 @@ import { mapEVMEvent, mapZcashEvent } from "./transition-mapper.ts";
 
 const FILL = ("0x" + "11".repeat(32)) as `0x${string}`;
 
-test("mapEVMEvent maps deposited to evm-leg-funded", () => {
-  const out = mapEVMEvent("deposited", FILL, 100n);
+test("mapEVMEvent maps funded to evm-leg-funded", () => {
+  const out = mapEVMEvent("funded", FILL, 100n);
   assert.equal(out.side, "evm");
   assert.equal(out.transition, "evm-leg-funded");
   assert.equal(out.observedAt, 100n);

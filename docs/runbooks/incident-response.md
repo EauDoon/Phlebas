@@ -34,11 +34,10 @@ depends on the failing service:
   new orders by setting `PHLEBAS_MATCHER_ACCEPT=0` on the
   matcher host. Existing orders continue to settle. The
   matcher's `/health` should still return 200.
-* **observer service**: if `/health` is failing, the watchtower
-  is the only consumer. Stop the watchtower's polling loop by
-  setting `PHLEBAS_OBSERVER_PAUSE=1`. The coordinator's
-  on-disk snapshot is the source of truth; the watchtower
-  resumes on the next restart.
+* **observer diagnostic**: if `/health` is failing, stop its
+  polling loop by setting `PHLEBAS_OBSERVER_PAUSE=1`. Treat the
+  on-disk snapshot as untrusted diagnostic state, not settlement
+  authority. No wallet or matcher action may depend on it.
 * **gateway service**: if the gateway is failing, the mint
   attestation surface is down. The mint surface is no-value for
   the native-ZEC direction; the operator should halt the

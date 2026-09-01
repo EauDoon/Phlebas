@@ -8,6 +8,8 @@ import type { ZcashEventSource } from "../../src/lib/zcash-observer.ts";
 const evmSource: EVMEventSource = { fetchLogs: async () => [] };
 const zcashSource: ZcashEventSource = { fetchAddressOutpoints: async () => [], fetchSpend: async () => ({ spent: false, spendTxid: null }) };
 const sources = { evm: evmSource, zcash: zcashSource };
+const TXID = "ab".repeat(32);
+const REDEEM_SCRIPT_HEX = "6382012088a82066687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f29258876a91400112233445566778899aabbccddeeff00112233670380841eb17576a914ffeeddccbbaa99887766554433221100fedcba986888ac";
 
 function baseEnv(): Record<string, string> {
   return {
@@ -69,5 +71,36 @@ test("loadServiceConfig parses the outpoint-fill map", () => {
 test("loadServiceConfig rejects a malformed outpoint pair", () => {
   const env = baseEnv();
   env.PHLEBAS_OUTPOINT_FILL_MAP = "not-a-pair";
+  assert.throws(() => loadServiceConfig(env, sources), ServiceConfigException);
+});
+
+test("loadServiceConfig parses and validates expected redeem scripts by exact outpoint", () => {
+  const env = baseEnv();
+  env.PHLEBAS_ZCASH_REDEEM_SCRIPT_MAP = `${TXID}:7=${REDEEM_SCRIPT_HEX}`;
+  const cfg = loadServiceConfig(env, sources);
+  assert.equal(cfg.zcash.expectedRedeemScriptByOutpoint?.[`${TXID}:7`], REDEEM_SCRIPT_HEX);
+});
+
+test("loadServiceConfig rejects a noncanonical expected redeem script", () => {
+  const env = baseEnv();
+  env.PHLEBAS_ZCASH_REDEEM_SCRIPT_MAP = `${TXID}:7=51`;
+  assert.throws(() => loadServiceConfig(env, sources), ServiceConfigException);
+});
+
+test("loadServiceConfig rejects an oversized expected redeem script before decoding it", () => {
+  const env = baseEnv();
+  env.PHLEBAS_ZCASH_REDEEM_SCRIPT_MAP = `${TXID}:7=${"00".repeat(521)}`;
+  assert.throws(() => loadServiceConfig(env, sources), ServiceConfigException);
+});
+
+test("loadServiceConfig rejects a noncanonical expected outpoint", () => {
+  const env = baseEnv();
+  env.PHLEBAS_ZCASH_REDEEM_SCRIPT_MAP = `0x${TXID}:7=${REDEEM_SCRIPT_HEX}`;
+  assert.throws(() => loadServiceConfig(env, sources), ServiceConfigException);
+});
+
+test("loadServiceConfig rejects duplicate expected outpoints", () => {
+  const env = baseEnv();
+  env.PHLEBAS_ZCASH_REDEEM_SCRIPT_MAP = `${TXID}:7=${REDEEM_SCRIPT_HEX},${TXID}:7=${REDEEM_SCRIPT_HEX}`;
   assert.throws(() => loadServiceConfig(env, sources), ServiceConfigException);
 });

@@ -1,17 +1,18 @@
 # CI integration
 
-This document describes how the release readiness gate is
-integrated into the CI pipeline. The integration is the
-single source of truth for the CI surface.
+This document distinguishes development CI from the separate,
+fail-closed release-readiness check. Development CI does not grant
+production authority.
 
 ## Pipeline
 
-1. The CI runner pulls the latest commit on `main`.
-2. The CI runner runs the release readiness script:
-   `node scripts/release-readiness.mjs`.
-3. The script prints the release verdict as a JSON document.
-4. The CI runner fails the build if the verdict is `not ready`.
-5. The CI runner posts the verdict to the deploy channel.
+1. The CI runner checks out the exact pull-request or `main` commit.
+2. It runs `npm run check` and the locked Chromium browser suite.
+3. This verifies development quality only.
+4. Before any production promotion, the operator separately runs
+   `node scripts/release-readiness.mjs` on the exact candidate commit.
+5. A non-ready verdict blocks promotion. No CI result or deploy key can
+   override an incomplete required gate.
 
 ## Gates
 
@@ -20,24 +21,24 @@ The release readiness script runs the following gates:
 | Gate | Command | Pass criteria |
 | --- | --- | --- |
 | lint | `npm run lint` | 0 errors |
+| contract-format | `npm run lint:contracts` | Foundry formatting is exact |
 | typecheck | `npm run typecheck` | 0 errors |
 | tests | `npm test` | all node tests pass |
+| manifests | `npm run test:manifests` | undeployed and deployed evidence fails closed |
+| contract-build | `npm run build:contracts` | exact lock target builds within size limits |
 | secret-scan | `npm run scan:secrets` | no findings |
 | build | `npm run build` | Next.js production build succeeds |
-| contracts | CI runs `forge test` | all Foundry tests pass |
+| contracts | `npm run test:contracts` | all Foundry tests pass |
 | audit-checklist | parses `docs/audit/audit-checklist.md` | all required items `done` |
 
-## Local skip
-
-The `contracts` gate is `skip` locally and `pass` in CI. The
-`skip` status indicates that the gate was not run locally; the
-CI workflow installs Foundry and runs the gate.
+The current readiness script runs the contract gate locally and in the
+release environment. A missing Foundry runtime is a failure, not a skip.
 
 ## On-call sign-off
 
-The on-call engineer signs off on the release verdict in the
-deploy channel. The sign-off is the only manual gate in the
-release verdict.
+The audit checklist carries the required manual evidence. Operator sign-off
+records the verdict but cannot convert a missing, skipped, or failing gate
+into a pass.
 
 ## Out of scope
 

@@ -1,21 +1,20 @@
-// Persistent coordinator for the atomic swap. The coordinator consumes
-// the EVM and ZEC event streams from the observers and applies the
-// offchain state machine transitions. The coordinator persists its
-// state on every transition. The coordinator is the source of truth
-// for the matcher, the wallet adapter, and the watchtower.
+// Legacy observer projection retained for the no-value service demo. It
+// consumes incomplete chain observations and persists a read model only.
+// It is not settlement authority and must never drive a wallet. Canonical
+// settlement state is the signed SwapState committed by SwapJournal.
 
 import {
-  emptyFill,
-  isTerminal,
-  nextAction,
-  stateOf,
-  transition,
-  type Fill,
-  type Transition,
-} from "./swap-state.ts";
+  applyDiagnosticTransition,
+  diagnosticStateOf,
+  emptyDiagnosticFill,
+  isDiagnosticTerminal,
+  projectedDiagnosticNextStep,
+  type DiagnosticFill,
+  type DiagnosticTransition,
+} from "./swap-fill-projection.ts";
 
 export type CoordinatorState = Readonly<{
-  fills: Readonly<Record<string, Fill>>;
+  fills: Readonly<Record<string, DiagnosticFill>>;
   cursor: bigint;
   alertLog: ReadonlyArray<{ fillId: string; alert: string; at: bigint }>;
 }>;
@@ -37,19 +36,19 @@ export function emptyCoordinator(): CoordinatorState {
 export function applyTransition(
   state: CoordinatorState,
   fillId: string,
-  event: Transition,
+  event: DiagnosticTransition,
   nowSeconds: bigint,
 ): CoordinatorState {
   const fill =
     state.fills[fillId] ??
-    emptyFill(
+    emptyDiagnosticFill(
       fillId as `0x${string}`,
       nowSeconds + DEFAULT_EVM_REFUND_OFFSET_SECONDS,
       nowSeconds + DEFAULT_ZEC_REFUND_OFFSET_SECONDS,
     );
-  let nextFill: Fill;
+  let nextFill: DiagnosticFill;
   try {
-    nextFill = transition(fill, event, nowSeconds);
+    nextFill = applyDiagnosticTransition(fill, event, nowSeconds);
   } catch (error: unknown) {
     return {
       ...state,
@@ -78,11 +77,11 @@ export function applyAlert(
   };
 }
 
-export function getFill(state: CoordinatorState, fillId: string): Fill | null {
+export function getFill(state: CoordinatorState, fillId: string): DiagnosticFill | null {
   return state.fills[fillId] ?? null;
 }
 
-export function listFills(state: CoordinatorState): ReadonlyArray<Fill> {
+export function listFills(state: CoordinatorState): ReadonlyArray<DiagnosticFill> {
   return Object.values(state.fills);
 }
 
@@ -92,22 +91,21 @@ export function listAlerts(state: CoordinatorState): ReadonlyArray<{ fillId: str
 
 export function currentStateOf(state: CoordinatorState, fillId: string): string {
   const fill = state.fills[fillId];
-  return fill ? stateOf(fill) : "unknown";
+  return fill ? diagnosticStateOf(fill) : "unknown";
 }
 
-export function nextActionFor(
+export function projectedNextStepFor(
   state: CoordinatorState,
   fillId: string,
   nowSeconds: bigint,
-  role: "buyer" | "seller" | "watcher",
 ): string {
   const fill = state.fills[fillId];
   if (!fill) return "unknown-fill";
-  return nextAction(fill, nowSeconds, role);
+  return projectedDiagnosticNextStep(fill, nowSeconds);
 }
 
 export function isFillTerminal(state: CoordinatorState, fillId: string): boolean {
   const fill = state.fills[fillId];
   if (!fill) return false;
-  return isTerminal(stateOf(fill));
+  return isDiagnosticTerminal(diagnosticStateOf(fill));
 }

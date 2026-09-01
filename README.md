@@ -1,73 +1,119 @@
 # Phlebas
 
-Phlebas is a production-minded protocol design and no-value interface simulation for native ZEC markets against native USDC and native USDT. Settlement pairs are `ZEC-USDC` and `ZEC-USDT`. USDT0 is abandoned.
+Phlebas is a non-custodial exchange under development for native transparent ZEC against USDC and USDT. It combines an offchain order book with one two-chain atomic swap for each fill. Users keep control of both assets and approve every funding, claim, and refund transaction in their own wallets.
 
-> Status: no-value simulation with optional local testnet services. Contracts are in-repo and undeployed. The public matcher is in-browser. A local operator, testnet TEX gateway, and Arbitrum Sepolia wallet connector exist and do not move mainnet funds. It is not an exchange and is not an offer of financial services.
+[Open the public no-value simulation](https://phlebas.vercel.app)
 
-## Product boundary
+[Open the private GitHub repository](https://github.com/EauDoon/Phlebas)
 
-Native ZEC is not an ERC-20 token and cannot sit directly inside an EVM constant product pool. The reference design therefore separates three systems:
+> Current status, 01-09-2026: Phlebas is a no-value product and protocol implementation. The public app uses synthetic markets and local browser state. No production contract, Zcash node, wallet signing path, mainnet transaction, or real asset is connected. Nothing in this repository is an offer of financial services.
 
-1. A transparent-Zcash gateway observes confirmed native ZEC deposits. A future receipt, if ever issued, would be custodial. This preview labels native ZEC and does not mint.
-2. Arbitrum contracts would settle signed order-book trades and host constrained constant product pools for `ZEC/USDC` and `ZEC/USDT`.
-3. A public web interface presents markets and prepares user-signed actions without holding custody keys or operating the authoritative matcher.
+## Markets
 
-This is a hybrid DEX design. The AMM and trade settlement can be onchain, but the matcher is an offchain operator. The project must not be described as trustless, private, or shielded. The preview labels native ZEC, USDC, and USDT; it still moves no live funds.
+The target markets are:
 
-## Included in this candidate
+* `ZEC/USDC`
+* `ZEC/USDT`
 
-- A responsive trading terminal for `ZEC/USDC` and `ZEC/USDT`
-- An original landing page with explicit system-status disclosures
-- An in-browser price-time matcher (GTC, IOC, FOK) with session inventory, open orders, fills, and an append-only replay log
-- Canonical PRODUCT_SPEC order encoding with a SHA-256 simulation digest and a keccak EIP-712 typed-data hash
-- Integer CLOB vs legacy pZEC AMM split-route comparison and LP share mint/burn previews, including IL versus hold at 4x and 1/4x. The native-settlement target uses wallet-held maker and solver liquidity.
-- First-session education, country-blocked demonstration, deposit state tour, and labeled gateway incident copy
-- `/legal` and `/security` simulation pages; landing and terminal footers omit a GitHub URL
-- Integer seed books, empty/loading/stale/unavailable ticket gates, and a transparent-destination inspector
-- Click-to-price depth, local last/spread, and slippage-bounded market orders as IOC
-- Integer constant-product quotes and local add/swap previews for `ZEC/USDC` and `ZEC/USDT`
-- ZIP 321 testnet TEX issuance through a local gateway, plus the PRODUCT_SPEC withdrawal state tour
-- `/status` and `/api/status`, branded 404/error surfaces, and production `noindex`
-- Executable withdrawal-coverage checks after a finalized burn; production mint, custody, and payout remain design-only
-- Threat model, operational controls, compliance gates, and staged launch plan
-- Explicit Vercel boundary for a public, non-custodial interface
+`ZEC` means native transparent ZEC on Zcash. It is not wrapped, minted, or represented as a Phlebas platform balance. Each quote market must name one exact EVM chain and one approved stablecoin contract. USDC is the first quote candidate. USDT remains disabled until an exact asset, contract, issuer model, and jurisdiction policy pass review.
 
-- No-value Arbitrum Sepolia contracts (`contracts/`), a local matcher operator (`services/matcher`), and a local TEX gateway (`services/gateway`)
+Version 1 is transparent. It does not provide shielded settlement or transaction privacy.
 
-The public Vercel app still does not deploy those contracts, hold spend keys, or run the authoritative matcher.
+## How settlement works
 
-## Design direction
+One matched fill produces one immutable swap plan:
 
-The terminal takes structural cues from [Hyperliquid](https://app.hyperliquid.xyz/trade), [Lighter](https://app.lighter.xyz/), and [Nado](https://nado.finance/): dense market hierarchy, compact order entry, and approachable liquidity surfaces. It uses an original visual system, a Zcash-inspired gold accent, and unusually explicit settlement and custody labels.
+1. Both parties authorize the exact fill terms, assets, amounts, recipients, chain identities, fees, hashlock, and deadlines.
+2. The ZEC seller funds a native Zcash conditional lock with the longer refund deadline.
+3. Policy-qualified observers confirm the exact Zcash outpoint.
+4. The stablecoin seller funds an exact-token EVM conditional lock with the shorter refund deadline.
+5. The ZEC seller claims the stablecoin and reveals the preimage.
+6. After the EVM claim reaches the signed finality policy, the stablecoin seller uses that preimage to claim ZEC.
+7. If the swap stops, each funder retains a wallet-controlled refund path after the applicable deadline.
+
+The matcher can sequence, omit, delay, or stop orders. It cannot settle a fill, redirect funds, or sign for either party. The target coordinator derives state only from verified evidence committed to a replayable journal. The older Fill observer service is an untrusted no-value diagnostic and cannot authorize wallet actions; replacing it with the journal-backed adapter remains a release gate.
+
+Native ZEC and an EVM token cannot share one Uniswap v2 contract state. Phlebas therefore uses wallet-held maker and solver inventory instead of passive cross-chain LP shares. A solver may price inventory with a constant-product curve, but its assets remain in its own wallets until a specific swap is authorized.
+
+## What is implemented
+
+### Trading experience
+
+* Responsive landing page and trading terminal for `ZEC/USDC` and `ZEC/USDT`
+* Dense order book, recent trades, chart, order ticket, open orders, fills, and settlement views
+* In-browser price-time matcher with GTC, IOC, FOK, partial fills, cancellation, and deterministic replay
+* Loopback-only persistent matcher with authenticated order and solver intents, one hash-chained single-writer journal, deterministic recovery, stable feed cursors, and blocked no-value swap plans
+* Integer prices, sizes, quote amounts, fees, and side-aware rounding
+* Click-to-price depth, worst-price market protection, and feed-state safety gates
+* No-value native swap walkthrough for authorization, funding, observation, confirmation, and claim, with explicit dispute, refund, expiry, and recovery domain states
+* Responsive, keyboard, reduced-motion, and browser acceptance coverage
+
+The terminal takes structural cues from Hyperliquid, Lighter, and Nado while using an original Phlebas visual system and explicit custody and settlement labels.
+
+### Protocol domain
+
+* Canonical order encoding, SHA-256 digests, and keccak EIP-712 typed-data hashes
+* Exact chain and asset identities, deterministic fill IDs, and one swap ID per fill
+* Immutable terms binding price, amounts, a zero-fee invariant, fee recipient, market policy, timing policy, observer policy, and chain-specific finality policies
+* Two-leg state machine with timestamped authorizations, artifact preparation, ZEC-first funding, causal chain-time checks, staggered refunds, mutually exclusive claim and refund outcomes, and policy-confirmed secret release
+* Content-addressed funding and spend facts separated from observer attestations
+* Quorum, confirmation-depth, execution-age, staleness, and source allowlist checks
+* One canonical observer tip per quorum, with same-height hash disagreement forced into dispute
+* Hash-chained event receipts, deterministic replay, snapshot roots, corruption detection, and idempotency
+* Fail-closed dispute handling, unbroadcast artifact abandonment, no-evidence expiry, and same-fact attestation replacement with leg, evidence-kind, fact, and observer provenance retained
+* Deterministic, adversarial, replay, state-machine, and browser tests
+
+The native-swap reference engine accepts only a zero protocol fee. The fee fields remain signed for schema stability, but any positive amount fails closed until the EVM escrow can prove an exact recipient split without weakening principal settlement.
+
+### Local and legacy surfaces
+
+The repository still contains an undeployed Arbitrum Sepolia contract candidate, a persistent loopback matcher, a local testnet TEX gateway, and historical pZEC and AMM simulations. These are development fixtures. The matcher starts unconfigured, holds no keys, constructs no transactions, and cannot sign or broadcast. None of these local services may run on Vercel.
+
+The active settlement architecture is recorded in [ADR 0002](docs/adr/0002-native-zec-atomic-settlement.md). The persistent no-value matcher boundary is recorded in [ADR 0003](docs/adr/0003-persistent-native-matcher.md).
+
+## User journey
+
+1. Select `ZEC/USDC` or `ZEC/USDT` and inspect market and system status.
+2. Enter a limit order or an IOC market order with a signed worst price.
+3. Review the exact network, asset, amount, recipient, fee cap, expiry, and allowed settlement route.
+4. Sign the order authorization in the correct wallet.
+5. Inspect the matcher receipt and one settlement ticket for each fill.
+6. Review and sign only the wallet action supported by the current chain evidence.
+7. Finish as settled or refunded. Unsafe evidence keeps the ticket disputed and disables normal progress.
+
+The current public app simulates this journey. Wallet signing and chain broadcast stay disabled until the exact wallet, Testnet, contract, observer, legal, and release gates pass.
 
 ## Repository map
 
 | Path | Purpose |
 | --- | --- |
-| `src/app` | Next.js application shell and global styles |
-| `src/components` | Trading, liquidity, gateway, and architecture views |
-| `src/lib` | Matcher, integer AMM, keccak EIP-712, TEX, session inventory, ZIP 321, fixtures |
-| `contracts/` | No-value Arbitrum Sepolia sources |
-| `services/` | Isolated local Compose: gateway, matcher, observer stubs. Never on Vercel. |
-| `infra/testnet` | Undeployed Sepolia manifest |
-| `docs/PRODUCT_SPEC.md` | Markets, order semantics, LP scope, and user flows |
-| `docs/DELIVERY_PLAN.md` | Agent Team workstreams, PR sequence, and release protocol |
-| `docs/BROWSER_ACCEPTANCE.md` | Reproducible responsive, keyboard, and reduced-motion checks |
-| `docs/LANDING_AND_USER_JOURNEYS.md` | Landing, trader, LP, deposit, and withdrawal experience |
-| `docs/ARCHITECTURE.md` | System boundaries and proposed production topology |
-| `docs/ASSET_AND_ACCOUNTING.md` | Settlement ZEC (`tZEC`), reserves, liabilities, and reconciliation |
-| `docs/WALLET_COMPATIBILITY.md` | Current ZEC wallet evidence and executable Testnet qualification |
-| `docs/THREAT_MODEL.md` | Abuse cases, invariants, tests, and stop conditions |
-| `docs/OPERATIONS.md` | Proposed services, observability, and incident control |
-| `docs/OPERATOR_RUNBOOK.md` | Loopback Compose start, health, and stop for gateway, matcher, observer |
-| `docs/LICENSE_CHOICE.md` | Why Apache-2.0, and that it is not MIT |
-| `docs/LEGAL_AND_COMPLIANCE.md` | Regulatory questions and jurisdiction gates |
-| `docs/LAUNCH_PLAN.md` | Testnet to restricted-mainnet sequencing |
-| `docs/SOURCES.md` | Primary technical and regulatory references |
+| `src/app` | Next.js routes, layouts, status surfaces, and global styles |
+| `src/components` | Landing, trading, liquidity, gateway, and settlement interfaces |
+| `src/lib` | Orders, matching, native swaps, replay, policies, fixtures, and browser-safe domains |
+| `contracts/` | Undeployed EVM contract sources and local contract tests |
+| `services/` | Loopback gateway, matcher, and observer services, never for Vercel |
+| `infra/testnet` | Key-free Testnet manifests and deployment records |
+| `docs/PRODUCT_SPEC.md` | Markets, order semantics, settlement, liquidity, and user journeys |
+| `docs/DELIVERY_PLAN.md` | Build sequence, acceptance gates, and per-PR release protocol |
+| `docs/ARCHITECTURE.md` | Current boundaries and target system topology |
+| `docs/THREAT_MODEL.md` | Native settlement threats, controls, tests, and stop conditions |
+| `docs/WALLET_COMPATIBILITY.md` | Wallet evidence requirements and Testnet qualification |
+| `docs/ZCASH_TRANSACTION_LAB.md` | Exact transparent HTLC, unsigned artifact, fee, expiry, and wallet-review boundaries |
+| `docs/adr/0003-persistent-native-matcher.md` | Persistent matcher, recovery, HTTP, and no-value settlement boundaries |
+| `docs/OPERATIONS.md` | Service, observability, recovery, and incident requirements |
+| `docs/BROWSER_ACCEPTANCE.md` | Reproducible interface and responsive checks |
+| `docs/SOURCES.md` | Primary protocol, contract, wallet, and regulatory references |
 
-## Local development
+## Run locally
 
-Requirements: Node.js 24.x and npm. CI verifies the same major version, which supports direct execution of the TypeScript test files used here.
+Requirements:
+
+* Node.js 24.x
+* npm
+* Chromium for browser tests
+* Foundry for contract tests
+
+Install and start the app:
 
 ```bash
 npm ci --ignore-scripts
@@ -75,63 +121,90 @@ npx playwright install chromium
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000`. The main routes are:
 
-The landing page is at `/`. The trading terminal is at `/trade`, the liquidity preview is at `/liquidity`, and other shareable simulation views use routes such as `/trade?view=architecture`. `/status` and `/api/status` describe the running simulation. There is no live-funds path.
+| Route | Purpose |
+| --- | --- |
+| `/` | Landing page |
+| `/trade` | Trading terminal and native settlement walkthrough |
+| `/liquidity` | No-value liquidity interface |
+| `/status` | Public simulation status |
+| `/api/status` | Machine-readable simulation status |
 
-Run the full local validation:
+## Validate the repository
+
+Run the code, protocol, contract, secret, and production-build gates:
 
 ```bash
 npm run check
 ```
 
-Foundry is required for `npm run test:contracts`. Local testnet services:
+Run the same gates plus Playwright browser coverage:
+
+```bash
+npm run check:browser
+```
+
+Useful focused commands:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run test:contracts
+npm run scan:secrets
+npm run build
+npm run test:browser
+```
+
+The [browser acceptance guide](docs/BROWSER_ACCEPTANCE.md) defines the required routes, viewports, interactions, and safety assertions.
+
+## Optional loopback services
+
+The local development services are isolated from the public app:
 
 ```bash
 npm run gateway
 npm run matcher
+npm run observer
 ```
 
-Set `PHLEBAS_GATEWAY_URL=http://127.0.0.1:8787` and `PHLEBAS_MATCHER_URL=http://127.0.0.1:8788` only on a machine that is supposed to reach those processes. Do not set them on Vercel. Isolated Compose is documented in [services/README.md](services/README.md).
+Set these only on a machine that should reach the loopback processes:
 
-Arbitrum Sepolia contract deploy is documented in [contracts/README.md](contracts/README.md). `infra/testnet/arbitrum-sepolia.json` stays `"deployed": false` until a real Sepolia transaction is recorded. Wallet submit of `settle()` stays off unless `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1` is set locally.
-
-Run the production browser checks after installing Chromium once:
-
-```bash
-npx playwright install chromium
-npm run check:browser
+```text
+PHLEBAS_GATEWAY_URL=http://127.0.0.1:8787
+PHLEBAS_MATCHER_URL=http://127.0.0.1:8788
 ```
 
-The [browser acceptance guide](docs/BROWSER_ACCEPTANCE.md) defines the routes, viewport widths, assertions, and limits.
+Do not set those variables on Vercel. See [services/README.md](services/README.md) for the isolated Compose workflow.
 
-## Proposed production decisions
+The Arbitrum Sepolia deployment procedure is documented in [contracts/README.md](contracts/README.md). `infra/testnet/arbitrum-sepolia.json` must remain `"deployed": false` until a real deployment is authorized, executed, and recorded. Local wallet submission remains disabled unless `NEXT_PUBLIC_PHLEBAS_SEPOLIA_SUBMIT=1` is set for an approved Testnet run.
 
-- Network: Arbitrum One, chain ID `42161`
-- Quote assets: native USDC and native USDT. USDT0 is abandoned.
-- ZEC representation: undeployed 8-decimal `tZEC` receipt. The preview labels native ZEC and does not mint.
-- Orders: EIP-712 signed intents, atomic onchain settlement, maker cancellation bitmap and account epoch
-- Matcher: offchain price-time priority with append-only sequencing evidence
-- AMM: fixed 30 basis point fee, no farms, gauges, leverage, flash callbacks, or arbitrary pair creation
-- Administration: non-upgradeable core contracts, timelocked governance, narrow emergency pause powers
-- Custody: threshold controls, independent Zcash observers, public reserve and liability reconciliation, no lending or rehypothecation
+## Wallet boundary
 
-Every decision remains provisional until implementation, independent audits, legal review, custody validation, and the launch gates pass.
+Phlebas may prepare an unsigned, reviewable transaction artifact. It must never request, receive, store, or log:
 
-## ZEC wallet compatibility
+* a seed phrase;
+* a Zcash spending key or viewing key;
+* an EVM private key;
+* a wallet database;
+* a blind signature;
+* an unrestricted token approval.
 
-The proposed deposit flow does not invent an EVM-style ZEC wallet connector. It uses a unique TEX address, a standard ZIP 321 `zcash:` payment request, QR or copy-and-paste handoff, and independent chain observation. Withdrawals accept only a network-correct transparent destination under the proposed policy.
+No Zcash wallet is Phlebas verified today. Compatibility requires executed Testnet evidence for the exact transparent fund, claim, timeout refund, fee, restart, and reorganization paths. ZIP 321 and TEX payment support alone does not prove atomic-swap compatibility.
 
-No wallet is Phlebas verified today. The [wallet compatibility plan](docs/WALLET_COMPATIBILITY.md) separates maintainer-documented capabilities from executed interoperability evidence and defines the Testnet suite a wallet must pass before the UI can call it compatible.
+## Deployment and release boundary
 
-## Deployment boundary
+Vercel may host the public interface, static documentation, read-only public market and status data, and browser-side preparation of unsigned terms. It must never host private node credentials, wallet keys, an authoritative matcher or swap journal, or any service that can sign, claim, refund, redirect, or custody funds.
 
-Vercel may host the public, stateless interface, documentation, read-only public market data, and client-side transaction preparation. It must never store custody or mint keys, operate Zcash nodes, coordinate withdrawals, maintain the authoritative customer-liability ledger, or host sanctions and identity casework.
+Every pull request must pass focused tests, the full repository check, secret scanning, independent review, GitHub checks, and an exact-commit Vercel preview. Production deployment follows only after the applicable release gates pass.
 
-## Licensing and publication
-
-The software in this repository is licensed under the Apache License 2.0. See `LICENSE` and [the license choice note](docs/LICENSE_CHOICE.md). That choice does not make Phlebas an exchange, a live-funds service, or an audited product.
+Testnet execution still requires exact Zcash transaction construction, reviewed EVM escrow code, current chain policies, observer recovery drills, wallet compatibility evidence, legal review, and explicit authorization. Mainnet also requires successful Testnet operation, independent audits, reproducible services and contracts, production identities, monitoring, incident drills, exact deployment manifests, and separate authorization for real assets.
 
 ## Read next
 
-Start with [the product specification](docs/PRODUCT_SPEC.md), then read [the architecture](docs/ARCHITECTURE.md), [threat model](docs/THREAT_MODEL.md), and [launch plan](docs/LAUNCH_PLAN.md).
+Start with the [product specification](docs/PRODUCT_SPEC.md), [architecture](docs/ARCHITECTURE.md), [threat model](docs/THREAT_MODEL.md), and [delivery plan](docs/DELIVERY_PLAN.md).
+
+## License
+
+Phlebas is licensed under the Apache License 2.0. See [LICENSE](LICENSE) and [the license choice](docs/LICENSE_CHOICE.md).

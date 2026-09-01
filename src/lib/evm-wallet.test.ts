@@ -6,6 +6,8 @@ import {
   connectTestnetWallet,
   isMissingProviderCopy,
   missingProviderCopy,
+  publicTestnetSigningError,
+  publicWalletConnectionError,
   retargetSettlementCopy,
   signTypedData,
   walletConnectBarTitle,
@@ -123,6 +125,32 @@ test("wallet connect-failure copy keeps settlement after the market pair changes
   assert.equal(retargetSettlementCopy(usdc, markets["ZEC/USDT"].settlementPair), usdt);
   assert.equal(retargetSettlementCopy(usdt, markets["ZEC/USDC"].settlementPair), usdc);
   assert.doesNotMatch(retargetSettlementCopy(usdc, markets["ZEC/USDT"].settlementPair), /native ZEC/);
+});
+
+test("public wallet errors allowlist provider outcomes without exposing diagnostics", () => {
+  assert.equal(publicWalletConnectionError({ code: 4001, message: "private provider detail" }), "Wallet request was rejected.");
+  assert.equal(publicWalletConnectionError({ code: -32002, message: "private provider detail" }), "A wallet request is already pending.");
+  assert.equal(
+    publicWalletConnectionError({ code: 4200, message: "private provider detail" }),
+    "The connected wallet does not support this request.",
+  );
+  assert.equal(publicWalletConnectionError(new Error("private provider detail")), "Wallet connection failed.");
+});
+
+test("public signing errors expose only reviewed messages", () => {
+  assert.equal(
+    publicTestnetSigningError({ code: "ACTION_REJECTED", message: "private provider detail" }),
+    "Wallet signature request was rejected.",
+  );
+  assert.equal(
+    publicTestnetSigningError(new Error("Switch to Arbitrum Sepolia before signing.")),
+    "Switch to Arbitrum Sepolia before signing.",
+  );
+  assert.equal(
+    publicTestnetSigningError(new Error("Matcher rejected the signed order (503).")),
+    "The Testnet matcher rejected the signed order.",
+  );
+  assert.equal(publicTestnetSigningError(new Error("private provider detail")), "Testnet signing failed.");
 });
 
 test("disconnect label names the settlement pair from a connected address", () => {

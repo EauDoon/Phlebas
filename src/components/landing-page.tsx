@@ -18,11 +18,9 @@ export function LandingPage() {
   return (
     <div className={styles.page}>
       <nav className={styles.skipNav} aria-label="Skip links">
-        {LANDING_SKIP_LINKS.map((link) => {
-          const href = link.href === "#pzec" ? "#pairs" : link.href;
-          const label = link.href === "#pzec" ? "Skip to native pairs" : link.label;
-          return <a className={styles.skipLink} href={href} key={href}>{label}</a>;
-        })}
+        {LANDING_SKIP_LINKS.map((link) => (
+          <a className={styles.skipLink} href={link.href} key={link.href}>{link.label}</a>
+        ))}
       </nav>
       <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
         <strong>Simulation only</strong>
@@ -36,9 +34,9 @@ export function LandingPage() {
             <span className={styles.eyebrow}>Transparent ZEC markets</span>
             <h1 id="hero-title">The custody line, drawn in public.</h1>
             <p>
-              Phlebas is a production-minded design for ZEC/USDC and ZEC/USDT spot markets,
-              an order book designed for auditable sequencing, and restrained onchain liquidity.
-              Native labels are simulation names, not live settlement.
+              Phlebas is a no-value implementation of a transparent ZEC order book, native
+              two-chain atomic settlement, and wallet-held solver liquidity. Native labels are
+              simulation names, not live settlement.
             </p>
           </div>
 
@@ -61,6 +59,7 @@ export function LandingPage() {
 
           <div className={styles.heroActions}>
             <Link href="/trade?view=trade" className={styles.primaryCta}>{LANDING_HERO.primaryAction} <span>↗</span></Link>
+            <Link href="/trade?view=settlement&market=ZEC%2FUSDC" className={styles.secondaryCta}>Open settlement walkthrough</Link>
             <a href="#pairs" className={styles.secondaryCta}>Understand native pairs</a>
             <p>{LANDING_HERO.disclosure}</p>
           </div>
@@ -75,13 +74,13 @@ export function LandingPage() {
           <div className={styles.marketCards} role="list" aria-label="Focused markets">
             <article role="listitem">
               <span className={styles.marketIndex}>01</span>
-              <div><span>Native pair</span><h3>ZEC / USDC</h3><p>Settles ZEC / USDC</p></div>
-              <Link href={{ pathname: "/trade", query: { view: "trade", market: "ZEC/USDC" } }}>Preview market <span>→</span></Link>
+              <div><span>First settlement target</span><h3>ZEC / USDC</h3><p>No-value native atomic-swap fixture</p></div>
+              <Link href={{ pathname: "/trade", query: { view: "settlement", market: "ZEC/USDC" } }}>Inspect settlement <span>→</span></Link>
             </article>
             <article role="listitem">
               <span className={styles.marketIndex}>02</span>
-              <div><span>Native pair</span><h3>ZEC / USDT</h3><p>Settles ZEC / USDT</p></div>
-              <Link href={{ pathname: "/trade", query: { view: "trade", market: "ZEC/USDT" } }}>Preview market <span>→</span></Link>
+              <div><span>Market label only</span><h3>ZEC / USDT</h3><p>Settlement disabled until one exact token identity is approved</p></div>
+              <Link href={{ pathname: "/trade", query: { view: "settlement", market: "ZEC/USDT" } }}>Inspect listing gate <span>→</span></Link>
             </article>
           </div>
         </section>
@@ -116,7 +115,8 @@ export function LandingPage() {
               The simulation now labels settlement as ZEC-USDC and ZEC-USDT. Native labels are simulation names, not live settlement. It does not list USDT0. Shielded ZEC stays out of scope. No live funds move in this preview.
             </p>
             <p>
-              Native settlement target: each fill would use one transparent Zcash conditional lock and one exact-token EVM conditional lock.
+              Native settlement target: each fill uses one transparent Zcash conditional lock
+              and one exact-token EVM conditional lock. There is no custodial ZEC platform balance.
             </p>
             <strong>This is a no-value simulation. It is not a live exchange and not a shielded market.</strong>
             <p>
@@ -126,10 +126,10 @@ export function LandingPage() {
             </p>
           </div>
           <ol className={styles.assetFlow} aria-label="Proposed ZEC to market flow">
-            <li><span>01</span><div><strong>Transparent ZEC</strong><small>Unique TEX deposit intent</small></div></li>
-            <li><span>02</span><div><strong>Gateway controls</strong><small>Observation, screening, finality</small></div></li>
-            <li><span>03</span><div><strong>Native ZEC settlement</strong><small>ZEC-USDC and ZEC-USDT pairs</small></div></li>
-            <li><span>04</span><div><strong>Trade or LP</strong><small>Offchain matcher, onchain settlement or pool swap</small></div></li>
+            <li><span>01</span><div><strong>Signed order</strong><small>Exact market, amount, price, and expiry</small></div></li>
+            <li><span>02</span><div><strong>Matched fill</strong><small>Deterministic terms and zero protocol fee</small></div></li>
+            <li><span>03</span><div><strong>Wallet-funded locks</strong><small>ZEC first, exact stablecoin second</small></div></li>
+            <li><span>04</span><div><strong>Claim or refund</strong><small>Evidence-gated, mutually exclusive recovery</small></div></li>
           </ol>
         </section>
 

@@ -6,17 +6,17 @@ Production status: Not approved
 
 ## Context
 
-The Phlebas project is composed of seven PRs that delivered the
-key-independent components of the native-ZEC atomic swap
-exchange. The project is at the end of the key-independent
-build phase. The next phase is the production deployment, which
-requires the project to pass a release readiness gate.
+Seven historical PRs delivered key-independent components of the
+native-ZEC exchange prototype. That work did not complete production
+settlement authority. Term-bound EVM locks, strict Zcash spend evidence,
+matcher-to-signed-terms binding, journal-backed observers, security review,
+and operational approval remain unresolved release gates.
 
-The release readiness gate is the single source of truth for
-whether the project is ready to ship to production. The gate is
-composed of automated checks (lint, typecheck, tests,
-secret-scan, build) and manual checks (audit checklist, on-call
-sign-off). The gate is reproducible from the project root.
+The release-readiness command is a fail-closed evidence summary, not an
+independent grant of production authority. It combines automated checks
+(lint, typecheck, tests, contracts, secret scan, and build) with the manual
+audit checklist. Every required gate must pass; a skip, missing result, or
+incomplete checklist keeps the verdict not ready.
 
 ## Decision
 
@@ -63,10 +63,10 @@ is recorded in the deploy channel in the team chat.
 
 ## Out of scope
 
-* The production deployment. The production deployment is a
-  separate concern; the production deploy key, the production
-  wallet adapter, and the production PagerDuty / Slack
-  integration are deployment-time concerns.
+* Production value movement remains prohibited until the unresolved
+  settlement, audit, legal, signer, monitoring, and incident gates have
+  current written evidence. Deployment credentials do not satisfy those
+  gates.
 * The audit team's review. The audit team reviews the audit
   checklist and signs off on the release; the audit team's
   review is a manual gate.

@@ -49,6 +49,7 @@ test("landing journey copy stays a preview, not a live or native-ZEC action", ()
     assert.doesNotMatch(journey.description, /native-ZEC/i);
     assert.doesNotMatch(journey.description, /is trustless/);
   }
-  assert.match(LANDING_JOURNEYS[2].description, /transparent native ZEC/);
-  assert.match(LANDING_JOURNEYS[3].description, /a burn could create a transparent native ZEC payout claim/);
+  assert.match(LANDING_JOURNEYS[2].description, /historical transparent-ZEC gateway tour/);
+  assert.match(LANDING_JOURNEYS[3].description, /historical burn-and-payout fixture/);
+  assert.match(LANDING_JOURNEYS[1].description, /wallet-held solvers/);
 });

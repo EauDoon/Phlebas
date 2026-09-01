@@ -10,6 +10,7 @@ import {
   getInjectedProvider,
   isMissingProviderCopy,
   missingProviderCopy,
+  publicTestnetSigningError,
   retargetSettlementCopy,
   signTypedData,
 } from "@/lib/evm-wallet";
@@ -549,7 +550,7 @@ export function TradeTicket({
       }
       setNotice(`${plan.reason} Signature ${signature.slice(0, 10)}…`);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Testnet signing failed.");
+      setNotice(publicTestnetSigningError(error));
     }
   }
 

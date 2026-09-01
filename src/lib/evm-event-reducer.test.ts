@@ -20,7 +20,7 @@ const FILL_B = "0x" + "bb".repeat(32);
 
 test("reduceEVMEvents maps every event to a transition", () => {
   const events: EVMEvent[] = [
-    event("deposited", FILL_A, 100n),
+    event("funded", FILL_A, 100n),
     event("claimed", FILL_A, 200n),
     event("refunded", FILL_B, 250n),
   ];
@@ -38,8 +38,8 @@ test("reduceEVMEvents returns an empty array for no events", () => {
 test("reduceEVMEvents sorts by observed timestamp then fill id", () => {
   const events: EVMEvent[] = [
     event("claimed", FILL_B, 300n),
-    event("deposited", FILL_A, 100n),
-    event("deposited", FILL_B, 200n),
+    event("funded", FILL_A, 100n),
+    event("funded", FILL_B, 200n),
   ];
   const out = reduceEVMEvents(events);
   assert.equal(out[0].fillId, FILL_A);
@@ -54,11 +54,11 @@ test("reduceEVMEvents sorts by observed timestamp then fill id", () => {
 });
 
 test("reduceEVMEvents rejects a non-hex32 fill id", () => {
-  assert.throws(() => reduceEVMEvents([event("deposited", "0xnope", 100n)]));
+  assert.throws(() => reduceEVMEvents([event("funded", "0xnope", 100n)]));
 });
 
 test("reduceEVMEvents uses the injected block timestamp oracle", () => {
-  const events: EVMEvent[] = [event("deposited", FILL_A, 100n)];
+  const events: EVMEvent[] = [event("funded", FILL_A, 100n)];
   const out = reduceEVMEvents(events, { blockTimestamp: () => 999n });
   assert.equal(out[0].observedAt, 999n);
 });
