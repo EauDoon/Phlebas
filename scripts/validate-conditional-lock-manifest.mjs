@@ -1,5 +1,6 @@
 import { readFile, realpath } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -142,6 +143,7 @@ const HEX_BYTES_RE = /^0x[0-9a-f]{2,}$/;
 const DECIMAL_RE = /^(0|[1-9][0-9]*)$/;
 const SHA256_RE = HEX32_RE;
 const COMMIT_RE = /^[0-9a-f]{40}$/;
+const ZERO_COMMIT = "0".repeat(40);
 const RELATIVE_PATH_RE = /^(?!\/)(?!.*\.\.)[A-Za-z0-9._/-]+$/;
 const NETWORK_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SECRET_PATTERNS = [
@@ -365,7 +367,7 @@ function validateDeployment(deployment, errors) {
   expectNullableHash(deployment.blockHash, "deployment.blockHash", errors);
   expectNullableAddress(deployment.deployer, "deployment.deployer", errors);
   expectNullable(deployment.receiptStatus, "deployment.receiptStatus", (value) => value === "0x1", '\"0x1\"', errors);
-  expectNullable(deployment.sourceCommit, "deployment.sourceCommit", (value) => typeof value === "string" && COMMIT_RE.test(value), "a lower-case 40-character git commit", errors);
+  expectNullable(deployment.sourceCommit, "deployment.sourceCommit", (value) => typeof value === "string" && COMMIT_RE.test(value) && value !== ZERO_COMMIT, "a non-zero lower-case 40-character git commit", errors);
   expectNullableHexBytes(deployment.constructorArguments, "deployment.constructorArguments", errors);
   expectNullablePath(deployment.artifactPath, "deployment.artifactPath", errors);
   expectNullableHash(deployment.artifactSha256, "deployment.artifactSha256", errors);
@@ -422,6 +424,9 @@ function validateDeployedSemantics(manifest, errors) {
   if (values.amount !== null) expectDecimal(values.amount, "terms.values.amount", errors, { positive: true, max: (1n << 256n) - 1n });
   for (const field of ["fundingCutoff", "claimCutoff", "refundTime"]) {
     if (values[field] !== null) expectDecimal(values[field], `terms.values.${field}`, errors, { positive: true, max: (1n << 64n) - 1n });
+  }
+  if (deployment.blockNumber !== null) {
+    expectDecimal(deployment.blockNumber, "deployment.blockNumber", errors, { positive: true });
   }
   if (values.funder !== null && values.claimRecipient !== null && values.funder === values.claimRecipient) {
     add(errors, "terms.values.claimRecipient", "must differ from funder");
@@ -649,8 +654,13 @@ export function validateManifest(manifest, schema = null) {
   return errors;
 }
 
-export function isValidManifest(manifest) {
-  return validateManifest(manifest).length === 0;
+export async function isValidManifest(manifest, schema = null) {
+  const activeSchema = schema ?? await readJson(SCHEMA_PATH);
+  const errors = [];
+  validateSchemaSurface(activeSchema, errors);
+  errors.push(...validateManifest(manifest, activeSchema));
+  await validateEvidenceFiles(manifest, errors);
+  return errors.length === 0;
 }
 
 export function validateConditionalLockManifest(manifest) {
@@ -692,8 +702,50 @@ async function validateDeclaredFileHash(pathValue, hashValue, pathName, hashName
   if (computedHash !== hashValue) add(errors, hashName, `does not match ${pathName}`);
 }
 
+function readGitObject(commit, relativePath, pathName, errors) {
+  const result = spawnSync("git", ["show", `${commit}:${relativePath}`], {
+    cwd: ROOT,
+    encoding: null,
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
+  });
+  if (result.status !== 0 || !Buffer.isBuffer(result.stdout)) {
+    add(errors, pathName, "must exist in the declared source commit");
+    return null;
+  }
+  return result.stdout;
+}
+
+function validateSourceCommit(manifest, errors) {
+  const commit = manifest.deployment.sourceCommit;
+  if (typeof commit !== "string" || !COMMIT_RE.test(commit) || commit === ZERO_COMMIT) return;
+  const typeResult = spawnSync("git", ["cat-file", "-t", commit], {
+    cwd: ROOT,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
+  });
+  if (typeResult.status !== 0 || typeResult.stdout.trim() !== "commit") {
+    add(errors, "deployment.sourceCommit", "must identify a commit object in this repository");
+    return;
+  }
+  for (const [relativePath, declaredHash, pathName, hashName] of [
+    [manifest.build.sourcePath, manifest.build.sourceSha256, "build.sourcePath", "build.sourceSha256"],
+    [manifest.build.standardJsonInputPath, manifest.build.standardJsonInputSha256, "build.standardJsonInputPath", "build.standardJsonInputSha256"],
+    [DEPENDENCY_LOCK_PATH, manifest.build.dependencyLockSha256, "build.dependencyLockPath", "build.dependencyLockSha256"],
+    [COMPILER_SETTINGS_PATH, manifest.build.compilerSettingsSha256, "build.compilerSettingsPath", "build.compilerSettingsSha256"],
+  ]) {
+    if (typeof relativePath !== "string" || !RELATIVE_PATH_RE.test(relativePath) || !isHash(declaredHash)) continue;
+    const bytes = readGitObject(commit, relativePath, pathName, errors);
+    if (bytes !== null && sha256Hex(bytes) !== declaredHash) {
+      add(errors, hashName, `does not match ${pathName} at deployment.sourceCommit`);
+    }
+  }
+}
+
 export async function validateEvidenceFiles(manifest, errors) {
   if (!isObject(manifest) || manifest.deployed !== true || !isObject(manifest.build) || !isObject(manifest.deployment)) return;
+  validateSourceCommit(manifest, errors);
   await validateDeclaredFileHash(
     manifest.build.sourcePath,
     manifest.build.sourceSha256,

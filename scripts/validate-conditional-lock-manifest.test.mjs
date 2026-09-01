@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import test from "node:test";
 
 import {
@@ -18,6 +19,12 @@ const packageJsonBytes = await readFile(new URL("../package.json", import.meta.u
 const sourceBytes = await readFile(new URL("../contracts/src/swap/ConditionalLock.sol", import.meta.url));
 const dependencyLockBytes = await readFile(new URL("../package-lock.json", import.meta.url));
 const compilerSettingsBytes = await readFile(new URL("../contracts/foundry.toml", import.meta.url));
+const schema = await readJson(SCHEMA_PATH);
+const repositoryRoot = new URL("..", import.meta.url);
+const currentCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+  cwd: repositoryRoot,
+  encoding: "utf8",
+}).trim();
 
 function copyManifest() {
   return structuredClone(baseManifest);
@@ -76,7 +83,7 @@ function completeDeployedManifest() {
     blockHash: `0x${"05".repeat(32)}`,
     deployer: "0x5555555555555555555555555555555555555555",
     receiptStatus: "0x1",
-    sourceCommit: "06".repeat(20),
+    sourceCommit: currentCommit,
     constructorArguments,
     artifactPath: "package.json",
     artifactSha256: sha256Hex(packageJsonBytes),
@@ -97,7 +104,8 @@ function completeDeployedManifest() {
 test("checked-in manifest and schema are valid", async () => {
   const { errors } = await validateManifestFile();
   assert.deepEqual(errors, []);
-  assert.equal(isValidManifest(baseManifest), true);
+  assert.equal(await isValidManifest(baseManifest), true);
+  assert.equal(await isValidManifest(completeDeployedManifest(), schema), true);
 });
 
 test("undeployed record is network-neutral and cannot authorize network action", () => {
@@ -189,6 +197,34 @@ test("deployed terms must leave an excluded refund timestamp", () => {
   assertRejected(manifest, "terms.values.refundTime");
 });
 
+test("deployed integer fields enforce EVM widths and a positive block", () => {
+  const amount = completeDeployedManifest();
+  amount.terms.values.amount = (1n << 256n).toString();
+  assertRejected(amount, "terms.values.amount");
+  assert.ok(validateManifest(amount, schema).some((error) => error.startsWith("manifest.terms.values.amount:")));
+
+  const deadline = completeDeployedManifest();
+  deadline.terms.values.refundTime = (1n << 64n).toString();
+  assertRejected(deadline, "terms.values.refundTime");
+  assert.ok(validateManifest(deadline, schema).some((error) => error.startsWith("manifest.terms.values.refundTime:")));
+
+  const block = completeDeployedManifest();
+  block.deployment.blockNumber = "0";
+  assertRejected(block, "deployment.blockNumber");
+});
+
+test("deployed source commit must be nonzero and resolve to the declared source tree", async () => {
+  const zero = completeDeployedManifest();
+  zero.deployment.sourceCommit = "0".repeat(40);
+  assertRejected(zero, "deployment.sourceCommit");
+
+  const unknown = completeDeployedManifest();
+  unknown.deployment.sourceCommit = "6".repeat(40);
+  const errors = [];
+  await validateEvidenceFiles(unknown, errors);
+  assert.ok(errors.some((error) => error.startsWith("deployment.sourceCommit:")), errors.join("\n"));
+});
+
 test("deployed records require every verification flag to be true", () => {
   const manifest = completeDeployedManifest();
   manifest.deployment.sourceVerified = false;
@@ -247,6 +283,5 @@ test("manifest rejects secret-looking strings and unknown fields", async () => {
   extra.unexpected = true;
   assertRejected(extra, "manifest.unexpected");
 
-  const schema = JSON.parse(await readFile(SCHEMA_PATH, "utf8"));
   assert.equal(schema.schemaVersion, "1.0.0");
 });
