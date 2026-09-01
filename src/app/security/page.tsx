@@ -17,7 +17,7 @@ export default function SecurityPage() {
       <article id="security-article" tabIndex={-1} aria-label="Security">
         <p>
           Phlebas has no production release and no production security support commitment.
-          Do not send ZEC, pZEC, USDC, USDT0, or any other asset to an address from this preview.
+          Do not send ZEC, USDC, USDT, or any other asset to an address from this preview.
         </p>
         <dl role="list" aria-label="Security ledger">
           <div role="listitem"><dt>Public app</dt><dd>no-value interface, noindex</dd></div>

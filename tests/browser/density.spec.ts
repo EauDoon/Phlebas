@@ -110,7 +110,7 @@ test.describe("desktop operating density", () => {
     await expectIntersectingViewport(wallet, "wallet connect");
     await expect(page.getByText("Session LP shares", { exact: true })).toBeVisible();
     await expect(page.getByText("Session IL vs hold", { exact: true })).toBeVisible();
-    await expect(page.getByText("IL vs hold at 4x pZEC/quote")).toBeVisible();
+    await expect(page.getByText("IL vs hold at 4x ZEC/quote")).toBeVisible();
 
     const layout = await page.evaluate(() => {
       const box = (id: string) => {

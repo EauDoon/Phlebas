@@ -40,6 +40,7 @@ import {
   sessionLastStatLabel,
   tapeCaptionCopy,
   tapeMiniLabel,
+  tapeSideCopy,
   type FeedStatus,
 } from "@/lib/market-state";
 import { interpretRovingKey } from "@/lib/roving-keys";
@@ -53,7 +54,7 @@ import type { SessionLogEvent } from "@/lib/replay";
 import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingOrder, type TimeInForce } from "@/lib/matcher";
 import {
   applySubmit,
-  availablePzec,
+  availableZec,
   availableQuote,
   canCover,
   describeSubmit,
@@ -70,12 +71,13 @@ import {
   type PaperAccount,
   type UserFill,
 } from "@/lib/session";
-import { PZEC_DECIMALS, PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
+import { ZEC_DECIMALS, PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import { ArchitecturePanel } from "./architecture-panel";
 import { BridgePanel } from "./bridge-panel";
 import { CountryBlock } from "./country-block";
 import { LiquidityPanel } from "./liquidity-panel";
+import { NativeSwapPanel } from "./native-swap-panel";
 import { OrderBlotter } from "./order-blotter";
 import { OrderBook } from "./order-book";
 import { PreviewEducation } from "./preview-education";
@@ -481,6 +483,9 @@ export function TradingTerminal({
             <a className={styles.skipLink} href="#recent-trades" onClick={activateSkipLink}>Skip to recent trades</a>
           </>
         ) : null}
+        {initialAccess === "open" && view === "settlement" ? (
+          <a className={styles.skipLink} href="#native-swap-title">Skip to native settlement walkthrough</a>
+        ) : null}
         {initialAccess === "open" && view === "architecture" ? (
           <>
             <a className={styles.skipLink} href="#architecture-layers" onClick={activateSkipLink}>Skip to architecture layers</a>
@@ -502,8 +507,12 @@ export function TradingTerminal({
         ) : null}
       </nav>
       <div className={styles.simulationBanner} role="status" aria-label="Simulation disclosure">
-        <strong>Protocol preview</strong>
-        <span>Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless.</span>
+        <strong>{view === "settlement" ? "No-value walkthrough" : "Protocol preview"}</strong>
+        <span>
+          {view === "settlement"
+            ? "No-value native settlement walkthrough. It prepares no transaction, connects no wallet, and moves no asset."
+            : "Local in-browser matcher by default. Optional Arbitrum Sepolia wallet and local testnet services do not move mainnet funds. This matcher is not trustless."}
+        </span>
       </div>
 
       <header className={styles.topbar}>
@@ -552,15 +561,23 @@ export function TradingTerminal({
               </button>
             ))}
           </div>
-          <span className={styles.network} aria-label={ZEC_DESTINATION_LABEL}>{NO_TEX_ISSUED}</span>
-          <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
+          {view !== "settlement" ? (
+            <>
+              <span className={styles.network} aria-label={ZEC_DESTINATION_LABEL}>{NO_TEX_ISSUED}</span>
+              <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
+            </>
+          ) : (
+            <span className={styles.fixturePill}>No wallet · fixture only</span>
+          )}
         </div>
       </header>
 
-      <PreviewEducation force={forceEducation} />
+      {view !== "settlement" && <PreviewEducation force={forceEducation} />}
 
       <main id="main-content" className={styles.main} tabIndex={-1}>
-        <h1 className={styles.srOnly}>Phlebas ZEC trading terminal</h1>
+        <h1 className={styles.srOnly}>
+          {view === "settlement" ? "Phlebas native settlement walkthrough" : "Phlebas ZEC trading terminal"}
+        </h1>
         {initialAccess === "blocked" && <CountryBlock />}
         {initialAccess === "open" && view === "trade" && (
           <>
@@ -589,8 +606,7 @@ export function TradingTerminal({
                     ))}
                   </div>
                 </div>
-                <span className={styles.settlementBadge}>legacy simulation: {market.settlementPair}</span>
-                {marketId === "ZEC/USDT" && <span className={styles.gateBadge}>Later listing gate</span>}
+                <span className={styles.settlementBadge}>settles {market.settlementPair}</span>
                 <div>
                   <span>Market data</span>
                   <div className={styles.selectorTabs} role="radiogroup" aria-label="Market data state">
@@ -680,9 +696,9 @@ export function TradingTerminal({
                 book={displayedBook}
                 lastTicks={book.lastTicks}
                 priceSelection={priceSelection}
-                availablePzecAtoms={availablePzec(account)}
+                availableZecAtoms={availableZec(account)}
                 availableQuoteAtoms={availableQuote(account)}
-                reservePzecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
+                reserveZecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
                 reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
                 accountEpoch={accountEpoch}
                 feedStatus={feedStatus}
@@ -702,26 +718,24 @@ export function TradingTerminal({
                 <table className={styles.dataTable}>
                   <caption className={styles.srOnly}>{tapeCaptionCopy(marketId, !statsSurface.showFixtures)}</caption>
                   <thead>
-                    <tr><th scope="col">Price {market.quote}</th><th scope="col">Size pZEC</th><th scope="col">Time</th></tr>
+                    <tr><th scope="col">Price {market.quote}</th><th scope="col">Size ZEC</th><th scope="col">Time</th></tr>
                   </thead>
                   <tbody>
                     {sessionTape.map((trade) => (
                       <tr key={trade.id}>
                         <th scope="row" className={trade.takerSide === "buy" ? styles.buyText : styles.sellText}>
-                          <span className={styles.srOnly}>{trade.takerSide === "buy" ? "Buy" : "Sell"} </span>
-                          {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
+                          {tapeSideCopy(trade.takerSide)} {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
                         </th>
-                        <td>{formatAtomicUnits(trade.sizeAtoms, PZEC_DECIMALS, 2)}</td>
+                        <td>{formatAtomicUnits(trade.sizeAtoms, ZEC_DECIMALS, 2)}</td>
                         <td>{trade.time}</td>
                       </tr>
                     ))}
                     {fixtureTape.map((trade) => (
                       <tr key={`fixture-${trade.time}-${trade.priceTicks.toString()}`}>
                         <th scope="row" className={trade.side === "buy" ? styles.buyText : styles.sellText}>
-                          <span className={styles.srOnly}>{trade.side === "buy" ? "Buy" : "Sell"} </span>
-                          {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
+                          {tapeSideCopy(trade.side)} {formatAtomicUnits(trade.priceTicks, PRICE_DECIMALS, 2)}
                         </th>
-                        <td>{formatAtomicUnits(trade.sizeAtoms, PZEC_DECIMALS, 2)}</td>
+                        <td>{formatAtomicUnits(trade.sizeAtoms, ZEC_DECIMALS, 2)}</td>
                         <td>{trade.time}</td>
                       </tr>
                     ))}
@@ -760,6 +774,9 @@ export function TradingTerminal({
             onFeedChange={selectFeed}
             onRetryFeed={() => selectFeed("illustrative")}
           />
+        )}
+        {initialAccess === "open" && view === "settlement" && (
+          <NativeSwapPanel marketId={marketId} onMarketChange={selectMarket} />
         )}
         {initialAccess === "open" && view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
         {initialAccess === "open" && view === "architecture" && (

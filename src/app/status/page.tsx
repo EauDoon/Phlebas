@@ -23,6 +23,10 @@ export default function StatusPage() {
         <div role="listitem"><dt>Live funds</dt><dd>{status.liveFunds ? "yes" : "no"}</dd></div>
         <div role="listitem"><dt>Matcher</dt><dd>{status.matcher}</dd></div>
         <div role="listitem"><dt>Matcher service</dt><dd>{status.matcherService}</dd></div>
+        <div role="listitem"><dt>Matcher target</dt><dd>{status.matcherTarget}</dd></div>
+        <div role="listitem"><dt>Matcher execution</dt><dd>{status.matcherExecution}</dd></div>
+        <div role="listitem"><dt>Solver liquidity</dt><dd>{status.solverLiquidity}</dd></div>
+        <div role="listitem"><dt>Authoritative journal</dt><dd>{status.authoritativeJournal}</dd></div>
         <div role="listitem"><dt>Custody</dt><dd>{status.custody}</dd></div>
         <div role="listitem"><dt>Deposits</dt><dd>{status.deposits}</dd></div>
         <div role="listitem"><dt>Withdrawals</dt><dd>{status.withdrawals}</dd></div>
@@ -32,7 +36,6 @@ export default function StatusPage() {
         <div role="listitem"><dt>Network</dt><dd>{status.network}</dd></div>
         <div role="listitem"><dt>Market data</dt><dd>{status.marketData}</dd></div>
         <div role="listitem"><dt>Country access</dt><dd>{status.countryAccess}</dd></div>
-        <div role="listitem"><dt>Intent cap</dt><dd>{status.intentCap === null ? "unset" : status.intentCap}</dd></div>
         <div role="listitem"><dt>Sequence root</dt><dd>{status.sequenceRoot === null ? "none" : status.sequenceRoot}</dd></div>
       </dl>
       <p>
@@ -57,7 +60,7 @@ export default function StatusPage() {
         <Link href="/#launch-gates">Launch gates</Link>
       </p>
       <p>
-        Architecture includes labeled incident demonstrations for blocked access, review, reorg, planned maintenance, and unplanned maintenance. They are copy-only. This status page is not an incident feed.
+        Architecture includes labeled historical-state demonstrations for blocked access, review, reorg, planned maintenance, and unplanned maintenance. They are copy-only. This status page is not an incident feed.
       </p>
     </SimulationFrame>
   );

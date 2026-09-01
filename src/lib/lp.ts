@@ -2,7 +2,7 @@ import { balancedQuoteAtoms } from "./amm.ts";
 import type { Market } from "./market-data.ts";
 
 export type PoolShares = {
-  reservePzecAtoms: bigint;
+  reserveZecAtoms: bigint;
   reserveQuoteAtoms: bigint;
   totalShares: bigint;
 };
@@ -12,8 +12,20 @@ export function lpOperationAllowed(operation: "mint" | "swap" | "burn", tradingP
   return !tradingPaused;
 }
 
-export function emptyShareCopy(poolId: "pZEC/USDC" | "pZEC/USDT0"): string {
+export function emptyShareCopy(poolId: "ZEC/USDC" | "ZEC/USDT"): string {
   return `No session LP shares in ${poolId}. Burn stays idle until a local mint.`;
+}
+
+export function lpRiskCopy(): string {
+  return "LPs would face ZEC reserve and redemption risk, stablecoin risk, smart-contract risk, impermanent loss, toxic flow from the order book, and emergency operating restrictions.";
+}
+
+export function lpFeedBlockCopy(): string {
+  return "Burn stays available. Mint and swap stay off while the market-data feed is not illustrative.";
+}
+
+export function lpEmptyBookCopy(): string {
+  return "Pool math is still a local preview. The empty book does not drain the pool.";
 }
 
 export function lpPauseNoticeCopy(
@@ -41,10 +53,10 @@ export function lpMintNoticeCopy(
 }
 
 export function lpBurnNoticeCopy(
-  pzecLabel: string,
+  zecLabel: string,
   settlementPair: Market["settlementPair"],
 ): string {
-  return `Burned session shares for ${pzecLabel} pZEC. Local preview only. Settled as ${settlementPair}.`;
+  return `Burned session shares for ${zecLabel} ZEC. Local preview only. Settled as ${settlementPair}.`;
 }
 
 export function lpSwapNoticeCopy(
@@ -52,32 +64,32 @@ export function lpSwapNoticeCopy(
   quote: Market["quote"],
   settlementPair: Market["settlementPair"],
 ): string {
-  return `Simulated pZEC→${quote} swap. Output ${outputLabel} ${quote}. Local preview only. Settled as ${settlementPair}.`;
+  return `Simulated ZEC→${quote} swap. Output ${outputLabel} ${quote}. Local preview only. Settled as ${settlementPair}.`;
 }
 
-export function seedPool(reservePzecAtoms: bigint, reserveQuoteAtoms: bigint): PoolShares {
-  if (reservePzecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
+export function seedPool(reserveZecAtoms: bigint, reserveQuoteAtoms: bigint): PoolShares {
+  if (reserveZecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
     throw new Error("Pool reserves must be positive");
   }
   return {
-    reservePzecAtoms,
+    reserveZecAtoms,
     reserveQuoteAtoms,
-    totalShares: reservePzecAtoms,
+    totalShares: reserveZecAtoms,
   };
 }
 
 export function mintShares(
   pool: PoolShares,
-  pzecAtoms: bigint,
+  zecAtoms: bigint,
 ): { pool: PoolShares; shares: bigint; quoteAtoms: bigint } {
-  if (pzecAtoms <= 0n) {
+  if (zecAtoms <= 0n) {
     throw new Error("Value must be positive");
   }
-  const quoteAtoms = balancedQuoteAtoms(pzecAtoms, pool.reservePzecAtoms, pool.reserveQuoteAtoms);
+  const quoteAtoms = balancedQuoteAtoms(zecAtoms, pool.reserveZecAtoms, pool.reserveQuoteAtoms);
   if (quoteAtoms <= 0n) {
     throw new Error("Amount is too small to produce one quote-token atom.");
   }
-  const shares = (pzecAtoms * pool.totalShares) / pool.reservePzecAtoms;
+  const shares = (zecAtoms * pool.totalShares) / pool.reserveZecAtoms;
   if (shares <= 0n) {
     throw new Error("Amount is too small to mint one LP share.");
   }
@@ -85,7 +97,7 @@ export function mintShares(
     shares,
     quoteAtoms,
     pool: {
-      reservePzecAtoms: pool.reservePzecAtoms + pzecAtoms,
+      reserveZecAtoms: pool.reserveZecAtoms + zecAtoms,
       reserveQuoteAtoms: pool.reserveQuoteAtoms + quoteAtoms,
       totalShares: pool.totalShares + shares,
     },
@@ -95,17 +107,17 @@ export function mintShares(
 export function burnShares(
   pool: PoolShares,
   shares: bigint,
-): { pool: PoolShares; pzecAtoms: bigint; quoteAtoms: bigint } {
+): { pool: PoolShares; zecAtoms: bigint; quoteAtoms: bigint } {
   if (shares <= 0n || shares > pool.totalShares) {
     throw new Error("Share amount is outside the preview range");
   }
-  const pzecAtoms = (shares * pool.reservePzecAtoms) / pool.totalShares;
+  const zecAtoms = (shares * pool.reserveZecAtoms) / pool.totalShares;
   const quoteAtoms = (shares * pool.reserveQuoteAtoms) / pool.totalShares;
   return {
-    pzecAtoms,
+    zecAtoms,
     quoteAtoms,
     pool: {
-      reservePzecAtoms: pool.reservePzecAtoms - pzecAtoms,
+      reserveZecAtoms: pool.reserveZecAtoms - zecAtoms,
       reserveQuoteAtoms: pool.reserveQuoteAtoms - quoteAtoms,
       totalShares: pool.totalShares - shares,
     },
@@ -119,8 +131,8 @@ export type ImpermanentLossPreview = {
 };
 
 export const IL_PRICE_SCENARIOS = [
-  { label: "4x pZEC/quote", priceMultipleNumerator: 4n, priceMultipleDenominator: 1n },
-  { label: "1/4x pZEC/quote", priceMultipleNumerator: 1n, priceMultipleDenominator: 4n },
+  { label: "4x ZEC/quote", priceMultipleNumerator: 4n, priceMultipleDenominator: 1n },
+  { label: "1/4x ZEC/quote", priceMultipleNumerator: 1n, priceMultipleDenominator: 4n },
 ] as const;
 
 function integerSqrt(value: bigint): bigint {
@@ -140,22 +152,22 @@ function integerSqrt(value: bigint): bigint {
 }
 
 function quoteValueAtoms(
-  pzecAtoms: bigint,
+  zecAtoms: bigint,
   quoteAtoms: bigint,
-  reservePzecAtoms: bigint,
+  reserveZecAtoms: bigint,
   reserveQuoteAtoms: bigint,
   rounding: "down" | "up",
 ): bigint {
-  if (reservePzecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
+  if (reserveZecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
     throw new Error("Pool reserves must be positive");
   }
-  if (pzecAtoms < 0n || quoteAtoms < 0n) {
+  if (zecAtoms < 0n || quoteAtoms < 0n) {
     throw new Error("Amounts must be non-negative");
   }
-  const numerator = pzecAtoms * reserveQuoteAtoms;
+  const numerator = zecAtoms * reserveQuoteAtoms;
   const converted = rounding === "up" && numerator > 0n
-    ? ((numerator - 1n) / reservePzecAtoms) + 1n
-    : numerator / reservePzecAtoms;
+    ? ((numerator - 1n) / reserveZecAtoms) + 1n
+    : numerator / reserveZecAtoms;
   return quoteAtoms + converted;
 }
 
@@ -168,28 +180,28 @@ function lossVersusHold(hodlQuoteAtoms: bigint, positionQuoteAtoms: bigint): Imp
 }
 
 export function realizedImpermanentLoss(
-  entryPzecAtoms: bigint,
+  entryZecAtoms: bigint,
   entryQuoteAtoms: bigint,
   shares: bigint,
   pool: PoolShares,
 ): ImpermanentLossPreview {
-  if (shares <= 0n || entryPzecAtoms <= 0n || entryQuoteAtoms <= 0n) {
+  if (shares <= 0n || entryZecAtoms <= 0n || entryQuoteAtoms <= 0n) {
     return { hodlQuoteAtoms: 0n, positionQuoteAtoms: 0n, lossQuoteAtoms: 0n };
   }
   const position = burnShares(pool, shares);
   return lossVersusHold(
-    quoteValueAtoms(entryPzecAtoms, entryQuoteAtoms, pool.reservePzecAtoms, pool.reserveQuoteAtoms, "up"),
-    quoteValueAtoms(position.pzecAtoms, position.quoteAtoms, pool.reservePzecAtoms, pool.reserveQuoteAtoms, "down"),
+    quoteValueAtoms(entryZecAtoms, entryQuoteAtoms, pool.reserveZecAtoms, pool.reserveQuoteAtoms, "up"),
+    quoteValueAtoms(position.zecAtoms, position.quoteAtoms, pool.reserveZecAtoms, pool.reserveQuoteAtoms, "down"),
   );
 }
 
 export function hypotheticalImpermanentLoss(
-  entryPzecAtoms: bigint,
+  entryZecAtoms: bigint,
   entryQuoteAtoms: bigint,
   priceMultipleNumerator: bigint,
   priceMultipleDenominator: bigint,
 ): ImpermanentLossPreview {
-  if (entryPzecAtoms <= 0n || entryQuoteAtoms <= 0n) {
+  if (entryZecAtoms <= 0n || entryQuoteAtoms <= 0n) {
     return { hodlQuoteAtoms: 0n, positionQuoteAtoms: 0n, lossQuoteAtoms: 0n };
   }
   if (priceMultipleNumerator <= 0n || priceMultipleDenominator <= 0n) {
@@ -201,10 +213,10 @@ export function hypotheticalImpermanentLoss(
     throw new Error("Price multiple must be a ratio of perfect squares");
   }
 
-  const lpPzecAtoms = (entryPzecAtoms * sqrtDen) / sqrtNum;
+  const lpZecAtoms = (entryZecAtoms * sqrtDen) / sqrtNum;
   const lpQuoteAtoms = (entryQuoteAtoms * sqrtNum) / sqrtDen;
   const hodlQuoteAtoms = entryQuoteAtoms + (entryQuoteAtoms * priceMultipleNumerator) / priceMultipleDenominator;
   const positionQuoteAtoms = lpQuoteAtoms
-    + (lpPzecAtoms * entryQuoteAtoms * priceMultipleNumerator) / (entryPzecAtoms * priceMultipleDenominator);
+    + (lpZecAtoms * entryQuoteAtoms * priceMultipleNumerator) / (entryZecAtoms * priceMultipleDenominator);
   return lossVersusHold(hodlQuoteAtoms, positionQuoteAtoms);
 }

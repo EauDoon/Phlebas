@@ -1,8 +1,16 @@
 import type { MarketId } from "@/lib/market-data";
 import { markets } from "@/lib/market-data";
-import { depthEmptyCopy, depthSessionLastCopy, feedSurface, feedWithheldCopy, orderBookCaptionCopy, type FeedStatus } from "@/lib/market-state";
+import {
+  bookSideControlCopy,
+  depthEmptyCopy,
+  depthSessionLastCopy,
+  feedSurface,
+  feedWithheldCopy,
+  orderBookCaptionCopy,
+  type FeedStatus,
+} from "@/lib/market-state";
 import { levelsFromBook, type Book } from "@/lib/matcher";
-import { PRICE_DECIMALS, PZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
+import { PRICE_DECIMALS, ZEC_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
@@ -42,8 +50,8 @@ export function OrderBook({
         <thead>
           <tr>
             <th scope="col">Price {market.quote}</th>
-            <th scope="col">Size pZEC</th>
-            <th scope="col">Total pZEC</th>
+            <th scope="col">Size ZEC</th>
+            <th scope="col">Total ZEC</th>
           </tr>
         </thead>
         <tbody aria-label="Asks">
@@ -109,7 +117,8 @@ function BookRow({
   onPriceSelect: (priceTicks: bigint) => void;
 }) {
   const depthPercent = Number((level.totalAtoms * 1000n) / maxAtoms) / 10;
-  const label = side === "buy" ? "Bid" : "Ask";
+  const bookSide = side === "buy" ? "bid" : "ask";
+  const priceLabel = formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2);
 
   return (
     <tr>
@@ -127,12 +136,11 @@ function BookRow({
           className={styles.bookButton}
           onClick={() => onPriceSelect(level.priceTicks)}
         >
-          <span className={styles.srOnly}>{label} </span>
-          {formatAtomicUnits(level.priceTicks, PRICE_DECIMALS, 2)}
+          {bookSideControlCopy(bookSide, priceLabel)}
         </button>
       </th>
-      <td>{formatAtomicUnits(level.sizeAtoms, PZEC_DECIMALS, 2)}</td>
-      <td>{formatAtomicUnits(level.totalAtoms, PZEC_DECIMALS, 2)}</td>
+      <td>{formatAtomicUnits(level.sizeAtoms, ZEC_DECIMALS, 2)}</td>
+      <td>{formatAtomicUnits(level.totalAtoms, ZEC_DECIMALS, 2)}</td>
     </tr>
   );
 }

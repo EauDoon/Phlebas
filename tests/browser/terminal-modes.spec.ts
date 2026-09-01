@@ -5,7 +5,7 @@ import { markets } from "../../src/lib/market-data.ts";
 import { submitOrder } from "../../src/lib/matcher.ts";
 import { describeSubmit, seedBook } from "../../src/lib/session.ts";
 import { TERMINAL_MODE_STORAGE_KEY } from "../../src/lib/terminal-mode.ts";
-import { parseAtomicUnits, PZEC_DECIMALS, PRICE_DECIMALS, worstPriceTicks } from "../../src/lib/units.ts";
+import { parseAtomicUnits, PRICE_DECIMALS, worstPriceTicks, ZEC_DECIMALS } from "../../src/lib/units.ts";
 import { inspectTransparentDestination } from "../../src/lib/zcash-address.ts";
 
 import { expect, test } from "./fixtures";
@@ -21,7 +21,7 @@ function expectedMarketBuyCopy() {
       side: "buy",
       tif: "IOC",
       priceTicks: worstPriceTicks(book.lastTicks, "buy", slippageHundredths),
-      sizeAtoms: parseAtomicUnits("1", PZEC_DECIMALS),
+      sizeAtoms: parseAtomicUnits("1", ZEC_DECIMALS),
     }),
     "ZEC/USDC",
   );
@@ -49,7 +49,7 @@ test("simple market review confirm uses matcher IOC copy", async ({ page }) => {
   await expect(page.getByRole("radio", { name: "Simple" })).toHaveAttribute("aria-checked", "true");
   await expect(page.locator("#order-book")).toBeHidden();
 
-  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText(copy)).toBeVisible();

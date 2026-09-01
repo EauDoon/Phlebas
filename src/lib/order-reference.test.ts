@@ -192,3 +192,16 @@ test("empty snapshots bind the configured signing domain and pair", () => {
     /positive uint64/,
   );
 });
+
+test("a native matcher can explicitly allow solver-only signed intents", () => {
+  const state = createOrderReference({
+    domain: initial().domain,
+    pair,
+    settlementAdapterId: adapter,
+    maximumLifetimeSeconds: 1_500n,
+    requireClob: false,
+  });
+  const solverOnly = { ...order(1n), allowedVenues: 2 };
+  assert.doesNotThrow(() => acceptOrderIntent(state, solverOnly, 1_000n));
+  assert.notEqual(orderReferenceSnapshot(state), orderReferenceSnapshot(initial()));
+});

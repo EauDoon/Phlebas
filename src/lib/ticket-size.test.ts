@@ -4,11 +4,11 @@ import test from "node:test";
 import { sizeAtomsForQuote } from "./units.ts";
 import { maxTicketSizeAtoms } from "./ticket-size.ts";
 
-test("sell max is available pZEC and ignores quote inventory", () => {
+test("sell max is available ZEC and ignores quote inventory", () => {
   assert.equal(
     maxTicketSizeAtoms({
       side: "sell",
-      availablePzecAtoms: 100_00000000n,
+      availableZecAtoms: 100_00000000n,
       availableQuoteAtoms: 10_000_000000n,
       priceTicks: 5311n,
     }),
@@ -17,7 +17,7 @@ test("sell max is available pZEC and ignores quote inventory", () => {
   assert.equal(
     maxTicketSizeAtoms({
       side: "sell",
-      availablePzecAtoms: 0n,
+      availableZecAtoms: 0n,
       availableQuoteAtoms: 10_000_000000n,
       priceTicks: 5311n,
     }),
@@ -31,7 +31,7 @@ test("buy max inverts quote inventory at the integer bound", () => {
   assert.equal(
     maxTicketSizeAtoms({
       side: "buy",
-      availablePzecAtoms: 100_00000000n,
+      availableZecAtoms: 100_00000000n,
       availableQuoteAtoms: quoteAtoms,
       priceTicks,
     }),
@@ -44,7 +44,7 @@ test("buy max is zero when quote inventory or price is missing", () => {
   assert.equal(
     maxTicketSizeAtoms({
       side: "buy",
-      availablePzecAtoms: 100_00000000n,
+      availableZecAtoms: 100_00000000n,
       availableQuoteAtoms: 0n,
       priceTicks: 5311n,
     }),
@@ -53,7 +53,7 @@ test("buy max is zero when quote inventory or price is missing", () => {
   assert.equal(
     maxTicketSizeAtoms({
       side: "buy",
-      availablePzecAtoms: 100_00000000n,
+      availableZecAtoms: 100_00000000n,
       availableQuoteAtoms: 10_000_000000n,
       priceTicks: 0n,
     }),

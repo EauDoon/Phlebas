@@ -2,12 +2,12 @@ import { sizeAtomsForQuote } from "./units.ts";
 
 export function maxTicketSizeAtoms(options: {
   side: "buy" | "sell";
-  availablePzecAtoms: bigint;
+  availableZecAtoms: bigint;
   availableQuoteAtoms: bigint;
   priceTicks: bigint;
 }): bigint {
   if (options.side === "sell") {
-    return options.availablePzecAtoms > 0n ? options.availablePzecAtoms : 0n;
+    return options.availableZecAtoms > 0n ? options.availableZecAtoms : 0n;
   }
   if (options.availableQuoteAtoms <= 0n || options.priceTicks <= 0n) {
     return 0n;

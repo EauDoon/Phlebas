@@ -8,6 +8,7 @@ import {
   disconnectedWallet,
   getInjectedProvider,
   missingProviderCopy,
+  publicWalletConnectionError,
   retargetSettlementCopy,
   walletConnectBarTitle,
   walletConnectFailureCopy,
@@ -44,7 +45,7 @@ export function WalletBar({
       onChange({
         ...disconnectedWallet,
         error: walletConnectFailureCopy(
-          error instanceof Error ? error.message : "Wallet connection failed.",
+          publicWalletConnectionError(error),
           settlementPair,
         ),
       });

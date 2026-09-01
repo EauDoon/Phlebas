@@ -1,4 +1,4 @@
-export const POOL_IDS = ["pZEC/USDC", "pZEC/USDT0"] as const;
+export const POOL_IDS = ["ZEC/USDC", "ZEC/USDT"] as const;
 
 export type PoolId = (typeof POOL_IDS)[number];
 

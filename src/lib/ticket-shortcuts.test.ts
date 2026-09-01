@@ -12,6 +12,22 @@ test("G I F set time in force when review is closed", () => {
   assert.equal(interpretTicketKey("b", idle), "buy");
 });
 
+test("B and S map to side when no dialog or review is open", () => {
+  assert.equal(interpretTicketKey("b", idle), "buy");
+  assert.equal(interpretTicketKey("S", idle), "sell");
+  assert.equal(interpretTicketKey("b", { target: null, dialogOpen: true, reviewOpen: false }), null);
+  assert.equal(interpretTicketKey("s", { target: null, dialogOpen: true, reviewOpen: false }), null);
+  assert.equal(interpretTicketKey("b", { target: null, dialogOpen: false, reviewOpen: true }), null);
+  assert.equal(interpretTicketKey("s", { target: null, dialogOpen: false, reviewOpen: true }), null);
+});
+
+test("ticket shortcuts ignore open dialogs and typing targets", () => {
+  assert.equal(interpretTicketKey("i", { target: null, dialogOpen: true, reviewOpen: false }), null);
+  assert.equal(interpretTicketKey("g", { target: null, dialogOpen: true, reviewOpen: false }), null);
+  const input = { tagName: "INPUT", isContentEditable: false } as unknown as EventTarget;
+  assert.equal(interpretTicketKey("f", { target: input, dialogOpen: false, reviewOpen: false }), null);
+});
+
 test("review-and-confirm swallows G I F until Escape", () => {
   const review = { target: null, dialogOpen: false, reviewOpen: true };
   assert.equal(interpretTicketKey("i", review), null);

@@ -14,7 +14,7 @@ import { isIncidentDemoQuery } from "@/lib/gateway-incidents";
 
 export const metadata: Metadata = {
   title: "Trading simulation",
-  description: "Explore the no-value Phlebas ZEC order-book and liquidity simulation.",
+  description: "Explore the no-value Phlebas ZEC order book, native settlement walkthrough, and legacy liquidity simulation.",
 };
 
 function isMarketId(value: string | undefined): value is MarketId {

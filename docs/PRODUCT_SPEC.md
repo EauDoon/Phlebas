@@ -1,7 +1,7 @@
 # Phlebas Product Specification
 
 Status: native-settlement target, no-value implementation
-Updated: 31-08-2026
+Updated: 01-09-2026
 
 ## 1. Product statement
 
@@ -113,6 +113,8 @@ Contract wallets require ERC-1271 validation on the EVM path. That support remai
 
 The matcher applies deterministic price-time priority.
 
+Implementation status on 01-09-2026: the local persistent domain implements the semantics below, authenticated control messages, signed wallet-held solver quotes, bounded route comparison, hash-chained replay, atomic checkpoints, and blocked no-value swap plans. The public Vercel interface still uses the in-browser simulation. No transaction builder, chain action, live fund, or production matcher deployment is included.
+
 It supports:
 
 * GTC resting orders;
@@ -140,23 +142,24 @@ One fill creates immutable terms for two legs:
 | Native | Transparent ZEC | Zcash P2SH conditional lock | ZEC seller | Stablecoin seller | Later deadline |
 | Quote | USDC or selected USDT | EVM exact-token conditional lock | Stablecoin seller | ZEC seller | Earlier deadline |
 
-Both legs bind the same hash. The exact deadline margin is a versioned policy.
+Both legs bind the same SHA-256 hash over a 32-byte secret. The exact deadline margin is a versioned policy. The local walkthrough uses synthetic times and does not approve production durations.
 
-The workflow states are:
+The reference domain derives these workflow phases:
 
 ```text
-matched
-terms accepted
-first funding prepared
-first funded
-first confirmed
-second funding prepared
-both funded
-redeemable
+awaiting authorizations
+awaiting ZEC funding
+awaiting ZEC confirmation
+awaiting EVM funding
+awaiting EVM confirmation
+awaiting EVM claim
+secret observed
+awaiting ZEC claim
 settled
-refundable
+refund recovery
 refunded
 disputed
+expired
 ```
 
 Required invariants:
@@ -170,7 +173,14 @@ Required invariants:
 * duplicate or conflicting evidence fails closed;
 * wrong-chain, wrong-asset, stale, or reorganized evidence moves the workflow to disputed;
 * every incomplete funded swap retains a wallet-controlled refund path;
+* a swap expires only after its active signed deadline and only when no chain evidence exists;
+* an unconfirmed retracted observer report can be replaced only for the same canonical fact, with the full audit history retained;
+* authorization, preparation, funding, confirmation, and spend facts preserve causal timestamp order;
 * deterministic replay yields the same state and next safe action.
+
+Both parties separately authorize the exact per-fill terms digest. Signed terms include the deterministically derived fill identity, order identities, party roles, chains, assets, amounts, execution price, exact quote relation, fee amount, fee recipient, fee cap, Zcash script identities, EVM addresses and escrow identity, shared hash, all cutoffs and refund times, and the market, timeout, observer, and finality policy identifiers. Terms cannot change after authorization. The current native-swap reference accepts only a zero fee. A positive protocol fee remains invalid until the exact EVM escrow settlement route and its accounting are implemented and independently reviewed.
+
+The append-only journal binds every event to the swap and prior state root. It accepts only known event kinds with exact runtime fields. Exact duplicate events are idempotent only when the caller supplies the exact journal-head state. A different event in an occupied semantic slot is a conflict, while an abandoned funding generation may be represented by a newly hashed artifact. Restart accepts only a complete semantically replayable journal from the pristine created state and a matching snapshot root, including dispute, retraction, resolution, and terminal state. It never silently initializes over malformed persistence.
 
 ## 9. Liquidity
 
@@ -203,7 +213,7 @@ The router compares complete executable routes only. It may choose an order-book
 7. Each fill opens a settlement ticket.
 8. The ticket shows the next safe wallet action and the evidence supporting it.
 9. The user signs funding, claim, or refund transactions only after reviewing exact terms.
-10. The ticket ends as settled, refunded, or disputed.
+10. The ticket ends as settled, refunded, expired without chain evidence, or disputed.
 
 ## 11. Settlement ticket
 
@@ -225,6 +235,8 @@ Every ticket shows:
 * public-linkability warning for transparent ZEC.
 
 The ticket never asks the user to deposit into Phlebas.
+
+The public no-value settlement walkthrough renders a deterministic projection of this domain. It prepares no transaction, connects no wallet, calls no chain service, and moves no asset. Unsafe fixtures must disable funding and claim controls while keeping the refund-path status visible.
 
 ## 12. Wallet behavior
 
@@ -252,7 +264,7 @@ The UI must represent:
 * EVM observers agreeing, stale, or conflicting;
 * contract identity verified, unresolved, paused, or mismatched;
 * wallet unsupported, disconnected, wrong network, ready, rejected, or failed;
-* swap matched, funding, both funded, redeemable, refundable, settled, refunded, or disputed;
+* swap matched, funding, both funded, redeemable, refundable, settled, refunded, expired without chain evidence, or disputed;
 * incident active and recovery pending.
 
 No unsafe state may enable a signing action.

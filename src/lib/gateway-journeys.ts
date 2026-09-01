@@ -3,8 +3,8 @@ export const GATEWAY_JOURNEYS = ["deposit", "withdrawal"] as const;
 export type GatewayJourney = (typeof GATEWAY_JOURNEYS)[number];
 
 export const GATEWAY_JOURNEY_LABELS: Record<GatewayJourney, string> = {
-  deposit: "Deposit preview",
-  withdrawal: "Withdrawal states",
+  deposit: "Historical deposit states",
+  withdrawal: "Historical withdrawal states",
 };
 
 export function isGatewayJourney(value: string | undefined): value is GatewayJourney {

@@ -6,28 +6,32 @@ export const LANDING_JOURNEYS = [
   {
     id: "trader",
     tab: "Trader",
-    description: "Preview pZEC spot order entry and settlement disclosures.",
+    title: "Signed limits, visible bounds",
+    description: "Preview ZEC spot order entry and settlement disclosures.",
     href: "/trade?view=trade",
     action: "Preview trading",
   },
   {
     id: "lp",
     tab: "LP",
-    description: "Inspect fixed-pair pool math and LP risks without depositing assets.",
+    title: "Legacy pool math, clearly bounded",
+    description: "Inspect the superseded fixed-pair AMM simulation. Native cross-chain liquidity uses wallet-held solvers instead.",
     href: "/liquidity",
     action: "Preview liquidity",
   },
   {
     id: "deposit",
     tab: "Deposit",
-    description: "See how eligible transparent native ZEC could become pZEC.",
+    title: "Legacy custody path",
+    description: "Inspect the historical transparent-ZEC custody state tour. It is not the native atomic-settlement path.",
     href: "/trade?view=bridge",
     action: "Preview deposit states",
   },
   {
     id: "withdrawal",
     tab: "Withdrawal",
-    description: "See how a pZEC burn could create a transparent native ZEC payout claim.",
+    title: "Legacy payout recovery",
+    description: "Inspect the historical burn-and-payout fixture. The native target preserves wallet-controlled refunds instead.",
     href: "/trade?view=bridge&journey=withdrawal",
     action: "Preview withdrawal states",
   },
@@ -45,4 +49,14 @@ export function nextLandingJourneyId(id: LandingJourneyId, delta: number): Landi
   const count = LANDING_JOURNEY_IDS.length;
   const index = (landingJourneyIndex(id) + delta + count) % count;
   return LANDING_JOURNEY_IDS[index];
+}
+
+export function landingJourneyFromHash(hash: string): LandingJourneyId {
+  const trimmed = hash.trim().replace(/^#/, "");
+  const id = trimmed.startsWith("journey-") ? trimmed.slice("journey-".length) : trimmed;
+  return isLandingJourneyId(id) ? id : "trader";
+}
+
+export function landingJourneyHash(id: LandingJourneyId): string {
+  return `#journey-${id}`;
 }

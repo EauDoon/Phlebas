@@ -1,6 +1,6 @@
 import { submitOrder } from "../../src/lib/matcher.ts";
 import { describeSubmit, seedBook } from "../../src/lib/session.ts";
-import { parseAtomicUnits, PZEC_DECIMALS, PRICE_DECIMALS, worstPriceTicks } from "../../src/lib/units.ts";
+import { parseAtomicUnits, PRICE_DECIMALS, worstPriceTicks, ZEC_DECIMALS } from "../../src/lib/units.ts";
 
 import { expect, test } from "./fixtures";
 
@@ -37,9 +37,9 @@ test("simple mode shows a Uniswap-style market ticket without the book", async (
 test("Max fills a positive size and Switch flips side", async ({ page }) => {
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
 
-  const size = page.getByRole("textbox", { name: "Order size in pZEC" });
+  const size = page.getByRole("textbox", { name: "Order size in ZEC" });
   await expect(page.getByLabel("Token in")).toContainText("USDC");
-  await expect(page.getByLabel("Token out")).toContainText("pZEC");
+  await expect(page.getByLabel("Token out")).toContainText("ZEC");
 
   await page.getByRole("button", { name: "Max" }).click();
   const buySize = Number(await size.inputValue());
@@ -47,7 +47,7 @@ test("Max fills a positive size and Switch flips side", async ({ page }) => {
 
   await page.getByRole("button", { name: "Switch" }).click();
   await expect(page.getByRole("button", { name: "Review simulated sell" })).toBeVisible();
-  await expect(page.getByLabel("Token in")).toContainText("pZEC");
+  await expect(page.getByLabel("Token in")).toContainText("ZEC");
   await expect(page.getByLabel("Token out")).toContainText("USDC");
 
   await page.getByRole("button", { name: "Max" }).click();
@@ -62,11 +62,11 @@ test("simple Review confirm completes an IOC market fill", async ({ page }) => {
     side: "buy",
     tif: "IOC",
     priceTicks: worstPriceTicks(book.lastTicks, "buy", slippageHundredths),
-    sizeAtoms: parseAtomicUnits("1", PZEC_DECIMALS),
+    sizeAtoms: parseAtomicUnits("1", ZEC_DECIMALS),
   });
 
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
-  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Back" })).toBeVisible();

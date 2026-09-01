@@ -7,7 +7,7 @@ import { payoutClaimForTourStep } from "../../src/lib/payout.ts";
 import { isEducationLastStep, PREVIEW_EDUCATION_STEPS } from "../../src/lib/preview-education.ts";
 import { describeSubmit, seedBook, ticketRejectCopy } from "../../src/lib/session.ts";
 import { simulationStatus } from "../../src/lib/status.ts";
-import { parseAtomicUnits, PZEC_DECIMALS, PRICE_DECIMALS, worstPriceTicks } from "../../src/lib/units.ts";
+import { parseAtomicUnits, PRICE_DECIMALS, worstPriceTicks, ZEC_DECIMALS } from "../../src/lib/units.ts";
 import { unresolvedWithdrawalTourIndex, WITHDRAWAL_TOUR } from "../../src/lib/withdrawal-tour.ts";
 
 import { expect, test } from "./fixtures";
@@ -131,26 +131,26 @@ test("GTC remainder can be cancelled, IOC cancels remainder, and FOK rejects a m
     side: "buy",
     tif: "GTC",
     priceTicks: parseAtomicUnits("50.00", PRICE_DECIMALS),
-    sizeAtoms: parseAtomicUnits("1", PZEC_DECIMALS),
+    sizeAtoms: parseAtomicUnits("1", ZEC_DECIMALS),
   });
   const ioc = submitOrder(book, {
     id: "user-preview",
     side: "buy",
     tif: "IOC",
     priceTicks: parseAtomicUnits("50.00", PRICE_DECIMALS),
-    sizeAtoms: parseAtomicUnits("1", PZEC_DECIMALS),
+    sizeAtoms: parseAtomicUnits("1", ZEC_DECIMALS),
   });
   const fok = submitOrder(book, {
     id: "user-preview",
     side: "buy",
     tif: "FOK",
     priceTicks: parseAtomicUnits("52.91", PRICE_DECIMALS),
-    sizeAtoms: parseAtomicUnits("100", PZEC_DECIMALS),
+    sizeAtoms: parseAtomicUnits("100", ZEC_DECIMALS),
   });
 
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
-  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText(describeSubmit(rest, "ZEC/USDC"))).toBeVisible();
@@ -159,14 +159,14 @@ test("GTC remainder can be cancelled, IOC cancels remainder, and FOK rejects a m
 
   await page.getByRole("button", { name: "IOC" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
-  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText(describeSubmit(ioc, "ZEC/USDC"))).toBeVisible();
 
   await page.getByRole("button", { name: "FOK" }).click();
   await page.getByRole("textbox", { name: "Price in USDC" }).fill("52.91");
-  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("100");
+  await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("100");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await page.getByRole("button", { name: "Confirm simulated buy" }).click();
   await expect(page.getByText(describeSubmit(fok, "ZEC/USDC"), { exact: true })).toBeVisible();
@@ -181,12 +181,12 @@ test("market IOC confirm fills against the fixture book", async ({ page }) => {
     side: "buy",
     tif: "IOC",
     priceTicks: worstPriceTicks(book.lastTicks, "buy", slippageHundredths),
-    sizeAtoms: parseAtomicUnits("1", PZEC_DECIMALS),
+    sizeAtoms: parseAtomicUnits("1", ZEC_DECIMALS),
   });
 
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Market" }).click();
-  await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
+  await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
   await expect(page.getByText("Worst acceptable price")).toBeVisible();
   await expect(page.getByText("IOC", { exact: true })).toBeVisible();

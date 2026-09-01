@@ -45,9 +45,9 @@ contract Settlement {
         uint8 allowedVenues;
     }
 
-    address public immutable pzec;
+    address public immutable zec;
     address public immutable usdc;
-    address public immutable usdt0;
+    address public immutable usdt;
     address public immutable feeRecipient;
     address public immutable pauser;
     address public immutable governor;
@@ -98,22 +98,15 @@ contract Settlement {
         locked = false;
     }
 
-    constructor(
-        address pzec_,
-        address usdc_,
-        address usdt0_,
-        address feeRecipient_,
-        address pauser_,
-        address governor_
-    ) {
+    constructor(address zec_, address usdc_, address usdt_, address feeRecipient_, address pauser_, address governor_) {
         if (
-            pzec_ == address(0) || usdc_ == address(0) || usdt0_ == address(0) || feeRecipient_ == address(0)
-                || pauser_ == address(0) || governor_ == address(0) || pzec_ == usdc_ || pzec_ == usdt0_
-                || usdc_ == usdt0_ || pzec_.code.length == 0 || usdc_.code.length == 0 || usdt0_.code.length == 0
+            zec_ == address(0) || usdc_ == address(0) || usdt_ == address(0) || feeRecipient_ == address(0)
+                || pauser_ == address(0) || governor_ == address(0) || zec_ == usdc_ || zec_ == usdt_ || usdc_ == usdt_
+                || zec_.code.length == 0 || usdc_.code.length == 0 || usdt_.code.length == 0
         ) revert InvalidConfiguration();
-        pzec = pzec_;
+        zec = zec_;
         usdc = usdc_;
-        usdt0 = usdt0_;
+        usdt = usdt_;
         feeRecipient = feeRecipient_;
         pauser = pauser_;
         governor = governor_;
@@ -199,7 +192,7 @@ contract Settlement {
         if (paused) revert Paused();
         if (makerOrder.side == takerOrder.side) revert Side();
         if (makerOrder.maker == takerOrder.maker) revert SelfTrade();
-        if (makerOrder.baseAsset != pzec || takerOrder.baseAsset != pzec) revert Pair();
+        if (makerOrder.baseAsset != zec || takerOrder.baseAsset != zec) revert Pair();
         if (makerOrder.quoteAsset != takerOrder.quoteAsset) revert Pair();
         _assertQuote(makerOrder.quoteAsset);
         _assertLiveOrder(makerOrder, makerSignature);
@@ -242,7 +235,7 @@ contract Settlement {
         filled[takerHash] =
             takerOrder.timeInForce == TIF_GTC ? filled[takerHash] + baseFillAmount : takerOrder.baseAmount;
 
-        if (!_transfer(pzec, seller, buyerRecipient, baseFillAmount)) revert Transfer();
+        if (!_transfer(zec, seller, buyerRecipient, baseFillAmount)) revert Transfer();
         if (!_transfer(makerOrder.quoteAsset, buyer, sellerRecipient, sellerReceives - sellerFee)) revert Transfer();
         if (buyerFee + sellerFee > 0) {
             if (!_transfer(
@@ -265,7 +258,7 @@ contract Settlement {
     }
 
     function _assertQuote(address quote) internal view {
-        if (quote != usdc && quote != usdt0) revert Pair();
+        if (quote != usdc && quote != usdt) revert Pair();
     }
 
     function _assertLiveOrder(Order calldata order, bytes calldata signature) internal view {

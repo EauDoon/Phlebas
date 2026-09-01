@@ -52,10 +52,10 @@ export function quoteClob(
 export function quoteAmm(
   side: OrderSide,
   sizeAtoms: bigint,
-  reservePzecAtoms: bigint,
+  reserveZecAtoms: bigint,
   reserveQuoteAtoms: bigint,
 ): VenueQuote {
-  const quoted = quoteAmmLeg(side, sizeAtoms, reservePzecAtoms, reserveQuoteAtoms);
+  const quoted = quoteAmmLeg(side, sizeAtoms, reserveZecAtoms, reserveQuoteAtoms);
   if (!quoted) {
     return { venue: "amm", filledAtoms: 0n, quoteAtoms: 0n, complete: false };
   }
@@ -72,7 +72,7 @@ export function quoteSplitRoute(options: {
   side: OrderSide;
   sizeAtoms: bigint;
   limitTicks: bigint;
-  reservePzecAtoms: bigint;
+  reserveZecAtoms: bigint;
   reserveQuoteAtoms: bigint;
 }): SplitQuote {
   const preview = submitOrder(options.book, {
@@ -96,7 +96,7 @@ export function quoteSplitRoute(options: {
     const ammLeg = quoteAmmLeg(
       options.side,
       fill.sizeAtoms,
-      options.reservePzecAtoms,
+      options.reserveZecAtoms,
       options.reserveQuoteAtoms,
     );
     const clobBetter = !ammLeg
@@ -116,7 +116,7 @@ export function quoteSplitRoute(options: {
   let ammFilledAtoms = 0n;
   let ammQuoteAtoms = 0n;
   if (remaining > 0n) {
-    const ammLeg = quoteAmmLeg(options.side, remaining, options.reservePzecAtoms, options.reserveQuoteAtoms);
+    const ammLeg = quoteAmmLeg(options.side, remaining, options.reserveZecAtoms, options.reserveQuoteAtoms);
     if (ammLeg && ammWithinLimit(options.side, remaining, ammLeg.quoteAtoms, options.limitTicks)) {
       ammFilledAtoms = remaining;
       ammQuoteAtoms = ammLeg.quoteAtoms;
@@ -141,11 +141,11 @@ export function compareVenues(options: {
   side: OrderSide;
   sizeAtoms: bigint;
   limitTicks: bigint;
-  reservePzecAtoms: bigint;
+  reserveZecAtoms: bigint;
   reserveQuoteAtoms: bigint;
 }): RouteComparison {
   const clob = quoteClob(options.book, options.side, options.sizeAtoms, options.limitTicks);
-  const amm = quoteAmm(options.side, options.sizeAtoms, options.reservePzecAtoms, options.reserveQuoteAtoms);
+  const amm = quoteAmm(options.side, options.sizeAtoms, options.reserveZecAtoms, options.reserveQuoteAtoms);
   const split = quoteSplitRoute(options);
   if (amm.complete && !ammWithinLimit(options.side, options.sizeAtoms, amm.quoteAtoms, options.limitTicks)) {
     amm.complete = false;
@@ -157,7 +157,7 @@ export function compareVenues(options: {
 function quoteAmmLeg(
   side: OrderSide,
   sizeAtoms: bigint,
-  reservePzecAtoms: bigint,
+  reserveZecAtoms: bigint,
   reserveQuoteAtoms: bigint,
 ): { quoteAtoms: bigint } | null {
   if (sizeAtoms <= 0n) {
@@ -166,11 +166,11 @@ function quoteAmmLeg(
   try {
     if (side === "buy") {
       return {
-        quoteAtoms: quoteConstantProductAmountIn(sizeAtoms, reserveQuoteAtoms, reservePzecAtoms),
+        quoteAtoms: quoteConstantProductAmountIn(sizeAtoms, reserveQuoteAtoms, reserveZecAtoms),
       };
     }
     return {
-      quoteAtoms: quoteConstantProductSwapAtoms(sizeAtoms, reservePzecAtoms, reserveQuoteAtoms).amountOut,
+      quoteAtoms: quoteConstantProductSwapAtoms(sizeAtoms, reserveZecAtoms, reserveQuoteAtoms).amountOut,
     };
   } catch {
     return null;

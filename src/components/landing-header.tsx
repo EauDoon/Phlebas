@@ -8,7 +8,7 @@ import styles from "./landing.module.css";
 const navigation = [
   { href: "#terminal-preview", label: "Markets" },
   { href: "#journeys", label: "Liquidity" },
-  { href: "#pzec", label: "Native settlement" },
+  { href: "#pairs", label: "Native settlement" },
   { href: "/trade?view=architecture", label: "Architecture" },
   { href: "#launch-gates", label: "Launch gates" },
   { href: "/status", label: "Status" },

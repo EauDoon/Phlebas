@@ -127,15 +127,15 @@ export function feeAdjustedProductHolds(
 }
 
 export function balancedQuoteAtoms(
-  pzecAtoms: bigint,
-  reservePzecAtoms: bigint,
+  zecAtoms: bigint,
+  reserveZecAtoms: bigint,
   reserveQuoteAtoms: bigint,
 ): bigint {
-  if (pzecAtoms <= 0n) {
+  if (zecAtoms <= 0n) {
     return 0n;
   }
-  if (reservePzecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
+  if (reserveZecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
     throw new Error("Pool reserves must be positive");
   }
-  return (pzecAtoms * reserveQuoteAtoms) / reservePzecAtoms;
+  return (zecAtoms * reserveQuoteAtoms) / reserveZecAtoms;
 }

@@ -4,9 +4,13 @@ import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { quoteConstantProductSwapAtoms } from "@/lib/amm";
 import { AMM_FEE_BPS, feeEnvelopeCopy } from "@/lib/fees";
+import { custodyRedemptionCopy, publicLinkabilityCopy } from "@/lib/review-copy";
 import {
   burnShares,
   emptyShareCopy,
+  lpEmptyBookCopy,
+  lpFeedBlockCopy,
+  lpRiskCopy,
   isLpPauseNotice,
   lpPauseNoticeCopy,
   lpBurnNoticeCopy,
@@ -22,6 +26,7 @@ import {
   type PoolShares,
 } from "@/lib/lp";
 import { markets, pools, type MarketId } from "@/lib/market-data";
+import { MARKET_IDS, nextMarketId } from "@/lib/market-ids";
 import {
   FEED_STATUS_LABELS,
   FEED_STATUSES,
@@ -29,13 +34,13 @@ import {
   ticketGate,
   type FeedStatus,
 } from "@/lib/market-state";
-import { nextPoolId, POOL_IDS, type PoolId } from "@/lib/pool-ids";
 import { interpretRovingKey } from "@/lib/roving-keys";
-import { parseAtomicUnits, formatAtomicUnits, PZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
+import { parseAtomicUnits, formatAtomicUnits, ZEC_DECIMALS, QUOTE_DECIMALS } from "@/lib/units";
 
 import styles from "./terminal.module.css";
 
-type EntryDeposit = { pzecAtoms: bigint; quoteAtoms: bigint };
+type PoolId = (typeof pools)[number]["id"];
+type EntryDeposit = { zecAtoms: bigint; quoteAtoms: bigint };
 type LpReview = {
   kind: "mint" | "swap";
   zecAtoms: bigint;
@@ -47,19 +52,19 @@ type LpReview = {
 
 function initialPools(): Record<PoolId, PoolShares> {
   return {
-    "pZEC/USDC": seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms),
-    "pZEC/USDT0": seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms),
+    "ZEC/USDC": seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms),
+    "ZEC/USDT": seedPool(pools[1].reserveZecAtoms, pools[1].reserveQuoteAtoms),
   };
 }
 
 function emptyShares(): Record<PoolId, bigint> {
-  return { "pZEC/USDC": 0n, "pZEC/USDT0": 0n };
+  return { "ZEC/USDC": 0n, "ZEC/USDT": 0n };
 }
 
 function emptyDeposits(): Record<PoolId, EntryDeposit> {
   return {
-    "pZEC/USDC": { pzecAtoms: 0n, quoteAtoms: 0n },
-    "pZEC/USDT0": { pzecAtoms: 0n, quoteAtoms: 0n },
+    "ZEC/USDC": { zecAtoms: 0n, quoteAtoms: 0n },
+    "ZEC/USDT": { zecAtoms: 0n, quoteAtoms: 0n },
   };
 }
 
@@ -98,7 +103,7 @@ export function LiquidityPanel({
 
   const amountPreview = useMemo(() => {
     try {
-      const zecAtoms = parseAtomicUnits(amount, PZEC_DECIMALS);
+      const zecAtoms = parseAtomicUnits(amount, ZEC_DECIMALS);
       const minted = mintShares(poolReserves, zecAtoms);
       const quoteAtoms = minted.quoteAtoms;
       let swapOut = "0.00";
@@ -107,11 +112,11 @@ export function LiquidityPanel({
       try {
         const swap = quoteConstantProductSwapAtoms(
           zecAtoms,
-          poolReserves.reservePzecAtoms,
+          poolReserves.reserveZecAtoms,
           poolReserves.reserveQuoteAtoms,
         );
         swapOut = formatAtomicUnits(swap.amountOut, QUOTE_DECIMALS, 2);
-        swapFee = formatAtomicUnits(swap.feePaid, PZEC_DECIMALS);
+        swapFee = formatAtomicUnits(swap.feePaid, ZEC_DECIMALS);
         swapNote = "";
       } catch (error) {
         swapNote = error instanceof Error ? error.message : swapNote;
@@ -149,7 +154,7 @@ export function LiquidityPanel({
   }, [amount, poolReserves]);
 
   const sessionIl = realizedImpermanentLoss(
-    sessionEntry.pzecAtoms,
+    sessionEntry.zecAtoms,
     sessionEntry.quoteAtoms,
     heldShares[selectedPool.id],
     poolReserves,
@@ -167,7 +172,7 @@ export function LiquidityPanel({
   }));
 
   function selectPool(id: PoolId) {
-    onMarketChange(id === "pZEC/USDT0" ? "ZEC/USDT" : "ZEC/USDC");
+    onMarketChange(id);
   }
 
   function selectFeed(id: FeedStatus) {
@@ -209,28 +214,28 @@ export function LiquidityPanel({
   function onPoolKeyDown(event: KeyboardEvent<HTMLButtonElement>, id: PoolId) {
     if (event.key === "ArrowRight" || event.key === "ArrowDown") {
       event.preventDefault();
-      const next = nextPoolId(id, 1);
+      const next = nextMarketId(id, 1);
       selectPool(next);
       poolRefs.current[next]?.focus();
       return;
     }
     if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
       event.preventDefault();
-      const next = nextPoolId(id, -1);
+      const next = nextMarketId(id, -1);
       selectPool(next);
       poolRefs.current[next]?.focus();
       return;
     }
     if (event.key === "Home") {
       event.preventDefault();
-      selectPool(POOL_IDS[0]);
-      poolRefs.current[POOL_IDS[0]]?.focus();
+      selectPool(MARKET_IDS[0]);
+      poolRefs.current[MARKET_IDS[0]]?.focus();
       return;
     }
     if (event.key === "End") {
       event.preventDefault();
-      selectPool(POOL_IDS[POOL_IDS.length - 1]);
-      poolRefs.current[POOL_IDS[POOL_IDS.length - 1]]?.focus();
+      selectPool(MARKET_IDS[MARKET_IDS.length - 1]);
+      poolRefs.current[MARKET_IDS[MARKET_IDS.length - 1]]?.focus();
     }
   }
 
@@ -269,7 +274,7 @@ export function LiquidityPanel({
       setEntryDeposits((current) => ({
         ...current,
         [selectedPool.id]: {
-          pzecAtoms: current[selectedPool.id].pzecAtoms + amountPreview.zecAtoms,
+          zecAtoms: current[selectedPool.id].zecAtoms + amountPreview.zecAtoms,
           quoteAtoms: current[selectedPool.id].quoteAtoms + minted.quoteAtoms,
         },
       }));
@@ -290,8 +295,8 @@ export function LiquidityPanel({
       const burned = burnShares(poolReserves, shares);
       setPoolState((current) => ({ ...current, [selectedPool.id]: burned.pool }));
       setHeldShares((current) => ({ ...current, [selectedPool.id]: 0n }));
-      setEntryDeposits((current) => ({ ...current, [selectedPool.id]: { pzecAtoms: 0n, quoteAtoms: 0n } }));
-      setNotice(lpBurnNoticeCopy(formatAtomicUnits(burned.pzecAtoms, PZEC_DECIMALS), markets[marketId].settlementPair));
+      setEntryDeposits((current) => ({ ...current, [selectedPool.id]: { zecAtoms: 0n, quoteAtoms: 0n } }));
+      setNotice(lpBurnNoticeCopy(formatAtomicUnits(burned.zecAtoms, ZEC_DECIMALS), markets[marketId].settlementPair));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Share amount is outside the preview range");
     }
@@ -328,14 +333,14 @@ export function LiquidityPanel({
     try {
       const swap = quoteConstantProductSwapAtoms(
         amountPreview.zecAtoms,
-        poolReserves.reservePzecAtoms,
+        poolReserves.reserveZecAtoms,
         poolReserves.reserveQuoteAtoms,
       );
       setPoolState((current) => ({
         ...current,
         [selectedPool.id]: {
           ...current[selectedPool.id],
-          reservePzecAtoms: current[selectedPool.id].reservePzecAtoms + amountPreview.zecAtoms,
+          reserveZecAtoms: current[selectedPool.id].reserveZecAtoms + amountPreview.zecAtoms,
           reserveQuoteAtoms: current[selectedPool.id].reserveQuoteAtoms - swap.amountOut,
         },
       }));
@@ -357,10 +362,10 @@ export function LiquidityPanel({
       <section className={`${styles.panel} ${styles.lpQuote}`} aria-labelledby="liquidity-title">
         <div className={styles.panelHeader}>
           <div>
-            <span className={styles.eyebrow}>Legacy constant-product simulation</span>
+            <span className={styles.eyebrow}>Constant product pools</span>
             <h2 id="liquidity-title">Provide liquidity</h2>
           </div>
-          <span className={styles.statusDot}>Superseded preview</span>
+          <span className={styles.statusDot}>Local preview</span>
         </div>
 
         <div
@@ -377,6 +382,7 @@ export function LiquidityPanel({
               role="radio"
               aria-checked={selectedPool.id === pool.id}
               className={selectedPool.id === pool.id ? styles.poolActive : undefined}
+              tabIndex={selectedPool.id === pool.id ? 0 : -1}
               ref={(node) => {
                 poolRefs.current[pool.id] = node;
               }}
@@ -384,7 +390,6 @@ export function LiquidityPanel({
               onKeyDown={(event) => onPoolKeyDown(event, pool.id)}
             >
               <span>{pool.id}</span>
-              {pool.id === "pZEC/USDT0" && <small>Later listing gate</small>}
             </button>
           ))}
         </div>
@@ -412,9 +417,6 @@ export function LiquidityPanel({
           </div>
         </div>
 
-        {selectedPool.id === "pZEC/USDT0" && (
-          <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
-        )}
         {feedStatus !== "illustrative" && (
           <div className={styles.ticketBlocked} role="status">
             <strong>{gate.heading}</strong>
@@ -422,9 +424,7 @@ export function LiquidityPanel({
               {gate.message}
               {gate.asOf ? ` As of ${gate.asOf}.` : ""}
               {" "}
-              {feedBlocksLp
-                ? "Burn stays available. Mint and swap stay off while the market-data feed is not illustrative."
-                : "Pool math is still a local preview. The empty book does not drain the pool."}
+              {feedBlocksLp ? lpFeedBlockCopy() : lpEmptyBookCopy()}
             </p>
             {onRetryFeed && (
               <button type="button" className={styles.textButton} onClick={onRetryFeed}>
@@ -434,7 +434,7 @@ export function LiquidityPanel({
           </div>
         )}
 
-        {!gate.canReview && (
+        {!gate.canReview && feedStatus === "illustrative" && (
           <p className={styles.gateNotice}>
             <strong>{gate.heading}</strong>
             {" "}
@@ -448,17 +448,17 @@ export function LiquidityPanel({
 
         <div className={styles.depositStack}>
           <label className={styles.assetInput}>
-            <span>pZEC amount</span>
+            <span>ZEC amount</span>
             <input
               inputMode="decimal"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
-              aria-label="pZEC liquidity amount"
+              aria-label="ZEC liquidity amount"
               aria-invalid={!amountPreview.valid}
               aria-errormessage={!amountPreview.valid ? amountErrorId : undefined}
               aria-describedby={!amountPreview.valid ? `${amountErrorId} ${amountHelpId}` : amountHelpId}
             />
-            <strong>pZEC</strong>
+            <strong>ZEC</strong>
           </label>
           <span className={styles.plusMark}>+</span>
           <div className={styles.assetInput}>
@@ -478,19 +478,16 @@ export function LiquidityPanel({
 
         {review ? (
           <div className={styles.reviewBlock}>
-            {selectedPool.id === "pZEC/USDT0" && (
-              <p className={styles.gateNotice}>Later listing gate. This is a preview. Listing stays blocked until issuer, legal, and security gates pass.</p>
-            )}
             <p className={styles.gateNotice} aria-label="Review custody notice">
-              pZEC is a custody receipt, not native ZEC. This LP preview is public in the simulation. The matcher is not trustless.
+              This preview labels native ZEC. It is not live settlement. This LP preview is public in the simulation. The matcher is not trustless.
             </p>
             <dl className={styles.ticketSummary}>
               <div>
                 <dt>Leaves the session</dt>
                 <dd>
                   {review.kind === "mint"
-                    ? `${formatAtomicUnits(review.zecAtoms, PZEC_DECIMALS)} pZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} on Arbitrum Sepolia`
-                    : `${formatAtomicUnits(review.zecAtoms, PZEC_DECIMALS)} pZEC on Arbitrum Sepolia`}
+                    ? `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC and ${formatAtomicUnits(review.quoteAtoms, QUOTE_DECIMALS, 2)} ${selectedPool.quote} on Arbitrum Sepolia`
+                    : `${formatAtomicUnits(review.zecAtoms, ZEC_DECIMALS)} ZEC on Arbitrum Sepolia`}
                 </dd>
               </div>
               <div>
@@ -511,11 +508,19 @@ export function LiquidityPanel({
               </div>
               <div>
                 <dt>Fees</dt>
-                <dd>{feeEnvelopeCopy()} AMM swap fee paid in pZEC: {review.swapFee}.</dd>
+                <dd>{feeEnvelopeCopy()} AMM swap fee paid in ZEC: {review.swapFee}.</dd>
+              </div>
+              <div>
+                <dt>Custody and redemption</dt>
+                <dd>{custodyRedemptionCopy()}</dd>
+              </div>
+              <div>
+                <dt>Public linkability</dt>
+                <dd>{publicLinkabilityCopy("LP action")}</dd>
               </div>
             </dl>
             <p className={styles.inlineNotice}>
-              Transparent Zcash and this Arbitrum LP action are publicly linkable. pZEC redemption depends on the gateway.
+              Transparent Zcash and this Arbitrum LP action are publicly linkable.
               LPs also face stablecoin risk, smart-contract risk, impermanent loss, and toxic flow from the order book.
             </p>
             <p className={styles.inlineNotice}>
@@ -582,7 +587,7 @@ export function LiquidityPanel({
           <div><dt>Pool fee</dt><dd>{selectedPool.fee}</dd></div>
           <div><dt>TVL</dt><dd>Fixture {selectedPool.tvl}</dd></div>
           <div><dt>24h volume</dt><dd>Fixture {selectedPool.volume}</dd></div>
-          <div><dt>pZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reservePzecAtoms, PZEC_DECIMALS, 2)}</dd></div>
+          <div><dt>ZEC reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveZecAtoms, ZEC_DECIMALS, 2)}</dd></div>
           <div><dt>{selectedPool.quote} reserve</dt><dd>{formatAtomicUnits(poolReserves.reserveQuoteAtoms, QUOTE_DECIMALS, 2)}</dd></div>
           <div><dt>Integer swap out</dt><dd>{amountPreview.swapOut} {selectedPool.quote}</dd></div>
           <div>
@@ -604,7 +609,7 @@ export function LiquidityPanel({
           Not a return or profit projection. Local integer preview of constant-product divergence versus holding the same deposited assets.
         </p>
         <p className={styles.inlineNotice}>
-          The 0.30% pool fee applies to swaps, not the exactly balanced add. Swap fee paid in pZEC: {amountPreview.swapFee}.
+          The 0.30% pool fee applies to swaps, not the exactly balanced add. Swap fee paid in ZEC: {amountPreview.swapFee}.
           {amountPreview.swapNote ? ` ${amountPreview.swapNote}` : ""}
         </p>
       </section>
@@ -617,8 +622,7 @@ export function LiquidityPanel({
           </div>
         </div>
         <p>
-          LPs would face pZEC reserve and redemption risk, stablecoin risk, smart-contract risk,
-          impermanent loss, and adverse selection from the order book.
+          {lpRiskCopy()}
         </p>
         <ul className={styles.cleanList}>
           <li>Fixed {AMM_FEE_BPS} bps swap fee, paid entirely to LPs</li>

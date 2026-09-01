@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { hexToBytes } from "./keccak.ts";
 import { decodeTex, encodeTex, encodeTexFromHashHex, isTestnetTex } from "./tex.ts";
-import { emptyDepositLedger, issueDepositIntent, paymentRequestFor } from "./deposit-intent.ts";
+import { SYNTHETIC_TEX_PLACEHOLDER, syntheticDepositRequest } from "./zip321.ts";
 
 const HASH = "00112233445566778899aabbccddeeff00112233";
 
@@ -26,40 +26,8 @@ test("rejects mainnet encoding and bad checksums", () => {
   assert.equal(isTestnetTex("t1nottex"), false);
 });
 
-test("deposit ledger never reassigns a receiver or intent id", () => {
-  const ledger = emptyDepositLedger();
-  const first = issueDepositIntent(ledger, {
-    id: "intent-1",
-    payload: hexToBytes(HASH),
-    amountZatoshis: 100_000_000n,
-    createdAt: "2026-08-31T00:00:00.000Z",
-  });
-  assert.equal(first.network, "testnet");
-  assert.match(first.tex, /^textest1/);
-  assert.equal(paymentRequestFor(first), `zcash:${first.tex}?amount=1&label=Phlebas`);
-  assert.throws(() => issueDepositIntent(ledger, {
-    id: "intent-1",
-    payload: hexToBytes("ff".repeat(20)),
-    amountZatoshis: 1n,
-  }), /already assigned/);
-  assert.throws(() => issueDepositIntent(ledger, {
-    id: "intent-2",
-    payload: hexToBytes(HASH),
-    amountZatoshis: 1n,
-  }), /already assigned/);
-});
-
-test("invalid amounts do not consume a deposit intent or receiver", () => {
-  const ledger = emptyDepositLedger();
-  assert.throws(() => issueDepositIntent(ledger, {
-    id: "intent-1",
-    payload: hexToBytes(HASH),
-    amountZatoshis: 0n,
-  }), /1 zatoshi/);
-  const intent = issueDepositIntent(ledger, {
-    id: "intent-1",
-    payload: hexToBytes(HASH),
-    amountZatoshis: 1n,
-  });
-  assert.equal(intent.id, "intent-1");
+test("ZIP 321 inspection uses a literal non-payable placeholder", () => {
+  assert.equal(SYNTHETIC_TEX_PLACEHOLDER, "{TEX_ADDRESS}");
+  assert.equal(syntheticDepositRequest(), "zcash:{TEX_ADDRESS}?amount=1&label=Phlebas");
+  assert.doesNotMatch(syntheticDepositRequest(), /textest1|tex1/);
 });

@@ -17,10 +17,10 @@ contract Pair is ERC20 {
     address public constant MINIMUM_LIQUIDITY_HOLDER = address(1);
 
     address public immutable factory;
-    address public immutable pzec;
+    address public immutable zec;
     address public immutable quote;
 
-    uint256 public reservePzec;
+    uint256 public reserveZec;
     uint256 public reserveQuote;
     bool private locked;
 
@@ -30,10 +30,10 @@ contract Pair is ERC20 {
     error InsufficientOutput();
     error InvalidConfiguration();
 
-    event Mint(address indexed sender, address indexed to, uint256 pzecIn, uint256 quoteIn, uint256 shares);
-    event Burn(address indexed sender, address indexed to, uint256 pzecOut, uint256 quoteOut, uint256 shares);
-    event Swap(address indexed sender, address indexed to, bool pzecIn, uint256 amountIn, uint256 amountOut);
-    event Sync(uint256 reservePzec, uint256 reserveQuote);
+    event Mint(address indexed sender, address indexed to, uint256 zecIn, uint256 quoteIn, uint256 shares);
+    event Burn(address indexed sender, address indexed to, uint256 zecOut, uint256 quoteOut, uint256 shares);
+    event Swap(address indexed sender, address indexed to, bool zecIn, uint256 amountIn, uint256 amountOut);
+    event Sync(uint256 reserveZec, uint256 reserveQuote);
 
     modifier lock() {
         if (locked) revert Locked();
@@ -42,73 +42,73 @@ contract Pair is ERC20 {
         locked = false;
     }
 
-    constructor(address pzec_, address quote_) ERC20("Phlebas Testnet LP", "tpLP", 18) {
-        if (pzec_ == address(0) || quote_ == address(0) || pzec_ == quote_) revert InvalidConfiguration();
+    constructor(address zec_, address quote_) ERC20("Phlebas Testnet LP", "tLP", 18) {
+        if (zec_ == address(0) || quote_ == address(0) || zec_ == quote_) revert InvalidConfiguration();
         factory = msg.sender;
-        pzec = pzec_;
+        zec = zec_;
         quote = quote_;
     }
 
     function getReserves() external view returns (uint256, uint256) {
-        return (reservePzec, reserveQuote);
+        return (reserveZec, reserveQuote);
     }
 
     function sync() external lock {
-        _setReserves(IERC20Minimal(pzec).balanceOf(address(this)), IERC20Minimal(quote).balanceOf(address(this)));
+        _setReserves(IERC20Minimal(zec).balanceOf(address(this)), IERC20Minimal(quote).balanceOf(address(this)));
     }
 
     function mint(address to) external lock returns (uint256 shares) {
-        uint256 balancePzec = IERC20Minimal(pzec).balanceOf(address(this));
+        uint256 balanceZec = IERC20Minimal(zec).balanceOf(address(this));
         uint256 balanceQuote = IERC20Minimal(quote).balanceOf(address(this));
-        uint256 inPzec = balancePzec - reservePzec;
+        uint256 inZec = balanceZec - reserveZec;
         uint256 inQuote = balanceQuote - reserveQuote;
-        if (inPzec == 0 || inQuote == 0) revert InsufficientLiquidity();
+        if (inZec == 0 || inQuote == 0) revert InsufficientLiquidity();
 
         if (totalSupply == 0) {
-            uint256 initialShares = _sqrt(inPzec * inQuote);
+            uint256 initialShares = _sqrt(inZec * inQuote);
             if (initialShares <= MINIMUM_LIQUIDITY) revert InsufficientLiquidity();
             _mint(MINIMUM_LIQUIDITY_HOLDER, MINIMUM_LIQUIDITY);
             shares = initialShares - MINIMUM_LIQUIDITY;
         } else {
-            uint256 pzecShares = (inPzec * totalSupply) / reservePzec;
+            uint256 zecShares = (inZec * totalSupply) / reserveZec;
             uint256 quoteShares = (inQuote * totalSupply) / reserveQuote;
-            shares = pzecShares < quoteShares ? pzecShares : quoteShares;
+            shares = zecShares < quoteShares ? zecShares : quoteShares;
         }
         if (shares == 0) revert InsufficientLiquidity();
         _mint(to, shares);
-        _setReserves(balancePzec, balanceQuote);
-        emit Mint(msg.sender, to, inPzec, inQuote, shares);
+        _setReserves(balanceZec, balanceQuote);
+        emit Mint(msg.sender, to, inZec, inQuote, shares);
     }
 
-    function burn(address to) external lock returns (uint256 outPzec, uint256 outQuote) {
+    function burn(address to) external lock returns (uint256 outZec, uint256 outQuote) {
         uint256 shares = balanceOf[address(this)];
         if (shares == 0 || totalSupply == 0) revert InsufficientLiquidity();
-        uint256 balancePzec = IERC20Minimal(pzec).balanceOf(address(this));
+        uint256 balanceZec = IERC20Minimal(zec).balanceOf(address(this));
         uint256 balanceQuote = IERC20Minimal(quote).balanceOf(address(this));
-        outPzec = (shares * balancePzec) / totalSupply;
+        outZec = (shares * balanceZec) / totalSupply;
         outQuote = (shares * balanceQuote) / totalSupply;
-        if (outPzec == 0 || outQuote == 0) revert InsufficientLiquidity();
+        if (outZec == 0 || outQuote == 0) revert InsufficientLiquidity();
         _burn(address(this), shares);
-        _safeTransfer(pzec, to, outPzec);
+        _safeTransfer(zec, to, outZec);
         _safeTransfer(quote, to, outQuote);
-        _setReserves(IERC20Minimal(pzec).balanceOf(address(this)), IERC20Minimal(quote).balanceOf(address(this)));
-        emit Burn(msg.sender, to, outPzec, outQuote, shares);
+        _setReserves(IERC20Minimal(zec).balanceOf(address(this)), IERC20Minimal(quote).balanceOf(address(this)));
+        emit Burn(msg.sender, to, outZec, outQuote, shares);
     }
 
-    function swap(bool pzecIn, uint256 minOut, address to) external lock returns (uint256 amountOut) {
-        if (to == pzec || to == quote || to == address(this)) revert("Pair: to");
-        address tokenIn = pzecIn ? pzec : quote;
-        address tokenOut = pzecIn ? quote : pzec;
-        uint256 reserveIn = pzecIn ? reservePzec : reserveQuote;
-        uint256 reserveOut = pzecIn ? reserveQuote : reservePzec;
+    function swap(bool zecIn, uint256 minOut, address to) external lock returns (uint256 amountOut) {
+        if (to == zec || to == quote || to == address(this)) revert("Pair: to");
+        address tokenIn = zecIn ? zec : quote;
+        address tokenOut = zecIn ? quote : zec;
+        uint256 reserveIn = zecIn ? reserveZec : reserveQuote;
+        uint256 reserveOut = zecIn ? reserveQuote : reserveZec;
         uint256 amountIn = IERC20Minimal(tokenIn).balanceOf(address(this)) - reserveIn;
         if (amountIn == 0) revert InsufficientOutput();
         amountOut = quoteOut(amountIn, reserveIn, reserveOut);
         if (amountOut < minOut || amountOut == 0 || amountOut >= reserveOut) revert InsufficientOutput();
         if (!_productHolds(amountIn, reserveIn, reserveOut, amountOut)) revert K();
         _safeTransfer(tokenOut, to, amountOut);
-        _setReserves(IERC20Minimal(pzec).balanceOf(address(this)), IERC20Minimal(quote).balanceOf(address(this)));
-        emit Swap(msg.sender, to, pzecIn, amountIn, amountOut);
+        _setReserves(IERC20Minimal(zec).balanceOf(address(this)), IERC20Minimal(quote).balanceOf(address(this)));
+        emit Swap(msg.sender, to, zecIn, amountIn, amountOut);
     }
 
     function quoteOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut) public pure returns (uint256) {
@@ -127,10 +127,10 @@ contract Pair is ERC20 {
         return (x * BPS - amountIn * FEE_BPS) * (y * BPS) >= reserveIn * reserveOut * BPS * BPS;
     }
 
-    function _setReserves(uint256 nextPzec, uint256 nextQuote) internal {
-        reservePzec = nextPzec;
+    function _setReserves(uint256 nextZec, uint256 nextQuote) internal {
+        reserveZec = nextZec;
         reserveQuote = nextQuote;
-        emit Sync(nextPzec, nextQuote);
+        emit Sync(nextZec, nextQuote);
     }
 
     function _safeTransfer(address token, address to, uint256 amount) internal {

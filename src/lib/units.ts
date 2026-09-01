@@ -1,5 +1,5 @@
 export const PRICE_DECIMALS = 2;
-export const PZEC_DECIMALS = 8;
+export const ZEC_DECIMALS = 8;
 export const QUOTE_DECIMALS = 6;
 
 /** sizeAtoms * priceTicks / QUOTE_COST_DIVISOR = quoteAtoms (6 decimals). */

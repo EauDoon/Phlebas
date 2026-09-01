@@ -4,6 +4,8 @@ Date: 31-08-2026
 Status: Accepted for key-independent development
 Production status: Not approved
 
+Related: [ADR 0003](0003-evm-conditional-lock.md), [ADR 0004](0004-atomic-swap-state-machine.md), [ADR 0005](0005-zcash-p2sh-atomic-swap.md), [ADR 0006](0006-atomic-swap-observer.md), [ADR 0007](0007-public-market-data.md), [ADR 0008](0008-operations-hardening.md), [ADR 0009](0009-final-integration-audit.md)
+
 ## Context
 
 Phlebas is intended to become a non-custodial exchange for native transparent ZEC against USDC and USDT. Users must keep unilateral control of their keys. Phlebas must not mint a ZEC receipt, maintain a customer balance, control a payout key, or depend on an operator promise to redeem ZEC.
@@ -16,7 +18,7 @@ The current public application remains a no-value simulation. It has no wallet c
 
 Each matched fill will become one two-chain atomic-swap workflow:
 
-1. The matcher creates immutable terms for one fill. The terms bind both parties, both assets, both networks, integer amounts, recipients, the shared hash, refund deadlines, fee limits, and the protocol version.
+1. The matcher creates immutable terms for one fill. The terms bind both parties, both assets, both networks, integer amounts, recipients, the shared hash, refund deadlines, a zero protocol fee, fee limits, and the protocol version.
 2. The native-ZEC leg uses a transparent Zcash P2SH conditional lock. The claim path requires the matching preimage and recipient signature. The refund path returns control to the funder after its lock time.
 3. The stablecoin leg uses a non-upgradeable EVM conditional-lock contract for the exact approved token. Its claim and refund paths use the same hash and a shorter deadline.
 4. Independent read-only observers report funding, confirmation, claim, refund, replacement, and reorganization evidence. They never sign or control funds.
@@ -49,6 +51,8 @@ Phlebas may prepare or relay a reviewable transaction artifact. It must never re
 
 ZIP 321 payment requests and TEX addresses do not authorize P2SH atomic-swap scripts. Wallet compatibility requires executed tests for the exact fund, claim, and refund transactions. The current [Zallet PCZT documentation](https://zcash.github.io/zallet/rpc/index.html) provides transaction construction, inspection, signing, and extraction roles, but Phlebas must prove the selected P2SH path works with a current wallet release before labeling it compatible.
 
+The [key-independent transaction lab](../ZCASH_TRANSACTION_LAB.md) implements exact script vectors and committed unsigned-artifact plans. It stops before transaction serialization, wallet access, signing, extraction, and broadcast.
+
 ## Deterministic safety rules
 
 The local domain and later contracts must enforce these rules:
@@ -61,7 +65,9 @@ The local domain and later contracts must enforce these rules:
 * claim and refund are mutually exclusive terminal outcomes for each leg;
 * a refund cannot occur before its chain-specific deadline;
 * duplicate or conflicting transaction evidence fails closed;
+* finality quorum requires one exact observer tip height and block hash;
 * stale observers, observer disagreement, reorganization, wrong-chain evidence, or wrong-asset evidence moves the workflow to a disputed state;
+* the protocol fee remains zero until an exact reviewed escrow split settles principal and fee independently;
 * every incomplete swap retains a wallet-controlled refund path;
 * no environment variable can enable mainnet or real assets by itself.
 
@@ -109,3 +115,10 @@ Mainnet and real assets require a separate decision after testnet evidence, inde
 Phlebas can pursue native-ZEC settlement without custody-backed `pZEC`. Trading has cross-chain latency and one workflow per fill. Solver liquidity replaces passive pooled LP shares. Shielded ZEC atomic swaps are outside version 1 because the selected conditional-lock path uses the transparent pool.
 
 ADR 0001 remains useful as a historical simulation record. Its mint, reserve, burn, deposit, withdrawal, and custody design is no longer the active target.
+
+## Implementation cross-references
+
+- [ADR 0003](0003-evm-conditional-lock.md) — the EVM half of the swap.
+- [ADR 0004](0004-atomic-swap-state-machine.md) — the offchain state machine and the read-only `/swap` view.
+- [ADR 0005](0005-zcash-p2sh-atomic-swap.md) — the ZEC half of the swap.
+- [ADR 0005 implementation notes](0005-impl-notes.md) — the operational cross-references for the ZEC half.

@@ -21,7 +21,7 @@ export function typedOrderFromTicket(input: {
   maker: string;
   recipient?: string;
   side: "buy" | "sell";
-  quote: "USDC" | "USDT0";
+  quote: "USDC" | "USDT";
   sizeAtoms: bigint;
   priceTicks: bigint;
   nonce: bigint;
@@ -32,7 +32,7 @@ export function typedOrderFromTicket(input: {
   return {
     maker: input.maker,
     side: input.side === "buy" ? 0 : 1,
-    baseAsset: TESTNET.pzec,
+    baseAsset: TESTNET.zec,
     quoteAsset: quoteTokenAddress(input.quote),
     baseAmount: input.sizeAtoms,
     limitPriceTicks: input.priceTicks,

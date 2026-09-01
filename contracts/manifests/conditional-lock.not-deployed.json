@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": "1.0.0",
+  "manifestType": "conditional-lock-deployment",
+  "deployed": false,
+  "networkActionEnabled": false,
+  "contract": {
+    "name": "ConditionalLock",
+    "sourcePath": "contracts/src/swap/ConditionalLock.sol",
+    "upgradeability": "non-upgradeable",
+    "exactToken": true
+  },
+  "compiler": {
+    "solidity": "0.8.28",
+    "solidityLongVersion": "0.8.28+commit.7893614a",
+    "foundry": "1.8.1",
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "viaIR": true,
+    "evmVersion": "cancun",
+    "openZeppelinContracts": "5.6.1"
+  },
+  "terms": {
+    "argumentOrder": [
+      "swapId",
+      "termsHash",
+      "token",
+      "funder",
+      "claimRecipient",
+      "refundRecipient",
+      "amount",
+      "hashlock",
+      "fundingCutoff",
+      "claimCutoff",
+      "refundTime"
+    ],
+    "argumentTypes": [
+      {
+        "name": "swapId",
+        "type": "bytes32"
+      },
+      {
+        "name": "termsHash",
+        "type": "bytes32"
+      },
+      {
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "name": "funder",
+        "type": "address"
+      },
+      {
+        "name": "claimRecipient",
+        "type": "address"
+      },
+      {
+        "name": "refundRecipient",
+        "type": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "name": "hashlock",
+        "type": "bytes32"
+      },
+      {
+        "name": "fundingCutoff",
+        "type": "uint64"
+      },
+      {
+        "name": "claimCutoff",
+        "type": "uint64"
+      },
+      {
+        "name": "refundTime",
+        "type": "uint64"
+      }
+    ],
+    "values": {
+      "swapId": null,
+      "termsHash": null,
+      "token": null,
+      "funder": null,
+      "claimRecipient": null,
+      "refundRecipient": null,
+      "amount": null,
+      "hashlock": null,
+      "fundingCutoff": null,
+      "claimCutoff": null,
+      "refundTime": null
+    }
+  },
+  "build": {
+    "sourcePath": "contracts/src/swap/ConditionalLock.sol",
+    "sourceName": "ConditionalLock.sol",
+    "standardJsonInputPath": null,
+    "hashAlgorithm": "sha256",
+    "sourceSha256": null,
+    "standardJsonInputSha256": null,
+    "dependencyLockSha256": null,
+    "compilerSettingsSha256": null
+  },
+  "deployment": {
+    "network": null,
+    "chainId": null,
+    "address": null,
+    "transactionHash": null,
+    "blockNumber": null,
+    "blockHash": null,
+    "deployer": null,
+    "receiptStatus": null,
+    "sourceCommit": null,
+    "constructorArguments": null,
+    "artifactPath": null,
+    "artifactSha256": null,
+    "creationBytecode": null,
+    "creationBytecodeSha256": null,
+    "runtimeBytecode": null,
+    "runtimeBytecodeSha256": null,
+    "constructorArgumentsSha256": null,
+    "initCodeSha256": null,
+    "receiptVerified": false,
+    "sourceVerified": false,
+    "constructorArgumentsVerified": false,
+    "runtimeBytecodeVerified": false
+  }
+}

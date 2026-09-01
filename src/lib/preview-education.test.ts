@@ -24,8 +24,15 @@ test("education copy stays a simulation briefing, not consent", () => {
     assert.doesNotMatch(step.body, /\blive funds\b/i);
     assert.doesNotMatch(step.body, /is trustless/);
   }
-  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /not native ZEC, shielded ZEC, or a trustless bridge asset/);
+  assert.equal(PREVIEW_EDUCATION_STEPS[1].title, "Pairs are native ZEC against USDC and USDT.");
+  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /ZEC-USDC and ZEC-USDT/);
+  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /not live settlement/);
+  assert.match(PREVIEW_EDUCATION_STEPS[1].body, /USDT0 is abandoned/);
+  assert.doesNotMatch(PREVIEW_EDUCATION_STEPS[1].body, /pZEC is the planned settlement receipt/);
   assert.match(PREVIEW_EDUCATION_STEPS[0].body, /does not move mainnet funds/);
+  assert.match(PREVIEW_EDUCATION_STEPS[0].body, /historical state-tour events/);
+  assert.match(PREVIEW_EDUCATION_STEPS[2].body, /historical custody states/);
+  assert.equal(PREVIEW_EDUCATION_VERSION, "2026-09-01-1");
 });
 
 test("education query force is allowlisted to 1", () => {

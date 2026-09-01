@@ -2,8 +2,7 @@ import { INCIDENT_DEMO_QUERY, isIncidentDemoQuery } from "./gateway-incidents.ts
 import type { MarketId } from "./market-data.ts";
 import type { FeedStatus } from "./market-state.ts";
 import { DEFAULT_TERMINAL_MODE, isTerminalMode, type TerminalMode } from "./terminal-mode.ts";
-
-export type TerminalView = "trade" | "liquidity" | "bridge" | "architecture";
+import type { TerminalView } from "./terminal-views.ts";
 
 export function terminalUrl(options: {
   view: TerminalView;
