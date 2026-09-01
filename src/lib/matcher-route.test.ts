@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   matcherAccountProxy,
   matcherHealthProxy,
+  matcherMutationAction,
+  matcherMutationProxy,
   matcherOrderProxy,
   type MatcherIngressDeployment,
 } from "./matcher-proxy.ts";
@@ -42,6 +44,31 @@ const enabledDeployment: MatcherIngressDeployment = {
     market,
   },
 };
+const orderBody = JSON.stringify({
+  version: 1,
+  requestId: "order-one",
+  occurredAtSeconds: "1800000000",
+  kind: "accept-order",
+  submission: {},
+});
+const cancellationBody = JSON.stringify({
+  version: 1,
+  requestId: "cancel-one",
+  occurredAtSeconds: "1800000001",
+  kind: "cancel-order",
+  orderHash: SUBJECT_HASH,
+  signature: "cancel-signature",
+});
+const epochBody = JSON.stringify({
+  version: 1,
+  requestId: "epoch-one",
+  occurredAtSeconds: "1800000002",
+  kind: "advance-epoch",
+  makerAccountId: MAKER_ACCOUNT_ID,
+  nextEpoch: "2",
+  authorizedSignerId: MAKER_ACCOUNT_ID,
+  signature: "epoch-signature",
+});
 const healthBody = JSON.stringify({
   ok: true,
   matcher: "persistent-native-v1",
@@ -93,6 +120,63 @@ test("matcher POST stays fail-closed before upstream fetch while the deployment 
   assert.equal(calls, 0);
 });
 
+test("matcher control actions stay fail-closed before upstream fetch while the deployment manifest is disabled", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response(healthBody, { status: 200 });
+  }) as typeof fetch;
+
+  for (const [action, requestId, body] of [
+    ["cancel-order", "cancel-one", cancellationBody],
+    ["advance-epoch", "epoch-one", epochBody],
+  ] as const) {
+    const response = await matcherMutationProxy(new Request("http://localhost/api/matcher", {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": requestId },
+      body,
+    }), action);
+    assert.equal(response.status, 503, action);
+  }
+  assert.equal(calls, 0);
+});
+
+test("matcher mutation actions and strict control bodies cannot cross the wrong route", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
+  assert.equal(matcherMutationAction("cancel-order"), "cancel-order");
+  assert.equal(matcherMutationAction("advance-epoch"), "advance-epoch");
+  assert.equal(matcherMutationAction("order"), null);
+
+  const paths: string[] = [];
+  globalThis.fetch = (async (input) => {
+    paths.push((input as URL).pathname);
+    return new Response(healthBody, { status: 200 });
+  }) as typeof fetch;
+
+  const wrongAction = await matcherMutationProxy(new Request("http://localhost/api/matcher", {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": "cancel-one" },
+    body: epochBody,
+  }), "cancel-order", process.env, enabledDeployment);
+  assert.equal(wrongAction.status, 400);
+
+  const duplicateKind = await matcherMutationProxy(new Request("http://localhost/api/matcher", {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": "cancel-one" },
+    body: `{"version":1,"requestId":"cancel-one","occurredAtSeconds":"1800000001","kind":"cancel-order","kind":"advance-epoch","orderHash":"${SUBJECT_HASH}","signature":"cancel-signature"}`,
+  }), "cancel-order", process.env, enabledDeployment);
+  assert.equal(duplicateKind.status, 400);
+
+  const unknownAction = await matcherMutationProxy(new Request("http://localhost/api/matcher", {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": "cancel-one" },
+    body: cancellationBody,
+  }), "unknown", process.env, enabledDeployment);
+  assert.equal(unknownAction.status, 400);
+  assert.deepEqual(paths, []);
+});
+
 test("matcher POST requires the approved runtime configuration before forwarding an order", async () => {
   process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
   const mismatchedHash = `0x${"77".repeat(32)}`;
@@ -125,7 +209,7 @@ test("matcher POST requires the approved runtime configuration before forwarding
     const response = await matcherOrderProxy(new Request("http://localhost/api/matcher", {
       method: "POST",
       headers: { "content-type": "application/json", "idempotency-key": "order-one" },
-      body: "{}",
+      body: orderBody,
     }), process.env, enabledDeployment);
     assert.equal(response.status, 503, candidate.name);
     assert.deepEqual(paths, ["/health"], candidate.name);
@@ -251,7 +335,7 @@ test("matcher POST rejects invalid transport boundaries before proxying", async 
 
 test("matcher POST forwards the exact order endpoint, body, and idempotency key", async () => {
   process.env.PHLEBAS_MATCHER_URL = "http://localhost:8788";
-  const body = '{"version":1,"requestId":"order-one"}';
+  const body = orderBody;
   let requested: URL | undefined;
   let init: RequestInit | undefined;
   globalThis.fetch = (async (input, nextInit) => {
@@ -314,12 +398,90 @@ test("matcher POST forwards the exact order endpoint, body, and idempotency key"
   });
 });
 
+test("matcher control actions forward only their exact endpoint and bind the returned receipt", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://localhost:8788";
+  const cases = [
+    {
+      action: "cancel-order" as const,
+      requestId: "cancel-one",
+      body: cancellationBody,
+      endpoint: "/v1/order-cancellations",
+      status: "cancelled",
+      subjectHash: SUBJECT_HASH,
+    },
+    {
+      action: "advance-epoch" as const,
+      requestId: "epoch-one",
+      body: epochBody,
+      endpoint: "/v1/account-epochs",
+      status: "epoch-advanced",
+      subjectHash: MAKER_ACCOUNT_ID,
+    },
+  ];
+
+  for (const candidate of cases) {
+    const requests: Array<Readonly<{ url: URL; init: RequestInit | undefined }>> = [];
+    globalThis.fetch = (async (input, init) => {
+      const url = input as URL;
+      requests.push({ url, init });
+      if (url.pathname === "/health") return new Response(healthBody, { status: 200 });
+      return new Response(JSON.stringify({
+        ok: true,
+        replayed: false,
+        receipt: {
+          version: 1,
+          sequence: "2",
+          requestId: candidate.requestId,
+          kind: candidate.action,
+          status: candidate.status,
+          subjectHash: candidate.subjectHash,
+          occurredAtSeconds: "1800000003",
+          privateMatcherDetail: "must-not-cross-the-proxy",
+        },
+        checkpoint: { ...checkpoint, sequence: "2" },
+      }), { status: 201 });
+    }) as typeof fetch;
+
+    const response = await matcherMutationProxy(new Request("http://localhost/api/matcher", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "idempotency-key": candidate.requestId,
+        authorization: "must-not-cross-the-proxy",
+      },
+      body: candidate.body,
+    }), candidate.action, process.env, enabledDeployment);
+
+    assert.deepEqual(requests.map(({ url }) => url.pathname), ["/health", candidate.endpoint], candidate.action);
+    const forwarded = requests[1]?.init;
+    assert.equal(forwarded?.body, candidate.body, candidate.action);
+    assert.equal(new Headers(forwarded?.headers).get("idempotency-key"), candidate.requestId, candidate.action);
+    assert.equal(new Headers(forwarded?.headers).get(MATCHER_CONFIGURATION_HEADER), CONFIGURATION_HASH, candidate.action);
+    assert.equal(new Headers(forwarded?.headers).get("authorization"), null, candidate.action);
+    assert.equal(response.status, 201, candidate.action);
+    assert.deepEqual(await response.json(), {
+      ok: true,
+      replayed: false,
+      receipt: {
+        version: 1,
+        sequence: "2",
+        requestId: candidate.requestId,
+        kind: candidate.action,
+        status: candidate.status,
+        subjectHash: candidate.subjectHash,
+        occurredAtSeconds: "1800000003",
+      },
+      checkpoint: { ...checkpoint, sequence: "2" },
+    }, candidate.action);
+  }
+});
+
 test("matcher POST maps private rejections and malformed success bodies to fixed errors", async () => {
   process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
   const request = () => new Request("http://localhost/api/matcher", {
     method: "POST",
     headers: { "content-type": "application/json", "idempotency-key": "order-one" },
-    body: '{"version":1,"requestId":"order-one"}',
+    body: orderBody,
   });
   globalThis.fetch = (async (input) => (input as URL).pathname === "/health"
     ? new Response(healthBody, { status: 200 })

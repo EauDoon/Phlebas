@@ -5,7 +5,7 @@ import { MATCHER_CONFIGURATION_HEADER } from "./matcher-http.ts";
 const REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const HEX32 = /^0x[0-9a-f]{64}$/;
 const DECIMAL = /^(?:0|[1-9][0-9]*)$/;
-const ORDER_RESPONSE_STATUSES = new Set([400, 401, 409, 413, 415, 422, 429, 503]);
+const MUTATION_RESPONSE_STATUSES = new Set([400, 401, 409, 413, 415, 422, 429, 503]);
 const ORDER_RECEIPT_STATUSES = new Set([
   "open",
   "filled",
@@ -14,9 +14,21 @@ const ORDER_RECEIPT_STATUSES = new Set([
   "fok-rejected",
   "unfilled",
 ]);
+const CANCELLATION_RECEIPT_STATUSES = new Set(["cancelled"]);
+const EPOCH_RECEIPT_STATUSES = new Set(["epoch-advanced"]);
 const MATCHER_REQUEST_BYTES = 64 * 1024;
+const MAXIMUM_JSON_DEPTH = 32;
+const MAXIMUM_JSON_NODES = 10_000;
+
+const MUTATION_ACTIONS = {
+  "accept-order": { endpoint: "/v1/orders", receiptStatuses: ORDER_RECEIPT_STATUSES },
+  "cancel-order": { endpoint: "/v1/order-cancellations", receiptStatuses: CANCELLATION_RECEIPT_STATUSES },
+  "advance-epoch": { endpoint: "/v1/account-epochs", receiptStatuses: EPOCH_RECEIPT_STATUSES },
+} as const;
 
 type JsonRecord = Record<string, unknown>;
+type StrictJsonValue = string | number | boolean | null | StrictJsonRecord | StrictJsonValue[];
+type StrictJsonRecord = { [key: string]: StrictJsonValue };
 type MatcherIngressAsset = Readonly<{
   network: string;
   asset: string;
@@ -35,6 +47,8 @@ export type MatcherIngressDeployment = Readonly<{
   }> | null;
 }>;
 
+export type MatcherMutationAction = keyof typeof MUTATION_ACTIONS;
+
 function matcherUrl(env: Record<string, string | undefined>): string | null {
   const value = env.PHLEBAS_MATCHER_URL;
   return isLoopbackOperatorUrl(value) ? value : null;
@@ -52,6 +66,176 @@ function parsedRecord(body: string): JsonRecord | null {
   } catch {
     return null;
   }
+}
+
+function strictJsonRecord(input: string): StrictJsonRecord | null {
+  let offset = 0;
+  let nodes = 0;
+
+  function whitespace(): void {
+    while (offset < input.length && /[\u0009\u000a\u000d\u0020]/.test(input[offset] ?? "")) offset += 1;
+  }
+
+  function stringValue(): string | null {
+    if (input[offset] !== '"') return null;
+    const start = offset;
+    offset += 1;
+    while (offset < input.length) {
+      const character = input[offset];
+      if (character === '"') {
+        offset += 1;
+        try {
+          return JSON.parse(input.slice(start, offset)) as string;
+        } catch {
+          return null;
+        }
+      }
+      if (character === "\\") {
+        offset += 1;
+        const escape = input[offset];
+        if (escape === "u") {
+          const digits = input.slice(offset + 1, offset + 5);
+          if (!/^[0-9a-fA-F]{4}$/.test(digits)) return null;
+          offset += 5;
+          continue;
+        }
+        if (!escape || !'"\\/bfnrt'.includes(escape)) return null;
+        offset += 1;
+        continue;
+      }
+      if (!character || character.charCodeAt(0) < 0x20) return null;
+      offset += 1;
+    }
+    return null;
+  }
+
+  function value(depth: number): StrictJsonValue | undefined {
+    nodes += 1;
+    if (nodes > MAXIMUM_JSON_NODES || depth > MAXIMUM_JSON_DEPTH) return undefined;
+    whitespace();
+    const character = input[offset];
+    if (character === '"') return stringValue() ?? undefined;
+    if (character === "{") return objectValue(depth + 1);
+    if (character === "[") return arrayValue(depth + 1);
+    if (input.startsWith("true", offset)) {
+      offset += 4;
+      return true;
+    }
+    if (input.startsWith("false", offset)) {
+      offset += 5;
+      return false;
+    }
+    if (input.startsWith("null", offset)) {
+      offset += 4;
+      return null;
+    }
+    const matched = input.slice(offset).match(/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/);
+    if (!matched) return undefined;
+    offset += matched[0].length;
+    const parsed = Number(matched[0]);
+    return Number.isSafeInteger(parsed) ? parsed : undefined;
+  }
+
+  function objectValue(depth: number): StrictJsonRecord | undefined {
+    offset += 1;
+    whitespace();
+    const result = Object.create(null) as StrictJsonRecord;
+    const keys = new Set<string>();
+    if (input[offset] === "}") {
+      offset += 1;
+      return result;
+    }
+    while (true) {
+      whitespace();
+      const key = stringValue();
+      if (key === null || key === "__proto__" || key === "constructor" || key === "prototype" || keys.has(key)) return undefined;
+      keys.add(key);
+      whitespace();
+      if (input[offset] !== ":") return undefined;
+      offset += 1;
+      const nested = value(depth);
+      if (nested === undefined) return undefined;
+      result[key] = nested;
+      whitespace();
+      if (input[offset] === "}") {
+        offset += 1;
+        return result;
+      }
+      if (input[offset] !== ",") return undefined;
+      offset += 1;
+    }
+  }
+
+  function arrayValue(depth: number): StrictJsonValue[] | undefined {
+    offset += 1;
+    whitespace();
+    const result: StrictJsonValue[] = [];
+    if (input[offset] === "]") {
+      offset += 1;
+      return result;
+    }
+    while (true) {
+      const nested = value(depth);
+      if (nested === undefined) return undefined;
+      result.push(nested);
+      whitespace();
+      if (input[offset] === "]") {
+        offset += 1;
+        return result;
+      }
+      if (input[offset] !== ",") return undefined;
+      offset += 1;
+    }
+  }
+
+  whitespace();
+  const result = value(0);
+  whitespace();
+  return result !== undefined && !Array.isArray(result) && typeof result === "object" && result !== null && offset === input.length
+    ? result as StrictJsonRecord
+    : null;
+}
+
+function exactKeys(value: StrictJsonRecord, expected: readonly string[]): boolean {
+  const actual = Object.keys(value).sort();
+  const allowed = [...expected].sort();
+  return actual.length === allowed.length && actual.every((key, index) => key === allowed[index]);
+}
+
+function validMutationBody(body: string, requestedAction: MatcherMutationAction | null, requestId: string): MatcherMutationAction | null {
+  const value = strictJsonRecord(body);
+  const action = value && typeof value.kind === "string" ? matcherMutationAction(value.kind) : null;
+  if (!value || !action || (requestedAction !== null && action !== requestedAction)
+    || value.version !== 1 || value.requestId !== requestId
+    || typeof value.occurredAtSeconds !== "string" || !DECIMAL.test(value.occurredAtSeconds)) {
+    return null;
+  }
+  if (action === "accept-order") {
+    return exactKeys(value, ["version", "requestId", "occurredAtSeconds", "kind", "submission"])
+      && value.submission !== null && typeof value.submission === "object" && !Array.isArray(value.submission)
+      ? action
+      : null;
+  }
+  if (action === "cancel-order") {
+    return exactKeys(value, ["version", "requestId", "occurredAtSeconds", "kind", "orderHash", "signature"])
+      && typeof value.orderHash === "string" && HEX32.test(value.orderHash)
+      && typeof value.signature === "string"
+      ? action
+      : null;
+  }
+  return exactKeys(value, ["version", "requestId", "occurredAtSeconds", "kind", "makerAccountId", "nextEpoch", "authorizedSignerId", "signature"])
+    && typeof value.makerAccountId === "string" && HEX32.test(value.makerAccountId)
+    && typeof value.nextEpoch === "string" && DECIMAL.test(value.nextEpoch)
+    && typeof value.authorizedSignerId === "string" && HEX32.test(value.authorizedSignerId)
+    && typeof value.signature === "string"
+    ? action
+    : null;
+}
+
+export function matcherMutationAction(value: string | null): MatcherMutationAction | null {
+  return typeof value === "string" && Object.hasOwn(MUTATION_ACTIONS, value)
+    ? value as MatcherMutationAction
+    : null;
 }
 
 function safeAsset(value: unknown): JsonRecord | null {
@@ -248,14 +432,17 @@ export async function matcherAccountProxy(
   });
 }
 
-export async function matcherOrderProxy(
+export async function matcherMutationProxy(
   request: Request,
+  requestedAction: string | null,
   env: Record<string, string | undefined> = process.env,
   deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
 ) {
   if (!deployment.enabled || deployment.expectedMatcher === null) return unavailable();
   const baseUrl = matcherUrl(env);
   if (!baseUrl) return unavailable();
+  const expectedAction = requestedAction === null ? null : matcherMutationAction(requestedAction);
+  if (requestedAction !== null && !expectedAction) return noStoreJson({ ok: false, reason: "matcher-action-invalid" }, 400);
   if (request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
     return noStoreJson({ ok: false, reason: "content-type-must-be-application-json" }, 415);
   }
@@ -267,8 +454,13 @@ export async function matcherOrderProxy(
   if (!requestId || !REQUEST_ID.test(requestId)) {
     return noStoreJson({ ok: false, reason: "idempotency-key-invalid" }, 400);
   }
+  const action = validMutationBody(body, expectedAction, requestId);
+  if (!action) {
+    return noStoreJson({ ok: false, reason: "matcher-action-body-invalid" }, 400);
+  }
   if (!await approvedMutationRuntime(baseUrl, deployment)) return unavailable();
-  const response = await fetchLoopbackOperator(new URL("/v1/orders", baseUrl), {
+  const mutation = MUTATION_ACTIONS[action];
+  const response = await fetchLoopbackOperator(new URL(mutation.endpoint, baseUrl), {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -279,8 +471,9 @@ export async function matcherOrderProxy(
   });
   if (!response) return unavailable();
   if (response.status !== 200 && response.status !== 201) {
-    const status = ORDER_RESPONSE_STATUSES.has(response.status) ? response.status : 503;
-    return noStoreJson({ ok: false, reason: status === 503 ? "matcher-unavailable" : "matcher-rejected-order" }, status);
+    const status = MUTATION_RESPONSE_STATUSES.has(response.status) ? response.status : 503;
+    const reason = action === "accept-order" ? "matcher-rejected-order" : "matcher-rejected-control";
+    return noStoreJson({ ok: false, reason: status === 503 ? "matcher-unavailable" : reason }, status);
   }
   const result = parsedRecord(response.body);
   const receipt = record(result?.receipt);
@@ -289,8 +482,8 @@ export async function matcherOrderProxy(
     || receipt.version !== 1
     || typeof receipt.sequence !== "string" || !DECIMAL.test(receipt.sequence)
     || receipt.requestId !== requestId
-    || receipt.kind !== "accept-order"
-    || typeof receipt.status !== "string" || !ORDER_RECEIPT_STATUSES.has(receipt.status)
+    || receipt.kind !== action
+    || typeof receipt.status !== "string" || !mutation.receiptStatuses.has(receipt.status)
     || typeof receipt.subjectHash !== "string" || !HEX32.test(receipt.subjectHash)
     || typeof receipt.occurredAtSeconds !== "string" || !DECIMAL.test(receipt.occurredAtSeconds)
     || checkpoint.sequence !== receipt.sequence
@@ -304,11 +497,19 @@ export async function matcherOrderProxy(
       version: 1,
       sequence: receipt.sequence,
       requestId,
-      kind: "accept-order",
+      kind: action,
       status: receipt.status,
       subjectHash: receipt.subjectHash,
       occurredAtSeconds: receipt.occurredAtSeconds,
     },
     checkpoint,
   }, response.status);
+}
+
+export async function matcherOrderProxy(
+  request: Request,
+  env: Record<string, string | undefined> = process.env,
+  deployment: MatcherIngressDeployment = NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,
+) {
+  return matcherMutationProxy(request, "accept-order", env, deployment);
 }
