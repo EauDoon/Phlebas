@@ -72,6 +72,17 @@ export type MatcherOrderConfirmation =
     kind: "receipt-unknown";
   }>);
 
+export type ConfirmedMatcherOrderArtifact = Extract<MatcherOrderConfirmation, { kind: "confirmed" }>;
+
+const confirmedMatcherOrderArtifacts = new WeakSet<object>();
+
+export function assertConfirmedMatcherOrderArtifact(value: ConfirmedMatcherOrderArtifact): ConfirmedMatcherOrderArtifact {
+  if (value.kind !== "confirmed" || !confirmedMatcherOrderArtifacts.has(value)) {
+    throw new Error("Confirmed matcher order artifact was not produced by this browser session");
+  }
+  return value;
+}
+
 export type MatcherOrderWorkflowPhase = "before-sign" | "before-post";
 
 export class MatcherOrderWorkflowError extends Error {
@@ -271,7 +282,9 @@ async function postSignedMatcherOrder(signed: SignedMatcherOrderPost, fetcher: M
       requestId: signed.request.requestId,
       subjectHash: hashTypedOrder(domain, signed.review.draft.order),
     });
-    return deepFreeze({ kind: "confirmed", receipt, ...signed });
+    const confirmation = deepFreeze({ kind: "confirmed" as const, receipt, ...signed });
+    confirmedMatcherOrderArtifacts.add(confirmation);
+    return confirmation;
   } catch {
     return deepFreeze({ kind: "receipt-unknown", ...signed });
   }

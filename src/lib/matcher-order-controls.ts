@@ -22,7 +22,8 @@ import {
   type VerifiedMatcherControlReceipt,
 } from "./matcher-client.ts";
 import {
-  type MatcherOrderConfirmation,
+  assertConfirmedMatcherOrderArtifact,
+  type ConfirmedMatcherOrderArtifact,
   type ReviewedMatcherBuyOrder,
 } from "./matcher-order-workflow.ts";
 import { connectMatcherWallet, type MatcherWalletConnection } from "./matcher-wallet.ts";
@@ -34,7 +35,7 @@ export type MatcherControlFetch = (
   init?: RequestInit,
 ) => Promise<Response>;
 
-export type ConfirmedMatcherOrderArtifact = Extract<MatcherOrderConfirmation, { kind: "confirmed" }>;
+export type { ConfirmedMatcherOrderArtifact } from "./matcher-order-workflow.ts";
 
 type UserMatcherControl = MatcherOrderCancellationControl | MatcherAccountEpochAdvanceControl;
 
@@ -224,8 +225,8 @@ function orderArtifactReview(
   requireCancellable: boolean,
 ): ReviewedMatcherBuyOrder {
   if (!isDeepFrozen(artifact)) throw new Error("Prior matcher order artifact must be immutable");
-  if (artifact.kind !== "confirmed") throw new Error("Prior matcher order must have a confirmed receipt");
-  const review = artifact.review;
+  const confirmed = assertConfirmedMatcherOrderArtifact(artifact);
+  const review = confirmed.review;
   assertEnabledDeployment(review.deployment);
   const expectedMatcher = review.deployment.expectedMatcher!;
   const domain = review.deployment.orderDomain!;
@@ -241,12 +242,12 @@ function orderArtifactReview(
     || review.draft.healthConfigurationHash !== expectedMatcher.configurationHash) {
     throw new Error("Prior matcher order artifact does not bind an approved native buy order");
   }
-  const status = artifact.receipt.receipt.status;
-  if (artifact.receipt.receipt.kind !== "accept-order"
-    || artifact.receipt.receipt.requestId !== requestId
+  const status = confirmed.receipt.receipt.status;
+  if (confirmed.receipt.receipt.kind !== "accept-order"
+    || confirmed.receipt.receipt.requestId !== requestId
     || !["open", "filled", "partially-filled", "ioc-remainder-cancelled", "fok-rejected", "unfilled"].includes(status)
-    || artifact.receipt.receipt.subjectHash !== orderHash
-    || artifact.receipt.checkpoint.configurationHash !== expectedMatcher.configurationHash) {
+    || confirmed.receipt.receipt.subjectHash !== orderHash
+    || confirmed.receipt.checkpoint.configurationHash !== expectedMatcher.configurationHash) {
     throw new Error("Confirmed matcher order artifact does not bind the reviewed order");
   }
   if (requireCancellable && status !== "open" && status !== "partially-filled") {

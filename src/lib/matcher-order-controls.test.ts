@@ -11,6 +11,7 @@ import {
   parseNativeZecUsdcMatcherManifest,
 } from "./native-zec-usdc-matcher-manifest.ts";
 import {
+  confirmMatcherBuyOrder,
   reviewMatcherBuyOrder,
   type MatcherOrderFetch,
   type ReviewedMatcherBuyOrder,
@@ -151,34 +152,60 @@ async function reviewedOrder(active = deployment()): Promise<ReviewedMatcherBuyO
   });
 }
 
-function confirmedOrder(order: ReviewedMatcherBuyOrder): ConfirmedMatcherOrderArtifact {
+async function confirmedOrder(
+  order: ReviewedMatcherBuyOrder,
+  status: "open" | "filled" | "partially-filled" | "ioc-remainder-cancelled" | "fok-rejected" | "unfilled" = "open",
+): Promise<ConfirmedMatcherOrderArtifact> {
   const orderHash = hashTypedOrder(order.deployment.orderDomain!, order.draft.order);
-  return freeze({
-    kind: "confirmed" as const,
-    review: order,
-    signature: `0x${"11".repeat(65)}`,
-    request: {} as never,
-    receipt: {
-      replayed: false,
-      receipt: {
-        version: 1 as const,
-        sequence: 9n,
-        requestId: order.draft.requestId,
-        kind: "accept-order" as const,
-        status: "open" as const,
-        subjectHash: orderHash,
-        occurredAtSeconds: order.draft.occurredAt,
-      },
-      checkpoint: order.draft.accountCheckpoint,
+  const maker = order.makerAccountId;
+  const fetcher: MatcherOrderFetch = async (path, init) => {
+    if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(order.deployment));
+    if (String(path) === `/api/matcher?account=${maker}`) return json(account(order.deployment));
+    if (String(path) === "/api/matcher" && init?.method === "POST") {
+      return json({
+        ok: true,
+        replayed: false,
+        receipt: {
+          version: 1,
+          sequence: "10",
+          requestId: order.draft.requestId,
+          kind: "accept-order",
+          status,
+          subjectHash: orderHash,
+          occurredAtSeconds: order.draft.occurredAt.toString(),
+        },
+        checkpoint: {
+          version: 1,
+          sequence: "10",
+          recordHash: `0x${"aa".repeat(32)}`,
+          stateRoot: `0x${"bb".repeat(32)}`,
+          configurationHash: order.deployment.configurationHash,
+        },
+      }, 201);
+    }
+    throw new Error(String(path));
+  };
+  const injected: Eip1193Provider = {
+    async request({ method, params }) {
+      if (method === "eth_accounts") return [WALLET];
+      if (method === "eth_chainId") return "0xa4b1";
+      if (method === "eth_signTypedData_v4") {
+        assert.deepEqual(JSON.parse(params?.[1] as string), order.draft.typedOrderData);
+        return signDigest(orderHash);
+      }
+      throw new Error(`unexpected provider RPC ${method}`);
     },
-  }) as ConfirmedMatcherOrderArtifact;
+  };
+  const result = await confirmMatcherBuyOrder({ fetch: fetcher, provider: injected, review: order });
+  assert.equal(result.kind, "confirmed");
+  return result as ConfirmedMatcherOrderArtifact;
 }
 
-function controlReceipt(review: ReviewedMatcherOrderControl, sequence = "10") {
+function controlReceipt(review: ReviewedMatcherOrderControl, sequence = "11", replayed = false) {
   const cancellation = review.control.kind === "cancel-order";
   return {
     ok: true,
-    replayed: false,
+    replayed,
     receipt: {
       version: 1,
       sequence,
@@ -198,10 +225,11 @@ function controlReceipt(review: ReviewedMatcherOrderControl, sequence = "10") {
   };
 }
 
-test("disabled epoch review performs no fetch or provider calls", async () => {
+test("forged or copied epoch artifacts perform no fetch or provider calls", async () => {
   const enabledOrder = await reviewedOrder();
   const disabledReview = freeze({ ...enabledOrder, deployment: NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT });
-  const artifact = freeze({ ...confirmedOrder(enabledOrder), review: disabledReview }) as ConfirmedMatcherOrderArtifact;
+  const confirmed = await confirmedOrder(enabledOrder);
+  const artifact = freeze({ ...confirmed, review: disabledReview }) as ConfirmedMatcherOrderArtifact;
   const fetchCalls: string[] = [];
   const providerCalls: string[] = [];
   const fetcher: MatcherControlFetch = async (path) => {
@@ -216,7 +244,9 @@ test("disabled epoch review performs no fetch or provider calls", async () => {
       fetch: fetcher,
       occurredAt: NOW,
     }),
-    (error: unknown) => error instanceof MatcherOrderControlWorkflowError && error.phase === "before-sign",
+    (error: unknown) => error instanceof MatcherOrderControlWorkflowError
+      && error.phase === "before-sign"
+      && /browser session/.test(error.message),
   );
   assert.deepEqual(fetchCalls, []);
   assert.deepEqual(providerCalls, []);
@@ -225,13 +255,13 @@ test("disabled epoch review performs no fetch or provider calls", async () => {
 test("cancellation review derives a frozen control only from a confirmed open order and fresh state", async () => {
   const active = deployment();
   const order = await reviewedOrder(active);
-  const artifact = confirmedOrder(order);
+  const artifact = await confirmedOrder(order);
   const maker = order.makerAccountId;
   const fetchCalls: Array<readonly [string, string | undefined, RequestCache | undefined]> = [];
   const fetcher: MatcherControlFetch = async (path, init) => {
     fetchCalls.push([String(path), init?.method, init?.cache]);
     if (String(path) === "/api/matcher") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active));
+    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active, "10"));
     throw new Error(String(path));
   };
   let review: ReviewedMatcherOrderControl | null = null;
@@ -271,12 +301,12 @@ test("epoch review reads fresh no-store matcher health, account, and checkpoint"
   const fetcher: MatcherControlFetch = async (path, init) => {
     calls.push([String(path), init?.method, init?.cache]);
     if (String(path) === "/api/matcher") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active));
+    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active, "10"));
     throw new Error(String(path));
   };
   let review: ReviewedMatcherOrderControl | null = null;
   const providerCalls: string[] = [];
-  review = await reviewMatcherAccountEpochAdvance({ artifact: confirmedOrder(await reviewedOrder(active)), provider: provider(providerCalls, () => review), fetch: fetcher, occurredAt: NOW });
+  review = await reviewMatcherAccountEpochAdvance({ artifact: await confirmedOrder(await reviewedOrder(active)), provider: provider(providerCalls, () => review), fetch: fetcher, occurredAt: NOW });
   assert.equal(review.control.kind, "advance-epoch");
   assert.equal(review.control.currentEpoch, 7n);
   assert.equal(review.control.nextEpoch, 8n);
@@ -297,7 +327,7 @@ test("confirmation rejects account checkpoint drift before wallet signing or POS
     if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(active));
     if (String(path) === `/api/matcher?account=${maker}`) {
       accountReads += 1;
-      return json(account(active, accountReads === 1 ? "9" : "10"));
+      return json(account(active, accountReads === 1 ? "10" : "11"));
     }
     if (init?.method === "POST") {
       posts += 1;
@@ -309,7 +339,7 @@ test("confirmation rejects account checkpoint drift before wallet signing or POS
   const providerCalls: string[] = [];
   const injected = provider(providerCalls, () => review);
   review = await reviewMatcherOrderCancellation({
-    artifact: confirmedOrder(source),
+    artifact: await confirmedOrder(source),
     provider: injected,
     fetch: fetcher,
     occurredAt: NOW + 1n,
@@ -330,7 +360,7 @@ test("confirmation signs only typed controls, posts exact bytes, and validates b
   const maker = source.makerAccountId;
   const fetcher = (review: () => ReviewedMatcherOrderControl): MatcherControlFetch => async (path, init) => {
     if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active));
+    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active, "10"));
     if (String(path) === "/api/matcher" && init?.method === "POST") return json(controlReceipt(review()));
     throw new Error(String(path));
   };
@@ -339,7 +369,7 @@ test("confirmation signs only typed controls, posts exact bytes, and validates b
   const cancellationProvider = provider(cancellationCalls, () => cancellation);
   const cancellationFetcher = fetcher(() => cancellation!);
   cancellation = await reviewMatcherOrderCancellation({
-    artifact: confirmedOrder(source),
+    artifact: await confirmedOrder(source),
     provider: cancellationProvider,
     fetch: cancellationFetcher,
     occurredAt: NOW + 1n,
@@ -356,12 +386,12 @@ test("confirmation signs only typed controls, posts exact bytes, and validates b
   let epoch: ReviewedMatcherOrderControl | null = null;
   const epochFetcher: MatcherControlFetch = async (path, init) => {
     if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active));
+    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active, "10"));
     if (String(path) === "/api/matcher" && init?.method === "POST") return json(controlReceipt(epoch!));
     throw new Error(String(path));
   };
   const epochCalls: string[] = [];
-  epoch = await reviewMatcherAccountEpochAdvance({ artifact: confirmedOrder(await reviewedOrder(active)), provider: provider(epochCalls, () => epoch), fetch: epochFetcher, occurredAt: NOW + 2n });
+  epoch = await reviewMatcherAccountEpochAdvance({ artifact: await confirmedOrder(await reviewedOrder(active)), provider: provider(epochCalls, () => epoch), fetch: epochFetcher, occurredAt: NOW + 2n });
   const advanced = await confirmMatcherOrderControl({ fetch: epochFetcher, provider: provider(epochCalls, () => epoch), review: epoch });
   assert.equal(advanced.kind, "confirmed");
   assert.equal(advanced.receipt.receipt.status, "epoch-advanced");
@@ -373,16 +403,20 @@ test("rejections and uncertain receipts preserve exact signed retry bytes after 
   const source = await reviewedOrder(active);
   const maker = source.makerAccountId;
   const bodies: string[] = [];
+  const idempotencyKeys: Array<string | null> = [];
+  const postPaths: string[] = [];
   let postAttempt = 0;
   const fetcher: MatcherControlFetch = async (path, init) => {
     if (String(path) === "/api/matcher" && init?.method === "GET") return json(health(active));
-    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active));
+    if (String(path) === `/api/matcher?account=${maker}`) return json(account(active, "10"));
     if (String(path) === "/api/matcher" && init?.method === "POST") {
       postAttempt += 1;
+      postPaths.push(String(path));
       bodies.push(String(init.body));
+      idempotencyKeys.push(new Headers(init.headers).get("idempotency-key"));
       if (postAttempt === 1) return json({ ok: false, reason: "matcher-rejected-control" }, 422);
       if (postAttempt === 2) throw new Error("lost response");
-      return json(controlReceipt(review!));
+      return json(controlReceipt(review!, "11", true));
     }
     throw new Error(String(path));
   };
@@ -390,7 +424,7 @@ test("rejections and uncertain receipts preserve exact signed retry bytes after 
   const calls: string[] = [];
   const injected = provider(calls, () => review);
   review = await reviewMatcherOrderCancellation({
-    artifact: confirmedOrder(source),
+    artifact: await confirmedOrder(source),
     provider: injected,
     fetch: fetcher,
     occurredAt: NOW + 1n,
@@ -402,7 +436,10 @@ test("rejections and uncertain receipts preserve exact signed retry bytes after 
   assert.equal(unknown.kind, "receipt-unknown");
   const confirmed = await retryMatcherOrderControl(unknown, fetcher);
   assert.equal(confirmed.kind, "confirmed");
+  assert.equal(confirmed.receipt.replayed, true);
+  assert.deepEqual(postPaths, ["/api/matcher", "/api/matcher", "/api/matcher"]);
   assert.deepEqual(bodies, [bodies[0], bodies[0], bodies[0]]);
+  assert.deepEqual(idempotencyKeys, [review.requestId, review.requestId, review.requestId]);
   assert.equal(calls.filter((call) => call === "eth_signTypedData_v4").length, 1);
   await assert.rejects(
     () => retryMatcherOrderControl({ ...unknown, request: { ...unknown.request, body: `${unknown.request.body} ` } }, fetcher),
@@ -412,33 +449,40 @@ test("rejections and uncertain receipts preserve exact signed retry bytes after 
   );
 });
 
-test("a confirmed cancellable order remains required for cancellation", async () => {
+test("only confirmed open or partially-filled orders can enter cancellation review", async () => {
   const source = await reviewedOrder();
-  const artifact = confirmedOrder(source);
-  const filled = freeze({
-    ...artifact,
-    receipt: {
-      ...artifact.receipt,
-      receipt: { ...artifact.receipt.receipt, status: "filled" as const },
-    },
-  }) as ConfirmedMatcherOrderArtifact;
-  const fetchCalls: string[] = [];
-  const providerCalls: string[] = [];
-  const fetcher: MatcherControlFetch = async (path) => {
-    fetchCalls.push(String(path));
-    throw new Error("must not fetch");
-  };
-  const injected = provider(providerCalls, () => null);
+  for (const status of ["filled", "ioc-remainder-cancelled", "fok-rejected", "unfilled"] as const) {
+    const artifact = await confirmedOrder(source, status);
+    const fetchCalls: string[] = [];
+    const providerCalls: string[] = [];
+    await assert.rejects(
+      () => reviewMatcherOrderCancellation({
+        artifact,
+        fetch: async (path) => {
+          fetchCalls.push(String(path));
+          throw new Error("must not fetch");
+        },
+        provider: provider(providerCalls, () => null),
+        occurredAt: NOW,
+      }),
+      (error: unknown) => error instanceof MatcherOrderControlWorkflowError && /not cancellable/.test(error.message),
+      status,
+    );
+    assert.deepEqual(fetchCalls, [], status);
+    assert.deepEqual(providerCalls, [], status);
+  }
 
-  await assert.rejects(
-    () => reviewMatcherOrderCancellation({
-      artifact: filled,
-      fetch: fetcher,
-      provider: injected,
-      occurredAt: NOW,
-    }),
-    (error: unknown) => error instanceof MatcherOrderControlWorkflowError && /not cancellable/.test(error.message),
-  );
-  assert.deepEqual(fetchCalls, []);
-  assert.deepEqual(providerCalls, []);
+  const partiallyFilled = await confirmedOrder(source, "partially-filled");
+  const maker = source.makerAccountId;
+  let review: ReviewedMatcherOrderControl | null = null;
+  review = await reviewMatcherOrderCancellation({
+    artifact: partiallyFilled,
+    fetch: async (path) => String(path) === "/api/matcher"
+      ? json(health(source.deployment))
+      : json(account(source.deployment, "10")),
+    provider: provider([], () => review),
+    occurredAt: NOW,
+  });
+  assert.equal(review.control.kind, "cancel-order");
+  assert.equal(review.makerAccountId, maker);
 });
