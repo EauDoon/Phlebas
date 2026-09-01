@@ -567,6 +567,11 @@ export function LiquidityPanel({
             <h2 id="pool-stats-heading">Pool stats, IL versus hold, inventory</h2>
           </div>
         </div>
+        {heldShares[selectedPool.id] === 0n && (
+          <p className={styles.inlineNotice}>
+            {emptyShareCopy(selectedPool.id)}
+          </p>
+        )}
         <dl
           id="pool-stats"
           className={styles.statGrid}
@@ -595,11 +600,6 @@ export function LiquidityPanel({
             </div>
           ))}
         </dl>
-        {heldShares[selectedPool.id] === 0n && (
-          <p className={styles.inlineNotice}>
-            No session LP shares. Burn stays available when shares exist. Mint is a local preview.
-          </p>
-        )}
         <p className={styles.inlineNotice}>
           Not a return or profit projection. Local integer preview of constant-product divergence versus holding the same deposited assets.
         </p>

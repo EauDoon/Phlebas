@@ -1,6 +1,6 @@
 import { type Locator, type Page } from "@playwright/test";
 
-import { ARBITRUM_SEPOLIA_HEX } from "../../src/lib/evm-wallet.ts";
+import { ARBITRUM_SEPOLIA_HEX, walletSigningDisabledCopy } from "../../src/lib/evm-wallet.ts";
 import { expect, test } from "./fixtures";
 
 const viewports = [320, 390, 768, 1440] as const;
@@ -943,19 +943,16 @@ test("ticket sign missing-provider copy names the selected market settlement pai
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as pZEC-USDC." })).toBeVisible();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toBeVisible();
-  await page.evaluate(() => {
-    Object.defineProperty(window, "ethereum", { configurable: true, value: undefined });
-  });
-  await page.getByRole("button", { name: "Sign testnet typed data" }).click();
-  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDC.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toHaveCount(0);
+  await expect(page.getByRole("status", { name: "Wallet signing disabled" })).toHaveText(walletSigningDisabledCopy());
   await page.getByRole("button", { name: "Back" }).click();
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toBeVisible();
-  await page.getByRole("button", { name: "Sign testnet typed data" }).click();
-  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDT0.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toHaveCount(0);
+  await expect(page.getByRole("status", { name: "Wallet signing disabled" })).toHaveText(walletSigningDisabledCopy());
 });
 
 test("ticket sign missing-provider copy names pZEC-USDT0 if market switches while review is open", async ({ page }) => {
@@ -980,17 +977,13 @@ test("ticket sign missing-provider copy names pZEC-USDT0 if market switches whil
   await expect(page.getByRole("button", { name: "Disconnect 0xf39f…2266. Settled as pZEC-USDC." })).toBeVisible();
   await page.getByRole("textbox", { name: "Order size in pZEC" }).fill("1");
   await page.getByRole("button", { name: "Review simulated buy" }).click();
-  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toBeVisible();
-  await page.evaluate(() => {
-    Object.defineProperty(window, "ethereum", { configurable: true, value: undefined });
-  });
-  await page.getByRole("button", { name: "Sign testnet typed data" }).click();
-  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDC.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toHaveCount(0);
+  await expect(page.getByRole("status", { name: "Wallet signing disabled" })).toHaveText(walletSigningDisabledCopy());
   await page.getByRole("radio", { name: "ZEC / USDT" }).click();
   await expect(page.getByRole("button", { name: "Confirm simulated buy" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toBeVisible();
-  await expect(page.getByText("No injected EVM wallet. Arbitrum Sepolia only. Settled as pZEC-USDT0.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign testnet typed data" })).toHaveCount(0);
+  await expect(page.getByRole("status", { name: "Wallet signing disabled" })).toHaveText(walletSigningDisabledCopy());
 });
 
 test("wallet disconnect accessible name keeps settlement after switching market", async ({ page }) => {
