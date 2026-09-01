@@ -1,8 +1,10 @@
 # ADR 0005: Zcash P2SH Atomic Swap Leg
 
 Date: 01-09-2026
-Status: Accepted for key-independent development
+Status: Superseded by the Zcash transaction lab
 Production status: Not approved
+
+This ADR is retained as historical design context only. Its HASH160 digest is not the same value as the EVM SHA-256 digest, and its transaction-shaped wallet-adapter examples are incomplete synthetic values. Do not use them for construction, signing, or wallet integration. The canonical current boundary is [ZCASH_TRANSACTION_LAB.md](../ZCASH_TRANSACTION_LAB.md).
 
 ## Context
 
@@ -10,11 +12,11 @@ ADR 0002 defines the production target: one two-chain atomic swap per matched fi
 
 The current repository has the Zcash transparent address inspection (`inspectTransparentDestination`), the in-browser matcher, the keccak and SHA-256 primitives, the secp256k1 recovery primitive, the ZIP 321 placeholder, the local TEX gateway, and the EVM conditional lock. It does not have a Zcash address encoder, a P2SH script builder, a transparent transaction template, or a wallet adapter.
 
-The ZEC leg of an atomic swap is implemented as a transparent P2SH output that holds ZEC until either the buyer reveals the preimage on the Zcash claim path or the seller refunds after the lock time. The same preimage and the same hash are bound on both legs. The P2SH script is the only part of the ZEC leg that can be implemented, tested, and adversarially reviewed without a Zcash spend key.
+The historical proposal used a transparent P2SH output that held ZEC until either the buyer revealed a preimage on the Zcash claim path or the seller refunded after the lock time. Its HASH160 digest did not equal the EVM SHA-256 digest.
 
 ## Decision
 
-Add the encoding surface for the ZEC half of the atomic swap. The wallet adapter remains a typed interface; the signing surface stays gated.
+The historical decision added only address, script, and synthetic display helpers. The current transaction-lab boundary supersedes them.
 
 ### Address encoding
 
@@ -27,11 +29,11 @@ The version bytes are:
 | Mainnet | `0x1CB8` | `0x1CBD` |
 | Testnet | `0x1D25` | `0x1CBA` |
 
-The project targets testnet. The encoder accepts a `network` parameter and defaults to testnet. The encoder refuses the mainnet version on a public deployment, the same way the existing `inspectTransparentDestination` works for both.
+The historical encoder supports both testnet and mainnet primitives. The active legacy `/zcash` display is restricted to testnet and no longer displays a funding address.
 
 ### P2SH script
 
-The atomic-swap P2SH script encodes the claim and refund branches of one fill. The shared hash binds the buyer and the seller to the same preimage. The lock time is the chain-local refund deadline. The two signers are bound to the two branches.
+The historical P2SH script encoded claim and refund branches around a 20-byte HASH160 digest. It did not establish equality with a 32-byte SHA-256 digest on another chain.
 
 ```text
 IF
@@ -43,7 +45,7 @@ ELSE
 ENDIF
 ```
 
-`<expected_hash20>` is the 20-byte hash of the preimage. Per the Zcash script engine, the hash check is `OP_HASH160 <expected> OP_EQUALVERIFY`, which compares the 20-byte `RIPEMD160(SHA256(preimage))` to the expected value. The same hash function is what the EVM leg uses, so a single preimage validates on both chains.
+`<expected_hash20>` is the 20-byte HASH160 result for the preimage. It is distinct from the EVM leg's 32-byte SHA-256 digest.
 
 `<locktime>` is a 4-byte little-endian unix timestamp. The `OP_CHECKLOCKTIMEVERIFY` opcode rejects any spend where the spending transaction's nLockTime is below this value.
 
@@ -55,27 +57,21 @@ The script address is `Base58Check(version=0x1CBA, payload=RIPEMD160(SHA256(scri
 
 The preimage is 32 random bytes. The 20-byte `expected_hash20` is `RIPEMD160(SHA256(preimage))`. The EVM leg uses `SHA256(preimage)` directly; the ZEC leg uses the 20-byte truncated form because the Zcash script engine operates on `OP_HASH160` which is the same 20-byte hash.
 
-The same preimage is valid on both chains. A witness that passes the EVM `claim` function is exactly the witness that the Zcash `claim` script checks via `OP_HASH160` after the preimage is pushed.
+The same preimage can be hashed by both functions, but the 20-byte HASH160 result is not the same digest as the 32-byte SHA-256 result. This mismatch is one reason this design is superseded.
 
-### Wallet adapter
+### Legacy synthetic display shapes
 
-The wallet adapter is a typed interface that the matcher and the UI call without holding a Zcash spend key. The interface has three methods:
-
-* `buildFund(script, amount, params): UnsignedTransaction` — produces a transparent transaction that funds the P2SH output.
-* `buildClaim(utxo, preimage, params): UnsignedTransaction` — produces a transparent transaction that spends the P2SH output via the claim branch.
-* `buildRefund(utxo, params): UnsignedTransaction` — produces a transparent transaction that spends the P2SH output via the refund branch after the lock time.
-
-The interface returns an `UnsignedTransaction` and a transaction id. The signing surface is not part of this PR. The wallet adapter accepts a `signer` callback that the production code injects; the test code uses a deterministic in-memory signer. The interface never holds a key and never reads a key from disk.
+The historical fund, claim, and refund values are incomplete display shapes. They omit canonical Zcash serialization and consensus fields, do not resolve a transaction ID, and are not wallet inputs. No signer callback or signing boundary exists in this module.
 
 ### Signing boundary
 
-The address encoding, the script builder, the hash function, and the wallet adapter interface are key-independent. The signing surface is not part of this PR. The signing flag stays off. The first ZEC transaction in this PR is the deterministic test vector; the first ZEC transaction on a live chain ships only when the operator sets the explicit env flag and the user explicitly authorizes the transaction in their wallet.
+The historical address and script helpers are key-independent. The synthetic display shapes do not authorize or enable signing. No ZEC transaction is constructed, signed, extracted, or broadcast by this ADR.
 
 ## Why this design
 
-The P2SH script is the smallest script that satisfies the deterministic safety rules in ADR 0002. One script encodes both terminal outcomes. The hash function is `OP_HASH160`, which is what every Zcash P2SH script uses for hash locks. The lock time is `OP_CHECKLOCKTIMEVERIFY`, which is the standard opcode and the only opcode that the project relies on for the refund deadline.
+The historical script used `OP_HASH160`; the canonical transaction lab instead uses `OP_SHA256`. The historical builder does not enforce the cross-chain refund-margin policy and must not be used for funding.
 
-The wallet adapter is a typed interface that the matcher and the UI can call without holding a spend key. The interface is the only place where the signing surface could be added in a later PR. The signing surface is not added now because ADR 0002 forbids it.
+The legacy display helper is not a wallet adapter. Any future signing boundary requires a separate design and approval.
 
 The address encoding is the encoding the rest of the system already uses. The version bytes, the Base58Check checksum, the RIPEMD160 + SHA256 hash chain, and the compressed secp256k1 pubkey format are all standard.
 
@@ -99,19 +95,19 @@ Zcash transparent addresses use Base58Check. Unified addresses use Bech32m, but 
 
 ## Consequences
 
-The ZEC half of the atomic swap now has a documented surface. The matcher, the UI, the wallet adapter, and the future signing surface all bind to the same address and the same script.
+The historical ZEC encoding surface remains documented, but it is superseded and must not be treated as transaction or wallet evidence.
 
-The ZEC transaction construction, the sighash, the witness assembly, and the live wallet binding remain in a later PR. This PR is the encoding half of the lab; the next PR is the transaction half.
+The superseding transaction lab commits unsigned effecting data, but complete serialization, sighash construction, witness assembly, and live wallet binding remain unavailable.
 
-The preimage primitive in `src/lib/preimage.ts` already produces 32 random bytes. The same preimage validates on both chains. The wallet adapter accepts the preimage as a parameter and never sees it on the offchain coordinator.
+The legacy display helper accepts preimage bytes only to render an incomplete shape. It provides no cross-chain digest equivalence or signing assurance.
 
 ## Required guardrails
 
-* The address encoder refuses the mainnet version on a public deployment.
+* The active legacy display is testnet-only and displays no funding address.
 * The script builder rejects a buyer pubkey and a seller pubkey that are equal.
-* The script builder rejects a lock time that is not strictly later than the EVM refund deadline.
-* The hash function is `OP_HASH160`, which is `RIPEMD160(SHA256(x))`. No other hash function is used on the ZEC leg.
-* The wallet adapter returns an `UnsignedTransaction`. The signing surface is an injected callback. The interface never reads a key from disk and never holds a key in memory.
+* The historical builder does not establish deadline-margin or cross-chain digest equivalence and must not be used for funding.
+* The canonical transaction lab uses `OP_SHA256`; the historical display uses `OP_HASH160` only for legacy vectors.
+* The legacy display module returns only explicitly labeled incomplete synthetic shapes. It has no signer surface and no transaction ID.
 * The signing flag stays off. No live ZEC transaction is broadcast in this PR.
 
 ## Mainnet gate
@@ -119,7 +115,7 @@ The preimage primitive in `src/lib/preimage.ts` already produces 32 random bytes
 This ADR advances to a production decision only after:
 
 * the transparent transaction template ships and the sighash is verified against a current Zcash testnet;
-* the wallet adapter ships with a signing surface that the user explicitly authorizes;
+* a separately designed and approved wallet integration proves full transaction compatibility;
 * the ZEC lock time construction is reviewed and tested against a current wallet;
 * an independent review of the script and the address encoding;
 * executed wallet tests for funding, claim, and refund paths;

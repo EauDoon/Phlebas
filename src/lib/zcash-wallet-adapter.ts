@@ -1,60 +1,56 @@
-// Zcash wallet adapter surface. The matcher and the UI call into this
-// adapter without holding a Zcash spend key. The adapter returns an
-// unsigned transaction and a transaction id. The signing surface is an
-// injected callback that the production code wires to a real wallet;
-// the test code wires to a deterministic in-memory signer.
-//
-// No signing happens in this PR. The adapter surface is the seam where
-// the Zallet or another Zcash wallet will be wired in a later PR.
+// Legacy synthetic display shapes only. These values are not canonical Zcash
+// transactions, are not wallet inputs, and must never be signed or broadcast.
 
 import { buildAtomicSwapScript, type AtomicSwapParams } from "./zcash-atomic-swap.ts";
 
-export type Signer = (digest: Uint8Array) => Promise<Uint8Array>;
+export const LEGACY_ZCASH_SHAPE_BOUNDARY = "legacy-synthetic-incomplete-shape-not-a-zcash-transaction" as const;
 
-export type UnsignedTransaction = Readonly<{
-  txid: string;
+export type LegacySyntheticTransactionShape = Readonly<{
+  boundary: typeof LEGACY_ZCASH_SHAPE_BOUNDARY;
+  transactionIdState: "unresolved";
   version: 4;
   lockTime: number;
-  inputs: ReadonlyArray<UnsignedInput>;
-  outputs: ReadonlyArray<UnsignedOutput>;
+  inputs: ReadonlyArray<LegacySyntheticInput>;
+  outputs: ReadonlyArray<LegacySyntheticOutput>;
 }>;
 
-export type UnsignedInput = Readonly<{
+export type LegacySyntheticInput = Readonly<{
   prevTxid: string;
   prevVout: number;
   scriptSig: Uint8Array;
   sequence: number;
 }>;
 
-export type UnsignedOutput = Readonly<{
+export type LegacySyntheticOutput = Readonly<{
   valueZat: bigint;
   scriptPubKey: Uint8Array;
 }>;
 
 export type BuildFundParams = Readonly<{
-  fundOutput: UnsignedOutput;
-  changeOutput: UnsignedOutput;
+  fundOutput: LegacySyntheticOutput;
+  changeOutput: LegacySyntheticOutput;
   lockTime: number;
 }>;
 
 export type BuildClaimParams = Readonly<{
   utxo: Readonly<{ txid: string; vout: number; valueZat: bigint; scriptPubKey: Uint8Array }>;
   preimage: Uint8Array;
-  recipientOutput: UnsignedOutput;
-  changeOutput: UnsignedOutput;
+  recipientOutput: LegacySyntheticOutput;
+  changeOutput: LegacySyntheticOutput;
   sequence: number;
 }>;
 
 export type BuildRefundParams = Readonly<{
   utxo: Readonly<{ txid: string; vout: number; valueZat: bigint; scriptPubKey: Uint8Array }>;
-  recipientOutput: UnsignedOutput;
-  changeOutput: UnsignedOutput;
+  recipientOutput: LegacySyntheticOutput;
+  changeOutput: LegacySyntheticOutput;
   sequence: number;
 }>;
 
-export function buildFundTransaction(params: BuildFundParams): UnsignedTransaction {
+export function previewLegacyFundShape(params: BuildFundParams): LegacySyntheticTransactionShape {
   return {
-    txid: "",
+    boundary: LEGACY_ZCASH_SHAPE_BOUNDARY,
+    transactionIdState: "unresolved",
     version: 4,
     lockTime: params.lockTime,
     inputs: [],
@@ -62,9 +58,10 @@ export function buildFundTransaction(params: BuildFundParams): UnsignedTransacti
   };
 }
 
-export function buildClaimTransaction(params: BuildClaimParams): UnsignedTransaction {
+export function previewLegacyClaimShape(params: BuildClaimParams): LegacySyntheticTransactionShape {
   return {
-    txid: "",
+    boundary: LEGACY_ZCASH_SHAPE_BOUNDARY,
+    transactionIdState: "unresolved",
     version: 4,
     lockTime: 0,
     inputs: [
@@ -79,9 +76,10 @@ export function buildClaimTransaction(params: BuildClaimParams): UnsignedTransac
   };
 }
 
-export function buildRefundTransaction(params: BuildRefundParams): UnsignedTransaction {
+export function previewLegacyRefundShape(params: BuildRefundParams): LegacySyntheticTransactionShape {
   return {
-    txid: "",
+    boundary: LEGACY_ZCASH_SHAPE_BOUNDARY,
+    transactionIdState: "unresolved",
     version: 4,
     lockTime: 0,
     inputs: [
@@ -96,7 +94,7 @@ export function buildRefundTransaction(params: BuildRefundParams): UnsignedTrans
   };
 }
 
-export function hashAtomicSwapParams(params: AtomicSwapParams): string {
+export function legacyAtomicSwapScriptHex(params: AtomicSwapParams): string {
   const script = buildAtomicSwapScript(params);
   let hex = "0x";
   for (let i = 0; i < script.length; i++) hex += script[i].toString(16).padStart(2, "0");

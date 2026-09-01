@@ -1,5 +1,7 @@
 # ADR 0005 Implementation Notes
 
+Status: Historical and superseded by `docs/ZCASH_TRANSACTION_LAB.md`. The HASH160 digest and wallet-adapter claims below are not current transaction, wallet, or cross-chain evidence.
+
 This file is a companion to [ADR 0005](0005-zcash-p2sh-atomic-swap.md).
 ADR 0005 sets the design and the safety rules. This file captures the
 operational notes that the implementation, the wallet adapter, and the

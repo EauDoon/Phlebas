@@ -32,7 +32,7 @@ The current repository contains a Next.js no-value simulation, undeployed Arbitr
 | Market data | Illustrative fixtures plus session fills | Signed and independently monitored public feeds |
 | Order book | In-browser matcher and optional loopback operator | Persistent signed-order matcher with receipts |
 | Settlement | Local inventory updates and undeployed legacy Sepolia contracts | One two-chain atomic swap per fill |
-| Zcash path | Local textest gateway, ZIP 321, TEX, and payout-tour stubs | Transparent P2SH fund, claim, and refund transactions |
+| Zcash path | Key-independent transparent HTLC and unsigned-artifact lab, plus superseded gateway stubs | Wallet-reviewed P2SH fund, claim, and refund transactions |
 | EVM path | Optional Sepolia wallet flow against an undeployed legacy manifest | Exact-token conditional-lock contract |
 | Liquidity | Superseded pZEC AMM and LP previews | Wallet-held maker and solver quotes |
 | Wallets | Optional EIP-1193 testnet flow; no native swap adapter | Explicit adapters that keep every key in the wallet |
@@ -107,6 +107,14 @@ Authorization times and funding-artifact preparation times are persisted in the 
 ## Zcash leg
 
 The candidate Zcash leg uses transparent P2SH. The [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf) states that transparent addresses include P2SH and that BIP 16 and BIP 65 apply from genesis. [ZIP 300](https://zips.z.cash/zip-0300) gives a candidate transparent atomic-swap construction with a hash-protected claim branch and a lock-time refund branch. [BIP 65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki) defines `OP_CHECKLOCKTIMEVERIFY` lock-time semantics.
+
+The current transaction lab commits deterministic unsigned funding,
+claim, and refund effecting-data manifests and validates canonical
+transparent spend branch shapes. It does not yet produce a complete
+wallet-signable transaction, validate a signature against the full
+transaction digest, prove destination outputs or chain finality, or
+broadcast. Its exact boundary is documented in
+[`ZCASH_TRANSACTION_LAB.md`](ZCASH_TRANSACTION_LAB.md).
 
 The final implementation must verify:
 

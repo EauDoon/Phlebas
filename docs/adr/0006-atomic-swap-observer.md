@@ -10,7 +10,7 @@ Production status: Superseded for settlement authority
 
 ADR 0002 defines the native ZEC atomic-swap target. ADR 0004 and the hash-chained swap journal define the canonical signed-terms and evidence state. The older Fill observer, coordinator snapshot, and watchtower were built before that authority boundary was complete.
 
-The older service reduces raw EVM and Zcash observations into a mutable Fill projection. It is useful for deterministic diagnostics, but it does not bind complete signed terms, enforce evidence quorum, prove canonical-chain finality, or replay the canonical journal. Its current EVM topics and lock-id mapping are not a verified decoder for the current ConditionalLock ABI. Its Zcash claim and refund classification is heuristic.
+The older service reduces raw EVM and Zcash observations into a mutable Fill projection. It is useful for deterministic diagnostics, but it does not bind complete signed terms, enforce evidence quorum, prove canonical-chain finality, or replay the canonical journal. Its EVM decoder now matches the undeployed exact-token lock ABI, and its Zcash decoder no longer infers claim or refund from height alone. Those improvements do not make the projection authoritative.
 
 ## Decision
 
@@ -46,8 +46,8 @@ It must:
 
 The diagnostic service cannot advance to settlement authority until all of the following exist and pass independent review:
 
-- A strict ConditionalLock ABI decoder with exact event topics, indexed fields, `swapId`, and `termsHash` commitments.
-- Parsed Zcash funding and spend evidence, including script, outpoint, preimage, branch, confirmation, and canonical-chain checks.
+- A strict EVM source adapter that binds the exact deployed chain, contract, ABI, receipt, finality, `swapId`, and `termsHash` to one canonical journal fact.
+- Complete Zcash funding and spend evidence, including the exact transaction digest and valid signature, outputs, script, outpoint, preimage or refund branch, confirmations, and canonical-chain checks.
 - A matcher-to-signed-terms adapter with one shared cross-chain commitment and exact integer accounting.
 - Multiple approved observations or an explicit evidence-quorum policy.
 - A journal-backed fact adapter that accepts only valid transitions at the exact canonical journal head.

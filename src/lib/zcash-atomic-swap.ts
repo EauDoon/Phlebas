@@ -1,12 +1,6 @@
-// Atomic-swap P2SH script builders for the ZEC leg. The script encodes
-// two terminal outcomes of one fill. The claim branch reveals the
-// preimage and signs with the buyer's key. The refund branch waits for
-// the lock time and signs with the seller's key. The lock time is a
-// 4-byte little-endian unix timestamp checked by OP_CHECKLOCKTIMEVERIFY.
-//
-// The script is a single byte string. The matcher, the wallet adapter,
-// and the offchain observers all reconstruct the same bytes from the
-// same fill terms; any divergence is a stop condition.
+// Superseded HASH160 script demonstration retained for historical vectors.
+// It is not the canonical SHA-256 transaction-lab template, a wallet input,
+// a cross-chain commitment, or a funding surface.
 
 import { concatBytes, OP, pushData, pushNumber } from "./zcash-script.ts";
 import { parseCompressedPubkey, type CompressedPubkey } from "./zcash-pubkey.ts";

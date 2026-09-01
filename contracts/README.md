@@ -78,7 +78,7 @@ The checked-in deployment record remains false and disables network action. Null
 
 ## Zcash lab
 
-The ZEC half of the atomic swap lives in `src/lib/zcash-*` and `src/app/zcash/`. The address encoder, the P2SH script builder, and the wallet adapter are all key-independent. No signing or broadcast happens in the Zcash surface in this PR. The hash function is `ripemd160`, which Node 24 exposes natively; the browser path is a follow-up because Web Crypto does not expose `ripemd160`.
+The canonical key-independent Zcash transaction lab lives in `src/lib/zcash-htlc.ts`, `src/lib/zcash-funding.ts`, `src/lib/zcash-spend.ts`, `src/lib/zcash-artifact.ts`, and `src/lib/zcash-pczt.ts`. It uses an exact SHA-256 digest and produces committed unsigned effecting-data manifests. It does not construct complete canonical transactions, sign, extract, or broadcast. The older `/zcash` surface and HASH160 helpers are legacy display-only components.
 
 | File | Role |
 | --- | --- |
@@ -89,8 +89,8 @@ The ZEC half of the atomic swap lives in `src/lib/zcash-*` and `src/app/zcash/`.
 | `src/lib/zcash-pubkey.ts` | Compressed secp256k1 pubkey parser and encoder. |
 | `src/lib/zcash-atomic-swap.ts` | Claim branch, refund branch, full atomic-swap script, round-trip parser. |
 | `src/lib/zcash-address.ts` | Transparent address encoder and decoder plus the existing `inspectTransparentDestination` classifier. |
-| `src/lib/zcash-wallet-adapter.ts` | `buildFundTransaction`, `buildClaimTransaction`, `buildRefundTransaction`, `hashAtomicSwapParams`. |
-| `src/app/zcash/page.tsx` | Server route at `/zcash`. Read-only. Derives the script, address, and unsigned transactions from URL params. |
+| `src/lib/zcash-wallet-adapter.ts` | Legacy synthetic display shapes only. Not canonical Zcash transactions or a signing adapter. |
+| `src/app/zcash/page.tsx` | Read-only legacy display route. Shows explicitly labeled incomplete synthetic shapes, not transactions. |
 
 
 ## Atomic-swap observer service (PR 4)

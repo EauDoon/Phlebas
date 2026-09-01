@@ -97,6 +97,7 @@ The current public app simulates this journey. Wallet signing and chain broadcas
 | `docs/ARCHITECTURE.md` | Current boundaries and target system topology |
 | `docs/THREAT_MODEL.md` | Native settlement threats, controls, tests, and stop conditions |
 | `docs/WALLET_COMPATIBILITY.md` | Wallet evidence requirements and Testnet qualification |
+| `docs/ZCASH_TRANSACTION_LAB.md` | Exact transparent HTLC, unsigned artifact, fee, expiry, and wallet-review boundaries |
 | `docs/OPERATIONS.md` | Service, observability, recovery, and incident requirements |
 | `docs/BROWSER_ACCEPTANCE.md` | Reproducible interface and responsive checks |
 | `docs/SOURCES.md` | Primary protocol, contract, wallet, and regulatory references |

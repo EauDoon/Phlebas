@@ -6,12 +6,12 @@ not a production-readiness or value-safety attestation.
 
 ## Integrated surfaces
 
-* **EVM leg:** a conditional-lock contract, typed-order primitives,
-  deployment scripts, and Foundry coverage for lock, claim, refund,
-  pause, and authorization behavior.
-* **Zcash leg:** transparent P2SH construction and parsing, atomic-swap
-  script primitives, transaction-building adapters, address and amount
-  validation, and deterministic test vectors.
+* **EVM leg:** one immutable exact-token conditional lock bound to a swap
+  ID and terms hash, an undeployed fail-closed manifest, ABI primitives,
+  and adversarial, fuzz, invariant, deadline, and gas coverage.
+* **Zcash leg:** transparent P2SH and HTLC construction, deterministic
+  unsigned effecting-data manifests, fee and expiry policy, candidate
+  PCZT review boundaries, and exact-input claim or refund branch parsing.
 * **Coordination:** a fail-closed state model, persistence and corruption
   checks, transition projection, reorg detection, and diagnostic
   observation surfaces.
@@ -31,9 +31,9 @@ not a production-readiness or value-safety attestation.
 | --- | --- |
 | ESLint | pass, 0 errors and 0 warnings |
 | TypeScript | pass, 0 errors |
-| Node tests | pass, 801 of 801 |
+| Node tests | pass, 867 of 867 |
 | Foundry tests | pass, 70 of 70 |
-| Secret scan | pass, 435 files scanned |
+| Secret scan | pass, 452 files scanned |
 | Production build | pass, 15 routes |
 | Browser acceptance | pass, 231 of 231; rerun required on the exact candidate commit |
 
@@ -52,7 +52,9 @@ release artifact has, at minimum:
   and terms hash;
 * an explicit production token allowlist and verified stablecoin
   identities;
-* strict Zcash input-spend evidence without height-only inference;
+* complete Zcash evidence that additionally verifies signatures against
+  the full transaction digest, destination outputs, confirmations, and
+  canonical-chain finality;
 * strict EVM event decoding against the deployed contract ABI, address,
   chain, and transaction finality;
 * matcher output bound to the same canonical signed terms consumed by

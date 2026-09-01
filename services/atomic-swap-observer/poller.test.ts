@@ -94,7 +94,7 @@ test("pollOnceInto applies ZEC transitions when the outpoint-fill map has an ent
     const evm: EVMEventSource = { fetchLogs: async () => [] };
     const zecOutpoint: ZcashOutpointEvent = {
       kind: "funded",
-      txid: "0xabc",
+      txid: "ab".repeat(32),
       vout: 0,
       address: "t1" + "aa".repeat(19),
       amountZatoshis: 1_000_000n,

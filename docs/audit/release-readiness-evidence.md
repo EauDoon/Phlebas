@@ -11,11 +11,11 @@ checklist, deployment evidence, or an exact-commit production approval.
 | lint | pass | ESLint completes with 0 errors and 0 warnings |
 | contract-format | pass | Foundry formatting is exact |
 | typecheck | pass | TypeScript completes with 0 errors |
-| tests | pass | 801 Node tests pass |
-| manifests | pending exact commit | Working-tree validation passes; deployed-manifest source identity requires the merge commit |
+| tests | pass | 867 Node tests pass |
+| manifests | pass | 18 manifest and mutation tests pass |
 | contract-build | pass | Exact ConditionalLock target builds at 3,808 runtime bytes |
 | contracts | pass | 70 Foundry tests pass |
-| secret-scan | pass | 435 files scanned with no detected secrets |
+| secret-scan | pass | 452 files scanned with no detected secrets |
 | build | pass | Next.js production build succeeds with 15 routes |
 | browser acceptance | pass | 231 Playwright tests pass against the production build |
 | audit-checklist | fail | 16 of 47 required items remain incomplete |
