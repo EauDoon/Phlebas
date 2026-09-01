@@ -5,8 +5,8 @@
   overflow-clip-margin: 8px;
   color: var(--text);
   background: var(--background);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 .skipNav {
@@ -119,26 +119,27 @@ a.skipLink:focus-visible {
   padding: 8px 24px;
   border-bottom: 1px solid var(--border);
   color: var(--text);
-  background: var(--surface);
-  font-size: 13px;
+  background: var(--background);
+  font-size: 14px;
 }
 
-.previewBanner strong,
-.eyebrow {
+.eyebrow,
+.designPill,
+.previewBanner strong {
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
 .header {
   display: grid;
-  min-height: 64px;
+  min-height: 80px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 24px;
-  padding: 0 clamp(24px, 5vw, 72px);
+  padding: 0 clamp(24px, 6vw, 88px);
   border-bottom: 1px solid var(--border);
   background: var(--background);
 }
@@ -150,21 +151,22 @@ a.skipLink:focus-visible {
   min-height: 44px;
   flex-shrink: 0;
   align-items: center;
-  gap: 10px;
-  font-size: 13px;
+  gap: 12px;
+  font-size: 18px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
 }
 
 .brandMark {
   display: inline-grid;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   place-items: center;
   border-radius: 2px;
   color: var(--accent-fg);
   background: var(--accent);
   font-family: var(--font-geist-mono);
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -180,7 +182,7 @@ a.skipLink:focus-visible {
   min-height: 44px;
   align-items: center;
   color: var(--text);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 400;
 }
 
@@ -200,14 +202,14 @@ a.skipLink:focus-visible {
   align-items: center;
   gap: 8px;
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
 .previewStatus i {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--info);
 }
 
@@ -217,12 +219,12 @@ a.skipLink:focus-visible {
   display: inline-flex;
   box-sizing: border-box;
   min-width: 44px;
-  min-height: 44px;
+  min-height: 48px;
   align-items: center;
   justify-content: center;
-  padding: 0 16px;
+  padding: 0 20px;
   border-radius: 2px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -255,7 +257,7 @@ a.skipLink:focus-visible {
   justify-content: center;
   padding: 0 12px;
   color: var(--text);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 400;
   white-space: nowrap;
 }
@@ -274,7 +276,7 @@ a.skipLink:focus-visible {
   border-radius: 2px;
   color: var(--text);
   background: transparent;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .menuDialog {
@@ -284,7 +286,7 @@ a.skipLink:focus-visible {
   border: 1px solid var(--border);
   border-radius: 2px;
   color: var(--text);
-  background: var(--surface);
+  background: var(--background);
 }
 
 .menuDialog::backdrop {
@@ -301,7 +303,7 @@ a.skipLink:focus-visible {
 }
 
 .menuDialogHeader strong {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -315,7 +317,7 @@ a.skipLink:focus-visible {
   border: 0;
   color: var(--text);
   background: transparent;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .menuDialog nav {
@@ -329,7 +331,7 @@ a.skipLink:focus-visible {
   align-items: center;
   padding: 12px;
   border-bottom: 1px solid var(--border);
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .menuDialog nav a:last-child {
@@ -346,18 +348,20 @@ a.skipLink:focus-visible {
 .hero {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1.2fr) minmax(240px, 0.75fr);
-  grid-template-rows: auto auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "statement"
+    "actions"
+    "ledger";
   align-items: start;
-  gap: 40px 56px;
-  padding: 72px 24px;
+  gap: 40px;
+  padding: 96px clamp(24px, 6vw, 88px);
   border-bottom: 1px solid var(--border);
 }
 
 .heroStatement {
   display: flex;
-  grid-column: 1;
-  grid-row: 1;
+  grid-area: statement;
   min-width: 0;
   flex-direction: column;
   align-items: flex-start;
@@ -366,26 +370,26 @@ a.skipLink:focus-visible {
 }
 
 .heroStatement h1 {
-  max-width: 18ch;
+  max-width: 28ch;
   margin-top: 16px;
-  font-size: clamp(32px, 6vw, 48px);
-  font-weight: 600;
-  letter-spacing: normal;
-  line-height: 1.1;
+  overflow-wrap: break-word;
+  font-size: clamp(44px, 7vw, 84px);
+  font-weight: 560;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
 }
 
 .heroStatement > p {
   max-width: 40em;
-  margin-top: 20px;
+  margin-top: 24px;
   color: var(--text);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 .heroActions {
   display: flex;
-  grid-column: 1;
-  grid-row: 2;
+  grid-area: actions;
   min-width: 0;
   flex-wrap: wrap;
   gap: 12px;
@@ -400,6 +404,7 @@ a.skipLink:focus-visible {
 
 .heroActions .primaryCta,
 .heroActions .secondaryCta {
+  min-height: 48px;
   flex-shrink: 0;
 }
 
@@ -419,8 +424,8 @@ a.skipLink:focus-visible {
   min-width: 0;
   margin-top: 8px;
   color: var(--text);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 16px;
+  line-height: 1.55;
 }
 
 .systemLedger > a {
@@ -431,78 +436,73 @@ a.skipLink:focus-visible {
 }
 
 .systemLedger {
-  display: flex;
-  grid-column: 2;
-  grid-row: 1 / span 2;
+  display: grid;
+  grid-area: ledger;
+  width: 100%;
   min-width: 0;
-  flex-direction: column;
-  justify-content: flex-start;
-  padding: 20px 24px;
+  padding: 0;
   border: 1px solid var(--border);
   border-radius: 2px;
-  background: var(--surface);
+  background: var(--background);
 }
 
 .ledgerHeader {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  padding-bottom: 16px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--border);
 }
 
 .ledgerHeader h2 {
   max-width: 16em;
   margin-top: 4px;
-  font-size: clamp(22px, 3vw, 28px);
-  font-weight: 600;
-  letter-spacing: normal;
-  line-height: 1.2;
-}
-
-.designPill {
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  white-space: nowrap;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 560;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .systemLedger dl {
   display: grid;
+  width: 100%;
 }
 
 .systemLedger dl > div {
-  display: flex;
+  display: grid;
+  min-width: 0;
   min-height: 44px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
+  padding: 0 24px;
   border-bottom: 1px solid var(--border);
 }
 
 .systemLedger dt {
   color: var(--text);
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .systemLedger dd {
+  min-width: 0;
+  overflow-wrap: break-word;
   text-align: right;
   font-family: var(--font-geist-mono);
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .systemLedger > p {
-  margin-top: 16px;
+  margin: 0;
+  padding: 16px 24px 0;
   color: var(--text);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 16px;
+  line-height: 1.55;
 }
 
 .systemLedger .secondaryCta {
-  margin-top: 16px;
+  margin: 16px 24px 20px;
   width: fit-content;
 }
 
@@ -513,7 +513,7 @@ a.skipLink:focus-visible {
 .evidenceSection,
 .terminalPreviewSection {
   min-width: 0;
-  padding: 72px 24px;
+  padding: 96px clamp(24px, 6vw, 88px);
   border-bottom: 1px solid var(--border);
 }
 
@@ -530,18 +530,18 @@ a.skipLink:focus-visible {
 .evidenceSection h2,
 .terminalPreviewSection h2 {
   margin-top: 12px;
-  font-size: clamp(22px, 3vw, 28px);
-  font-weight: 600;
-  letter-spacing: normal;
-  line-height: 1.2;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 560;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .sectionIntro > p {
   max-width: 36em;
   margin-top: 16px;
   color: var(--text);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 .marketCards {
@@ -558,37 +558,38 @@ a.skipLink:focus-visible {
   padding: 24px;
   border: 1px solid var(--border);
   border-radius: 2px;
-  background: var(--surface);
+  background: var(--background);
 }
 
 .marketIndex,
 .journeyNumber {
   color: var(--accent);
   font-family: var(--font-geist-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.18em;
 }
 
 .marketCards article > div > span {
   color: var(--text);
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  font-size: 12px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
 .marketCards h3 {
   margin-top: 8px;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: normal;
-  line-height: 1.25;
+  font-size: 22px;
+  font-weight: 560;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .marketCards p {
   margin-top: 8px;
   color: var(--text);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 .marketCards article > a,
@@ -599,7 +600,7 @@ a.skipLink:focus-visible {
   min-height: 44px;
   align-items: center;
   color: var(--accent);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -632,8 +633,8 @@ a.skipLink:focus-visible {
   max-width: 40em;
   margin-top: 16px;
   color: var(--text);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 .pairsCopy > strong {
@@ -644,10 +645,10 @@ a.skipLink:focus-visible {
   border: 1px solid var(--border);
   border-radius: 2px;
   color: var(--text);
-  background: var(--surface);
-  font-size: 16px;
+  background: var(--background);
+  font-size: 18px;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .pairsCopy a {
@@ -656,7 +657,7 @@ a.skipLink:focus-visible {
   min-height: 44px;
   align-items: center;
   color: var(--accent);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -677,14 +678,15 @@ a.skipLink:focus-visible {
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 2px;
-  background: var(--surface);
+  background: var(--background);
 }
 
 .assetFlow li > span {
   color: var(--accent);
   font-family: var(--font-geist-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.18em;
 }
 
 .assetFlow li div {
@@ -693,14 +695,14 @@ a.skipLink:focus-visible {
 }
 
 .assetFlow strong {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 560;
 }
 
 .assetFlow small {
   color: var(--text);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 16px;
+  line-height: 1.55;
 }
 
 .journeySection {
@@ -728,21 +730,21 @@ a.skipLink:focus-visible {
   padding: 20px;
   border: 1px solid var(--border);
   border-radius: 2px;
-  background: var(--surface);
+  background: var(--background);
 }
 
 .evidenceList h3 {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: normal;
+  font-size: 18px;
+  font-weight: 560;
+  letter-spacing: -0.02em;
   line-height: 1.3;
 }
 
 .evidenceList p {
   margin-top: 8px;
   color: var(--text);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 .terminalPreviewSection {
@@ -758,7 +760,8 @@ a.skipLink:focus-visible {
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 2px;
-  background: var(--surface);
+  background: var(--background);
+  overflow: clip;
 }
 
 .terminalPreviewHeader {
@@ -776,7 +779,7 @@ a.skipLink:focus-visible {
 .terminalPreviewSummary dd,
 .terminalPreviewBook {
   font-family: var(--font-geist-mono);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .terminalPreviewSummary {
@@ -789,21 +792,22 @@ a.skipLink:focus-visible {
 
 .terminalPreviewSummary dt {
   color: var(--text);
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  font-size: 12px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
 .terminalPreviewGrid {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 0;
 }
 
 .terminalPreviewBook {
   width: 100%;
   max-width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
@@ -812,28 +816,30 @@ a.skipLink:focus-visible {
   padding: 12px 20px 16px;
   color: var(--text);
   text-align: left;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .terminalPreviewBook th,
 .terminalPreviewBook td {
-  padding: 10px 20px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--border);
   text-align: left;
 }
 
 .terminalPreviewBook thead th {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
-.terminalPreviewBook tbody tr:nth-child(-n+3) th {
+.terminalPreviewBook tbody tr:nth-child(-n+3) th,
+.terminalPreviewBook tbody tr:nth-child(-n+3) td:nth-child(2) {
   color: var(--sell);
 }
 
-.terminalPreviewBook tbody tr:nth-child(n+4) th {
+.terminalPreviewBook tbody tr:nth-child(n+4) th,
+.terminalPreviewBook tbody tr:nth-child(n+4) td:nth-child(2) {
   color: var(--buy);
 }
 
@@ -842,14 +848,14 @@ a.skipLink:focus-visible {
   align-content: start;
   gap: 12px;
   padding: 20px;
-  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
   background: var(--background);
 }
 
 .terminalPreviewTicket p {
   color: var(--text);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 .journeyChooser {
@@ -874,9 +880,10 @@ a.skipLink:focus-visible {
   padding: 0 14px;
   border: 0;
   border-bottom: 2px solid transparent;
+  border-radius: 2px;
   color: var(--text);
   background: transparent;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
 }
 
@@ -896,17 +903,17 @@ a.skipLink:focus-visible {
 }
 
 .journeyPanel h3 {
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: normal;
-  line-height: 1.25;
+  font-size: 22px;
+  font-weight: 560;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .journeyPanel p {
   max-width: 40em;
   color: var(--text);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 .journeyPanel > a {
@@ -917,7 +924,7 @@ a.skipLink:focus-visible {
   flex-shrink: 0;
   align-items: center;
   color: var(--accent);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -939,21 +946,21 @@ a.skipLink:focus-visible {
   padding: 24px;
   border: 1px solid var(--border);
   border-radius: 2px;
-  background: var(--surface);
+  background: var(--background);
 }
 
 .journeyList h3 {
   margin-top: 8px;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: normal;
+  font-size: 22px;
+  font-weight: 560;
+  letter-spacing: -0.02em;
   line-height: 1.25;
 }
 
 .journeyList article > p {
   color: var(--text);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 .gatesSection {
@@ -965,8 +972,8 @@ a.skipLink:focus-visible {
 
 .gateCopy > p {
   color: var(--text);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 .gateCopy ul {
@@ -984,16 +991,17 @@ a.skipLink:focus-visible {
   justify-content: space-between;
   gap: 16px;
   padding-left: 16px;
+  border-bottom: 1px solid var(--border);
   color: var(--text);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 .gateCopy li strong {
   flex: 0 0 auto;
   color: var(--accent);
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  font-size: 12px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
@@ -1003,7 +1011,7 @@ a.skipLink:focus-visible {
   left: 0;
   width: 4px;
   height: 4px;
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--accent);
   content: "";
 }
@@ -1014,10 +1022,10 @@ a.skipLink:focus-visible {
   grid-template-columns: 1fr auto auto;
   align-items: center;
   gap: 24px;
-  padding: 24px clamp(24px, 5vw, 72px);
+  padding: 24px clamp(24px, 6vw, 88px);
   border-top: 1px solid var(--border);
   color: var(--text);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .footer p {
@@ -1051,11 +1059,6 @@ a.skipLink:focus-visible {
   .previewStatus,
   .headerSecondary {
     display: none;
-  }
-
-  .hero {
-    grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
-    gap: 32px 40px;
   }
 
   .journeyList article {
@@ -1105,7 +1108,7 @@ a.skipLink:focus-visible {
   }
 
   .header {
-    min-height: 56px;
+    min-height: 80px;
     grid-template-columns: 1fr auto;
     padding: 0 16px;
   }
@@ -1129,27 +1132,37 @@ a.skipLink:focus-visible {
 
   .hero {
     min-height: 0;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 32px;
-    padding: 48px 16px;
+    padding: 56px 16px;
   }
 
   .heroStatement {
-    grid-column: 1;
-    grid-row: 1;
     padding: 0;
   }
 
   .systemLedger {
-    grid-column: 1;
-    grid-row: 2;
-    padding: 20px 16px;
+    padding: 0;
   }
 
   .heroActions {
-    grid-column: 1;
-    grid-row: 3;
     padding: 0;
+  }
+
+  .ledgerHeader,
+  .systemLedger dl > div {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .systemLedger > p {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .systemLedger .secondaryCta {
+    margin-left: 16px;
+    margin-right: 16px;
   }
 
   .marketSection,
@@ -1160,7 +1173,7 @@ a.skipLink:focus-visible {
   .terminalPreviewSection {
     grid-template-columns: 1fr;
     gap: 28px;
-    padding: 48px 16px;
+    padding: 56px 16px;
   }
 
   .terminalPreviewGrid {
@@ -1170,6 +1183,11 @@ a.skipLink:focus-visible {
   .terminalPreviewTicket {
     border-left: 0;
     border-top: 1px solid var(--border);
+  }
+
+  .terminalPreviewBook th,
+  .terminalPreviewBook td {
+    padding: 10px 12px;
   }
 
   .marketCards article {
@@ -1205,12 +1223,6 @@ a.skipLink:focus-visible {
 }
 
 @media (max-width: 420px) {
-  .heroStatement h1 {
-    font-size: clamp(32px, 6vw, 48px);
-    line-height: 1.1;
-    letter-spacing: normal;
-  }
-
   .heroActions {
     display: grid;
     width: 100%;
@@ -1221,13 +1233,15 @@ a.skipLink:focus-visible {
     flex-direction: column;
   }
 
-  .sectionIntro h2,
-  .pairsCopy h2,
-  .gatesSection h2,
-  .evidenceSection h2,
-  .terminalPreviewSection h2,
-  .ledgerHeader h2 {
-    font-size: clamp(22px, 3vw, 28px);
+  .systemLedger dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .systemLedger dd {
+    text-align: left;
   }
 
   .terminalPreviewSummary {

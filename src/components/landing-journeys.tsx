@@ -17,6 +17,10 @@ function subscribe() {
   return () => undefined;
 }
 
+function journeyIndexLabel(index: number) {
+  return String(index + 1).padStart(2, "0");
+}
+
 function JourneyArticle({
   journey,
 }: {
@@ -24,7 +28,7 @@ function JourneyArticle({
 }) {
   return (
     <article role="listitem">
-      <span className={styles.journeyNumber}>{String(LANDING_JOURNEYS.indexOf(journey) + 1).padStart(2, "0")}</span>
+      <span className={styles.journeyNumber}>{journeyIndexLabel(LANDING_JOURNEYS.indexOf(journey))}</span>
       <div>
         <span className={styles.eyebrow}>{journey.tab}</span>
         <h3>{journey.title}</h3>
@@ -102,36 +106,41 @@ export function LandingJourneys() {
   }
 
   return (
-    <div className={styles.journeyChooser}>
-      <div
-        className={styles.journeyTabs}
-        role="tablist"
-        aria-label={LANDING_PATHS_INTRO.eyebrow}
-        aria-orientation="horizontal"
-      >
-        {LANDING_JOURNEYS.map((journey) => (
-          <button
-            type="button"
-            key={journey.id}
-            role="tab"
-            id={`${tablistId}-${journey.id}`}
-            aria-controls={`${tablistId}-panel-${journey.id}`}
-            aria-selected={selected === journey.id}
-            tabIndex={focusId === journey.id ? 0 : -1}
-            ref={(node) => {
-              tabRefs.current[journey.id] = node;
-            }}
-            onClick={() => {
-              setSelected(journey.id);
-              setFocusId(journey.id);
-            }}
-            onKeyDown={(event) => onTabKeyDown(event, journey.id)}
-          >
-            {journey.tab}
-          </button>
-        ))}
+    <div className={`${styles.journeyChooser} ${styles.terminalPreviewFrame}`}>
+      <div className={styles.terminalPreviewHeader}>
+        <div
+          className={styles.journeyTabs}
+          role="tablist"
+          aria-label={LANDING_PATHS_INTRO.eyebrow}
+          aria-orientation="horizontal"
+        >
+          {LANDING_JOURNEYS.map((journey, index) => (
+            <button
+              type="button"
+              key={journey.id}
+              role="tab"
+              id={`${tablistId}-${journey.id}`}
+              aria-controls={`${tablistId}-panel-${journey.id}`}
+              aria-selected={selected === journey.id}
+              tabIndex={focusId === journey.id ? 0 : -1}
+              ref={(node) => {
+                tabRefs.current[journey.id] = node;
+              }}
+              onClick={() => {
+                setSelected(journey.id);
+                setFocusId(journey.id);
+              }}
+              onKeyDown={(event) => onTabKeyDown(event, journey.id)}
+            >
+              <span className={styles.journeyNumber} aria-hidden="true">
+                {journeyIndexLabel(index)}{" "}
+              </span>
+              {journey.tab}
+            </button>
+          ))}
+        </div>
       </div>
-      {LANDING_JOURNEYS.map((journey) => (
+      {LANDING_JOURNEYS.map((journey, index) => (
         <div
           key={journey.id}
           className={styles.journeyPanel}
@@ -140,9 +149,17 @@ export function LandingJourneys() {
           aria-labelledby={`${tablistId}-${journey.id}`}
           hidden={selected !== journey.id}
         >
-          <h3>{journey.title}</h3>
-          <p>{journey.description}</p>
-          <Link href={journey.href}>{journey.action} <span>↗</span></Link>
+          <div className={styles.terminalPreviewTicket}>
+            <div>
+              <span className={styles.journeyNumber}>{journeyIndexLabel(index)} </span>
+              <span className={styles.eyebrow}>{journey.tab}</span>
+            </div>
+            <h3>{journey.title}</h3>
+            <p>{journey.description}</p>
+            <Link href={journey.href} className={styles.primaryCta}>
+              {journey.action} <span>↗</span>
+            </Link>
+          </div>
         </div>
       ))}
     </div>

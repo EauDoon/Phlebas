@@ -12,6 +12,8 @@ import {
 
 import styles from "./terminal.module.css";
 
+const TOUR_BUTTON_SIZE = { minWidth: 44, minHeight: 44 } as const;
+
 function subscribe() {
   return () => undefined;
 }
@@ -103,12 +105,19 @@ export function PreviewEducation({ force = false }: { force?: boolean }) {
       </h2>
       <p role="region" aria-label="Education copy">{current.body}</p>
       <div className={styles.tourNav}>
-        <button type="button" disabled={step === 0} onClick={() => setStep((index) => index - 1)}>
+        <button
+          type="button"
+          disabled={step === 0}
+          onClick={() => setStep((index) => index - 1)}
+          style={TOUR_BUTTON_SIZE}
+        >
           Back
         </button>
         <button
           type="button"
+          className={styles.primaryAction}
           onClick={last ? dismiss : () => setStep((index) => index + 1)}
+          style={TOUR_BUTTON_SIZE}
         >
           Continue
         </button>

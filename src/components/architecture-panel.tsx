@@ -26,14 +26,15 @@ export function ArchitecturePanel({ highlightIncidents = false }: { highlightInc
     <section className={`${styles.panel} ${styles.architecture}`} aria-labelledby="architecture-title">
       <div className={styles.panelHeader}>
         <div>
-          <span className={styles.eyebrow}>Reference architecture</span>
+          <span className={styles.eyebrow}>Venue documents</span>
           <h2 id="architecture-title">Three separated trust zones</h2>
         </div>
-        <span className={styles.statusDot}>Design only</span>
+        <span className={styles.statusDot}>Public preview</span>
       </div>
       <p className={styles.featureLead}>
-        The public UI must never become the custody backend. Each layer receives only the
-        authority it needs. Any implemented cross-layer message must be replay-protected and auditable.
+        These documents describe the prelaunch venue. The public UI must never become the
+        custody backend. Each layer receives only the authority it needs. Any implemented
+        cross-layer message must be replay-protected and auditable.
       </p>
       <div
         id="architecture-layers"

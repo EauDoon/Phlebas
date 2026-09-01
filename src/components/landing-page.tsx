@@ -48,14 +48,12 @@ export function LandingPage() {
       <main id="main-content" tabIndex={-1}>
         <section className={styles.hero} aria-labelledby="hero-title">
           <div className={styles.heroStatement}>
-            <div>
-              <span className={styles.eyebrow}>{LANDING_HERO.eyebrow}</span>
-              <h1 id="hero-title">{LANDING_HERO.heading}</h1>
-            </div>
+            <span className={styles.eyebrow}>{LANDING_HERO.eyebrow}</span>
+            <h1 id="hero-title">{LANDING_HERO.heading}</h1>
             <p>{LANDING_HERO.supporting}</p>
           </div>
 
-          <aside className={styles.systemLedger} aria-labelledby="system-ledger-title">
+          <div className={styles.systemLedger} aria-labelledby="system-ledger-title">
             <div className={styles.ledgerHeader}>
               <h2 id="system-ledger-title">{LANDING_LEDGER_HEADING}</h2>
               <span className={styles.designPill}>{LANDING_LEDGER_PILL}</span>
@@ -70,7 +68,7 @@ export function LandingPage() {
             </dl>
             <p>{LANDING_LEDGER_NOTE}</p>
             <Link href="/status" className={styles.secondaryCta}>{LANDING_STATUS_DETAILS}</Link>
-          </aside>
+          </div>
 
           <div className={styles.heroActions}>
             <Link href={LANDING_HERO.primaryHref} className={styles.primaryCta}>{LANDING_HERO.primaryAction} <span>↗</span></Link>
@@ -89,11 +87,9 @@ export function LandingPage() {
             {LANDING_MARKETS.map((market, index) => (
               <article key={market.title} role="listitem">
                 <span className={styles.marketIndex}>{String(index + 1).padStart(2, "0")}</span>
-                <div>
-                  <span>{market.kicker}</span>
-                  <h3>{market.title}</h3>
-                  <p>{market.body}</p>
-                </div>
+                <span className={styles.eyebrow}>{market.kicker}</span>
+                <h3>{market.title}</h3>
+                <p>{market.body}</p>
                 <Link href={market.href}>{market.action} <span>→</span></Link>
               </article>
             ))}
@@ -110,10 +106,8 @@ export function LandingPage() {
             {LANDING_SETTLEMENT_STEPS.map((step, index) => (
               <li key={step.title}>
                 <span>{String(index + 1).padStart(2, "0")}</span>
-                <div>
-                  <strong>{step.title}</strong>
-                  <small>{step.detail}</small>
-                </div>
+                <strong>{step.title}</strong>
+                <small>{step.detail}</small>
               </li>
             ))}
           </ol>
@@ -129,10 +123,8 @@ export function LandingPage() {
             {LANDING_EVIDENCE.map((row, index) => (
               <article key={row.title} role="listitem">
                 <span className={styles.journeyNumber}>{String(index + 1).padStart(2, "0")}</span>
-                <div>
-                  <h3>{row.title}</h3>
-                  <p>{row.body}</p>
-                </div>
+                <h3>{row.title}</h3>
+                <p>{row.body}</p>
               </article>
             ))}
           </div>
