@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import type { Market } from "@/lib/market-data";
 import {
-  connectTestnetWallet,
+  connectMainnetWallet,
   disconnectedWallet,
   getInjectedProvider,
   missingProviderCopy,
@@ -28,7 +28,6 @@ export function WalletBar({
   onChange: (state: WalletState) => void;
   settlementPair: Market["settlementPair"];
 }) {
-  // No injected EVM wallet. Arbitrum Sepolia only. is intentionally produced by missingProviderCopy.
   const [busy, setBusy] = useState(false);
   const provider = getInjectedProvider();
   const errorCopy = wallet.error ? retargetSettlementCopy(wallet.error, settlementPair) : null;
@@ -40,7 +39,7 @@ export function WalletBar({
     }
     setBusy(true);
     try {
-      onChange(walletStateWithSettlement(await connectTestnetWallet(provider), settlementPair));
+      onChange(walletStateWithSettlement(await connectMainnetWallet(provider), settlementPair));
     } catch (error) {
       onChange({
         ...disconnectedWallet,
@@ -57,7 +56,7 @@ export function WalletBar({
   if (wallet.address && !wallet.error) {
     return (
       <div className={styles.headerActions}>
-        <span className={styles.network}><i />Arbitrum Sepolia</span>
+        <span className={styles.network}><i />Ethereum Mainnet</span>
         <button
           type="button"
           className={styles.connectButton}
@@ -72,13 +71,13 @@ export function WalletBar({
 
   return (
     <div className={styles.headerActions}>
-      <span className={styles.network}><i />Arbitrum Sepolia</span>
+      <span className={styles.network}><i />Ethereum Mainnet</span>
       <button
         type="button"
         className={styles.connectButton}
         onClick={() => void connect()}
         disabled={busy}
-        aria-label="Connect Arbitrum Sepolia wallet"
+        aria-label="Connect Ethereum Mainnet wallet"
         title={walletConnectBarTitle(settlementPair, { busy, error: errorCopy })}
       >
         {busy ? "Connecting" : "Connect wallet"}
