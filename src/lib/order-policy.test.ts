@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { TypedOrderIntent } from "./eip712-order.ts";
-import { assertOrderPolicy, orderPolicyErrors, type OrderPolicyContext } from "./order-policy.ts";
+import { assertOrderPolicy, orderPolicyErrors, TIF_FOK, TIF_GTC, TIF_IOC, type OrderPolicyContext } from "./order-policy.ts";
 import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier, type Hex32 } from "./order-domain.ts";
 
 const pair = {
@@ -75,6 +75,14 @@ test("requires IOC, GTC, and FOK intents to remain price bounded", () => {
     assert.doesNotThrow(() => assertOrderPolicy({ ...order, timeInForce, limitPriceTicks: 5_000n }, context));
   }
   assert.throws(() => assertOrderPolicy({ ...order, timeInForce: 1, limitPriceTicks: 0n }, context), /positive uint256/);
+});
+
+test("accepts only GTC, IOC, and FOK codes", () => {
+  assert.deepEqual([TIF_GTC, TIF_IOC, TIF_FOK], [0, 1, 2]);
+  for (const timeInForce of [TIF_GTC, TIF_IOC, TIF_FOK] as const) {
+    assert.deepEqual(orderPolicyErrors({ ...order, timeInForce }, context), []);
+  }
+  assert.match(orderPolicyErrors({ ...order, timeInForce: 3 as 0 }, context).join(";"), /Time in force is invalid/);
 });
 
 test("rejects zero identities, zero salts, and excessive lifetimes", () => {

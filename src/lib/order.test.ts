@@ -104,6 +104,7 @@ test("market-order constraint copy names IOC and a signed worst price", () => {
   assert.match(marketOrderConstraintCopy(), /not live settlement/);
   assert.doesNotMatch(marketOrderConstraintCopy(), /pZEC/);
   assert.doesNotMatch(marketOrderConstraintCopy(), /trustless/);
+  assert.doesNotMatch(marketOrderConstraintCopy(), /simulation|simulator|fixture/i);
 });
 
 test("rejects an unsafe slippage percentage", () => {

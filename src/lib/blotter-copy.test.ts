@@ -6,8 +6,10 @@ import {
   blotterEmptyFillsCopy,
   blotterEmptyLogCopy,
   blotterEmptyOrdersCopy,
+  blotterFillsCaptionCopy,
   blotterLogCaptionCopy,
   blotterLogEventCopy,
+  blotterOrdersCaptionCopy,
 } from "./blotter-copy.ts";
 import { ticketReviewRefundCopy } from "./ticket-review-copy.ts";
 
@@ -22,11 +24,37 @@ test("blotter empty copy names the settlement pair", () => {
     blotterEmptyOrdersCopy("ZEC-USDT"),
     "No open session orders. Settled as ZEC-USDT.",
   );
-  assert.match(blotterEmptyFillsCopy("ZEC-USDC"), /ZEC-USDC/);
+  assert.equal(blotterEmptyFillsCopy("ZEC-USDC"), "No session fills yet. Settled as ZEC-USDC.");
   assert.equal(blotterEmptyFillsCopy("ZEC-USDT"), "No session fills yet. Settled as ZEC-USDT.");
   assert.doesNotMatch(blotterEmptyOrdersCopy("ZEC-USDC"), /native ZEC/);
   assert.doesNotMatch(blotterEmptyOrdersCopy("ZEC-USDC"), BANNED_LABEL);
   assert.doesNotMatch(blotterEmptyFillsCopy("ZEC-USDC"), BANNED_LABEL);
+  assert.doesNotMatch(blotterEmptyFillsCopy("ZEC-USDT"), BANNED_LABEL);
+});
+
+test("blotter table captions name the market and settlement pair", () => {
+  assert.equal(
+    blotterOrdersCaptionCopy("ZEC/USDC", "ZEC-USDC"),
+    "Resting session orders on the local ZEC/USDC book, settled as ZEC-USDC",
+  );
+  assert.equal(
+    blotterOrdersCaptionCopy("ZEC/USDT", "ZEC-USDT"),
+    "Resting session orders on the local ZEC/USDT book, settled as ZEC-USDT",
+  );
+  assert.equal(
+    blotterFillsCaptionCopy("ZEC/USDC", "ZEC-USDC"),
+    "Session fills for ZEC/USDC, settled as ZEC-USDC",
+  );
+  assert.equal(
+    blotterFillsCaptionCopy("ZEC/USDT", "ZEC-USDT"),
+    "Session fills for ZEC/USDT, settled as ZEC-USDT",
+  );
+  assert.doesNotMatch(blotterOrdersCaptionCopy("ZEC/USDC", "ZEC-USDC"), /native ZEC/);
+  assert.doesNotMatch(blotterFillsCaptionCopy("ZEC/USDT", "ZEC-USDT"), /native ZEC/);
+  assert.doesNotMatch(blotterOrdersCaptionCopy("ZEC/USDC", "ZEC-USDC"), BANNED_LABEL);
+  assert.doesNotMatch(blotterFillsCaptionCopy("ZEC/USDC", "ZEC-USDC"), BANNED_LABEL);
+  assert.doesNotMatch(blotterOrdersCaptionCopy("ZEC/USDT", "ZEC-USDT"), /\bsimulation\b/i);
+  assert.doesNotMatch(blotterFillsCaptionCopy("ZEC/USDT", "ZEC-USDT"), /\bsimulator\b/i);
 });
 
 test("blotter log empty copy names the settlement pair", () => {
@@ -79,6 +107,11 @@ test("blotter log event copy names the event market settlement pair", () => {
     blotterLogCaptionCopy("ZEC-USDC"),
     "Append-only session event log. Current market settles as ZEC-USDC.",
   );
+  assert.equal(
+    blotterLogCaptionCopy("ZEC-USDT"),
+    "Append-only session event log. Current market settles as ZEC-USDT.",
+  );
+  assert.doesNotMatch(blotterLogCaptionCopy("ZEC-USDT"), BANNED_LABEL);
   assert.doesNotMatch(blotterLogEventCopy({
     kind: "submit",
     marketId: "ZEC/USDC",
@@ -106,4 +139,37 @@ test("blotter keeps cancel and refund copy visible", () => {
   assert.match(blotterCancelRefundCopy(), /refund/i);
   assert.equal(blotterCancelRefundCopy(), `Cancel returns reserved size. ${ticketReviewRefundCopy()}`);
   assert.doesNotMatch(blotterCancelRefundCopy(), BANNED_LABEL);
+});
+
+test("blotter labels stay venue copy without simulation vocabulary", () => {
+  const shipped = [
+    blotterEmptyOrdersCopy("ZEC-USDC"),
+    blotterEmptyOrdersCopy("ZEC-USDT"),
+    blotterEmptyFillsCopy("ZEC-USDC"),
+    blotterEmptyFillsCopy("ZEC-USDT"),
+    blotterEmptyLogCopy("ZEC-USDC"),
+    blotterEmptyLogCopy("ZEC-USDT"),
+    blotterOrdersCaptionCopy("ZEC/USDC", "ZEC-USDC"),
+    blotterOrdersCaptionCopy("ZEC/USDT", "ZEC-USDT"),
+    blotterFillsCaptionCopy("ZEC/USDC", "ZEC-USDC"),
+    blotterFillsCaptionCopy("ZEC/USDT", "ZEC-USDT"),
+    blotterLogCaptionCopy("ZEC-USDC"),
+    blotterLogCaptionCopy("ZEC-USDT"),
+    blotterCancelRefundCopy(),
+    blotterLogEventCopy({
+      kind: "submit",
+      marketId: "ZEC/USDC",
+      id: "user-1",
+      side: "buy",
+      tif: "GTC",
+      priceTicks: 1n,
+      sizeAtoms: 1n,
+      expiryUnix: 0n,
+    }),
+    blotterLogEventCopy({ kind: "cancel", marketId: "ZEC/USDT", orderId: "user-2" }),
+    blotterLogEventCopy({ kind: "reset" }),
+  ].join("\n");
+  assert.doesNotMatch(shipped, BANNED_LABEL);
+  assert.doesNotMatch(shipped, /\bsimulation\b/i);
+  assert.doesNotMatch(shipped, /\bsimulator\b/i);
 });

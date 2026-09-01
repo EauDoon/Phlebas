@@ -22,6 +22,16 @@ export function chartDisplayGeometry(
   width = CHART_DISPLAY_WIDTH,
   height = CHART_DISPLAY_HEIGHT,
 ): ChartDisplayGeometry {
+  if (values.length === 0) {
+    throw new RangeError("Chart series is empty");
+  }
+  if (values.some((value) => !Number.isFinite(value))) {
+    throw new RangeError("Chart series must use finite display values");
+  }
+  if (!(width > 0) || !(height > 0) || !Number.isFinite(width) || !Number.isFinite(height)) {
+    throw new RangeError("Chart display size must be a positive finite number");
+  }
+
   const min = Math.min(...values) - CHART_DISPLAY_PAD_TICKS;
   const max = Math.max(...values) + CHART_DISPLAY_PAD_TICKS;
   const points = values

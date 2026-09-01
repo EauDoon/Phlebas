@@ -36,6 +36,7 @@ export const EXACT_TOKEN_EVM_LOCK_LABEL = "Exact-token EVM lock";
 export const CLAIM_REFUND_EXCLUSIVE = "Claim and refund are mutually exclusive.";
 export const SETTLEMENT_MATCHER_HONESTY =
   "The matcher can sequence or omit orders. It cannot move funds. It is not trustless.";
+export const SETTLEMENT_NOT_LIVE = "This ticket labels native ZEC. It is not live settlement.";
 export const UNSAFE_EVIDENCE_DISABLES_CLAIM =
   "Unsafe evidence disables funding and claim. The refund path stays visible.";
 export const PROTOCOL_FEE_ZERO = "Protocol fee 0";
@@ -71,6 +72,19 @@ export function settlementLockCopy() {
       detail: `${EXACT_TOKEN_EVM_LOCK_LABEL} second. Shorter refund deadline.`,
     },
   } as const;
+}
+
+export function settlementTicketNoticeCopy(): string {
+  return SETTLEMENT_NOT_LIVE;
+}
+
+export function settlementTicketHonestyCopy(): string {
+  return `${SETTLEMENT_MATCHER_HONESTY} ${SETTLEMENT_NOT_LIVE}`;
+}
+
+export function settlementTicketLeadCopy(): string {
+  const locks = settlementLockCopy();
+  return `${locks.zec.detail} ${locks.evm.detail} ${CLAIM_REFUND_EXCLUSIVE} ${settlementTicketHonestyCopy()}`;
 }
 
 export function formatSettlementTime(value: bigint): string {
@@ -266,7 +280,7 @@ export function settlementPhaseCopy(session: SettlementTicketSession): Readonly<
     return {
       phase,
       title: "Matched fill",
-      body: "A match is not settlement. Review the immutable fill terms.",
+      body: `A match is not settlement. Review the immutable fill terms. ${SETTLEMENT_NOT_LIVE}`,
       stage: 0,
     };
   }

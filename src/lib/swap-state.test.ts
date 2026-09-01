@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { keccak256Text } from "./keccak.ts";
@@ -199,16 +200,63 @@ test("keeps claim and refund mutually exclusive and rejects early refunds", () =
   assert.throws(() => observeSwapSpend(bothFunded, spendEvidence("evm", "refund", terms.evmRefundTime - 1n, terms)), /not eligible/);
   const evmRefund = observeSpendQuorum(bothFunded, "evm", "refund", terms.evmRefundTime, terms);
   assert.equal(swapPhase(evmRefund.observed), "refund-recovery");
-  assert.throws(() => observeSwapSpend(evmRefund.observed, spendEvidence("evm", "claim", terms.evmClaimSafetyCutoff, terms)), /not available/);
+  assert.throws(
+    () => observeSwapSpend(evmRefund.observed, spendEvidence("evm", "claim", terms.evmClaimSafetyCutoff, terms)),
+    /mutually exclusive/,
+  );
   const evmRefunded = confirmSwapSpend(
     evmRefund.observed,
     "evm",
     evmRefund.first.fact.factId,
     evmRefund.qualifiedAtSeconds,
   );
+  assert.throws(
+    () => observeSwapSpend(evmRefunded, spendEvidence("evm", "claim", terms.evmClaimSafetyCutoff, terms)),
+    /mutually exclusive/,
+  );
   const zecRefund = observeSpendQuorum(evmRefunded, "zec", "refund", terms.zecRefundTime, terms);
   const recovered = confirmSwapSpend(zecRefund.observed, "zec", zecRefund.first.fact.factId, zecRefund.qualifiedAtSeconds);
   assert.equal(swapPhase(recovered), "refunded");
+  assert.throws(
+    () => observeSwapSpend(recovered, spendEvidence("zec", "claim", terms.zecRefundTime, terms)),
+    /mutually exclusive/,
+  );
+});
+
+test("rejects a refund after a claim is observed on the same leg", () => {
+  const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
+  const bothFunded = fundedSwap(terms);
+  const evmClaim = observeSpendQuorum(bothFunded, "evm", "claim", terms.evmClaimSafetyCutoff, terms);
+  assert.throws(
+    () => observeSwapSpend(evmClaim.observed, spendEvidence("evm", "refund", terms.evmRefundTime, terms)),
+    /mutually exclusive/,
+  );
+  const evmClaimed = confirmSwapSpend(
+    evmClaim.observed,
+    "evm",
+    evmClaim.first.fact.factId,
+    evmClaim.qualifiedAtSeconds,
+  );
+  assert.throws(
+    () => observeSwapSpend(evmClaimed, spendEvidence("evm", "refund", terms.evmRefundTime, terms)),
+    /mutually exclusive/,
+  );
+  const zecClaim = observeSpendQuorum(evmClaimed, "zec", "claim", terms.zecRefundTime, terms);
+  assert.throws(
+    () => observeSwapSpend(zecClaim.observed, spendEvidence("zec", "refund", terms.zecRefundTime, terms)),
+    /mutually exclusive/,
+  );
+  const settled = confirmSwapSpend(
+    zecClaim.observed,
+    "zec",
+    zecClaim.first.fact.factId,
+    zecClaim.qualifiedAtSeconds,
+  );
+  assert.equal(swapPhase(settled), "settled");
+  assert.throws(
+    () => observeSwapSpend(settled, spendEvidence("zec", "refund", terms.zecRefundTime, terms)),
+    /mutually exclusive/,
+  );
 });
 
 test("accepts EVM claims at the signed cutoff and rejects them one second later", () => {
@@ -618,4 +666,15 @@ test("rejects a forged settled phase without canonical chain facts", () => {
     }),
     /funding/,
   );
+});
+
+test("native swap state source has no operational simulation labels", async () => {
+  const source = await readFile(new URL("./swap-state.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /\bsimulation\b/i);
+  assert.doesNotMatch(source, /\bsimulator\b/i);
+  assert.doesNotMatch(source, /\bfixture\b/i);
+  assert.doesNotMatch(source, /\bno-value\b/i);
+  assert.doesNotMatch(source, /\bwalkthrough\b/i);
+  assert.doesNotMatch(source, /\bpreview-only\b/i);
+  assert.doesNotMatch(source, /illustrative fixture/i);
 });

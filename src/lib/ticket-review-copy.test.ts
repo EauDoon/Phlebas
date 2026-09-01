@@ -5,6 +5,7 @@ import { publicLinkabilityCopy } from "./review-copy.ts";
 import {
   TICKET_REVIEW_COMPLETE,
   ticketCompleteActionCopy,
+  ticketIdleNoticeCopy,
   ticketReviewActionCopy,
   ticketReviewCompleteCopy,
   ticketReviewFeeCopy,
@@ -79,6 +80,7 @@ test("review labels stay venue copy without operational or banned claims", () =>
     ticketCompleteActionCopy("buy"),
     ticketCompleteActionCopy("sell"),
     ticketRetryFeedCopy(),
+    ticketIdleNoticeCopy(),
     ...ticketReviewRows({
       side: "buy",
       sizeLabel: "1 ZEC",

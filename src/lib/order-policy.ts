@@ -12,6 +12,9 @@ export const VENUE_SOLVER = 2;
 /** Legacy alias. Native settlement treats bit 2 as wallet-held solver liquidity. */
 export const VENUE_AMM = VENUE_SOLVER;
 export const KNOWN_VENUES = VENUE_CLOB | VENUE_SOLVER;
+export const TIF_GTC = 0;
+export const TIF_IOC = 1;
+export const TIF_FOK = 2;
 const ZERO_BYTES32 = `0x${"00".repeat(32)}`;
 
 export type OrderPair = Readonly<{
@@ -66,7 +69,9 @@ export function orderPolicyErrors(order: TypedOrderIntent, context: OrderPolicyC
   if (Number.isInteger(order.allowedVenues) && (context.requireClob ?? true)
     && (order.allowedVenues & VENUE_CLOB) === 0) errors.push("Order does not authorize the CLOB venue");
   if (order.side !== 0 && order.side !== 1) errors.push("Order side is invalid");
-  if (order.timeInForce !== 0 && order.timeInForce !== 1 && order.timeInForce !== 2) errors.push("Time in force is invalid");
+  if (order.timeInForce !== TIF_GTC && order.timeInForce !== TIF_IOC && order.timeInForce !== TIF_FOK) {
+    errors.push("Time in force is invalid");
+  }
   if (!isSamePair(order, context.pair)) errors.push("Order asset-chain pair is not allowed");
   try {
     if (normalizeHex32(order.baseChainId, "Base chain ID") === normalizeHex32(order.quoteChainId, "Quote chain ID")

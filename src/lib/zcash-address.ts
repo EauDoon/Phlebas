@@ -96,7 +96,7 @@ export function inspectTransparentDestination(value: string): DestinationInspect
     return {
       class: "transparent-shape",
       eligibleLater: false,
-      message: "Transparent-shape input noted. No wallet is Phlebas-verified, and this preview does not send ZEC.",
+      message: "Transparent-shape input noted. No wallet is Phlebas-verified, and this preview never sends ZEC.",
     };
   }
   return {

@@ -18,6 +18,13 @@ export function formatAtomicUnits(
   if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) {
     throw new RangeError("Atomic decimal precision is outside the preview range");
   }
+  if (
+    !Number.isInteger(minFractionDigits)
+    || minFractionDigits < 0
+    || minFractionDigits > decimals
+  ) {
+    throw new RangeError("Atomic decimal precision is outside the preview range");
+  }
 
   const scale = 10n ** BigInt(decimals);
   const whole = units / scale;

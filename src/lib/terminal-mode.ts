@@ -5,7 +5,7 @@ export const TERMINAL_MODE_STORAGE_KEY = "phlebas.terminalMode";
 export const DEFAULT_TERMINAL_MODE: TerminalMode = "simple";
 
 export function isTerminalMode(value: string | undefined): value is TerminalMode {
-  return value === "simple" || value === "advanced";
+  return TERMINAL_MODES.includes(value as TerminalMode);
 }
 
 export function parseTerminalModeQuery(value: string | undefined): TerminalMode | null {
@@ -16,14 +16,9 @@ export function resolveTerminalMode(
   query: string | undefined,
   stored: string | null,
 ): TerminalMode {
-  if (isTerminalMode(query)) {
-    return query;
-  }
-  const storedMode = stored ?? undefined;
-  if (isTerminalMode(storedMode)) {
-    return storedMode;
-  }
-  return DEFAULT_TERMINAL_MODE;
+  return parseTerminalModeQuery(query)
+    ?? parseTerminalModeQuery(stored ?? undefined)
+    ?? DEFAULT_TERMINAL_MODE;
 }
 
 export function nextTerminalMode(mode: TerminalMode): TerminalMode {

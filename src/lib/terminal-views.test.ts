@@ -23,3 +23,13 @@ test("terminal views include settlement and exclude bridge as primary", () => {
   assert.equal(nextTerminalView("trade", -1), "architecture");
   assert.equal(nextTerminalView("architecture", 2), "settlement");
 });
+
+test("architecture, liquidity, and trade remain renderable views", () => {
+  assert.equal(isTerminalView("trade"), true);
+  assert.equal(isTerminalView("architecture"), true);
+  assert.equal(isRenderableTerminalView("trade"), true);
+  assert.equal(isRenderableTerminalView("architecture"), true);
+  assert.equal(isRenderableTerminalView("liquidity"), true);
+  assert.equal(isRenderableTerminalView("pro"), false);
+});
+

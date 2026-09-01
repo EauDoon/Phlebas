@@ -20,7 +20,7 @@ import {
 } from "./session.ts";
 import { retargetSettlementCopy } from "./evm-wallet.ts";
 import { markets } from "./market-data.ts";
-import { quoteAtomsForFill, worstPriceTicks } from "./units.ts";
+import { parseAtomicUnits, PRICE_DECIMALS, quoteAtomsForFill, worstPriceTicks, ZEC_DECIMALS } from "./units.ts";
 
 test("seeds the USDC book from fixture levels with integer ticks", () => {
   const book = seedBook("ZEC/USDC");
@@ -49,6 +49,41 @@ test("submit copy names a local book fill and no chain submission", () => {
   assert.match(copy, /Filled against the local ZEC\/USDC book/);
   assert.match(copy, /Nothing was signed or submitted to a chain/);
   assert.doesNotMatch(copy, /\blive\b/i);
+});
+
+test("simple-mode market IOC buy of 1 ZEC keeps the fixture-ask fill copy", () => {
+  const book = seedBook("ZEC/USDC");
+  const slippageHundredths = parseAtomicUnits("0.50", PRICE_DECIMALS, { allowZero: true });
+  const order = {
+    id: "user-preview",
+    side: "buy" as const,
+    tif: "IOC" as const,
+    priceTicks: worstPriceTicks(book.lastTicks, "buy", slippageHundredths),
+    sizeAtoms: parseAtomicUnits("1", ZEC_DECIMALS),
+  };
+  const result = submitOrder(book, order);
+  const copy = describeSubmit(result, "ZEC/USDC");
+  const account = seedPaperAccount();
+  const applied = applySubmit(account, {
+    side: order.side,
+    sizeAtoms: order.sizeAtoms,
+    priceTicks: order.priceTicks,
+    tif: order.tif,
+  }, result);
+
+  assert.equal(result.status, "filled");
+  assert.equal(result.fills.length, 1);
+  assert.equal(result.fills[0]?.priceTicks, 5291n);
+  assert.equal(result.fills[0]?.sizeAtoms, 1_00000000n);
+  assert.equal(
+    copy,
+    "Filled against the local ZEC/USDC book: 1 ZEC at 52.91. Nothing was signed or submitted to a chain.",
+  );
+  assert.doesNotMatch(copy, /\blive\b/i);
+  assert.doesNotMatch(copy, /simulation|simulator|fixture/i);
+  assert.equal(applied.blockedReason, undefined);
+  assert.equal(applied.account.zecAtoms, account.zecAtoms + 1_00000000n);
+  assert.equal(applied.account.quoteAtoms, account.quoteAtoms - quoteAtomsForFill(1_00000000n, 5291n, "up"));
 });
 
 test("credits ZEC and debits quote on a buy fill", () => {

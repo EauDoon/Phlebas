@@ -514,6 +514,28 @@ test("verified engine rejects receipt, code, observation, and immutable substitu
   );
 });
 
+test("verified engine rejects abandoned USDT0 token identities", () => {
+  const terms = { ...TERMS, token: "0x6c96de32cea08842dcc4058c14d3aaad7fa41dee" as const };
+  assert.throws(
+    () => planStablecoinFundingActionsWithAuthority({
+      ...BASE,
+      expectedTerms: terms,
+      observation: { ...OBSERVATION, immutableTerms: terms },
+    }, { ...allowance, token: terms.token }, { ...AUTHORITY, terms }),
+    /USDT0 is abandoned/,
+  );
+  const destination = { ...TERMS, token: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9" as const };
+  assert.throws(
+    () => planStablecoinFundingActionsWithAuthority({
+      ...BASE,
+      marketId: "ZEC/USDT",
+      expectedTerms: destination,
+      observation: { ...OBSERVATION, immutableTerms: destination },
+    }, { ...allowance, token: destination.token }, { ...AUTHORITY, terms: destination }),
+    /USDT0 is abandoned/,
+  );
+});
+
 test("verified engine rejects wrong assets, unsafe roles, and unsafe amounts", () => {
   const wrongToken = { ...TERMS, token: ETHEREUM_MAINNET_USDT_ADDRESS };
   assert.throws(

@@ -1,4 +1,4 @@
-import type { Market } from "./market-data.ts";
+import type { Market, MarketId } from "./market-data.ts";
 import { markets } from "./market-data.ts";
 import type { SessionLogEvent } from "./replay.ts";
 import { ticketReviewRefundCopy } from "./ticket-review-copy.ts";
@@ -13,6 +13,20 @@ export function blotterEmptyFillsCopy(settlementPair: Market["settlementPair"]):
 
 export function blotterEmptyLogCopy(settlementPair: Market["settlementPair"]): string {
   return `No session events yet. Settled as ${settlementPair}.`;
+}
+
+export function blotterOrdersCaptionCopy(
+  marketId: MarketId,
+  settlementPair: Market["settlementPair"],
+): string {
+  return `Resting session orders on the local ${marketId} book, settled as ${settlementPair}`;
+}
+
+export function blotterFillsCaptionCopy(
+  marketId: MarketId,
+  settlementPair: Market["settlementPair"],
+): string {
+  return `Session fills for ${marketId}, settled as ${settlementPair}`;
 }
 
 export function blotterLogCaptionCopy(settlementPair: Market["settlementPair"]): string {

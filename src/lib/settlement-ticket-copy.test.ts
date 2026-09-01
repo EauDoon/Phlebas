@@ -9,6 +9,7 @@ import {
   EXACT_TOKEN_EVM_LOCK_LABEL,
   PROTOCOL_FEE_ZERO,
   SETTLEMENT_MATCHER_HONESTY,
+  SETTLEMENT_NOT_LIVE,
   UNSAFE_EVIDENCE_DISABLES_CLAIM,
   USDT_SETTLEMENT_DISABLED,
   ZEC_P2SH_LOCK_LABEL,
@@ -16,14 +17,24 @@ import {
   settlementPhaseCopy,
   settlementRefundPathVisible,
   settlementTicketAction,
+  settlementTicketHonestyCopy,
+  settlementTicketLeadCopy,
+  settlementTicketNoticeCopy,
   settlementTermsRows,
   settlementUnsafeDisablesClaim,
   type SettlementTicketSession,
 } from "./settlement-ticket-copy.ts";
-import { fundedSwap, sampleSwapTerms } from "./swap-test-fixtures.ts";
-import { flagSwapDispute } from "./swap-state.ts";
+import {
+  fundedSwap,
+  sampleEvidencePolicies,
+  sampleMarketPolicy,
+  sampleSwapTerms,
+  sampleTimingPolicy,
+} from "./swap-test-fixtures.ts";
+import { createSwapState, flagSwapDispute } from "./swap-state.ts";
 
 const copyPath = join(dirname(fileURLToPath(import.meta.url)), "settlement-ticket-copy.ts");
+const BANNED_LABEL = /simulation|simulator|fixture|no-value|inspect|walkthrough|preview-only|illustrative fixture/i;
 
 function sessionFor(
   state: SettlementTicketSession["state"],
@@ -46,6 +57,18 @@ test("settlement ticket copy names both locks and mutually exclusive claim/refun
   assert.match(CLAIM_REFUND_EXCLUSIVE, /mutually exclusive/);
   assert.match(SETTLEMENT_MATCHER_HONESTY, /not trustless/);
   assert.match(SETTLEMENT_MATCHER_HONESTY, /cannot move funds/);
+  assert.equal(SETTLEMENT_NOT_LIVE, "This ticket labels native ZEC. It is not live settlement.");
+  assert.equal(settlementTicketNoticeCopy(), SETTLEMENT_NOT_LIVE);
+  assert.equal(
+    settlementTicketHonestyCopy(),
+    `${SETTLEMENT_MATCHER_HONESTY} ${SETTLEMENT_NOT_LIVE}`,
+  );
+  assert.equal(
+    settlementTicketLeadCopy(),
+    "ZEC P2SH lock first. Longer refund deadline. Exact-token EVM lock second. Shorter refund deadline. Claim and refund are mutually exclusive. The matcher can sequence or omit orders. It cannot move funds. It is not trustless. This ticket labels native ZEC. It is not live settlement.",
+  );
+  assert.match(settlementTicketLeadCopy(), /not live settlement/);
+  assert.match(settlementTicketLeadCopy(), /not trustless/);
   assert.equal(PROTOCOL_FEE_ZERO, "Protocol fee 0");
   assert.equal(sampleSwapTerms.protocolFeeQuoteAtoms, 0n);
 
@@ -63,6 +86,19 @@ test("settlement ticket copy names both locks and mutually exclusive claim/refun
   assert.equal(refundAction.claimDisabled, true);
   assert.equal(refundAction.refundPathVisible, true);
   assert.equal(settlementRefundPathVisible(), true);
+
+  const matched = sessionFor(createSwapState(
+    sampleSwapTerms,
+    sampleTimingPolicy,
+    sampleEvidencePolicies,
+    sampleMarketPolicy,
+  ));
+  const matchedCopy = settlementPhaseCopy(matched);
+  assert.equal(matchedCopy.title, "Matched fill");
+  assert.match(matchedCopy.body, /A match is not settlement/);
+  assert.match(matchedCopy.body, /not live settlement/);
+  assert.doesNotMatch(matchedCopy.body, BANNED_LABEL);
+  assert.doesNotMatch(settlementTicketLeadCopy(), BANNED_LABEL);
 });
 
 test("unsafe evidence disables claim", () => {
@@ -109,4 +145,20 @@ test("settlement ticket copy has no operational walkthrough labels", async () =>
   assert.doesNotMatch(source, /\bwalkthrough\b/i);
   assert.doesNotMatch(source, /\bpreview-only\b/i);
   assert.doesNotMatch(source, /illustrative fixture/i);
+  assert.match(source, /not live settlement/);
+  assert.match(source, /not trustless/);
+  const shipped = [
+    CLAIM_REFUND_EXCLUSIVE,
+    SETTLEMENT_MATCHER_HONESTY,
+    SETTLEMENT_NOT_LIVE,
+    PROTOCOL_FEE_ZERO,
+    settlementTicketNoticeCopy(),
+    settlementTicketHonestyCopy(),
+    settlementTicketLeadCopy(),
+    settlementLockCopy().zec.detail,
+    settlementLockCopy().evm.detail,
+  ].join("\n");
+  assert.doesNotMatch(shipped, BANNED_LABEL);
+  assert.doesNotMatch(shipped, /\bsimulation\b/i);
+  assert.doesNotMatch(shipped, /\bsimulator\b/i);
 });

@@ -1161,6 +1161,9 @@ export function observeSwapSpend(state: SwapState, evidence: SpendEvidence): Swa
   const { fact: spend } = spendEvidence;
   const current = state[spend.leg];
   const seenPhase = spend.action === "claim" ? "claim-seen" : "refund-seen";
+  if (current.spend && current.spend.action !== spend.action) {
+    throw new Error(`${spend.leg.toUpperCase()} claim and refund are mutually exclusive`);
+  }
   if (current.phase !== "funded-confirmed" && current.phase !== seenPhase) {
     throw new Error(`${spend.leg.toUpperCase()} leg is not available to spend`);
   }

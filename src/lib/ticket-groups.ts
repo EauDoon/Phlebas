@@ -1,4 +1,5 @@
 import type { TimeInForce } from "./matcher.ts";
+import type { TerminalMode } from "./terminal-mode.ts";
 
 export const TICKET_SIDES = ["buy", "sell"] as const;
 export type TicketSide = (typeof TICKET_SIDES)[number];
@@ -25,4 +26,19 @@ export function nextTicketOrderType(id: TicketOrderType, delta: number): TicketO
 
 export function nextTicketTif(id: TicketTif, delta: number): TicketTif {
   return nextIn(TICKET_TIFS, id, delta);
+}
+
+export function effectiveTicketOrderType(
+  mode: TerminalMode,
+  orderType: TicketOrderType,
+): TicketOrderType {
+  return mode === "simple" ? "market" : orderType;
+}
+
+export function effectiveTicketTif(
+  mode: TerminalMode,
+  orderType: TicketOrderType,
+  tif: TicketTif,
+): TicketTif {
+  return effectiveTicketOrderType(mode, orderType) === "market" ? "IOC" : tif;
 }

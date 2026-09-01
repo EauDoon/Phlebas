@@ -10,6 +10,7 @@ import { bytesToHex, hexToBytes, keccak256 } from "./keccak.ts";
 import {
   ETHEREUM_MAINNET_CHAIN_HEX,
   assertEthereumMainnetChainId,
+  assertMainnetQuoteSymbol,
   assertMainnetStablecoinAddress,
   mainnetMarket,
   type MainnetQuoteSymbol,
@@ -355,6 +356,7 @@ function normalizeContext(
   if (!sameTerms(expectedTerms, observedTerms)) {
     throw new Error("Observed conditional lock immutable terms do not match all 11 reviewed terms");
   }
+  assertMainnetQuoteSymbol(market.quote.symbol);
   assertMainnetStablecoinAddress(market.quote.symbol, expectedTerms.token);
   if (lock === expectedTerms.token || lock === expectedTerms.funder || lock === expectedTerms.claimRecipient) {
     throw new Error("Conditional lock address must differ from the token and user roles");

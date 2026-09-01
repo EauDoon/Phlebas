@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { sampleSwapTerms } from "./swap-test-fixtures.ts";
@@ -68,4 +69,15 @@ test("rejects invalid policy values and non-integer chain time", () => {
   );
   assert.throws(() => swapDeadlineStatus(sampleSwapTerms, 1.5 as unknown as bigint), /bigint/);
   assert.throws(() => swapDeadlineStatus(sampleSwapTerms, -1n), /uint64/);
+});
+
+test("native swap policy source has no operational simulation labels", async () => {
+  const source = await readFile(new URL("./swap-policy.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /\bsimulation\b/i);
+  assert.doesNotMatch(source, /\bsimulator\b/i);
+  assert.doesNotMatch(source, /\bfixture\b/i);
+  assert.doesNotMatch(source, /\bno-value\b/i);
+  assert.doesNotMatch(source, /\bwalkthrough\b/i);
+  assert.doesNotMatch(source, /\bpreview-only\b/i);
+  assert.doesNotMatch(source, /illustrative fixture/i);
 });

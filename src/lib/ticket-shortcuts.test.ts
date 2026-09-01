@@ -21,6 +21,13 @@ test("B and S map to side when no dialog or review is open", () => {
   assert.equal(interpretTicketKey("s", { target: null, dialogOpen: false, reviewOpen: true }), null);
 });
 
+test("L and M set order type when review is closed", () => {
+  assert.equal(interpretTicketKey("l", idle), "limit");
+  assert.equal(interpretTicketKey("M", idle), "market");
+  assert.equal(interpretTicketKey("l", { target: null, dialogOpen: false, reviewOpen: true }), null);
+  assert.equal(interpretTicketKey("m", { target: null, dialogOpen: true, reviewOpen: false }), null);
+});
+
 test("ticket shortcuts ignore open dialogs and typing targets", () => {
   assert.equal(interpretTicketKey("i", { target: null, dialogOpen: true, reviewOpen: false }), null);
   assert.equal(interpretTicketKey("g", { target: null, dialogOpen: true, reviewOpen: false }), null);
@@ -44,4 +51,17 @@ test("open dialogs and typing targets ignore shortcuts", () => {
     dialogOpen: false,
     reviewOpen: false,
   }), null);
+  const select = { tagName: "SELECT", isContentEditable: false } as unknown as EventTarget;
+  const textarea = { tagName: "TEXTAREA", isContentEditable: false } as unknown as EventTarget;
+  const editable = { tagName: "DIV", isContentEditable: true } as unknown as EventTarget;
+  assert.equal(interpretTicketKey("b", { target: select, dialogOpen: false, reviewOpen: false }), null);
+  assert.equal(interpretTicketKey("s", { target: textarea, dialogOpen: false, reviewOpen: false }), null);
+  assert.equal(interpretTicketKey("g", { target: editable, dialogOpen: false, reviewOpen: false }), null);
+});
+
+test("modifier chords do not fire B S G I F", () => {
+  assert.equal(interpretTicketKey("b", { ...idle, ctrlKey: true }), null);
+  assert.equal(interpretTicketKey("s", { ...idle, altKey: true }), null);
+  assert.equal(interpretTicketKey("g", { ...idle, metaKey: true }), null);
+  assert.equal(interpretTicketKey("Escape", { ...idle, ctrlKey: true }), "escape");
 });

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { keccak256Text } from "./keccak.ts";
@@ -85,4 +86,15 @@ test("binds every signed field and distinguishes equal-sized partial fills", () 
     assert.notEqual(hashSwapTerms(changed), baseline);
     assert.notEqual(swapIdForTerms(changed), swapIdForTerms(sampleSwapTerms));
   }
+});
+
+test("native swap domain source has no operational simulation labels", async () => {
+  const source = await readFile(new URL("./swap-domain.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /\bsimulation\b/i);
+  assert.doesNotMatch(source, /\bsimulator\b/i);
+  assert.doesNotMatch(source, /\bfixture\b/i);
+  assert.doesNotMatch(source, /\bno-value\b/i);
+  assert.doesNotMatch(source, /\bwalkthrough\b/i);
+  assert.doesNotMatch(source, /\bpreview-only\b/i);
+  assert.doesNotMatch(source, /illustrative fixture/i);
 });

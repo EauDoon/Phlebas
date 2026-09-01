@@ -76,3 +76,15 @@ test("binds every active lifecycle lookup to the accepted order body", () => {
   const changedRecipient = { ...order, recipientAccountId: accountIdentifier("session:attacker") };
   assert.deepEqual(orderActivity(claimed, hash, changedRecipient, 9_000n), { active: false, reason: "body-mismatch" });
 });
+
+test("remainder nonce cancel deactivates one accepted order and leaves other accounts live", () => {
+  const firstHash = keccak256Text("order-1");
+  const secondMaker = accountIdentifier("session:other-maker");
+  const second = { ...order, makerAccountId: secondMaker, recipientAccountId: secondMaker, nonce: 8n };
+  const secondHash = keccak256Text("order-2");
+  const claimed = claimOrderNonce(claimOrderNonce(emptyOrderLifecycle(), firstHash, order), secondHash, second);
+  const remainderCancelled = cancelOrderNonce(claimed, maker, 0n, order.nonce);
+  assert.deepEqual(orderActivity(remainderCancelled, firstHash, order, 9_000n), { active: false, reason: "nonce-cancelled" });
+  assert.equal(orderActivity(remainderCancelled, secondHash, second, 9_000n).active, true);
+  assert.throws(() => claimOrderNonce(remainderCancelled, keccak256Text("order-3"), { ...order, salt: keccak256Text("retry") }), /nonce is cancelled/);
+});

@@ -19,3 +19,9 @@ test("single-value series still produces a display point", () => {
   assert.equal(geometry.points, "0.0,50.0");
   assert.equal(typeof geometry.midTicks, "bigint");
 });
+
+test("chart geometry rejects empty or non-finite series", () => {
+  assert.throws(() => chartDisplayGeometry([]), /empty/);
+  assert.throws(() => chartDisplayGeometry([5284, Number.NaN]), /finite display values/);
+  assert.throws(() => chartDisplayGeometry([5284], 0, 100), /positive finite number/);
+});

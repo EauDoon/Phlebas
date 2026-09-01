@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { keccak256Text } from "./keccak.ts";
@@ -173,7 +174,7 @@ test("detects receipt payload, hash-chain, and sequence corruption", () => {
   const appended = appendSwapEvent(initial.journal, initial.state, {
     kind: "flag-dispute",
     reason: "observer-stale",
-    detail: "Fixture observer is stale",
+    detail: "Approved observer watermark is stale",
   });
   assert.equal(verifySwapJournal(appended.journal), true);
   assert.equal(verifySwapJournal({ ...appended.journal, head: keccak256Text("wrong") }), false);
@@ -333,4 +334,32 @@ test("replays a retracted spend attestation replacement with its audit record", 
   assert.equal(recovered.state.resolutions.length, 1);
   assert.equal(recovered.state.retractedEvidenceIds[firstEvidence.attestation.evidenceId], true);
   assert.equal(verifySwapJournal(recovered.journal), true);
+});
+
+test("rejects a claim after a refund occupies the same funded leg", () => {
+  const terms = { ...sampleSwapTerms, secretHash: fixtureSecretHash };
+  const funded = fundedJournal(terms);
+  const refunded = appendSwapEvent(funded.journal, funded.state, {
+    kind: "observe-spend",
+    evidence: spendEvidence("evm", "refund", terms.evmRefundTime, terms, 0),
+  });
+  assert.throws(
+    () => appendSwapEvent(refunded.journal, refunded.state, {
+      kind: "observe-spend",
+      evidence: spendEvidence("evm", "claim", terms.evmClaimSafetyCutoff, terms),
+    }),
+    /mutually exclusive/,
+  );
+  assert.equal(verifySwapJournal(refunded.journal), true);
+});
+
+test("native swap journal source has no operational simulation labels", async () => {
+  const source = await readFile(new URL("./swap-journal.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /\bsimulation\b/i);
+  assert.doesNotMatch(source, /\bsimulator\b/i);
+  assert.doesNotMatch(source, /\bfixture\b/i);
+  assert.doesNotMatch(source, /\bno-value\b/i);
+  assert.doesNotMatch(source, /\bwalkthrough\b/i);
+  assert.doesNotMatch(source, /\bpreview-only\b/i);
+  assert.doesNotMatch(source, /illustrative fixture/i);
 });

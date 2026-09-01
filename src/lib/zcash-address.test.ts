@@ -15,6 +15,7 @@ import {
   pubkeyHash160,
   validateZcashTransparentAddress,
   VERSION_BYTES,
+  type DestinationInspection,
 } from "./zcash-address.ts";
 
 const MAINNET_P2SH = "t3JZyTLmEC6pzFEnj9AcvefR8Pjo5tMRFNo";
@@ -172,11 +173,26 @@ test("hash160Value exposes the underlying primitive", () => {
   assert.equal(digest.length, 20);
 });
 
+const TRANSPARENT_SHAPE_SAMPLE = "t1" + "abcdefghjkmnpqrstuvwxyz23456789a".slice(0, 33);
+
+const DESTINATION_SAMPLES: ReadonlyArray<{ value: string; class: DestinationInspection["class"] }> = [
+  { value: "", class: "empty" },
+  { value: "   ", class: "empty" },
+  { value: "zcash:?amount=1", class: "placeholder" },
+  { value: "https://example.com/{TEX_ADDRESS}", class: "placeholder" },
+  { value: "tex1abc", class: "tex" },
+  { value: "u1abc", class: "shielded" },
+  { value: "zabc", class: "shielded" },
+  { value: TRANSPARENT_SHAPE_SAMPLE, class: "transparent-shape" },
+  { value: "0xdeadbeef", class: "unrecognized" },
+];
+
 test("inspectTransparentDestination classifies empty input", () => {
   const empty = inspectTransparentDestination("");
   assert.equal(empty.class, "empty");
   assert.equal(inspectTransparentDestination("   ").class, "empty");
   assert.match(empty.message, /Enter a destination/);
+  assert.match(empty.message, /never sends ZEC/);
   assert.doesNotMatch(empty.message, /\bsimulation\b/i);
   assert.doesNotMatch(empty.message, /\binspect\b/i);
 });
@@ -199,13 +215,28 @@ test("inspectTransparentDestination classifies shielded addresses", () => {
 
 test("inspectTransparentDestination classifies transparent-shape strings", () => {
   // A well-formed mainnet P2PKH: 34 chars starting with t1
-  const addr = "t1" + "abcdefghjkmnpqrstuvwxyz23456789a".slice(0, 33);
-  const out = inspectTransparentDestination(addr);
+  const out = inspectTransparentDestination(TRANSPARENT_SHAPE_SAMPLE);
   assert.equal(out.class, "transparent-shape");
-  assert.match(out.message, /does not send ZEC/);
+  assert.match(out.message, /never sends ZEC/);
   assert.doesNotMatch(out.message, /\bsimulation\b/i);
+  assert.doesNotMatch(out.message, /\binspect\b/i);
 });
 
 test("inspectTransparentDestination classifies unrecognized strings", () => {
   assert.equal(inspectTransparentDestination("0xdeadbeef").class, "unrecognized");
+});
+
+test("every destination message stays preview copy and never claims a send", () => {
+  for (const sample of DESTINATION_SAMPLES) {
+    const out = inspectTransparentDestination(sample.value);
+    assert.equal(out.class, sample.class, sample.value);
+    assert.equal(out.eligibleLater, false, sample.value);
+    assert.doesNotMatch(out.message, /\bsimulation\b/i, sample.value);
+    assert.doesNotMatch(out.message, /\binspect\b/i, sample.value);
+  }
+  assert.match(inspectTransparentDestination("").message, /This preview never sends ZEC/);
+  assert.match(
+    inspectTransparentDestination(TRANSPARENT_SHAPE_SAMPLE).message,
+    /this preview never sends ZEC/,
+  );
 });

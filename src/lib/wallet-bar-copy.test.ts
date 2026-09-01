@@ -47,3 +47,17 @@ test("EVM and TEX displays truncate without inventing an address", () => {
   assert.equal(shortenTexDisplay("textest1short"), "textest1short");
   assert.match(shortenTexDisplay("textest1qexampleaddresspayloadxx"), /…/);
 });
+
+test("wallet bar copy has no Sepolia submit path", () => {
+  const copies = [
+    NO_TEX_ISSUED,
+    COPY_TEX_LABEL,
+    COPY_TEX_UNAVAILABLE_LABEL,
+    texDestinationStatus(null),
+    copyTexAriaLabel(null),
+    texStatusDisplay(null),
+  ];
+  for (const copy of copies) {
+    assert.doesNotMatch(copy, /sepolia|arbitrum|submit/i);
+  }
+});
