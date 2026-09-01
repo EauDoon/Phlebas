@@ -403,7 +403,7 @@ test("leaving Architecture for Trade drops demo=incidents and return restores it
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("button", { name: "Review simulated buy" })).toBeVisible();
   await expect(page.getByText("Status field architecture-demonstration.")).toHaveCount(0);
-  await nav.getByRole("tab", { name: "Architecture" }).click();
+  await page.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
@@ -418,7 +418,7 @@ test("leaving Architecture for the ZEC gateway drops demo=incidents and return r
   await expect(page).toHaveURL(/view=bridge/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("img", { name: "Placeholder QR. Not payable." })).toBeVisible();
-  await nav.getByRole("tab", { name: "Architecture" }).click();
+  await page.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
@@ -432,7 +432,7 @@ test("leaving Architecture for Liquidity drops demo=incidents and return restore
   await expect(page).toHaveURL(/\/liquidity/);
   await expect(page).not.toHaveURL(/demo=incidents/);
   await expect(page.getByRole("heading", { name: "Provide liquidity" })).toBeVisible();
-  await nav.getByRole("tab", { name: "Architecture" }).click();
+  await page.getByRole("tab", { name: "Architecture" }).click();
   await expect(page).toHaveURL(/view=architecture/);
   await expect(page).toHaveURL(/demo=incidents/);
   await expect(page.getByText("Status field architecture-demonstration.")).toBeVisible();
@@ -474,7 +474,7 @@ test("ZIP 321 copy stays disabled without a gateway", async ({ page }) => {
     });
   });
   await page.getByRole("button", { name: /Copy (testnet|placeholder) URI/ }).click();
-  await expect(page.getByText("Could not copy. The request is still visible above. Nothing was sent.")).toBeVisible();
+  await expect(page.getByText("Clipboard copy failed. The URI was not copied. Nothing was sent.")).toBeVisible();
 });
 
 test("stale market data disables preview-to-sign and retries to illustrative", async ({ page }) => {
