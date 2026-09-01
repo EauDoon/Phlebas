@@ -93,7 +93,9 @@ A cancellation is verified against the accepted order's authorized signer, accou
 
 Every matcher mutation requires JSON, an `Idempotency-Key` equal to the payload `requestId`, and the exact active `x-phlebas-matcher-configuration` value. The matcher rejects a missing or stale configuration binding, an action sent to the wrong endpoint, or a receipt that does not bind the submitted request and checkpoint.
 
-The browser request and receipt paths fail closed. The browser order path preserves immutable signed bytes and its idempotency key when a result is uncertain. It reports `receipt-unknown` for a lost, failed, or malformed result, then retries only those same bytes. Control-specific browser retry and `receipt-unknown` handling is planned, not implemented.
+The browser control workflow is implemented and fails closed. Cancellation review requires an immutable confirmed native buy artifact with an `open` or `partially-filled` receipt, plus fresh matcher health, account, wallet, and checkpoint state. Epoch review requires an immutable confirmed native buy artifact, then derives the next epoch as the fresh account epoch plus one.
+
+Confirmation repeats the matcher, account, checkpoint, and wallet checks, stops on drift, and requests only the reviewed EIP-712 typed-control signature. A known 4xx response is `rejected`; a network failure, 5xx response, unreadable or malformed response, or receipt mismatch is `receipt-unknown`. Retry revalidates the approved matcher identity and reposts exactly the original frozen body and idempotency key without signing again. These artifacts are session-only. After reload, the retry artifact is unavailable, and account-scoped open-order recovery is not implemented.
 
 The tracked native matcher deployment manifest remains disabled and no-value. These controls do not activate a production matcher or enable a wallet, contract, chain, or asset-moving path.
 
