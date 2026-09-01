@@ -1,4 +1,4 @@
-﻿# Phlebas Threat Model
+# Phlebas Threat Model
 
 Status: native atomic-settlement threat model, no-value implementation
 
@@ -937,3 +937,58 @@ gate is reproducible from the project root.
 * The production deployment.
 * The audit team's review.
 * The release notes for the production deploy.
+
+## 24. Shared skip-nav controller hook surface
+
+The simulation frame and the trading terminal each render a <nav aria-label="Skip links"> element. The nav carries a data-skip-nav-state attribute that mirrors a state record. The state machine in src/lib/skip-nav-state.ts and the React hook in src/lib/use-skip-nav-controller.ts are the single source of truth for the controller.
+
+### 24.1 Trust boundary
+
+The controller trusts the user agent's focus management. The controller does not trust a URL hash; a hash change does not guarantee that the target element receives focus. The controller uses useEffect to register click, ocusin, and keydown listeners on the nav and never reaches out to the network.
+
+### 24.2 Threat matrix
+
+| Adversary | Goal | Required control |
+| --- | --- | --- |
+| User | Activate a skip-link and have the nav stay visible over the target content | The data-skip-nav-state="hidden-after-activation" attribute hides the nav after activation |
+| User with a 320px viewport | Have the focused skip-nav consume the full viewport height | The .skipNav flex-direction is ow with lex-wrap: wrap at sub-820px |
+| User with reduced motion | Have the skip-nav slide in from off-screen | The skip-nav uses 	ransform: none at sub-820px and clip-path: none at reduced motion |
+| User on /trade with the trading terminal's 12-link nav | See the same hidden-after-activation behavior as the simulation frame's 2-link nav | The trading terminal consumes the same hook as the simulation frame |
+| Maintenance drift | Have the simulation frame and the trading terminal diverge in controller behavior | The state machine in src/lib/skip-nav-state.ts is the only place that decides the next state; the hook is a thin DOM adapter |
+
+### 24.3 Invariants and stop conditions
+
+1. The skip-nav is the first focusable element on every Phlebas page.
+2. The data-skip-nav-state attribute is hidden by default on every nav.
+3. The data-skip-nav-state attribute is isible when the nav or a child link has focus.
+4. The data-skip-nav-state attribute is hidden-after-activation after a skip link is clicked.
+5. The data-skip-nav-state attribute is hidden-after-activation when the user presses Escape after activation.
+6. The hook does not register listeners when the ref is not attached, and the listeners are removed on unmount.
+7. The state machine never reaches out to the network and never signs a transaction.
+
+### 24.4 Test coverage
+
+| Invariant | Test |
+| --- | --- |
+| 1 | 	ests/browser/phlebas.spec.ts::focused skip-nav does not cover banner copy and restores 44px skip links at 320px |
+| 2 | 	ests/browser/phlebas.spec.ts::trading-terminal skip-nav sets data-skip-nav-state to hidden-after-activation after a skip link is clicked |
+| 2 | 	ests/browser/phlebas.spec.ts::simulation-frame skip-nav sets data-skip-nav-state to hidden-after-activation after a skip link is clicked |
+| 3 | 	ests/browser/phlebas.spec.ts::trading-terminal skip-nav sets data-skip-nav-state to hidden-after-activation on Escape after activation |
+| 3 | 	ests/browser/phlebas.spec.ts::simulation-frame skip-nav sets data-skip-nav-state to hidden-after-activation on Escape after activation |
+| 4 | 	ests/browser/phlebas.spec.ts::trading-terminal skip-nav stays hidden-after-activation on re-tab until a non-Escape key lands |
+| 5 | same as 3 |
+| 6 | src/lib/skip-nav-state.test.ts::nextSkipNavState other keys are no-ops (state machine) |
+| 7 | src/lib/skip-nav-state.test.ts::isSkipNavVisible is true for visible and hidden-after-activation, false for hidden (state machine) |
+
+### 24.5 Out of scope
+
+* A full accessibility audit. The skip-nav wrap and the controller are one fix; a full audit is a separate slice.
+* Screen reader compatibility testing. The current Playwright suite verifies the DOM contract; it does not exercise a screen reader.
+* Any future surface that wraps the trading terminal in a new shell. A future component must consume the same hook or duplicate the controller behavior with a documented reason.
+
+### 24.6 Cross-references
+
+- [ADR 0009](adr/0009-skip-nav-hook.md) — shared skip-nav controller hook.
+- [docs/runbooks/a11y-test.md](runbooks/a11y-test.md) — accessibility test runbook.
+- [docs/operations/a11y-slo.md](operations/a11y-slo.md) — accessibility SLOs.
+- [docs/audit/a11y-changelog.md](audit/a11y-changelog.md) — accessibility changelog.
