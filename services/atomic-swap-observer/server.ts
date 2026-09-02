@@ -22,9 +22,11 @@ import { diagnosticStateOf } from "../../src/lib/swap-fill-projection.ts";
 import { defineCounter, emptyMetricsState, incCounter, renderPrometheusText, type MetricsState } from "../../src/lib/metrics.ts";
 import { emptySloState, recordSample, sloVerdict, type SloSample, type SloState, type SloTarget } from "../../src/lib/slo-tracker.ts";
 import {
+  DEFAULT_RATE_LIMIT_ENTRIES,
   checkRateLimit,
   emptyRateLimitMiddleware,
   extractClientKey,
+  pruneRateLimitMiddleware,
   sendRateLimitExceeded,
   sendRateLimitHeaders,
   type RateLimitMiddleware,
@@ -185,17 +187,23 @@ export type StartServiceOptions = Readonly<{
   host?: string;
   port?: number;
   clock?: () => bigint;
+  maximumRateLimitEntries?: number;
 }>;
 
 export function startService(options: StartServiceOptions): Server {
   const host = listenHost(options.host);
   const port = options.port ?? DEFAULT_PORT;
   const controller = buildController(options.config, options.initial);
+  const maximumRateLimitEntries = options.maximumRateLimitEntries ?? DEFAULT_RATE_LIMIT_ENTRIES;
+  if (!Number.isInteger(maximumRateLimitEntries) || maximumRateLimitEntries <= 0) {
+    throw new RangeError("Maximum rate-limit entries must be a positive integer");
+  }
   let rateLimit: RateLimitMiddleware = emptyRateLimitMiddleware({ capacity: 60n, refillPerSecond: 1n });
   const server = createServer((request: IncomingMessage, response: ServerResponse) => {
     void (async () => {
       const now = options.clock ? options.clock() : BigInt(Math.floor(Date.now() / 1000));
       const clientKey = extractClientKey(request);
+      rateLimit = pruneRateLimitMiddleware(rateLimit, now, maximumRateLimitEntries);
       const rl = checkRateLimit(rateLimit, clientKey, now);
       rateLimit = { state: rl.state, config: rateLimit.config };
       if (!rl.allowed) {

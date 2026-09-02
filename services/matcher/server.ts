@@ -35,9 +35,11 @@ import {
   type SloTarget,
 } from "../../src/lib/slo-tracker.ts";
 import {
+  DEFAULT_RATE_LIMIT_ENTRIES,
   checkRateLimit,
   emptyRateLimitMiddleware,
   extractClientKey,
+  pruneRateLimitMiddleware,
   sendRateLimitExceeded,
   sendRateLimitHeaders,
   type RateLimitMiddleware,
@@ -66,7 +68,6 @@ const DEFAULT_KEEP_ALIVE_TIMEOUT_MILLISECONDS = 5_000;
 const DEFAULT_PENDING_MUTATIONS = 64;
 const DEFAULT_RATE_WINDOW_MILLISECONDS = 60_000;
 const DEFAULT_RATE_LIMIT = 120;
-const DEFAULT_RATE_LIMIT_ENTRIES = 10_000;
 const ACCOUNT_RECOVERY_CHALLENGE_SECONDS = 60n;
 const MAX_ACCOUNT_RECOVERY_CHALLENGES = 10_000;
 const ACCOUNT_RECOVERY_CHALLENGE_PATH = "/v1/account-order-challenges";
@@ -542,19 +543,6 @@ function publicTicker(state: PersistentMatcherState | null, nowSeconds: bigint) 
     windowTruncated: trades.count === 1_000,
     sequence: state ? Number(state.sequence) : 0,
     generatedAt: nowSeconds,
-  };
-}
-
-function pruneRateLimitMiddleware(middleware: RateLimitMiddleware, nowSeconds: bigint, maximumEntries: number): RateLimitMiddleware {
-  const idleSeconds = middleware.config.capacity / middleware.config.refillPerSecond + 1n;
-  const active = Object.entries(middleware.state)
-    .filter(([, bucket]) => nowSeconds < bucket.lastRefillAt + idleSeconds)
-    .sort((left, right) => left[1].lastRefillAt < right[1].lastRefillAt ? -1
-      : left[1].lastRefillAt > right[1].lastRefillAt ? 1 : left[0].localeCompare(right[0]));
-  const retained = active.length > maximumEntries ? active.slice(active.length - maximumEntries) : active;
-  return {
-    config: middleware.config,
-    state: Object.fromEntries(retained),
   };
 }
 
