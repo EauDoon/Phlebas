@@ -9,6 +9,10 @@ export type CompressedPubkey = Readonly<{ parity: 0x02 | 0x03; x: Uint8Array }>;
 export const COMPRESSED_PUBKEY_LENGTH = 33;
 export const UNCOMPRESSED_PUBKEY_LENGTH = 65;
 
+/** p = 2^256 - 2^32 - 977, the secp256k1 base field order. */
+const SECP256K1_FIELD_ORDER =
+  0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2fn;
+
 export function parseCompressedPubkey(raw: Uint8Array): CompressedPubkey {
   if (raw.length !== COMPRESSED_PUBKEY_LENGTH) {
     throw new RangeError(
@@ -19,15 +23,22 @@ export function parseCompressedPubkey(raw: Uint8Array): CompressedPubkey {
   if (prefix !== 0x02 && prefix !== 0x03) {
     throw new RangeError(`Compressed pubkey prefix must be 0x02 or 0x03, got 0x${prefix.toString(16)}`);
   }
-  for (let i = 1; i < raw.length; i++) {
-    if (raw[i] === 0x00) {
-      const leading = i - 1;
-      if (leading === 0) {
-        throw new RangeError("Compressed pubkey x coordinate has a leading zero in non-prefix byte");
-      }
-    }
+  // x is a coordinate in the secp256k1 base field, so the only range it
+  // has to satisfy is x < p. A leading 0x00 byte is an ordinary small
+  // coordinate and occurs in about one key in 256; the loop this replaces
+  // rejected exactly those and was dead code for every other position,
+  // because it only ever raised when i - 1 was 0.
+  let x = 0n;
+  for (let i = 1; i < raw.length; i++) x = (x << 8n) | BigInt(raw[i]!);
+  if (x >= SECP256K1_FIELD_ORDER) {
+    throw new RangeError("Compressed pubkey x coordinate is not below the secp256k1 field order");
   }
-  return { parity: prefix as 0x02 | 0x03, x: raw.subarray(1) };
+  if (x === 0n) {
+    throw new RangeError("Compressed pubkey x coordinate must not be zero");
+  }
+  // Copied, not a view: parseAtomicSwapScript hands in a subarray of the
+  // script it is decoding, and a returned view would alias those bytes.
+  return { parity: prefix as 0x02 | 0x03, x: raw.slice(1) };
 }
 
 export function encodeCompressedPubkey(pubkey: CompressedPubkey): Uint8Array {
