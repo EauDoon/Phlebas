@@ -100,6 +100,12 @@ export function twapStopCopy(plan: TwapPlan, completed: number, reason: string):
   return `TWAP stopped after ${completed} of ${plan.slices} slices. ${punctuated}`;
 }
 
+export const TWAP_USER_CANCELLED_REASON = "Cancelled by you. Remaining slices will not execute." as const;
+
+export function twapCancelCopy(plan: TwapPlan, completed: number): string {
+  return `TWAP cancelled after ${completed} of ${plan.slices} slices. Remaining slices will not execute.`;
+}
+
 export function twapSessionLogId(marketId: MarketId, jobNumber: number): string {
   return `twap-${marketId.replace("/", "").toLowerCase()}-${jobNumber}`;
 }
