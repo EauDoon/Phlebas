@@ -58,14 +58,17 @@ test("mark-deployed requires a complete broadcast, commit, and Sepolia chain id"
     }),
     /successful Sepolia receipt/,
   );
-  assert.throws(
-    () => recordBroadcast(emptyManifest("deadbeef"), completeBroadcast(), {
-      markDeployed: true,
-      commit: "deadbeef",
-      deployedCode: { ...completeCode(), [address(8)]: "0x" },
-    }),
-    /verified bytecode/,
-  );
+  for (const badCode of ["not-real-bytecode", "0x6", "0x600", "0x00", "0x0000"]) {
+    assert.throws(
+      () => recordBroadcast(emptyManifest("deadbeef"), completeBroadcast(), {
+        markDeployed: true,
+        commit: "deadbeef",
+        deployedCode: { ...completeCode(), [address(8)]: badCode },
+      }),
+      /verified bytecode/,
+      `expected ${JSON.stringify(badCode)} to be rejected`,
+    );
+  }
   const marked = recordBroadcast(emptyManifest("deadbeef"), completeBroadcast(), {
     markDeployed: true,
     commit: "deadbeef",

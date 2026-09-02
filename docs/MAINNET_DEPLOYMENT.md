@@ -1,9 +1,10 @@
-# Ethereum Mainnet settlement deployment runbook
+# Ethereum Mainnet settlement recording runbook
 
-This is the procedure that takes the persistent matcher out of `no-value`
-mode. Every step after the deploy is deterministic and verified by the
-repo's own validators; only the deployment transaction itself moves real
-value, so it is the only step that needs your funded key.
+This procedure records a Settlement deployment while leaving the persistent
+matcher in `no-value` mode. The deployment transaction moves real value and
+needs a funded key. Recording a successful receipt and observing code at the
+resulting address proves that a deployment exists, but it does not prove that
+the runtime bytecode is the reviewed build.
 
 ## Before you start — three decisions to make explicitly
 
@@ -51,52 +52,35 @@ node scripts/record-mainnet-deploy.mjs
 ```
 
 This reads the broadcast, writes `infra/mainnet/ethereum-mainnet.json`,
-and leaves `deployed: false` until the receipt and bytecode are verified.
+and leaves `deployed: false` until the receipt succeeds and well-formed,
+nonzero code is observed at the recorded address.
 
-## Step 4 — verify against the chain and mark deployed
+## Step 4: observe deployment evidence and mark recorded
 
 ```powershell
 node scripts/record-mainnet-deploy.mjs --mark-deployed --rpc-url <MAINNET_RPC_URL>
 ```
 
-This fetches the on-chain code for every recorded address and refuses to
-mark deployed if any verification fails.
+This checks the RPC chain identity and fetches the on-chain code for every
+recorded address. It refuses to mark the deployment record if the receipt or
+code-presence evidence is missing or malformed.
 
-## Step 5 — configure the matcher manifests
+## Step 5: matcher activation remains blocked
 
-```powershell
-node scripts/record-mainnet-deploy.mjs --mark-deployed --rpc-url <MAINNET_RPC_URL> --configure-matcher both
-```
+The recorder rejects `--configure-matcher`. The matcher manifests remain
+`deployed: false` and `submissionEnabled: false` until a separate reviewed
+workflow can compare the observed Settlement runtime bytecode with an exact,
+approved identity. Code presence alone cannot authorize live order intake.
 
-Writes the Settlement address as the EIP-712 `verifyingContract`, the
-deterministic configuration hash, and `deployed/submissionEnabled: true`
-into `infra/matcher/native-zec-usdc.json` and `native-zec-usdt.json`.
-
-Validate the whole repo against the new state:
+Validate the recorded state:
 
 ```powershell
 npm run check
 ```
 
-## Step 6 — bring the matcher up
-
-Start the persistent matcher service (Compose or `npm run matcher`) with
-`PHLEBAS_MATCHER_USDC_URL` / `PHLEBAS_MATCHER_USDT_URL` pointed at the
-loopback URLs the Next.js routes proxy to, then confirm:
-
-```powershell
-curl http://127.0.0.1:8788/health
-# expect "configured": true, "acceptingMutations": true
-```
-
-From this point the terminal's native matcher path serves live sequenced
-orders instead of fixtures, and the UI gates lift through the capability
-path already in place.
-
 ## Rollback
 
 - Set `paused` via the pauser role to halt on-chain settlement.
-- Flip `submissionEnabled: false` in the matcher manifests and restart the
-  matcher to stop accepting orders.
+- Keep `submissionEnabled: false` in the matcher manifests.
 - The UI copy follows the manifest state; no code changes are needed to
   stand down.

@@ -205,3 +205,35 @@ test("market IOC confirm fills against the fixture book", async ({ page }) => {
   await expect(fills.getByRole("table", { name: "Session fills for ZEC/USDC, settled as ZEC-USDC" })).toBeVisible();
   await expect(fills.getByRole("row").filter({ hasText: "Buy52.911ZEC-USDC" })).toBeVisible();
 });
+
+test("closing the review panel returns focus to the Review trigger, not <body>", async ({ page }) => {
+  // Regression for the known focus-loss bug: reviewBlock stops rendering
+  // when review closes, taking whichever button inside it (Back, here)
+  // had focus with it. Nothing moved focus onward, so it fell to <body>.
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
+  await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
+  const reviewButton = page.getByRole("button", { name: "Review buy" });
+  await reviewButton.click();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(reviewButton).toBeFocused();
+});
+
+test("a stale invalid expiry does not block reviewing a TWAP order", async ({ page }) => {
+  // preparedOrder() always submits a TWAP order with expiryUnix 0n; the
+  // Expiry field is not part of a TWAP order at all. It used to stay
+  // mounted and validated for TWAP too, so an invalid value typed while
+  // composing a Limit order silently kept blocking Review after switching
+  // to TWAP, with no visible field left to explain or fix it.
+  await page.goto("/trade", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("50.00");
+  await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("1");
+  await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("not-a-time");
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "TWAP" }).click();
+  const ticket = page.locator("#order-ticket");
+  await expect(ticket.getByText("No expiry: each TWAP slice is immediate-or-cancel.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeEnabled();
+  await expect(ticket.getByText("Expiry", { exact: true }).locator("..")).toContainText("none");
+});

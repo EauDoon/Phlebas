@@ -177,6 +177,13 @@ export function TradeTicket({
   const [appliedPriceNonce, setAppliedPriceNonce] = useState(0);
   const [sessionNonce, setSessionNonce] = useState(1);
   const reviewOpenRef = useRef(false);
+  // Closing the review panel (Back, Complete, Escape, or the book/account
+  // going stale under an open review) unmounts whichever button inside
+  // reviewBlock currently has focus, since that block stops rendering.
+  // With nothing to move focus to, it fell to <body>. Refocusing the
+  // Review/Buy/Sell trigger button, which remounts in the same place,
+  // keeps focus on the ticket instead of dropping it.
+  const reviewTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [review, setReview] = useState<{
     side: TicketSide;
     priceTicks: bigint;
@@ -224,7 +231,11 @@ export function TradeTicket({
   }
 
   useEffect(() => {
-    reviewOpenRef.current = activeReview !== null;
+    const isOpen = activeReview !== null;
+    if (reviewOpenRef.current && !isOpen) {
+      reviewTriggerRef.current?.focus();
+    }
+    reviewOpenRef.current = isOpen;
   }, [activeReview]);
 
   useEffect(() => {
@@ -345,7 +356,13 @@ export function TradeTicket({
   const priceError = priceParse.error ?? limitTicks.error;
   const sizeError = sizeParse.error ?? sizeAtoms.error;
   const slippageError = marketLikeOrder ? worstPricePreview.error : null;
-  const expiryError = expiryParse.error;
+  // A TWAP order always submits with expiryUnix 0n (each slice is IOC and
+  // fires on its own schedule tick; there is no order-level deadline for
+  // the field to describe). The Expiry input is hidden while isTwap, so a
+  // stale value typed in Limit or Market mode before switching must not
+  // block Review here: it did, because inputError folded expiryError in
+  // unconditionally and the Review button disables on inputError.
+  const expiryError = isTwap ? null : expiryParse.error;
   const inputError = priceError ?? sizeError ?? slippageError ?? expiryError;
   const simpleBookQuote = useMemo(() => {
     if (!isSimple || !sizeIsValid || sizeAtoms.error || sizeAtoms.atoms <= 0n) {
@@ -485,7 +502,7 @@ export function TradeTicket({
     if (priceTicks <= 0n) {
       return "Price and size must be positive.";
     }
-    if (!isSimple && (expiryError || expiryParse.error)) {
+    if (!isSimple && !isTwap && (expiryError || expiryParse.error)) {
       return expiryError ?? expiryParse.error ?? "Expiry must be a whole unix time, or 0 for none.";
     }
     if (isTwap) {
@@ -909,7 +926,7 @@ export function TradeTicket({
         <p id={sizeErrorId} className={styles.inlineNotice} role="alert">{sizeError}</p>
       ) : null}
 
-      {!isSimple && (
+      {!isSimple && !isTwap && (
         <>
           <label className={styles.inputLabel}>
             <span>Expiry</span>
@@ -930,7 +947,17 @@ export function TradeTicket({
             <p id={expiryErrorId} className={styles.inlineNotice} role="alert">{expiryError}</p>
           ) : null}
           <p className={styles.inlineNotice}>0 means no expiry.</p>
+        </>
+      )}
+      {/* TWAP slices are IOC and fire on the schedule above; there is no
+          order-level expiry for this field to set, so it is not shown
+          rather than left editable and silently ignored. */}
+      {!isSimple && isTwap && (
+        <p className={styles.inlineNotice}>No expiry: each TWAP slice is immediate-or-cancel.</p>
+      )}
 
+      {!isSimple && (
+        <>
           <div
             className={styles.percentRow}
             role="group"
@@ -1019,7 +1046,10 @@ export function TradeTicket({
             </div>
           <div>
             <dt>Expiry</dt>
-            <dd>{expiry.trim() === "" || expiry.trim() === "0" ? "none" : expiry.trim()}</dd>
+            {/* preparedOrder() always submits expiryUnix 0n for a TWAP order
+                (see the TWAP branch below), so this row must not echo the
+                Expiry field's leftover text as if it still applied. */}
+            <dd>{isTwap || expiry.trim() === "" || expiry.trim() === "0" ? "none" : expiry.trim()}</dd>
           </div>
           </>
         )}
@@ -1067,6 +1097,7 @@ export function TradeTicket({
       ) : (
         <button
           type="button"
+          ref={reviewTriggerRef}
           className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
           onClick={() => openReview(BigInt(Math.floor(Date.now() / 1000)))}
           disabled={

@@ -61,11 +61,11 @@ export const disconnectedZecSession: ZecWalletSession = Object.freeze({
 });
 
 const DEFAULT_OBSERVED_CAPABILITIES: ObservedZecWalletCapabilities = Object.freeze({
-  sourceAddressControl: true,
-  pcztVersions: Object.freeze<(1 | 2)[]>([1, 2]),
-  arbitraryP2shFundingOutputs: true,
-  arbitraryP2shSpendingInputs: true,
-  exactLocktime: true,
+  sourceAddressControl: false,
+  pcztVersions: Object.freeze<(1 | 2)[]>([]),
+  arbitraryP2shFundingOutputs: false,
+  arbitraryP2shSpendingInputs: false,
+  exactLocktime: false,
   transactionExtraction: false,
   broadcast: false,
   keylessRecoveryExport: false,
@@ -128,31 +128,60 @@ export async function connectZecWalletSession(
     return Object.freeze({ ...disconnectedZecSession, state });
   }
 
-  const observed = options.observed ?? DEFAULT_OBSERVED_CAPABILITIES;
+  const requestedObserved = options.observed ?? {
+    ...DEFAULT_OBSERVED_CAPABILITIES,
+    // The default connect path attempts the one proof this flow can
+    // perform. The result below, not this request flag, determines whether
+    // source-address control is declared supported.
+    sourceAddressControl: true,
+  };
+
+  // sourceAddressControl is the one capability this connect flow can
+  // actually exercise, by asking the wallet to sign the challenge right
+  // here. The statement must record what that attempt showed, not what the
+  // caller assumed going in: a wallet that fails or refuses the challenge
+  // must not be declared as supporting the capability it just failed to
+  // demonstrate. (A prior version trusted `requestedObserved` unconditionally,
+  // so a wallet that could not sign at all still passed sourceAddressControl.)
+  let addressControlSignature: string | null = null;
+  let addressControlError: string | null = null;
+  if (requestedObserved.sourceAddressControl) {
+    const proof = await proveSourceAddressControl(provider, state.address, options.challenge);
+    if ("error" in proof) {
+      addressControlError = proof.error;
+    } else {
+      addressControlSignature = proof.signature;
+    }
+  }
+  const observed: ObservedZecWalletCapabilities = {
+    ...requestedObserved,
+    sourceAddressControl: addressControlSignature !== null,
+  };
+
   let statement: TransparentZecMainnetWalletCapabilityStatement;
   try {
     statement = zecCapabilityStatementFromObserved(observed);
   } catch (error: unknown) {
+    // A capability statement that fails to parse was never validly
+    // declared. Treat the session as fully disconnected rather than
+    // keeping the address: an address with no statement is a wallet the
+    // caller cannot reason about, which is exactly the "connected but
+    // unqualified" confusion this module exists to prevent.
     return Object.freeze({
       ...disconnectedZecSession,
-      state: { address: state.address, error: error instanceof Error ? error.message : "Capability statement rejected" },
+      state: { address: null, error: error instanceof Error ? error.message : "Capability statement rejected" },
     });
   }
 
   const assessment = assessTransparentZecMainnetWalletCapabilityStatement(statement);
 
-  let addressControlSignature: string | null = null;
-  if (observed.sourceAddressControl) {
-    const proof = await proveSourceAddressControl(provider, state.address, options.challenge);
-    if ("error" in proof) {
-      return Object.freeze({
-        state: { address: state.address, error: proof.error },
-        statement,
-        assessment,
-        addressControlSignature: null,
-      });
-    }
-    addressControlSignature = proof.signature;
+  if (addressControlError) {
+    return Object.freeze({
+      state: { address: state.address, error: addressControlError },
+      statement,
+      assessment,
+      addressControlSignature: null,
+    });
   }
 
   return Object.freeze({

@@ -2,8 +2,9 @@
 // Settlement CLOB contract: real USDC and USDT already exist on chain, and
 // the historical AMM surfaces (Factory, Router, mock tokens) deliberately
 // do not ship here. The manifest stays deployed: false until a real,
-// successful mainnet transaction is recorded and its on-chain bytecode is
-// verified against the local broadcast artifacts.
+// successful mainnet transaction is recorded and nonzero on-chain bytecode
+// is observed at its address. This evidence does not approve matcher
+// activation because it does not prove the bytecode's reviewed identity.
 
 export const ETHEREUM_MAINNET_CHAIN_ID = 1;
 
@@ -101,9 +102,20 @@ export function recordBroadcast(
     if (!successfulReceipt) {
       throw new Error("Cannot mark deployed without a successful mainnet receipt");
     }
+    // eth_getCode returns "0x" for an address with no code, so length alone
+    // does not prove real bytecode: an RPC response (or a hand-edited
+    // deployedCode map) that is malformed hex, odd-length hex, or a run of
+    // zero bytes must fail closed the same as an empty result. This mirrors
+    // sepolia-manifest.ts's recordBroadcast bytecode check, which this
+    // manifest's earlier length-only check fell short of.
     const code = options.deployedCode?.[next.contracts.Settlement.toLowerCase()];
-    if (typeof code !== "string" || code.length <= 2) {
-      throw new Error("Cannot mark deployed without verified on-chain bytecode for Settlement");
+    if (
+      typeof code !== "string"
+      || !/^0x[0-9a-fA-F]{2,}$/.test(code)
+      || (code.length - 2) % 2 !== 0
+      || /^0x0*$/.test(code)
+    ) {
+      throw new Error("Cannot mark deployed without well-formed nonzero on-chain bytecode for Settlement");
     }
     next.deployed = true;
   }

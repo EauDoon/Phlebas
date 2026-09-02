@@ -22,7 +22,7 @@ function mkConfig(snapshotPath: string): AtomicSwapObserverServiceConfig {
   return {
     evm: { contractAddress: CONTRACT, fromBlock: 0n, source: evmSource },
     zcash: { network: "testnet", addresses: ["t1" + "aa".repeat(19)], fromHeight: 0n, source: zcashSource },
-    watchtower: { reorgDepth: 10n, deadlineBuffer: 60n },
+    watchtower: { reorgWindowSeconds: 120n, deadlineBuffer: 60n },
     fillIdByOutpoint: {},
     snapshotPath,
     pollIntervalSeconds: 5n,

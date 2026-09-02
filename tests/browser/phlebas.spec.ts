@@ -1296,7 +1296,7 @@ test("status, legal, and security pages cross-link", async ({ page }) => {
   await expect(page.getByRole("main").getByRole("link", { name: "Legal", exact: true })).toBeVisible();
   await page.goto("/legal", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Legal and compliance" })).toBeVisible();
-  await expect(page.getByRole("main").getByText("not a live exchange")).toBeVisible();
+  await expect(page.getByRole("main").getByText("not yet a live exchange")).toBeVisible();
   await page.goto("/security", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Security" })).toBeVisible();
   await expect(page.getByText("no production support commitment")).toBeVisible();
