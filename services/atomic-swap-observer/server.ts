@@ -131,6 +131,7 @@ export type ServiceController = Readonly<{
     metric: string;
     ratio: number;
     threshold: number;
+    objectiveRatio: number;
     meets: boolean;
     sampleCount: number;
   };
