@@ -100,9 +100,16 @@ open.
 - PHLEBAS_ZCASH_WATCH_ADDRESSES — comma-separated P2SH addresses.
 - PHLEBAS_OBSERVER_FROM_BLOCK, PHLEBAS_OBSERVER_FROM_HEIGHT —
   poll start.
-- PHLEBAS_OBSERVER_REORG_DEPTH,
-  PHLEBAS_OBSERVER_DEADLINE_BUFFER — watchtower thresholds.
-- PHLEBAS_OBSERVER_POLL_INTERVAL_SECONDS — poll cadence.
+- PHLEBAS_OBSERVER_REORG_DEPTH: reorganization depth in BLOCKS, for
+  the paths that really are counting blocks.
+- PHLEBAS_OBSERVER_REORG_WINDOW_SECONDS: how long after a terminal
+  observation the watchtower still warns that a reorganization could
+  undo it, in SECONDS. Separate from the depth on purpose: converting
+  between the two needs a per-chain block interval, and the observer
+  watches two chains that do not share one.
+- PHLEBAS_OBSERVER_DEADLINE_BUFFER — watchtower deadline threshold.
+- PHLEBAS_OBSERVER_POLL_INTERVAL_SECONDS — poll cadence. Required,
+  with no default.
 - PHLEBAS_OUTPOINT_FILL_MAP — comma-separated `txid:vout=fillId`
   pairs for ZEC event reduction.
 

@@ -9,20 +9,33 @@ import { mapEVMEvent, type MappedTransition } from "./transition-mapper.ts";
 import { normalizeHex32, type Hex32 } from "./order-domain.ts";
 
 export type ReduceOptions = Readonly<{
-  // Block timestamp oracle. Defaults to taking the timestamp from the
-  // event record. Tests inject a fixed value to keep results
-  // deterministic.
-  blockTimestamp?: (event: EVMEvent) => bigint;
+  /**
+   * Unix seconds for the block an event was seen in. Required, because
+   * there is nothing on EVMEvent to fall back to.
+   *
+   * The fallback this replaces used event.blockNumber, and the comment
+   * above it said it was taking the timestamp from the event record. No
+   * such field exists. MappedTransition.observedAt flows on to the
+   * coordinator as nowSeconds and into deadline arithmetic, so a block
+   * number there is not an approximation of the time, it is a different
+   * quantity in different units: a height near 18,500,000 read as a Unix
+   * second is mid-1970, and every refund deadline computed from it is
+   * anchored to a moment that never existed.
+   */
+  blockTimestamp: (event: EVMEvent) => bigint;
 }>;
 
 export function reduceEVMEvents(
   events: ReadonlyArray<EVMEvent>,
-  options: ReduceOptions = {},
+  options: ReduceOptions,
 ): ReadonlyArray<MappedTransition> {
+  if (typeof options?.blockTimestamp !== "function") {
+    throw new TypeError("EVM event reduction requires a block-timestamp source");
+  }
   const out: MappedTransition[] = [];
   for (const event of events) {
     const fillId = normalizeHex32(event.fillId, "EVM event fill id");
-    const observedAt = options.blockTimestamp ? options.blockTimestamp(event) : event.blockNumber;
+    const observedAt = options.blockTimestamp(event);
     out.push(mapEVMEvent(event.kind, fillId as Hex32, observedAt));
   }
   out.sort((a, b) => {

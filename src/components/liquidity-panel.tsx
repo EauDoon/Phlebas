@@ -35,6 +35,7 @@ import {
   type FeedStatus,
 } from "@/lib/market-state";
 import { interpretRovingKey } from "@/lib/roving-keys";
+import type { TerminalMode } from "@/lib/terminal-mode";
 import {
   SOLVER_QUOTE_SIGNED_FIELDS,
   solverQuoteFieldCopy,
@@ -84,6 +85,7 @@ const QUOTE_FIELD_LABELS = {
 } as const;
 
 export function LiquidityPanel({
+  mode = "advanced",
   marketId,
   feedStatus,
   onMarketChange,
@@ -91,6 +93,7 @@ export function LiquidityPanel({
   onRetryFeed,
   variant = "quotes",
 }: {
+  mode?: TerminalMode;
   marketId: MarketId;
   feedStatus: FeedStatus;
   onMarketChange: (market: MarketId) => void;
@@ -605,7 +608,7 @@ export function LiquidityPanel({
   }
 
   return (
-    <div className={styles.featureGrid}>
+    <div className={`${styles.featureGrid} ${mode === "simple" ? styles.simpleLiquidityGrid : styles.advancedLiquidityGrid}`}>
       <section className={`${styles.panel} ${styles.featurePrimary}`} aria-labelledby="liquidity-title">
         <div className={styles.panelHeader}>
           <div>
@@ -658,10 +661,10 @@ export function LiquidityPanel({
         <p className={styles.inlineNotice}>
           No shared AMM shares. Unused capacity stays in the provider wallet.
         </p>
-        <button type="button" className={styles.primaryAction} disabled>
+        <div className={styles.walletDisabledNotice} role="note">
           <span aria-hidden="true">🔒</span>
           Wallet actions stay disabled
-        </button>
+        </div>
       </section>
 
       <aside className={`${styles.panel} ${styles.riskCard}`} aria-labelledby="lp-risk-title">

@@ -94,6 +94,7 @@ import { ArchitecturePanel } from "./architecture-panel";
 import { BridgePanel } from "./bridge-panel";
 import { CountryBlock } from "./country-block";
 import { LiquidityPanel } from "./liquidity-panel";
+import { BrandMark } from "./brand-mark";
 import { NativeMatcherOrderAction } from "./native-matcher-order-action";
 import { OrderBlotter } from "./order-blotter";
 import { SettlementTicket } from "./settlement-ticket";
@@ -513,7 +514,7 @@ export function TradingTerminal({
   function cancelUserOrder(orderId: string) {
     const resting = [...book.bids, ...book.asks].find((order) => order.id === orderId);
     // Only user orders ever reserve account inventory: applySubmit reserves
-    // for "user-" ids, and seedBook posts the venue fixture liquidity
+    // against the user prefix, and seedBook posts the resting venue depth
     // straight into the book without touching the account. Releasing a
     // venue order would subtract a reservation that was never added and
     // credit the account with balance it never had. The blotter lists only
@@ -632,7 +633,9 @@ export function TradingTerminal({
   );
 
   return (
-    <div className={operatingView ? `${styles.shell} ${styles.operatingShell}` : styles.shell}>
+    <div className={operatingView
+      ? `${styles.shell} ${styles.operatingShell}${isSimple ? ` ${styles.focusedOperatingShell}` : ""}`
+      : styles.shell}>
       <nav className={styles.skipNav} aria-label="Skip links">
         <a className={styles.skipLink} href="#main-content" onClick={activateSkipLink}>Skip to main content</a>
         {initialAccess === "blocked" ? (
@@ -678,7 +681,7 @@ export function TradingTerminal({
 
       <header className={styles.topbar}>
         <Link href="/" className={styles.brand} aria-label="Phlebas home">
-          <span className={styles.brandMark}>P</span>
+          <BrandMark className={styles.brandMark} />
           <span>PHLEBAS</span>
         </Link>
         <nav className={styles.nav} aria-label="Primary navigation">
@@ -718,41 +721,51 @@ export function TradingTerminal({
             );
           })}
         </nav>
-        <div className={styles.headerActions}>
-          <div className={styles.selectorTabs} role="radiogroup" aria-label="Terminal mode">
-            {TERMINAL_MODES.map((id) => (
-              <button
-                type="button"
-                key={id}
-                role="radio"
-                aria-checked={mode === id}
-                tabIndex={mode === id ? 0 : -1}
-                className={mode === id ? styles.selectorActive : undefined}
-                ref={(node) => {
-                  modeRefs.current[id] = node;
-                }}
-                onClick={() => selectMode(id)}
-                onKeyDown={(event) => onModeKeyDown(event, id)}
-              >
-                {id === "simple" ? "Simple" : "Advanced"}
-              </button>
-            ))}
-          </div>
-          {view !== "settlement" ? (
-            <>
-              <span className={styles.network} aria-label={ZEC_DESTINATION_LABEL}>{NO_TEX_ISSUED}</span>
-              <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
-            </>
-          ) : (
+        {view !== "settlement" ? (
+          <WalletBar wallet={wallet} onChange={setWallet} settlementPair={market.settlementPair} />
+        ) : (
+          <div className={styles.headerActions}>
             <span className={styles.statusPill}>No wallet</span>
-          )}
-        </div>
+          </div>
+        )}
       </header>
 
       {view !== "settlement" && <PreviewEducation force={forceEducation} />}
 
       <main id="main-content" className={styles.main} tabIndex={-1}>
         <h1 className={styles.srOnly}>Phlebas</h1>
+        {operatingView ? (
+          <section className={styles.modeBar} aria-label="Exchange mode">
+            <div className={styles.modeBarIntro}>
+              <span>Trading interface</span>
+              <p>
+                {isSimple
+                  ? "Focused swaps and liquidity controls with the advanced detail folded away."
+                  : "Full market depth, execution controls, and liquidity detail."}
+              </p>
+            </div>
+            <div className={`${styles.selectorTabs} ${styles.modeSwitch}`} role="radiogroup" aria-label="Terminal mode">
+              {TERMINAL_MODES.map((id) => (
+                <button
+                  type="button"
+                  key={id}
+                  role="radio"
+                  aria-checked={mode === id}
+                  tabIndex={mode === id ? 0 : -1}
+                  className={mode === id ? styles.selectorActive : undefined}
+                  ref={(node) => {
+                    modeRefs.current[id] = node;
+                  }}
+                  onClick={() => selectMode(id)}
+                  onKeyDown={(event) => onModeKeyDown(event, id)}
+                >
+                  {id === "simple" ? "Simple" : "Advanced"}
+                </button>
+              ))}
+            </div>
+            <span className={styles.modeBarStatus} aria-label={ZEC_DESTINATION_LABEL}>{NO_TEX_ISSUED}</span>
+          </section>
+        ) : null}
         {initialAccess === "blocked" && <CountryBlock />}
         {initialAccess === "open" && view === "trade" && (
           <>
@@ -834,7 +847,7 @@ export function TradingTerminal({
             </section>
 
             {isSimple ? (
-              <div className={styles.simpleVenue}>
+              <div className={styles.simpleVenue} data-testid="simple-venue">
                 <div className={styles.simpleVenueIntro}>
                   <span className={styles.eyebrow}>Simple market swap</span>
                   <h2>Trade ZEC without the terminal noise.</h2>
@@ -974,6 +987,7 @@ export function TradingTerminal({
 
         {initialAccess === "open" && view === "liquidity" && (
           <LiquidityPanel
+            mode={mode}
             marketId={marketId}
             feedStatus={feedStatus}
             onMarketChange={selectMarket}
@@ -987,7 +1001,7 @@ export function TradingTerminal({
         {initialAccess === "open" && view === "bridge" && <BridgePanel initialJourney={initialBridgeJourney} />}
         {initialAccess === "open" && view === "architecture" && (
           <>
-            <div className={styles.marketSelectorWrap}>
+            <div className={`${styles.marketSelectorWrap} ${styles.architectureToolbar}`}>
               <div className={styles.selectorTabs} role="radiogroup" aria-label="Selected market">
                 {MARKET_IDS.map((id) => (
                   <button

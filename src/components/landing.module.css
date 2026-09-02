@@ -158,14 +158,10 @@ a.skipLink:focus-visible {
 
 .brandMark {
   display: inline-grid;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   place-items: center;
-  border-radius: var(--radius-sm);
-  color: var(--accent-fg);
-  background: var(--accent);
-  font-family: var(--font-geist-mono);
-  font-weight: 700;
+  background: transparent;
 }
 
 .desktopNav {
@@ -1359,8 +1355,7 @@ a.skipLink:focus-visible {
 .brandMark {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  box-shadow: 0 0 0 1px rgba(77, 220, 255, 0.28), 0 10px 30px rgba(107, 140, 255, 0.14);
+  box-shadow: none;
 }
 
 .desktopNav a {
@@ -2388,7 +2383,8 @@ a.skipLink:focus-visible {
 
 /* Prismatic brand layer. Keep this after the base and responsive rules. */
 .header { border-color: rgba(77, 220, 255, 0.14); background: rgba(5, 8, 22, 0.9); box-shadow: 0 16px 48px rgba(2, 4, 13, 0.3); }
-.brandMark, .walletAssetMark, .headerCta, .primaryCta { background: var(--prism-gradient); box-shadow: 0 12px 32px rgba(77, 220, 255, 0.15); }
+.walletAssetMark, .headerCta, .primaryCta { background: var(--prism-gradient); box-shadow: 0 12px 32px rgba(77, 220, 255, 0.15); }
+.brandMark { background: transparent; box-shadow: none; }
 .walletTriggerDot, .heroSignal span { background: var(--prism-cyan); box-shadow: 0 0 0 4px var(--accent-soft), 0 0 18px rgba(77, 220, 255, 0.4); }
 .hero { background: radial-gradient(circle at 82% 16%, rgba(107, 140, 255, 0.12), transparent 26rem), radial-gradient(circle at 68% 34%, rgba(167, 139, 250, 0.06), transparent 30rem), var(--background); }
 .hero::before { border-color: rgba(77, 220, 255, 0.1); }

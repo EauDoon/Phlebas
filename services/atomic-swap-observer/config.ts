@@ -160,6 +160,11 @@ export function loadServiceConfig(
   const fromBlock = parseBigInt("PHLEBAS_OBSERVER_FROM_BLOCK", requireEnv(env, "PHLEBAS_OBSERVER_FROM_BLOCK"), 0n);
   const fromHeight = parseBigInt("PHLEBAS_OBSERVER_FROM_HEIGHT", requireEnv(env, "PHLEBAS_OBSERVER_FROM_HEIGHT"), 0n);
   const reorgDepth = parseBigInt("PHLEBAS_OBSERVER_REORG_DEPTH", requireEnv(env, "PHLEBAS_OBSERVER_REORG_DEPTH"), 1n);
+  // Separate from the depth above, and deliberately not derived from it:
+  // reorgDepth counts blocks, this counts seconds, and the conversion
+  // between them is a per-chain block interval the project has not
+  // chosen. The observer watches two chains that do not share one.
+  const reorgWindowSeconds = parseBigInt("PHLEBAS_OBSERVER_REORG_WINDOW_SECONDS", requireEnv(env, "PHLEBAS_OBSERVER_REORG_WINDOW_SECONDS"), 1n);
   const deadlineBuffer = parseBigInt("PHLEBAS_OBSERVER_DEADLINE_BUFFER", requireEnv(env, "PHLEBAS_OBSERVER_DEADLINE_BUFFER"), 0n);
   const pollIntervalSeconds = parseBigInt("PHLEBAS_OBSERVER_POLL_INTERVAL_SECONDS", requireEnv(env, "PHLEBAS_OBSERVER_POLL_INTERVAL_SECONDS"), 1n);
   const fillIdByOutpoint = parseOutpointMap(env, "PHLEBAS_OUTPOINT_FILL_MAP");
@@ -168,7 +173,7 @@ export function loadServiceConfig(
   return {
     evm: { contractAddress, fromBlock, source: sources.evm },
     zcash: { network: zcashNetwork, addresses, fromHeight, source: sources.zcash, expectedRedeemScriptByOutpoint },
-    watchtower: { reorgDepth, deadlineBuffer },
+    watchtower: { reorgWindowSeconds, deadlineBuffer },
     fillIdByOutpoint,
     snapshotPath,
     pollIntervalSeconds,

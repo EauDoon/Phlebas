@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { BrandMark } from "./brand-mark";
 import styles from "./site-footer.module.css";
 
 export const SITE_FOOTER_SENTENCE =
@@ -17,7 +18,7 @@ export function SiteFooter() {
   return (
     <footer className={styles.footer}>
       <div className={styles.brand}>
-        <span className={styles.brandMark}>P</span>
+        <BrandMark className={styles.brandMark} />
         <span>PHLEBAS</span>
       </div>
       <p>{SITE_FOOTER_SENTENCE}</p>

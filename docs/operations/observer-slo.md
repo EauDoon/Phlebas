@@ -27,7 +27,10 @@ disk-write of the snapshot.
 
 The diagnostic snapshot aims to be at most 1 poll interval behind its
 configured fixtures or test clients. The poll interval is configured by
-`PHLEBAS_OBSERVER_POLL_INTERVAL_SECONDS` and defaults to 15 seconds.
+`PHLEBAS_OBSERVER_POLL_INTERVAL_SECONDS`, which is required and has no
+default. `config.ts` reads it through `requireEnv`, so an operator who
+omits it gets a startup failure rather than the 15 seconds this document
+used to promise.
 A poll that observes no new events advances the cursor and
 overwrites the snapshot; a poll that observes new events applies
 each event as a transition and writes the new snapshot before
@@ -41,8 +44,17 @@ The watchtower emits an alert when:
   (`deadline-breach`);
 * both legs are funded but no terminal event has arrived past the
   configured buffer (`missing-terminal-event`);
-* a claim or refund was observed within the configured reorg depth
-  (`reorg-depth-exceeded`).
+* a claim or refund was observed within the configured reorganization
+  window (`reorg-depth-exceeded`).
+
+That window is `PHLEBAS_OBSERVER_REORG_WINDOW_SECONDS`, required and in
+seconds. It is deliberately separate from `PHLEBAS_OBSERVER_REORG_DEPTH`,
+which counts blocks: the alert compares a duration, and the conversion
+between the two is a per-chain block interval this project has not
+chosen, because the observer watches two chains that do not share one.
+The comparison was previously made directly against the block depth, so a
+depth of 10 gave a ten-second window and the alert effectively never
+fired.
 
 Each alert is a structured diagnostic record with `fillId`, `alert`,
 `message`, `recommendedAction`, and `at`. A `recommendedAction` is an

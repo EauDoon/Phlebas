@@ -65,10 +65,10 @@ describe("mainnet deployment manifest", () => {
     );
   });
 
-  it("marking deployed requires verified on-chain bytecode", () => {
+  it("marking deployed requires well-formed nonzero on-chain bytecode", () => {
     assert.throws(
       () => recordBroadcast(emptyManifest(), broadcastWith({ settlement: SETTLEMENT }), { markDeployed: true, commit: "abcdef1234" }),
-      /without verified on-chain bytecode/,
+      /without well-formed nonzero on-chain bytecode/,
     );
   });
 
@@ -80,6 +80,26 @@ describe("mainnet deployment manifest", () => {
     );
     assert.equal(next.deployed, true);
     assert.equal(next.commit, "abcdef1234");
+  });
+
+  it("rejects malformed, odd-length, or all-zero bytecode as absent deployment evidence", () => {
+    // A weaker check (string length alone) would let these invalid values
+    // pass as deployment evidence: a garbage RPC or tamper payload that
+    // is not hex at all, an odd-length hex string (impossible as real EVM
+    // bytecode, which is always whole bytes), and a run of zero bytes
+    // (indistinguishable in intent from "no code" but longer than "0x").
+    // Each must raise, not mark deployed.
+    for (const badCode of ["not-real-bytecode", "0x6", "0x600", "0x00", "0x0000"]) {
+      assert.throws(
+        () => recordBroadcast(
+          emptyManifest(),
+          broadcastWith({ settlement: SETTLEMENT }),
+          { markDeployed: true, commit: "abcdef1234", deployedCode: { [SETTLEMENT]: badCode } },
+        ),
+        /without well-formed nonzero on-chain bytecode/,
+        `expected ${JSON.stringify(badCode)} to be rejected`,
+      );
+    }
   });
 
   it("keeps a zero address or malformed address out of the record", () => {

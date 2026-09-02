@@ -23,7 +23,7 @@ function mkCfg(
   return {
     evm: { contractAddress: CONTRACT, fromBlock: 0n, source: evm },
     zcash: { network: "testnet", addresses: ["t1" + "aa".repeat(19)], fromHeight: 0n, source: zcash },
-    watchtower: { reorgDepth: 10n, deadlineBuffer: 60n },
+    watchtower: { reorgWindowSeconds: 120n, deadlineBuffer: 60n },
     fillIdByOutpoint: fillIdByOutpoint as Readonly<Record<string, `0x${string}`>>,
     snapshotPath: path,
     pollIntervalSeconds: 5n,

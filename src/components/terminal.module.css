@@ -30,9 +30,29 @@
   overflow: hidden;
 }
 
+@media (min-width: 821px) {
+  .focusedOperatingShell {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .focusedOperatingShell .main {
+    min-height: auto;
+    flex: 1 0 auto;
+    overflow: visible;
+  }
+
+  .focusedOperatingShell .simpleVenue {
+    flex: none;
+    overflow: visible;
+  }
+}
+
 .operatingShell .topbar,
 .operatingShell .previewBanner,
 .operatingShell .marketBar,
+.operatingShell .modeBar,
 .operatingShell .footer,
 .operatingShell .footerSlot {
   flex-shrink: 0;
@@ -292,22 +312,23 @@ a.skipLink:focus-visible {
   display: inline-grid;
   flex: 0 0 auto;
   place-items: center;
-  color: var(--accent-fg);
-  background: var(--accent);
   font-family: var(--font-geist-mono), monospace;
   font-weight: 800;
 }
 
 .brandMark {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
+  width: 32px;
+  height: 32px;
+  background: transparent;
 }
 
 .coinMark {
   width: 34px;
   height: 34px;
+  border: 1px solid rgba(77, 220, 255, 0.28);
   border-radius: var(--radius-sm);
+  color: var(--accent);
+  background: var(--accent-soft);
   font-size: 16px;
 }
 
@@ -391,6 +412,10 @@ a.skipLink:focus-visible {
   color: var(--text-secondary);
 }
 
+.networkShort {
+  display: none;
+}
+
 .network i {
   width: 7px;
   height: 7px;
@@ -417,16 +442,104 @@ a.skipLink:focus-visible {
   padding: 0 15px;
 }
 
+.connectButton {
+  color: var(--text);
+  border-color: rgba(77, 220, 255, 0.34);
+  background: var(--surface-raised);
+}
+
+.walletProviderSelect {
+  width: min(160px, 24vw);
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 30px 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--surface-raised);
+  font: inherit;
+  font-size: 11px;
+}
+
 .headerCta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  color: var(--accent-fg);
-  background: var(--accent);
+  color: var(--text);
+  background: var(--surface-raised);
   font-size: 12px;
   font-weight: 730;
+}
+
+.connectButton:not(:disabled):hover,
+.headerCta:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.modeBar {
+  position: relative;
+  display: grid;
+  min-height: 64px;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 28px;
+  border-bottom: 1px solid rgba(77, 220, 255, 0.14);
+  background: rgba(8, 17, 33, 0.96);
+}
+
+.modeBarIntro {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.modeBarIntro > span,
+.modeBarStatus {
+  color: var(--text-muted);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modeBarIntro p {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.selectorTabs.modeSwitch {
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(77, 220, 255, 0.18);
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+
+.selectorTabs.modeSwitch button {
+  min-width: 94px;
+  border-color: transparent;
+  border-radius: 7px;
+}
+
+.selectorTabs.modeSwitch .selectorActive {
+  border-color: rgba(77, 220, 255, 0.42);
+  color: var(--text);
+  background: rgba(77, 220, 255, 0.12);
+  box-shadow: inset 0 1px rgba(244, 248, 255, 0.05);
+}
+
+.modeBarStatus {
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
 }
 
 .nav button:focus-visible,
@@ -1293,6 +1406,15 @@ a.skipLink:focus-visible {
   font-weight: 650;
 }
 
+.architectureToolbar {
+  width: min(calc(100% - 48px), 1392px);
+  margin: 24px auto 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(77, 220, 255, 0.15);
+  border-radius: 12px;
+  background: rgba(8, 17, 33, 0.82);
+}
+
 .depthFill {
   position: absolute;
   top: 0;
@@ -1521,6 +1643,46 @@ a.skipLink:focus-visible {
   gap: 8px;
   padding: 8px 12px 12px;
   background: var(--background);
+}
+
+.operatingShell .featureGrid {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.advancedLiquidityGrid > .panel {
+  min-height: 0;
+  overflow: auto;
+}
+
+.simpleLiquidityGrid {
+  min-height: auto;
+  grid-template-columns: minmax(0, 760px);
+  justify-content: center;
+  gap: 14px;
+  padding: 28px max(18px, calc((100vw - 1440px) / 2)) 48px;
+}
+
+.simpleLiquidityGrid > .panel {
+  min-height: 0;
+  overflow: visible;
+  border-radius: 14px;
+}
+
+.walletDisabledNotice {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 22px 22px;
+  padding: 9px 12px;
+  border: 1px solid rgba(77, 220, 255, 0.18);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  background: rgba(77, 220, 255, 0.055);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .liquidityGrid {
@@ -2020,6 +2182,7 @@ a.skipLink:focus-visible {
 .honestyBar {
   display: flex;
   min-height: 44px;
+  flex-wrap: wrap;
   align-items: center;
   gap: 18px;
   margin: 22px 22px 0;
@@ -2041,6 +2204,39 @@ a.skipLink:focus-visible {
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.honestyBar .warningPill {
+  color: var(--info);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.035em;
+}
+
+.historicalLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.historicalLinks a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 7px 10px;
+  border: 1px solid rgba(77, 220, 255, 0.18);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  background: rgba(77, 220, 255, 0.055);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.historicalLinks a:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .statusPill {
@@ -2702,6 +2898,14 @@ a.skipLink:focus-visible {
     overflow-y: auto;
   }
 
+  .focusedOperatingShell .main {
+    overflow: visible;
+  }
+
+  .focusedOperatingShell .marketBar {
+    position: static;
+  }
+
   .operatingShell .tradeGrid > section {
     overflow: visible;
   }
@@ -2839,12 +3043,47 @@ a.skipLink:focus-visible {
     grid-row: 1;
   }
 
+  .headerActions .network {
+    display: inline-flex;
+  }
+
+  .networkLong {
+    display: none;
+  }
+
+  .networkShort {
+    display: inline;
+  }
+
   .connectButton {
     padding: 0 10px;
   }
 
   .marketBar {
     padding: 14px;
+  }
+
+  .modeBar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px 12px;
+    padding: 10px 14px 12px;
+  }
+
+  .modeBarIntro {
+    grid-column: 1 / -1;
+  }
+
+  .selectorTabs.modeSwitch {
+    width: 100%;
+  }
+
+  .selectorTabs.modeSwitch button {
+    min-width: 0;
+    flex: 1 1 50%;
+  }
+
+  .modeBarStatus {
+    justify-self: end;
   }
 
   .marketSelectorWrap {
@@ -2975,8 +3214,27 @@ a.skipLink:focus-visible {
     margin-left: 16px;
   }
 
-  .featureGrid {
+  .featureGrid,
+  .simpleLiquidityGrid,
+  .advancedLiquidityGrid {
+    min-height: 0;
     grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .architectureToolbar {
+    width: min(calc(100% - 24px), 1392px);
+    margin-top: 12px;
+  }
+
+  .historicalLinks {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .historicalLinks a {
+    min-height: 44px;
   }
 
   .settlementCore {
@@ -3643,12 +3901,16 @@ a.skipLink:focus-visible {
 .previewBanner { border-color: rgba(77, 220, 255, 0.13); background: rgba(8, 17, 33, 0.96); }
 .topbar { border-color: rgba(77, 220, 255, 0.14); background: rgba(8, 17, 33, 0.9); box-shadow: 0 16px 48px rgba(2, 4, 13, 0.28); backdrop-filter: blur(18px); }
 .topbar::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: var(--prism-gradient); content: ""; opacity: 0.5; pointer-events: none; }
-.brandMark, .coinMark, .connectButton, .headerCta, .primaryAction:not(.sellAction):not(:disabled) { border-color: transparent; background: var(--prism-gradient); box-shadow: 0 10px 28px rgba(77, 220, 255, 0.12); }
+.primaryAction:not(.sellAction):not(:disabled) { border-color: transparent; background: var(--prism-gradient); box-shadow: 0 10px 28px rgba(77, 220, 255, 0.12); }
+.sellAction:not(:disabled) { border-color: transparent; color: #18030a; background: var(--sell); }
+.brandMark { background: transparent; box-shadow: none; }
+.coinMark { border-color: rgba(77, 220, 255, 0.28); background: var(--accent-soft); box-shadow: none; }
+.connectButton, .headerCta { border-color: rgba(77, 220, 255, 0.34); color: var(--text); background: var(--surface-raised); box-shadow: none; }
 .nav .navActive::after, .textActive::after { background: var(--prism-gradient); }
 .marketBar { position: relative; border-color: rgba(77, 220, 255, 0.16); background: linear-gradient(100deg, rgba(77, 220, 255, 0.045), transparent 38%, rgba(167, 139, 250, 0.04)), var(--surface); }
 .marketBar::after { position: absolute; right: 28px; bottom: -1px; left: 28px; height: 1px; background: var(--prism-gradient); content: ""; opacity: 0.42; }
 .selectorTabs, .rangeTabs, .orderTypes { border-color: rgba(77, 220, 255, 0.16); }
-.selectorTabs .selectorActive, .poolTabs .poolActive, .orderTypes .textActive, .rangeTabs .textActive { border-color: var(--border-strong); color: var(--text); background: linear-gradient(135deg, rgba(77, 220, 255, 0.12), rgba(107, 140, 255, 0.1)); }
+.selectorTabs .selectorActive, .poolTabs .poolActive, .orderTypes .textActive, .rangeTabs .textActive { border-color: rgba(77, 220, 255, 0.4); color: var(--text); background: rgba(77, 220, 255, 0.11); }
 .panel { border-color: rgba(77, 220, 255, 0.14); background: linear-gradient(145deg, rgba(12, 25, 48, 0.97), rgba(8, 17, 33, 0.98)); box-shadow: inset 0 1px rgba(244, 248, 255, 0.025); }
 .tradeGrid { background: linear-gradient(rgba(77, 220, 255, 0.018), transparent 18rem), var(--background); }
 .chartLine { stroke: var(--prism-cyan); filter: drop-shadow(0 0 7px rgba(77, 220, 255, 0.36)); }
