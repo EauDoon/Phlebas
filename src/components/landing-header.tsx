@@ -1,18 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, type MouseEvent } from "react";
+import { useRef, useState, type MouseEvent } from "react";
 
 import { LANDING_HERO, LANDING_NAV } from "@/lib/landing-copy";
 
+import { BrandMark } from "./brand-mark";
 import { LandingWalletConnect } from "./landing-wallet-connect";
 import styles from "./landing.module.css";
 
 export function LandingHeader() {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   function openMenu() {
     dialogRef.current?.showModal();
+    setMenuOpen(true);
   }
 
   function closeMenu() {
@@ -35,7 +39,7 @@ export function LandingHeader() {
   return (
     <header className={styles.header}>
       <Link href="/" className={styles.brand} aria-label="Phlebas home">
-        <span className={styles.brandMark} aria-hidden="true">P</span>
+        <BrandMark className={styles.brandMark} />
         <span>PHLEBAS</span>
       </Link>
 
@@ -52,17 +56,28 @@ export function LandingHeader() {
         <Link href={LANDING_HERO.primaryHref} className={styles.headerCta}>{LANDING_HERO.primaryAction}</Link>
         <LandingWalletConnect />
         <button
+          ref={menuButtonRef}
           type="button"
           className={styles.menuButton}
           aria-haspopup="dialog"
           aria-controls="landing-menu"
+          aria-expanded={menuOpen}
           onClick={openMenu}
         >
           Menu
         </button>
       </div>
 
-      <dialog ref={dialogRef} id="landing-menu" className={styles.menuDialog} aria-labelledby="menu-title">
+      <dialog
+        ref={dialogRef}
+        id="landing-menu"
+        className={styles.menuDialog}
+        aria-labelledby="menu-title"
+        onClose={() => {
+          setMenuOpen(false);
+          menuButtonRef.current?.focus();
+        }}
+      >
         <div className={styles.menuDialogHeader}>
           <strong id="menu-title">Navigate Phlebas</strong>
           <button type="button" onClick={closeMenu} aria-label="Close menu">Close</button>

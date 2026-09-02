@@ -77,13 +77,12 @@ export function ArchitecturePanel({ highlightIncidents = false }: { highlightInc
           <span className={styles.warningPill}>Retired</span>
           <span>
             Custody tours and the AMM are retired historical models. They are not the featured product.
-            {" "}
-            <Link href="/trade?view=bridge">Deposit states</Link>
-            {" · "}
-            <Link href="/trade?view=bridge&journey=withdrawal">Withdrawal states</Link>
-            {" · "}
-            <Link href="/trade?view=architecture#historical-amm">Historical AMM model</Link>
           </span>
+          <nav className={styles.historicalLinks} aria-label="Historical model documentation">
+            <Link href="/trade?view=bridge">Deposit states</Link>
+            <Link href="/trade?view=bridge&journey=withdrawal">Withdrawal states</Link>
+            <Link href="/trade?view=architecture#historical-amm">Historical AMM model</Link>
+          </nav>
         </div>
       </section>
       <IncidentDemo highlight={highlightIncidents} />

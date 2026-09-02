@@ -27,16 +27,12 @@
 
 .brandMark {
   display: inline-grid;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: var(--radius-sm);
-  color: var(--accent-fg);
-  background: var(--accent);
+  background: transparent;
   box-shadow: none;
-  font-family: var(--font-geist-mono), monospace;
-  font-weight: 800;
 }
 
 .footer p {
