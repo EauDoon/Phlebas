@@ -80,7 +80,7 @@ export function LandingTerminalPreview() {
                 <span className={styles.eyebrow}>Advanced</span>
                 <h3 id="advanced-preview-title">Work the order book</h3>
               </div>
-              <span>Limit · Market · TWAP planned</span>
+              <span>Limit · Market · TWAP</span>
             </div>
             <table className={styles.terminalPreviewBook}>
               <caption>{market.id} depth. {LANDING_TERMINAL_PREVIEW.bound}</caption>
