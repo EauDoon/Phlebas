@@ -61,3 +61,32 @@ test("parseOutpoint round-trips with vout zero", () => {
   assert.equal(parsed.txid, original.txid);
   assert.equal(parsed.vout, 0);
 });
+
+test("parseOutpoint rejects a correctly sized but non-hex outpoint", () => {
+  // 72 characters, so the length gate passes. Before hexToBytes validated
+  // its whole input, this decoded to a clean 0x01-repeated txid.
+  assert.throws(() => parseOutpoint("1z".repeat(32) + "00000000"), /invalid character/);
+});
+
+test("serializeOutpoint rejects a correctly sized but non-hex txid", () => {
+  assert.throws(
+    () => serializeOutpoint({ txid: "1z".repeat(32), vout: 0 }),
+    /invalid character/,
+  );
+});
+
+test("serializeOutpoint rejects a fractional vout instead of truncating it", () => {
+  assert.throws(
+    () => serializeOutpoint({ txid: "ab".repeat(32), vout: 1.5 }),
+    /uint32/,
+  );
+  assert.throws(
+    () => serializeOutpoint({ txid: "ab".repeat(32), vout: Number.NaN }),
+    /uint32/,
+  );
+});
+
+test("parseOutpoint reads the maximum vout without sign extension", () => {
+  const parsed = parseOutpoint("ab".repeat(32) + "ffffffff");
+  assert.equal(parsed.vout, 0xffffffff);
+});

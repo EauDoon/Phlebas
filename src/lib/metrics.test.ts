@@ -63,5 +63,48 @@ test("renderPrometheusText emits HELP, TYPE, and the value lines", () => {
   const text = renderPrometheusText(state);
   assert.match(text, /# HELP requests_total Total requests/);
   assert.match(text, /# TYPE requests_total counter/);
-  assert.match(text, /requests_total\{route=\/a\} 1/);
+  // The exposition format requires a double-quoted label value.
+  assert.match(text, /requests_total\{route="\/a"\} 1/);
+});
+
+test("a label value cannot inject a line into the scrape", () => {
+  // Unquoted and unescaped, a value carrying "}" and a line feed closed
+  // the label list and started a sample line of its own, so any label
+  // taken from a request could write arbitrary series into /metrics.
+  let state = defineCounter(emptyMetricsState(), "requests_total", "Total requests");
+  state = incCounter(state, "requests_total", { agent: "a} 1\ninjected_total 999999 #" });
+  const text = renderPrometheusText(state);
+  assert.equal(text.includes("\ninjected_total"), false);
+  assert.equal(text.split("\n").filter((line) => line.length > 0).length, 3);
+});
+
+test("a backslash or quote in a label value is escaped", () => {
+  let state = defineCounter(emptyMetricsState(), "requests_total", "Total requests");
+  state = incCounter(state, "requests_total", { path: 'C:\\a"b' });
+  const line = renderPrometheusText(state).split("\n")[2] ?? "";
+  assert.equal(line, 'requests_total{path="C:\\\\a\\"b"} 1');
+});
+
+test("label sets that flatten to the same string stay separate series", () => {
+  // {a: "b,c=d"} and {a: "b", c: "d"} both became the key `a=b,c=d`, so
+  // two different label sets were counted as one series.
+  let state = defineCounter(emptyMetricsState(), "x_total", "x");
+  state = incCounter(state, "x_total", { a: "b,c=d" });
+  state = incCounter(state, "x_total", { a: "b", c: "d" });
+  assert.equal(readCounter(state, "x_total", { a: "b,c=d" }), 1n);
+  assert.equal(readCounter(state, "x_total", { a: "b", c: "d" }), 1n);
+  assert.equal(renderPrometheusText(state).split("\n").filter((line) => line.startsWith("x_total")).length, 2);
+});
+
+test("a name that is not a Prometheus identifier is rejected", () => {
+  assert.throws(() => defineCounter(emptyMetricsState(), "requests-total", "help"), /Prometheus metric name/);
+  assert.throws(() => defineCounter(emptyMetricsState(), "1_total", "help"), /Prometheus metric name/);
+  const state = defineCounter(emptyMetricsState(), "requests_total", "help");
+  assert.throws(() => incCounter(state, "requests_total", { "bad-label": "v" }), /Prometheus label name/);
+});
+
+test("a line feed in the help text cannot start a new line", () => {
+  const state = defineCounter(emptyMetricsState(), "requests_total", "first\n# TYPE injected counter");
+  const text = renderPrometheusText(state);
+  assert.equal(text.split("\n").filter((line) => line.startsWith("# TYPE")).length, 1);
 });

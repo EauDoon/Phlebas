@@ -51,19 +51,28 @@ export function pushData(data: Uint8Array): Uint8Array {
   return out;
 }
 
+/**
+ * Push a non-negative integer as a minimally encoded CScriptNum.
+ *
+ * CScriptNum is sign-and-magnitude little-endian, so the sign lives in
+ * the top bit of the *last* byte and a value whose most significant byte
+ * already has bit 7 set needs a 0x00 byte appended after it to stay
+ * positive. Zero is the empty push, which is the single byte OP_0.
+ */
 export function pushNumber(value: number | bigint): Uint8Array {
   if (value < 0n) throw new RangeError("Script cannot push negative numbers");
   let n = typeof value === "bigint" ? value : BigInt(value);
-  if (n === 0n) return new Uint8Array([0x4f, 0x00, 0x00, 0x00, 0x00]);
-  const bytes: number[] = [];
+  const little: number[] = [];
   while (n > 0n) {
-    bytes.unshift(Number(n & 0xffn));
+    little.push(Number(n & 0xffn));
     n >>= 8n;
   }
-  if (bytes[bytes.length - 1] & 0x80) bytes.push(0x00);
-  bytes.push(bytes.length);
-  bytes.reverse();
-  return new Uint8Array(bytes);
+  // The pad follows the most significant byte, which in little-endian
+  // order is the last one. Testing the first byte and prepending the pad
+  // shifts every byte one place up, so 1000 pushes as 256000, and a value
+  // whose real high byte has bit 7 set is read back as negative.
+  if (little.length > 0 && (little[little.length - 1]! & 0x80) !== 0) little.push(0x00);
+  return pushData(Uint8Array.from(little));
 }
 
 export function concatBytes(parts: Uint8Array[]): Uint8Array {

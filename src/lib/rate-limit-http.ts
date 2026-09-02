@@ -21,6 +21,44 @@ export function emptyRateLimitMiddleware(config: RateLimitConfig): RateLimitMidd
   return { state: emptyRateLimitState(), config };
 }
 
+/**
+ * Default ceiling on retained per-key buckets. A bucket is roughly 100
+ * bytes, so this bounds the limiter's own footprint well below the point
+ * where it becomes the cheapest thing on the host to exhaust.
+ */
+export const DEFAULT_RATE_LIMIT_ENTRIES = 10_000;
+
+/**
+ * Drop buckets that have refilled to capacity and, past `maximumEntries`,
+ * the least recently seen of what remains.
+ *
+ * The limiter's state is a plain record keyed by client key, and takeTokens
+ * copies the whole record on every request. Without a bound, a caller that
+ * varies its key per request makes the limiter's own cost grow linearly in
+ * the number of keys it has ever seen, so the control meant to cap request
+ * cost becomes the thing that amplifies it. Every server that runs the
+ * limiter has to call this on the way in.
+ *
+ * Dropping a bucket that has refilled to capacity is not a concession: a
+ * full bucket is indistinguishable from a key that has never been seen.
+ */
+export function pruneRateLimitMiddleware(
+  middleware: RateLimitMiddleware,
+  nowSeconds: bigint,
+  maximumEntries: number = DEFAULT_RATE_LIMIT_ENTRIES,
+): RateLimitMiddleware {
+  const idleSeconds = middleware.config.capacity / middleware.config.refillPerSecond + 1n;
+  const active = Object.entries(middleware.state)
+    .filter(([, bucket]) => nowSeconds < bucket.lastRefillAt + idleSeconds)
+    .sort((left, right) => left[1].lastRefillAt < right[1].lastRefillAt ? -1
+      : left[1].lastRefillAt > right[1].lastRefillAt ? 1 : left[0].localeCompare(right[0]));
+  const retained = active.length > maximumEntries ? active.slice(active.length - maximumEntries) : active;
+  return {
+    config: middleware.config,
+    state: Object.fromEntries(retained),
+  };
+}
+
 export function extractClientKey(request: IncomingMessage): string {
   const forwarded = request.headers["x-forwarded-for"];
   if (typeof forwarded === "string" && forwarded.length > 0) {

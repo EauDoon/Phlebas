@@ -73,8 +73,7 @@ export function parseAtomicSwapScript(script: Uint8Array): AtomicSwapParams {
   if (script[0] !== OP.OP_IF) throw new RangeError("Script must start with OP_IF");
   // The last byte must be OP_ENDIF
   if (script[script.length - 1] !== OP.OP_ENDIF) throw new RangeError("Script must end with OP_ENDIF");
-  // Find OP_ELSE inside
-  const elseIdx = script.indexOf(OP.OP_ELSE);
+  const elseIdx = findTopLevelElse(script);
   if (elseIdx < 0) throw new RangeError("Script missing OP_ELSE");
   // Parse claim and refund by stripping the IF/ELSE/ENDIF markers.
   const claim = script.subarray(1, elseIdx);
@@ -93,12 +92,44 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   return true;
 }
 
+/**
+ * Index of the OP_ELSE that separates the two branches.
+ *
+ * A raw byte scan for 0x67 is not enough: pushed data is not opcodes, and
+ * hash20 or either public key can contain the byte 0x67, which would split
+ * the script in the middle of a push. Walking the pushes skips their
+ * payloads, so only a real opcode position can match.
+ */
+function findTopLevelElse(script: Uint8Array): number {
+  let offset = 1; // past OP_IF
+  while (offset < script.length) {
+    const opcode = script[offset]!;
+    if (opcode === OP.OP_ELSE) return offset;
+    if (opcode >= 0x01 && opcode <= 0x4b) {
+      offset += 1 + opcode;
+      continue;
+    }
+    if (opcode === 0x4c) {
+      const length = script[offset + 1];
+      if (length === undefined) throw new RangeError("Truncated OP_PUSHDATA1");
+      offset += 2 + length;
+      continue;
+    }
+    if (opcode === 0x4d || opcode === 0x4e) {
+      throw new RangeError("Atomic-swap scripts do not use OP_PUSHDATA2 or OP_PUSHDATA4");
+    }
+    offset += 1;
+  }
+  return -1;
+}
+
 function extractHash160(claim: Uint8Array): Uint8Array {
   // Claim is: OP_HASH160 <push 20 bytes> OP_EQUALVERIFY OP_CHECKSIG
   if (claim[0] !== OP.OP_HASH160) throw new RangeError("Claim must start with OP_HASH160");
   const pushLen = claim[1];
   if (pushLen !== 20) throw new RangeError(`Claim hash push must be 20 bytes, got ${pushLen}`);
-  return claim.subarray(2, 22);
+  // Copied, not a view: a returned subarray would alias the script bytes.
+  return claim.slice(2, 22);
 }
 
 function extractTrailingPubkey(branch: Uint8Array): CompressedPubkey {
@@ -109,15 +140,52 @@ function extractTrailingPubkey(branch: Uint8Array): CompressedPubkey {
   return parseCompressedPubkey(pubkeyBytes);
 }
 
+/**
+ * Read the CLTV operand from the refund branch.
+ *
+ * The branch is `<lock time> OP_CHECKLOCKTIMEVERIFY OP_DROP <pubkey>
+ * OP_CHECKSIG`, and the operand is a minimally encoded CScriptNum. Three
+ * things this used to get wrong, each of which accepts or produces a
+ * deadline that is not the one either party signed:
+ *
+ *  - 0x4f was mapped to lock time 0. 0x4f is OP_1NEGATE, a push of -1.
+ *    BIP 65 fails a negative operand outright, so a script carrying it
+ *    has no working refund branch at all, and reporting it as 0 says the
+ *    opposite: that the refund is already claimable.
+ *  - A push longer than four bytes was rejected. A uint32 at or above
+ *    0x80000000 needs five, four magnitude bytes plus the sign pad, so
+ *    half the domain could not be read back.
+ *  - Nothing checked that OP_CHECKLOCKTIMEVERIFY followed the push, so a
+ *    branch with no CLTV at all parsed as a valid deadline.
+ */
 function extractLockTime(refund: Uint8Array): bigint {
-  if (refund[0] === 0x4f) {
-    return 0n;
-  }
-  const pushLen = refund[0];
-  if (pushLen === undefined || pushLen < 1 || pushLen > 4) {
+  const opcode = refund[0];
+  if (opcode === undefined) throw new RangeError("Refund branch is empty");
+  let pushLen: number;
+  if (opcode === OP.OP_FALSE) {
+    pushLen = 0;
+  } else if (opcode >= 0x01 && opcode <= 0x05) {
+    pushLen = opcode;
+  } else {
     throw new RangeError("Refund lock-time push has unexpected length");
   }
+  if (refund[1 + pushLen] !== OP.OP_CHECKLOCKTIMEVERIFY) {
+    throw new RangeError("Refund lock time must be followed by OP_CHECKLOCKTIMEVERIFY");
+  }
+  if (refund[2 + pushLen] !== OP.OP_DROP) {
+    throw new RangeError("OP_CHECKLOCKTIMEVERIFY must be followed by OP_DROP");
+  }
+  if (pushLen === 0) return 0n;
+  const bytes = refund.subarray(1, 1 + pushLen);
+  const top = bytes[pushLen - 1]!;
+  if (top === 0x00 && (pushLen < 2 || (bytes[pushLen - 2]! & 0x80) === 0)) {
+    throw new RangeError("Refund lock time is not minimally encoded");
+  }
+  if ((top & 0x80) !== 0) {
+    throw new RangeError("Refund lock time must not be negative");
+  }
   let value = 0n;
-  for (let i = 0; i < pushLen; i++) value |= BigInt(refund[1 + i]) << BigInt(8 * i);
+  for (let i = 0; i < pushLen; i++) value |= BigInt(bytes[i]!) << BigInt(8 * i);
+  if (value > 0xffffffffn) throw new RangeError("Refund lock time must fit uint32");
   return value;
 }
