@@ -107,7 +107,14 @@ test("a running TWAP can be cancelled and stops executing", async ({ page }) => 
   await page.getByLabel("TWAP duration").selectOption("300");
   await page.getByRole("button", { name: "Review buy" }).click();
   await page.getByRole("button", { name: "Complete buy" }).click();
-  await expect(page.getByText("TWAP running. 0 of 4 slices executed.")).toBeVisible();
+  // Slice 0 is due the moment the job is planned and the scheduler ticks
+  // every second, so how many slices have run by the time each assertion
+  // is evaluated is a race this test has no way to win. Pinning the exact
+  // count made it depend on machine speed: it passes in CI and fails
+  // consistently on a slower local machine, at whichever assertion loses.
+  // What the test is actually for is that a running job can be stopped
+  // and then stops, so it matches the count rather than fixing it.
+  await expect(page.getByText(/TWAP running\. \d+ of 4 slices executed\./)).toBeVisible();
 
   const stop = page.getByRole("button", { name: "Stop TWAP job on ZEC/USDC" });
   await expect(stop).toBeVisible();
@@ -115,7 +122,7 @@ test("a running TWAP can be cancelled and stops executing", async ({ page }) => 
   await stop.click();
 
   await expect(page.getByText(
-    "TWAP cancelled after 0 of 4 slices. Remaining slices will not execute.",
+    /TWAP cancelled after \d+ of 4 slices\. Remaining slices will not execute\./,
   )).toBeVisible();
   await expect(page.getByRole("button", { name: "Stop TWAP job on ZEC/USDC" })).toHaveCount(0);
 });
