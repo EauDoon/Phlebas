@@ -2324,7 +2324,7 @@ a.skipLink:focus-visible {
   overflow: visible;
   scroll-padding-top: 12px;
   scroll-padding-bottom: 12px;
-  padding: 20px 22px 18px;
+  padding: 24px 22px 18px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   color: var(--text);
