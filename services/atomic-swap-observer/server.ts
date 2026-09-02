@@ -190,6 +190,8 @@ export type StartServiceOptions = Readonly<{
   port?: number;
   clock?: () => bigint;
   maximumRateLimitEntries?: number;
+  /** See ClientKeyOptions. Off unless a sanitising proxy is in front. */
+  trustForwardedHeaders?: boolean;
   /**
    * Where a request handler's failure is reported. Defaults to a single
    * structured line on stderr. The response body stays generic either
@@ -219,7 +221,9 @@ export function startService(options: StartServiceOptions): Server {
   const server = createServer((request: IncomingMessage, response: ServerResponse) => {
     void (async () => {
       const now = options.clock ? options.clock() : BigInt(Math.floor(Date.now() / 1000));
-      const clientKey = extractClientKey(request);
+      const clientKey = extractClientKey(request, {
+        trustForwardedHeaders: options.trustForwardedHeaders === true,
+      });
       rateLimit = pruneRateLimitMiddleware(rateLimit, now, maximumRateLimitEntries);
       const rl = checkRateLimit(rateLimit, clientKey, now);
       rateLimit = { state: rl.state, config: rateLimit.config };

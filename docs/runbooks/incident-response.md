@@ -12,7 +12,7 @@ Use this runbook when one or more of the following is true:
 
 * the SLO verdict for any service is "failing";
 * the watchtower emits a critical alert;
-* the matcher service's `/orders` endpoint is returning 503;
+* the matcher service's `POST /v1/orders` endpoint is returning 503;
 * the observer service's `/health` endpoint is returning 503;
 
 ## Pre-flight
@@ -27,28 +27,53 @@ Use this runbook when one or more of the following is true:
 ## Containment
 
 The first priority is to stop the bleeding. The containment
-depends on the failing service:
+depends on the failing service.
 
-* **matcher service**: if `/orders` is failing, stop accepting
-  new orders by setting `PHLEBAS_MATCHER_ACCEPT=0` on the
-  matcher host. Existing orders continue to settle. The
-  matcher's `/health` should still return 200.
-* **observer diagnostic**: if `/health` is failing, stop its
-  polling loop by setting `PHLEBAS_OBSERVER_PAUSE=1`. Treat the
-  on-disk snapshot as untrusted diagnostic state, not settlement
-  authority. No wallet or matcher action may depend on it.
+There is no environment switch that halts order acceptance while
+leaving the service running, and none should be assumed:
+containment is stopping the process. Earlier revisions of this
+runbook named `PHLEBAS_MATCHER_ACCEPT` and
+`PHLEBAS_OBSERVER_PAUSE`. Neither has ever been read by any
+service, so an operator following those steps would have
+believed a market was halted while it went on accepting orders.
+
+* **matcher service**: stop it with
+  `docker compose -f services/compose.yaml stop matcher-usdc`
+  (or `matcher-usdt`), or interrupt the Node process for a
+  direct run. The journal is append-only and each record is
+  fsynced before the response, so a stop loses no accepted
+  order. Nothing settles while the matcher is down: it sequences
+  orders and cannot move value, so a halt costs liveness only.
+  `acceptingMutations` in the `/health` body is derived from the
+  configuration and store state. It reports whether the matcher
+  is accepting. It is not a control.
+* **observer diagnostic**: stop the process. The observer is not
+  in the Compose file and is not part of the production runtime,
+  so there is nothing to stop unless an operator started it by
+  hand. Treat the on-disk snapshot as untrusted diagnostic
+  state, not settlement authority. No wallet or matcher action
+  may depend on it.
+
+Neither service holds a key, so no containment step here can
+strand, redirect, or release funds, and the wallet-controlled
+refund path on each chain is unaffected by all of it.
 
 ## Diagnosis
 
-The diagnosis depends on the failing service. The diagnostic
-checklist applies to every service:
+The diagnosis depends on the failing service. Only the first and
+last steps apply to both services; the rest are observer routes
+and the matcher does not serve them.
 
-1. Read the service's `/health` endpoint. The response body
-   surfaces the bootstrap state and the persist readability.
-2. Read the service's `/state` endpoint. The response surfaces
-   the cursor, the fill count, and the alert count.
-3. Read the watchtower's `/alerts` endpoint. The alerts explain
-   the failure mode.
+1. Read the service's `/health` endpoint. Both serve it. The
+   response body surfaces the bootstrap state and the persist
+   readability.
+2. Matcher only: read `/v1/checkpoint` and `/v1/sequence` for
+   the journal position, and `/slo` and `/metrics` for the rest.
+   The matcher has no `/state` route.
+3. Observer only: read `/state` for the cursor, the fill count
+   and the alert count, and `/alerts` for the watchtower's own
+   view of the failure mode. Both are labelled
+   `diagnostic-untrusted` and neither is settlement authority.
 4. Read the operator's on-disk logs. The logs are the canonical
    record of the failure.
 

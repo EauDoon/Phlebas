@@ -24,6 +24,11 @@ export type SequenceReceipt = {
   remainingAtoms: string;
   fills: Fill[];
   reason?: string;
+  /**
+   * Unix seconds at which the matcher sequenced this receipt. Optional
+   * because receipts persisted before the field existed do not carry it.
+   */
+  observedAtSeconds?: string;
 };
 
 type SerializedOrder = {
@@ -142,6 +147,7 @@ export function intakeSignedOrder(operator: MatcherOperator, order: IntakeOrder,
     remainingAtoms: result.remainingAtoms.toString(),
     fills: result.fills,
     reason: result.reason,
+    observedAtSeconds: nowUnix.toString(),
   };
   operator.seenDigests.add(digest);
   operator.receipts.push(receipt);

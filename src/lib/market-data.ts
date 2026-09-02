@@ -264,7 +264,15 @@ function rangeFromReceipts(
   windowSeconds: bigint,
   nowSeconds: bigint,
 ): { high: bigint | null; low: bigint | null; volumeBase: bigint; volumeQuote: bigint; count: number } {
-  const cutoff = nowSeconds - windowSeconds;
+  // Receipts carry the time they were sequenced. The comparison here
+  // used receipt.sequence, a counter that starts at 1, against a cutoff
+  // in Unix seconds, so under any real clock every receipt fell below the
+  // cutoff and the 24h high, low, volume and trade count were reported as
+  // empty however recent the trades were. The suite only ever passed a
+  // synthetic nowSeconds of 100, which drove the cutoff negative and hid
+  // it. services/matcher/server.ts has always filtered on a timestamp;
+  // this is the browser-side twin catching up.
+  const cutoff = nowSeconds > windowSeconds ? nowSeconds - windowSeconds : 0n;
   let high: bigint | null = null;
   let low: bigint | null = null;
   let volumeBase = 0n;
@@ -272,7 +280,10 @@ function rangeFromReceipts(
   let count = 0;
   for (const receipt of receipts) {
     if (receipt.fills.length === 0) continue;
-    if (BigInt(receipt.sequence) < cutoff) continue;
+    // A receipt persisted before the field existed carries no time. Not
+    // knowing when it happened is not evidence that it happened outside
+    // the window, and dropping it is what produced the empty ticker.
+    if (receipt.observedAtSeconds !== undefined && BigInt(receipt.observedAtSeconds) < cutoff) continue;
     for (const fill of receipt.fills) {
       if (high === null || fill.priceTicks > high) high = fill.priceTicks;
       if (low === null || fill.priceTicks < low) low = fill.priceTicks;

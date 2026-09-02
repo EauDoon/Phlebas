@@ -1,4 +1,46 @@
+import {
+  QUOTE_DECIMALS,
+  formatAtomicUnits,
+  meetsMinimumQuoteSettlement,
+  quoteAtomsForFill,
+} from "./units.ts";
+
 export type OrderSide = "buy" | "sell";
+
+/**
+ * The quote amount a ticket would actually settle for, in quote atoms.
+ *
+ * This is the same integer arithmetic the engine uses, on the same side.
+ * calculatePreviewNotional multiplies two JS numbers and takes no side,
+ * so the figure under "Estimated value" could sit one quote atom below
+ * what a buy would be charged: at price 777.77 and size 77.77777777 it
+ * showed 60493.222216 where the fill costs 60493.222217. One atom is a
+ * millionth of a dollar, but a venue that displays a total should
+ * display the total, and the two rounding directions are exactly what
+ * quoteAtomsForFill exists to keep straight.
+ *
+ * The admission gate is the engine's own meetsMinimumQuoteSettlement
+ * rather than a float threshold that happens to coincide with it, so the
+ * ticket cannot start disagreeing with the book about which orders are
+ * settleable if either side's constants move.
+ */
+export function previewQuoteAtoms(priceTicks: bigint, sizeAtoms: bigint, side: OrderSide): bigint {
+  if (priceTicks <= 0n) {
+    throw new Error(`Price must be at least ${formatAtomicMinimum(QUOTE_PRICE_ATOMIC_RULE)}`);
+  }
+  if (sizeAtoms <= 0n) {
+    throw new Error(`Size must be at least ${formatAtomicMinimum(ZEC_ATOMIC_RULE)}`);
+  }
+  if (!meetsMinimumQuoteSettlement(sizeAtoms, priceTicks)) {
+    throw new Error("Order notional must settle to at least one quote atom");
+  }
+  return quoteAtomsForFill(sizeAtoms, priceTicks, side === "buy" ? "up" : "down");
+}
+
+/** Render a quote-atom amount the way the ticket shows it. */
+export function formatQuoteAtoms(quoteAtoms: bigint): string {
+  return formatAtomicUnits(quoteAtoms, QUOTE_DECIMALS, 2);
+}
 
 export function sideControlCopy(side: OrderSide, selected: boolean): string {
   const label = side === "buy" ? "Buy" : "Sell";
