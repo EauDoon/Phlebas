@@ -46,8 +46,9 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
         </title>
         <defs>
           <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#f0c14b" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#f0c14b" stopOpacity="0" />
+            <stop offset="0%" stopColor="#4ddcff" stopOpacity="0.28" />
+            <stop offset="62%" stopColor="#6b8cff" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="#6b8cff" stopOpacity="0" />
           </linearGradient>
         </defs>
         {[0, 1, 2, 3, 4].map((line) => (

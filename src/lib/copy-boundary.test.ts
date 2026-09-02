@@ -790,7 +790,7 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(globalError, /flex-wrap: wrap/);
   assert.match(globalError, /width: 100%/);
   assert.match(globalError, /flex: 1 1 calc\(50% - 4px\)/);
-  assert.match(globalError, /outline: 2px solid #161204/);
+  assert.match(globalError, /outline: 2px solid #03121b/);
   assert.match(globalError, /a:last-child/);
   assert.match(globalError, /flex-shrink: 0/);
   assert.doesNotMatch(globalError, /is a live exchange/);

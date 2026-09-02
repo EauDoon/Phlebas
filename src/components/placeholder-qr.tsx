@@ -17,10 +17,10 @@ export function PlaceholderQr({ payload }: { payload: string }) {
         shapeRendering="crispEdges"
       >
         <title>Placeholder QR. Not payable.</title>
-        <rect width={size} height={size} fill="#f3efe6" />
+        <rect width={size} height={size} fill="#f4f8ff" />
         {modules.map((row, y) => row.map((on, x) => (
           on
-            ? <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#161204" />
+            ? <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#03121b" />
             : null
         )))}
       </svg>
