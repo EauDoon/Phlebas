@@ -50,7 +50,16 @@ export function LandingWalletConnect() {
     }
   }
 
-  const zecConnected = zecSession.state.address !== null;
+  // A wallet that returned an address but then failed or refused the
+  // source-address-control signature (state.error set) is not connected:
+  // connectZecWalletSession leaves state.address populated in that case
+  // so the caller can see which account was attempted, but the capability
+  // statement records sourceAddressControl as unproven. Treating address
+  // presence alone as "connected" showed a "Connected ... Capability
+  // statement declared" line, with a Disconnect button, for a signature
+  // the wallet had just rejected, and silently swallowed the actual error
+  // text (state.error) that role="alert" was pointing at below.
+  const zecConnected = zecSession.state.address !== null && zecSession.state.error === null;
   const zecStatusCopy = zecConnected
     ? `Connected ${zecSession.state.address}. Capability statement declared; network actions stay disabled until an adapter passes qualification.`
     : zecSession.state.error
