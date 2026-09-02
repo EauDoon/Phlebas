@@ -14,6 +14,13 @@ npm run check:browser
 
 `check:browser` runs lint, TypeScript checks, unit tests, the production build, and Chromium acceptance tests. The fixture starts the built application on `127.0.0.1` with an OS-assigned port and stops it after the run. Temporary browser profiles and failure artifacts are written under `test-results/`, which is ignored by Git.
 
+Run the whole gate, not `test:browser` on its own. The fixture calls
+`next({ dev: false })`, so it serves whatever is already in `.next` and
+never compiles anything itself. Running `test:browser` after editing a
+component tests the previous build: the run is green or red for code that
+is no longer on disk, which is worse than not running it. `check:browser`
+ends its `check` half with the build for this reason.
+
 Linux CI installs Chromium and its required system packages before running the same gate.
 
 ## Native settlement coverage
