@@ -1,30 +1,38 @@
 :root {
   --font-geist-sans: var(--font-loaded-sans, "Geist"), "Segoe UI", Inter, Arial, Helvetica, sans-serif;
   --font-geist-mono: var(--font-loaded-mono, "Geist Mono"), "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
-  --background: #0a0908;
-  --surface: #141210;
-  --surface-raised: #1b1814;
-  --surface-soft: #1b1814;
-  --elevated: #1b1814;
-  --border: #2c2820;
-  --border-strong: #3a3428;
-  --line: #2c2820;
-  --text: #f3efe6;
-  --text-secondary: #a8a191;
-  --text-muted: #a8a191;
-  --muted: #a8a191;
-  --text-faint: #7a7264;
-  --accent: #f0c14b;
-  --accent-dim: #a67c1a;
-  --accent-fg: #161204;
-  --accent-soft: rgba(240, 193, 75, 0.14);
-  --buy: #3dcc8a;
-  --buy-soft: rgba(61, 204, 138, 0.12);
-  --bid: #3dcc8a;
-  --sell: #f07178;
-  --sell-soft: rgba(240, 113, 120, 0.12);
-  --ask: #f07178;
-  --info: #7eb6ff;
+  --background: #050816;
+  --background-deep: #02040d;
+  --surface: #081121;
+  --surface-raised: #0c1930;
+  --surface-soft: #0c1930;
+  --elevated: #102342;
+  --border: #1d3153;
+  --border-strong: #31517f;
+  --line: #1d3153;
+  --text: #f4f8ff;
+  --text-secondary: #b9c7e8;
+  --text-muted: #8ca1c9;
+  --muted: #8ca1c9;
+  --text-faint: #7186ad;
+  --accent: #4ddcff;
+  --accent-dim: #6b8cff;
+  --accent-fg: #03121b;
+  --accent-soft: rgba(77, 220, 255, 0.14);
+  --prism-cyan: #4ddcff;
+  --prism-blue: #6b8cff;
+  --prism-violet: #a78bfa;
+  --prism-magenta: #e879f9;
+  --prism-gradient: linear-gradient(115deg, #4ddcff 0%, #6b8cff 48%, #a78bfa 76%, #e879f9 100%);
+  --prism-glow: rgba(77, 220, 255, 0.16);
+  --buy: #42e6ae;
+  --buy-soft: rgba(66, 230, 174, 0.12);
+  --bid: #42e6ae;
+  --sell: #ff6b8a;
+  --sell-soft: rgba(255, 107, 138, 0.12);
+  --ask: #ff6b8a;
+  --warning: #ffd166;
+  --info: #78a9ff;
 
   /* Type scale: 11 / 13 / 14 / 16 / 20 / 28 / 40 / 56 */
   --text-2xs: 11px;
@@ -69,7 +77,10 @@ html {
 body {
   min-height: 100vh;
   color: var(--text);
-  background: var(--background);
+  background:
+    radial-gradient(circle at 84% -10%, rgba(107, 140, 255, 0.13), transparent 34rem),
+    radial-gradient(circle at -8% 32%, rgba(77, 220, 255, 0.08), transparent 28rem),
+    var(--background);
   font-family: var(--font-geist-sans);
   font-size: var(--text-sm);
   line-height: 1.55;
@@ -174,7 +185,7 @@ a {
 }
 
 .ph-btn--primary:hover {
-  background: #f5cd66;
+  background: #7ee7ff;
 }
 
 .ph-btn--secondary {
@@ -225,6 +236,10 @@ a {
   font-family: var(--font-geist-mono), monospace;
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body { background-attachment: fixed; }
 }
 
 @media (prefers-reduced-motion: reduce) {

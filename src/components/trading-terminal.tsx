@@ -59,6 +59,8 @@ import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingO
 import {
   nextDueTwapSlice,
   planTwap,
+  TWAP_USER_CANCELLED_REASON,
+  twapCancelCopy,
   twapProgressCopy,
   twapStopCopy,
   type TwapDurationSeconds,
@@ -453,6 +455,14 @@ export function TradingTerminal({
     twapJobsRef.current = twapJobs;
   });
 
+  function cancelTwapJob(jobId: string) {
+    const job = twapJobsRef.current.find((entry) => entry.id === jobId);
+    if (!job || job.stoppedReason || job.completed >= job.plan.slices) return;
+    job.stoppedReason = TWAP_USER_CANCELLED_REASON;
+    setTwapJobs([...twapJobsRef.current]);
+    setEvents((current) => [...current, { kind: "cancel", marketId: job.marketId, orderId: job.id }]);
+  }
+
   useEffect(() => {
     // One slice per tick per job: a backgrounded tab throttles timers, and
     // executing several stale-book slices in one tick would corrupt state.
@@ -564,8 +574,20 @@ export function TradingTerminal({
     return jobs.map((job) => (
       <p key={job.id} className={styles.inlineNotice} role="status">
         {job.stoppedReason
-          ? twapStopCopy(job.plan, job.completed, job.stoppedReason)
+          ? job.stoppedReason === TWAP_USER_CANCELLED_REASON
+            ? twapCancelCopy(job.plan, job.completed)
+            : twapStopCopy(job.plan, job.completed, job.stoppedReason)
           : twapProgressCopy(job.plan, job.completed)}
+        {!job.stoppedReason && job.completed < job.plan.slices ? (
+          <button
+            type="button"
+            className={styles.twapStopButton}
+            aria-label={`Stop TWAP job on ${job.marketId}`}
+            onClick={() => cancelTwapJob(job.id)}
+          >
+            Stop
+          </button>
+        ) : null}
       </p>
     ));
   })();
