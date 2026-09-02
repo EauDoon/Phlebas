@@ -99,6 +99,9 @@ test("observer keeps its rate-limit state bounded when the client key varies per
       port: 0,
       clock: () => now,
       maximumRateLimitEntries: 4,
+      // The whole point is key churn, so this test stands in for a
+      // deployment that does sit behind a header-sanitising proxy.
+      trustForwardedHeaders: true,
     });
     await once(server, "listening");
     const port = (server.address() as AddressInfo).port;
