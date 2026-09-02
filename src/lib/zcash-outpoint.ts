@@ -17,17 +17,27 @@ export function parseOutpoint(hex: string): Outpoint {
   if (raw.length !== 72) throw new RangeError(`Outpoint hex must be 36 bytes, got ${raw.length / 2}`);
   const bytes = hexToBytes(raw);
   const txid = bytesToHexNoPrefix(bytes.subarray(0, 32).reverse());
+  // The index is an unsigned 32-bit integer on the wire. `|` yields a
+  // signed int32, so the top half of the range comes back negative and
+  // has to be reinterpreted rather than rejected: serializeOutpoint
+  // emits every value up to 0xffffffff, and a decoder that cannot read
+  // back what the encoder writes turns a legitimate funding outpoint
+  // into an unrefundable one. Whether a given index is acceptable for a
+  // swap is a policy question for the caller, not an encoding one.
   const vout =
-    bytes[32] |
-    (bytes[33] << 8) |
-    (bytes[34] << 16) |
-    (bytes[35] << 24);
-  if (vout < 0) throw new RangeError("Outpoint vout overflows signed int32");
-  return { txid, vout: vout >>> 0 };
+    (bytes[32] |
+      (bytes[33] << 8) |
+      (bytes[34] << 16) |
+      (bytes[35] << 24)) >>> 0;
+  return { txid, vout };
 }
 
 export function serializeOutpoint(outpoint: Outpoint): string {
-  if (outpoint.vout < 0 || outpoint.vout > 0xffffffff) {
+  if (!Number.isInteger(outpoint.vout) || outpoint.vout < 0 || outpoint.vout > 0xffffffff) {
+    // Number.isInteger is checked first because NaN and a fractional
+    // index both survive the range comparisons and then lose their
+    // fraction to the byte masks below, silently encoding a different
+    // output of the same transaction.
     throw new RangeError(`Outpoint vout must fit uint32, got ${outpoint.vout}`);
   }
   if (outpoint.txid.length !== 64) {
