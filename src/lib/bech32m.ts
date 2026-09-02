@@ -48,18 +48,51 @@ export function convertBits(data: Uint8Array | number[], from: number, to: numbe
   return out;
 }
 
+/**
+ * Maximum encoded length. BIP 173 fixes this at 90 characters and BIP 350
+ * carries it forward for bech32m, because the BCH code only guarantees its
+ * error-detection properties below that length.
+ */
+export const BECH32M_MAXIMUM_LENGTH = 90;
+
+/**
+ * BIP 173 restricts the human-readable part to US-ASCII 33..126. Anything
+ * outside that range is rejected rather than folded into the checksum:
+ * hrpExpand splits each code unit into `code >> 5` and `code & 31`, which
+ * silently aliases a code point above 126 onto the expansion of some other
+ * legal HRP, so an out-of-range HRP can otherwise carry a valid checksum.
+ */
+function assertHumanReadablePart(hrp: string): void {
+  if (hrp.length === 0) {
+    throw new TypeError("bech32 HRP must not be empty");
+  }
+  for (const character of hrp) {
+    const code = character.codePointAt(0) ?? 0;
+    if (code < 33 || code > 126) {
+      throw new TypeError("bech32 HRP character is outside US-ASCII 33..126");
+    }
+  }
+}
+
 export function encodeBech32m(hrp: string, payload: Uint8Array): string {
   if (!/^[a-z0-9]+$/.test(hrp)) {
     throw new TypeError("bech32 HRP must be lowercase alphanumeric");
   }
   const data = convertBits(payload, 8, 5, true);
   const checksum = createChecksum(hrp, data);
-  return `${hrp}1${[...data, ...checksum].map((value) => CHARSET[value]).join("")}`;
+  const encoded = `${hrp}1${[...data, ...checksum].map((value) => CHARSET[value]).join("")}`;
+  if (encoded.length > BECH32M_MAXIMUM_LENGTH) {
+    throw new RangeError("bech32 string exceeds the 90-character maximum");
+  }
+  return encoded;
 }
 
 export function decodeBech32m(address: string): { hrp: string; payload: Uint8Array } {
   if (address !== address.toLowerCase() && address !== address.toUpperCase()) {
     throw new TypeError("bech32 mixed case is invalid");
+  }
+  if (address.length > BECH32M_MAXIMUM_LENGTH) {
+    throw new RangeError("bech32 string exceeds the 90-character maximum");
   }
   const lowered = address.toLowerCase();
   const separator = lowered.lastIndexOf("1");
@@ -67,6 +100,7 @@ export function decodeBech32m(address: string): { hrp: string; payload: Uint8Arr
     throw new TypeError("bech32 separator is invalid");
   }
   const hrp = lowered.slice(0, separator);
+  assertHumanReadablePart(hrp);
   const dataPart = lowered.slice(separator + 1);
   const data: number[] = [];
   for (const char of dataPart) {
