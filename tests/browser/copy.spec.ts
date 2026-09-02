@@ -20,7 +20,7 @@ function withoutHonestNegation(copy: string) {
 }
 
 const SITE_FOOTER_SENTENCE =
-  "Phlebas is not a live exchange and not an offer of financial services.";
+  "Phlebas is pre-launch. It is not yet a live exchange and is not an offer of financial services.";
 
 for (const path of routes) {
   test(`${path} shows the public-preview chip, footer sentence, and no banned live claims`, async ({ page }) => {

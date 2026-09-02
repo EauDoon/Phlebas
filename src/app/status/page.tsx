@@ -22,7 +22,7 @@ export default function StatusPage() {
         <article><span>Funds</span><strong>{status.liveFunds ? "Live" : "Disabled"}</strong><p>No deposits or custody</p></article>
         <article><span>Execution</span><strong>{status.matcherExecution}</strong><p>Matcher state is explicit</p></article>
       </section>
-      <p className="status-intro">This preview does not accept funds. No mainnet funds.</p>
+      <p className="status-intro">Phlebas is in pre-launch. It does not accept funds and holds no mainnet funds.</p>
       <dl className="status-ledger" id="status-ledger" tabIndex={-1} role="list" aria-label="Status ledger">
         <div role="listitem"><dt>Mode</dt><dd>{status.mode}</dd></div>
         <div role="listitem"><dt>Live funds</dt><dd>{status.liveFunds ? "yes" : "no"}</dd></div>

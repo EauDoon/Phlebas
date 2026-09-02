@@ -162,7 +162,7 @@ test("paths intro names Trade, Provide quotes, and Read settlement", () => {
 test("shipped landing copy fails closed on live-funds and banned product claims", () => {
   assert.equal(
     LANDING_FOOTER,
-    "Phlebas is not a live exchange and not an offer of financial services.",
+    "Phlebas is pre-launch. It is not yet a live exchange and is not an offer of financial services.",
   );
   assert.doesNotMatch(LANDING_FOOTER, /protocol preview/i);
   assert.doesNotMatch(shipped, /\btrustless\b/i);

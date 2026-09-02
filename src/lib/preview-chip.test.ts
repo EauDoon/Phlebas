@@ -10,7 +10,7 @@ import {
 } from "./preview-chip.ts";
 
 test("preview chip text is the public-preview sentence", () => {
-  assert.equal(PREVIEW_CHIP_TEXT, "Public preview · illustrative data · no mainnet funds");
+  assert.equal(PREVIEW_CHIP_TEXT, "Pre-launch build · data illustrative until activation · no mainnet funds");
   assert.equal(PREVIEW_CHIP_HREF, "/status");
   assert.equal(PREVIEW_CHIP_STORAGE_KEY, "phlebas.previewChipAnnounced");
   assert.doesNotMatch(

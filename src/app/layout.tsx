@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 const DESCRIPTION =
-  "Public preview of a non-custodial protocol plan for native transparent ZEC against USDC and USDT. Illustrative data. No mainnet funds. Not an exchange or an offer of financial services.";
+  "Pre-launch build of a non-custodial exchange for native transparent ZEC against Ethereum Mainnet USDC and USDT. Data is illustrative until activation. No mainnet funds. Not an offer of financial services.";
 
 export const metadata: Metadata = {
   title: {

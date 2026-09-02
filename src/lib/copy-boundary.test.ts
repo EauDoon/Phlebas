@@ -191,7 +191,7 @@ test("shipped modules carry the pre-launch product vocabulary", async () => {
     solverQuotes,
   ].join("\n");
   assert.match(product, /Native ZEC\. Native stables\. No platform balance\./);
-  assert.match(product, /Public preview · illustrative data · no mainnet funds/);
+  assert.match(product, /Pre-launch build · data illustrative until activation · no mainnet funds/);
   assert.match(product, /Open terminal/);
   assert.match(product, /Nothing was signed or submitted\./);
   assert.match(product, /solver quote/i);
@@ -208,7 +208,7 @@ test("shipped modules carry the pre-launch product vocabulary", async () => {
   assert.match(walletBar, /connectMainnetWallet/);
   assert.match(walletBar, /Ethereum Mainnet/);
   assert.doesNotMatch(walletBar, /walletOffTitle|walletConnectEnabled|Sepolia/);
-  assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Phlebas is not a live exchange and not an offer of financial services/);
+  assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Phlebas is pre-launch\. It is not yet a live exchange and is not an offer of financial services/);
 });
 
 test("status payload cannot be read as live funds or custody", async () => {
@@ -232,8 +232,8 @@ test("status page links to legal and security without a live-funds claim", async
   assert.match(statusPage, /from "next\/link"/);
   assert.match(statusPage, /title="Status"/);
   assert.match(statusPage, /No live funds or custody/);
-  assert.match(statusPage, /This preview does not accept funds/);
-  assert.match(statusPage, /No mainnet funds/);
+  assert.match(statusPage, /Phlebas is in pre-launch\. It does not accept funds and holds no mainnet funds/);
+  assert.match(statusPage, /holds no mainnet funds/);
   assert.match(statusPage, /labeled historical-state demonstrations/);
   assert.match(statusPage, /not an incident feed/);
   assert.doesNotMatch(statusPage, /is audited/);
@@ -246,7 +246,7 @@ test("landing and terminal banners stay a public preview", async () => {
   const terminal = await readFile(join(root, "src/components/trading-terminal.tsx"), "utf8");
   const chip = await readFile(join(root, "src/lib/preview-chip.ts"), "utf8");
   const hero = await readFile(join(root, "src/lib/landing-copy.ts"), "utf8");
-  assert.match(chip, /Public preview · illustrative data · no mainnet funds/);
+  assert.match(chip, /Pre-launch build · data illustrative until activation · no mainnet funds/);
   assert.match(hero, /Native ZEC\. Native stables\. No platform balance\./);
   assert.match(hero, /Open terminal/);
   assert.match(landing, /PreviewChip/);
@@ -262,7 +262,7 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(await readFile(join(root, "src/components/terminal-loading.tsx"), "utf8"), /PreviewChip/);
   assert.doesNotMatch(await readFile(join(root, "src/components/terminal-loading.tsx"), "utf8"), /Simulation disclosure/);
   assert.match(chip, /no mainnet funds/);
-  assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Phlebas is not a live exchange and not an offer of financial services/);
+  assert.match(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /Phlebas is pre-launch\. It is not yet a live exchange and is not an offer of financial services/);
   assert.doesNotMatch(await readFile(join(root, "src/components/site-footer.tsx"), "utf8"), /GitHub/);
   assert.doesNotMatch(await readFile(join(root, "src/app/trade/page.tsx"), "utf8"), /Trading simulation/);
   assert.doesNotMatch(await readFile(join(root, "src/app/liquidity/page.tsx"), "utf8"), /Liquidity simulation/);
@@ -796,7 +796,7 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.doesNotMatch(globalError, /is a live exchange/);
   assert.doesNotMatch(await readFile(join(root, "src/app/legal/page.tsx"), "utf8"), /is audited/);
   const education = await readFile(join(root, "src/lib/preview-education.ts"), "utf8");
-  assert.match(education, /This public preview uses illustrative data/);
+  assert.match(education, /Phlebas is pre-launch\. Market data is illustrative until activation/);
   assert.match(education, /Ethereum Mainnet wallet can connect for identity/);
   assert.match(education, /does not sign or submit a transaction/);
   assert.match(education, /Pairs are native ZEC against USDC and USDT/);
@@ -901,8 +901,8 @@ test("secret scan rejects operator URLs in .env, vercel.json, and .vercel/", asy
 
 test("Open Graph and Twitter cards stay labeled as a public preview", async () => {
   const layout = await readFile(join(root, "src/app/layout.tsx"), "utf8");
-  assert.match(layout, /Public preview of a non-custodial protocol plan/);
-  assert.match(layout, /Illustrative data/);
+  assert.match(layout, /Pre-launch build of a non-custodial exchange/);
+  assert.match(layout, /illustrative until activation/);
   assert.match(layout, /No mainnet funds/);
   assert.match(layout, /openGraph:/);
   assert.match(layout, /twitter:/);

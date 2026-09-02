@@ -3,7 +3,7 @@ import Link from "next/link";
 import styles from "./site-footer.module.css";
 
 export const SITE_FOOTER_SENTENCE =
-  "Phlebas is not a live exchange and not an offer of financial services.";
+  "Phlebas is pre-launch. It is not yet a live exchange and is not an offer of financial services.";
 
 const FOOTER_LINKS = [
   { href: "/trade?view=architecture", label: "Docs" },

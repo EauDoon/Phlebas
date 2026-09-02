@@ -1,5 +1,5 @@
 export const PREVIEW_CHIP_TEXT =
-  "Public preview · illustrative data · no mainnet funds" as const;
+  "Pre-launch build · data illustrative until activation · no mainnet funds" as const;
 
 export const PREVIEW_CHIP_HREF = "/status" as const;
 

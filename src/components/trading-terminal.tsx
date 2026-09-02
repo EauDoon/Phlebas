@@ -827,7 +827,7 @@ export function TradingTerminal({
                 </div>
                 {tradeTicket}
                 <div className={styles.simpleSafetyNote} role="note">
-                  <strong>No native value moves in this preview.</strong>
+                  <strong>No native value moves until the settlement deployment activates.</strong>
                   <p>
                     A matched fill still requires separate wallet-held funding, claim, and refund steps.
                   </p>
