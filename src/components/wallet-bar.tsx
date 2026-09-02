@@ -157,7 +157,11 @@ export function WalletBar({
   if (wallet.address && !wallet.error) {
     return (
       <div className={styles.headerActions}>
-        <span className={styles.network}>Ethereum Mainnet</span>
+        <span className={styles.network} aria-label="Ethereum Mainnet">
+          <span className={styles.srOnly}>Ethereum Mainnet</span>
+          <span className={styles.networkLong} aria-hidden="true">Ethereum Mainnet</span>
+          <span className={styles.networkShort} aria-hidden="true">ETH</span>
+        </span>
         <button
           type="button"
           className={styles.connectButton}
@@ -175,9 +179,14 @@ export function WalletBar({
 
   return (
     <div className={styles.headerActions}>
-      <span className={styles.network}>Ethereum Mainnet</span>
+      <span className={styles.network} aria-label="Ethereum Mainnet">
+        <span className={styles.srOnly}>Ethereum Mainnet</span>
+        <span className={styles.networkLong} aria-hidden="true">Ethereum Mainnet</span>
+        <span className={styles.networkShort} aria-hidden="true">ETH</span>
+      </span>
       {providers.length > 1 ? (
         <select
+          className={styles.walletProviderSelect}
           aria-label="EVM wallet provider"
           value={selectedProviderId ?? providers[0]?.info.uuid}
           onChange={(event) => setSelectedProviderId(event.currentTarget.value)}

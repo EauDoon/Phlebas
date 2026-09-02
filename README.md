@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/app/icon.svg" width="96" height="96" alt="Phlebas mark">
+  <img src="src/app/icon.png" width="96" height="96" alt="Phlebas cyclops eye mark">
 </p>
 
 <h1 align="center">Phlebas</h1>

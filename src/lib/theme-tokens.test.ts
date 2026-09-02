@@ -45,3 +45,42 @@ test("owned UI CSS does not ship leftover teal or retired warm gold", async () =
   assert.match(joined, /\.primaryAction:not\(\.sellAction\):not\(:disabled\)/);
   assert.doesNotMatch(joined, /border-radius:\s*999px/);
 });
+
+test("brand surfaces use the cyclops eye instead of a boxed P", async () => {
+  const files = [
+    "src/components/brand-mark.tsx",
+    "src/components/landing-header.tsx",
+    "src/components/site-chrome.tsx",
+    "src/components/site-footer.tsx",
+    "src/components/trading-terminal.tsx",
+  ] as const;
+  const sources = await Promise.all(files.map((file) => readFile(join(root, file), "utf8")));
+  const logo = await readFile(join(root, "public/phlebas-cyclops-eye.png"));
+  const favicon = await readFile(join(root, "src/app/icon.png"));
+  const readme = await readFile(join(root, "README.md"), "utf8");
+
+  assert.match(sources[0], /phlebas-cyclops-eye\.png/);
+  assert.doesNotMatch(sources.slice(1).join("\n"), />P<\/span>/);
+  assert.equal(logo.subarray(1, 4).toString("ascii"), "PNG");
+  assert.ok(logo.length > 1_000 && logo.length < 500_000);
+  assert.equal(logo.readUInt32BE(16), 384);
+  assert.equal(logo.readUInt32BE(20), 384);
+  assert.equal(logo[25], 6);
+  assert.equal(favicon.subarray(1, 4).toString("ascii"), "PNG");
+  assert.equal(favicon.readUInt32BE(16), 512);
+  assert.equal(favicon.readUInt32BE(20), 512);
+  assert.equal(favicon[25], 6);
+  assert.match(readme, /src\/app\/icon\.png/);
+  assert.doesNotMatch(readme, /src\/app\/icon\.svg/);
+});
+
+test("terminal CSS reserves the prismatic gradient for primary actions", async () => {
+  const terminal = await readFile(join(root, "src/components/terminal.module.css"), "utf8");
+
+  assert.match(terminal, /\.primaryAction:not\(\.sellAction\):not\(:disabled\).*var\(--prism-gradient\)/);
+  assert.doesNotMatch(terminal, /\.brandMark,\s*\.coinMark,\s*\.connectButton/);
+  assert.match(terminal, /\.connectButton,\s*\.headerCta\s*\{[^}]*background:\s*var\(--surface-raised\)/s);
+  assert.match(terminal, /\.focusedOperatingShell \.simpleVenue\s*\{[^}]*overflow:\s*visible/s);
+  assert.match(terminal, /\.modeBar\s*\{/);
+  assert.match(terminal, /\.simpleLiquidityGrid\s*\{/);
+});

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PRODUCT_NAV } from "@/lib/landing-copy";
 import { activateSkipLink } from "@/lib/skip-link";
 
+import { BrandMark } from "./brand-mark";
 import { PreviewChip } from "./preview-chip";
 import { SiteFooter } from "./site-footer";
 import styles from "./terminal.module.css";
@@ -28,7 +29,7 @@ export function SiteChrome({
       <PreviewChip />
       <header className={styles.topbar}>
         <Link href="/" className={styles.brand} aria-label="Phlebas home">
-          <span className={styles.brandMark}>P</span>
+          <BrandMark className={styles.brandMark} />
           <span>PHLEBAS</span>
         </Link>
         <nav className={styles.nav} aria-label="Primary navigation">
