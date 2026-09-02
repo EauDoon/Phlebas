@@ -112,3 +112,62 @@ test("rejects maker identity collisions with the taker intake", () => {
   assert.throws(() => planPriceTimeMatches(taker, [{ ...maker, sequence: taker.sequence }]), /sequence is duplicated/);
   assert.throws(() => planPriceTimeMatches(taker, [{ ...maker, orderHash: taker.orderHash }]), /order hash is duplicated/);
 });
+
+test("matching order does not depend on the order the resting book is passed in", () => {
+  // comparePriority never literally returns 0. That is the shape of a bug
+  // this repository has already had once, fixed in 4c6b814, where a
+  // comparator that could not report equality made a sort depend on the
+  // input order. Here it is safe only because ties are always broken by
+  // intake sequence, which the same function proves unique by throwing on
+  // a duplicate. Safe by an argument is worth checking, so this drives the
+  // real planner with the same book in three different arrangements and
+  // requires one answer, with prices drawn from a narrow band so ties are
+  // common rather than incidental.
+  let seed = 424_242;
+  const next = (bound: number) => {
+    seed = (seed * 1_103_515_245 + 12_345) & 0x7fffffff;
+    return seed % bound;
+  };
+  const shuffled = <T>(items: readonly T[]): T[] => {
+    const copy = [...items];
+    for (let index = copy.length - 1; index > 0; index -= 1) {
+      const swap = next(index + 1);
+      [copy[index], copy[swap]] = [copy[swap]!, copy[index]!];
+    }
+    return copy;
+  };
+
+  let tiedTrials = 0;
+  for (let trial = 0; trial < 200; trial += 1) {
+    const takerSide: 0 | 1 = next(2) === 0 ? 0 : 1;
+    const makerSide: 0 | 1 = takerSide === 0 ? 1 : 0;
+    const restingCount = 2 + next(6);
+    const resting = Array.from({ length: restingCount }, (_, index) => {
+      // A three-tick band across up to seven orders guarantees collisions.
+      const price = 5_000n + BigInt(next(3));
+      return sequenced(
+        `maker-${trial}-${index}`,
+        BigInt(index + 1),
+        intent(`maker-${trial}-${index}`, makerSide, price, 10n),
+      );
+    });
+    const prices = new Set(resting.map((entry) => entry.order.limitPriceTicks));
+    if (prices.size < resting.length) tiedTrials += 1;
+
+    // A limit far enough through the band that every resting order crosses.
+    const takerPrice = takerSide === 0 ? 5_100n : 4_900n;
+    const taker = sequenced(`taker-${trial}`, 1_000n, intent(`taker-${trial}`, takerSide, takerPrice, 1_000n, 1));
+
+    const fingerprint = (book: readonly SequencedOrder[]) =>
+      planPriceTimeMatches(taker, book).fills
+        .map((fill) => `${fill.makerOrderHash}@${fill.executionPriceTicks}x${fill.baseAmountAtoms}`)
+        .join("|");
+
+    const natural = fingerprint(resting);
+    assert.equal(fingerprint(shuffled(resting)), natural, `trial ${trial} changed with a shuffled book`);
+    assert.equal(fingerprint([...resting].reverse()), natural, `trial ${trial} changed with a reversed book`);
+  }
+
+  // Without ties the property would hold trivially, so prove they occurred.
+  assert.ok(tiedTrials > 100, `only ${tiedTrials} of 200 trials contained a price tie`);
+});
