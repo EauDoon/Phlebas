@@ -19,9 +19,16 @@ Run the runbook when one or more of the following is true:
 
 ## Pre-flight checks
 
-1. Confirm the matcher persist path matches the
-   `PHLEBAS_MATCHER_PERSIST_PATH` environment variable.
-2. Confirm the marker file is present at `${path}.initialized`.
+1. Confirm the matcher data directory. It is
+   `services/matcher/.data/native-v1/`, fixed in
+   `services/matcher/server.ts`. There is no
+   `PHLEBAS_MATCHER_PERSIST_PATH`; earlier revisions of this
+   runbook named one, and no service has ever read it. Under
+   Compose the directory is the `matcher-usdc-data` or
+   `matcher-usdt-data` volume mounted at
+   `/app/services/matcher/.data`.
+2. Confirm the marker file `initialized` is present in that
+   directory.
 3. Confirm the operator has shell access on the matcher host.
 
 ## Procedure
@@ -35,21 +42,33 @@ does not exit, send `SIGKILL` and proceed.
 ### 2. Verify the persisted state
 
 ```sh
-ls -l "$PHLEBAS_MATCHER_PERSIST_PATH"
-head -c 1024 "$PHLEBAS_MATCHER_PERSIST_PATH"
+ls -l services/matcher/.data/native-v1/
+tail -c 1024 services/matcher/.data/native-v1/events.jsonl
+cat services/matcher/.data/native-v1/checkpoint.json
 ```
 
-The file should be a JSON document with the operator's
-configuration, order book, and receipt history.
+The directory holds a hash-chained append-only journal, not a
+single state document: `events.jsonl` carries one record per
+line, `checkpoint.json` commits to a sequence and a replayed
+state root, `initialized` is the canonical marker, and
+`writer.lock` is present while a writer holds the directory.
+`docs/OPERATOR_RUNBOOK.md` describes the same layout and is the
+canonical account of it. A `writer.lock` on a stopped matcher
+means another writer or an unproven stale lock: do not start a
+second writer and do not delete the lock until the recovery
+checks in that runbook pass.
 
 ### 3. Decide on the recovery path
 
 * **Binary upgrade:** proceed to step 4.
-* **State corruption:** back up the corrupted file
-  (`mv .../state.json .../state.json.bak.$(date +%s)`) and
-  proceed to step 4. The bootstrap will detect the missing state
-  after the marker and refuse to start fresh; the operator must
-  intervene by removing the marker file.
+* **State corruption:** back up the whole directory
+  (`cp -a services/matcher/.data/native-v1
+  services/matcher/.data/native-v1.bak.$(date +%s)`) rather than
+  a single file, since the checkpoint and the journal only mean
+  anything together, and proceed to step 4. The bootstrap will
+  detect the missing state after the marker and refuse to start
+  fresh; the operator must intervene by removing the marker
+  file.
 * **State deletion:** the bootstrap will detect the missing
   state after the marker and refuse to start fresh; the operator
   must intervene by removing the marker file.

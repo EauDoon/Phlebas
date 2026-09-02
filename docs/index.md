@@ -8,13 +8,27 @@ the corresponding file in the docs tree.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — the layered architecture
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — the product specification
 - [ADR index](adr/) — accepted decisions and implementation notes
-  - [ADR 0001](adr/0001-arbitrum-and-pzec.md) — Arbitrum + pZEC
-  - [ADR 0002](adr/0002-native-zec-atomic-settlement.md) — native ZEC atomic settlement
-  - [ADR 0003](adr/0003-evm-conditional-lock.md) — EVM conditional lock
-  - [ADR 0004](adr/0004-atomic-swap-state-machine.md) — atomic-swap state machine
-  - [ADR 0005](adr/0005-zcash-p2sh-atomic-swap.md) — Zcash P2SH atomic swap
-  - [ADR 0006](adr/0006-atomic-swap-observer.md) — atomic-swap observer
-  - [ADR 0007](adr/0007-public-market-data.md) — public market data
+
+  Two numbers were each issued twice, so a bare "ADR 0002" or "ADR 0003"
+  does not identify a document. Cite the filename. Renumbering would
+  break every inbound link, including the ones in `README.md`.
+
+  - [0001 Arbitrum and pZEC](adr/0001-arbitrum-and-pzec.md) — superseded
+  - [0002 native ZEC atomic settlement](adr/0002-native-zec-atomic-settlement.md) — the active settlement architecture
+  - [0002 native ZEC against USDC and USDT](adr/0002-native-zec-usdc-usdt.md)
+  - [0003 EVM conditional lock](adr/0003-evm-conditional-lock.md)
+  - [0003 persistent native matcher](adr/0003-persistent-native-matcher.md) — the matcher boundary `README.md` cites
+  - [0004 atomic-swap state machine](adr/0004-atomic-swap-state-machine.md)
+  - [0005 Zcash P2SH atomic swap](adr/0005-zcash-p2sh-atomic-swap.md)
+  - [0005 implementation notes](adr/0005-impl-notes.md)
+  - [0006 atomic-swap observer](adr/0006-atomic-swap-observer.md)
+  - [0006 implementation notes](adr/0006-impl-notes.md)
+  - [0007 public market data](adr/0007-public-market-data.md)
+  - [0007 implementation notes](adr/0007-impl-notes.md)
+  - [0008 operations hardening](adr/0008-operations-hardening.md)
+  - [0008 implementation notes](adr/0008-impl-notes.md)
+  - [0009 final integration and audit prep](adr/0009-final-integration-audit.md)
+  - [0009 implementation notes](adr/0009-impl-notes.md)
 
 ## Operations and runbooks
 
