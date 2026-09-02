@@ -55,7 +55,7 @@
   flex-shrink: 0;
   align-items: center;
   padding: 9px 12px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent-fg);
   background: var(--accent);
   font-size: 12px;
@@ -161,7 +161,7 @@ a.skipLink:focus-visible {
   width: 28px;
   height: 28px;
   place-items: center;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent-fg);
   background: var(--accent);
   font-family: var(--font-geist-mono);
@@ -221,7 +221,7 @@ a.skipLink:focus-visible {
   align-items: center;
   justify-content: center;
   padding: 0 16px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 600;
 }
@@ -271,7 +271,7 @@ a.skipLink:focus-visible {
   flex-shrink: 0;
   padding: 0 12px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   background: transparent;
   font-size: 14px;
@@ -282,7 +282,7 @@ a.skipLink:focus-visible {
   margin: auto;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   background: var(--surface);
 }
@@ -336,7 +336,7 @@ a.skipLink:focus-visible {
   margin-top: 8px;
   justify-content: center;
   border: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent-fg);
   background: var(--accent);
   text-align: center;
@@ -439,7 +439,7 @@ a.skipLink:focus-visible {
   justify-content: flex-start;
   padding: 20px 24px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
 }
 
@@ -557,7 +557,7 @@ a.skipLink:focus-visible {
   gap: 16px 20px;
   padding: 24px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
 }
 
@@ -642,7 +642,7 @@ a.skipLink:focus-visible {
   margin-top: 20px;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   background: var(--surface);
   font-size: 16px;
@@ -676,7 +676,7 @@ a.skipLink:focus-visible {
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
 }
 
@@ -727,7 +727,7 @@ a.skipLink:focus-visible {
   gap: 12px;
   padding: 20px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
 }
 
@@ -757,7 +757,7 @@ a.skipLink:focus-visible {
   gap: 0;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
 }
 
@@ -938,7 +938,7 @@ a.skipLink:focus-visible {
   gap: 16px 20px;
   padding: 24px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
 }
 
@@ -983,7 +983,10 @@ a.skipLink:focus-visible {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding-left: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
   color: var(--text);
   font-size: 16px;
   line-height: 1.5;
@@ -1441,7 +1444,7 @@ a.skipLink:focus-visible {
   padding: 0;
   overflow: auto;
   border: 1px solid var(--border-strong);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   color: var(--text);
   background: var(--surface);
   box-shadow: 0 36px 120px rgba(0, 0, 0, 0.64);
@@ -1510,7 +1513,7 @@ a.skipLink:focus-visible {
   gap: 18px;
   padding: 20px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--background);
 }
 
@@ -1678,10 +1681,11 @@ a.skipLink:focus-visible {
 .heroStatement h1 {
   max-width: 12ch;
   margin-top: 18px;
-  font-size: clamp(48px, 6.4vw, 88px);
+  font-size: clamp(31px, 4vw + 16px, 88px);
   font-weight: 650;
   letter-spacing: -0.055em;
   line-height: 0.98;
+  text-wrap: balance;
 }
 
 .heroStatement > p {
@@ -1714,7 +1718,7 @@ a.skipLink:focus-visible {
   padding: 0;
   overflow: hidden;
   border-color: rgba(240, 193, 75, 0.22);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: 0 34px 90px rgba(0, 0, 0, 0.42), inset 0 1px rgba(255, 255, 255, 0.025);
 }
@@ -1750,6 +1754,8 @@ a.skipLink:focus-visible {
 .heroMarketTape strong {
   font-family: var(--font-geist-mono);
   font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .heroMarketTape > div:nth-child(2) strong {
@@ -1758,22 +1764,41 @@ a.skipLink:focus-visible {
 }
 
 .depthPulse {
+  position: relative;
   display: flex;
   grid-column: 1 / -1;
-  height: 46px;
+  height: 52px;
   align-items: end;
-  gap: 5px;
+  gap: 4px;
+  margin-top: 6px;
   padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.depthPulse::after {
+  position: absolute;
+  top: 8px;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--border-strong);
+  content: "";
 }
 
 .depthPulse i {
   display: block;
   width: 12.5%;
   height: 25%;
-  background: var(--accent-dim);
-  opacity: 0.55;
+  background: rgba(61, 204, 138, 0.16);
+  border-top: 1px solid var(--buy);
+  opacity: 0.7;
   transform-origin: bottom;
   animation: depth-wave 2.8s ease-in-out infinite alternate;
+}
+
+.depthPulse i:nth-child(n + 5) {
+  background: rgba(240, 113, 120, 0.14);
+  border-top-color: var(--sell);
 }
 
 .depthPulse i:nth-child(2) { height: 38%; animation-delay: 120ms; }
@@ -1857,7 +1882,7 @@ a.skipLink:focus-visible {
 .evidenceList article,
 .assetFlow li {
   border-color: rgba(240, 193, 75, 0.1);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.018);
   transition: transform 200ms ease, border-color 200ms ease, background-color 200ms ease;
@@ -1914,7 +1939,7 @@ a.skipLink:focus-visible {
 .terminalPreviewFrame {
   overflow: hidden;
   border-color: rgba(240, 193, 75, 0.18);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--background);
   box-shadow: 0 32px 84px rgba(0, 0, 0, 0.34);
 }
@@ -2127,7 +2152,7 @@ a.skipLink:focus-visible {
   padding: 30px;
   border: 1px solid var(--border);
   border-top: 0;
-  border-radius: 0 0 14px 14px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   background: var(--surface);
 }
 
@@ -2139,7 +2164,7 @@ a.skipLink:focus-visible {
 .gateCopy {
   padding: 28px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
 
@@ -2269,8 +2294,8 @@ a.skipLink:focus-visible {
   }
 
   .heroStatement h1 {
-    max-width: 10ch;
-    font-size: clamp(42px, 13vw, 64px);
+    max-width: 12ch;
+    font-size: clamp(29px, 8.5vw, 44px);
   }
 
   .heroStatement > p {

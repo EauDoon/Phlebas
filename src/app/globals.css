@@ -1,18 +1,19 @@
 :root {
-  --font-geist-sans: "Segoe UI", Inter, Arial, Helvetica, sans-serif;
-  --font-geist-mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  --font-geist-sans: var(--font-loaded-sans, "Geist"), "Segoe UI", Inter, Arial, Helvetica, sans-serif;
+  --font-geist-mono: var(--font-loaded-mono, "Geist Mono"), "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
   --background: #0a0908;
   --surface: #141210;
   --surface-raised: #1b1814;
   --surface-soft: #1b1814;
   --elevated: #1b1814;
   --border: #2c2820;
-  --border-strong: #2c2820;
+  --border-strong: #3a3428;
   --line: #2c2820;
   --text: #f3efe6;
-  --text-secondary: #9a9284;
-  --text-muted: #9a9284;
-  --muted: #9a9284;
+  --text-secondary: #a8a191;
+  --text-muted: #a8a191;
+  --muted: #a8a191;
+  --text-faint: #7a7264;
   --accent: #f0c14b;
   --accent-dim: #a67c1a;
   --accent-fg: #161204;
@@ -24,6 +25,31 @@
   --sell-soft: rgba(240, 113, 120, 0.12);
   --ask: #f07178;
   --info: #7eb6ff;
+
+  /* Type scale: 11 / 13 / 14 / 16 / 20 / 28 / 40 / 56 */
+  --text-2xs: 11px;
+  --text-xs: 13px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+  --text-2xl: 40px;
+  --text-3xl: 56px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* One radius vocabulary */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 }
 
 * {
@@ -45,7 +71,8 @@ body {
   color: var(--text);
   background: var(--background);
   font-family: var(--font-geist-sans);
-  font-size: 12px;
+  font-size: var(--text-sm);
+  line-height: 1.55;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -66,10 +93,20 @@ select:not(:disabled) {
   cursor: pointer;
 }
 
+button:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
-a:focus-visible {
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+[role="radiogroup"] [role="radio"]:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -82,6 +119,112 @@ a {
 ::selection {
   color: var(--accent-fg);
   background: var(--accent);
+}
+
+/* ---------------------------------------------------------------------------
+   Shared component vocabulary. CSS-module classes compose with these; the
+   names are global and cannot collide with hashed module classes.
+--------------------------------------------------------------------------- */
+
+.ph-mono {
+  font-family: var(--font-geist-mono), monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.ph-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.ph-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ph-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 560;
+  letter-spacing: 0.01em;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.ph-btn--primary {
+  color: var(--accent-fg);
+  background: var(--accent);
+}
+
+.ph-btn--primary:hover {
+  background: #f5cd66;
+}
+
+.ph-btn--secondary {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: transparent;
+}
+
+.ph-btn--secondary:hover {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
+.ph-btn--ghost {
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.ph-btn--ghost:hover {
+  color: var(--accent);
+}
+
+.ph-btn:disabled {
+  color: var(--text-faint);
+  border-color: var(--border);
+  background: transparent;
+}
+
+/* Inert disabled action: visibly not a call to action. */
+.ph-btn--inert {
+  color: var(--text-faint);
+  border: 1px dashed var(--border);
+  background: transparent;
+  font-weight: 480;
+}
+
+/* Table header vocabulary: uppercase letter-spaced mono over hairlines. */
+.ph-table-head {
+  color: var(--text-muted);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ph-numeric {
+  font-family: var(--font-geist-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 @media (prefers-reduced-motion: reduce) {

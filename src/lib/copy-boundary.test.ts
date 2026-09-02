@@ -512,7 +512,7 @@ test("landing and terminal banners stay a public preview", async () => {
   );
   assert.match(terminalCss, /\.educationDialog \{[\s\S]*?overflow: visible;/);
   assert.match(terminalCss, /\.educationDialog \{[\s\S]*?box-sizing: border-box;/);
-  assert.match(terminalCss, /padding: 24px 18px 16px;/);
+  assert.match(terminalCss, /padding: 20px 22px 18px;/);
   assert.match(
     terminalCss,
     /\.educationDialog \.tourNav \{\r?\n  box-sizing: border-box;\r?\n  display: flex;\r?\n  align-items: center;\r?\n  width: 100%;\r?\n  min-width: 0;\r?\n  max-width: 100%;\r?\n  min-height: 44px;\r?\n  flex-shrink: 0;/,
