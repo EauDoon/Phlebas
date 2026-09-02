@@ -84,7 +84,7 @@
   flex-shrink: 0;
   align-items: center;
   padding: 9px 12px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent-fg);
   background: var(--accent);
   font-size: 12px;
@@ -301,13 +301,13 @@ a.skipLink:focus-visible {
 .brandMark {
   width: 28px;
   height: 28px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .coinMark {
   width: 34px;
   height: 34px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   font-size: 16px;
 }
 
@@ -382,7 +382,7 @@ a.skipLink:focus-visible {
   align-items: center;
   gap: 7px;
   white-space: nowrap;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 600;
 }
@@ -394,7 +394,7 @@ a.skipLink:focus-visible {
 .network i {
   width: 7px;
   height: 7px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--info);
 }
 
@@ -403,7 +403,7 @@ a.skipLink:focus-visible {
   min-width: 44px;
   min-height: 44px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent-fg);
   background: var(--accent);
   font-size: 12px;
@@ -422,7 +422,7 @@ a.skipLink:focus-visible {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent-fg);
   background: var(--accent);
   font-size: 12px;
@@ -440,8 +440,12 @@ a.skipLink:focus-visible {
 
 .connectButton:disabled,
 .primaryAction:disabled {
+  color: var(--text-faint);
+  border: 1px dashed var(--border);
+  background: transparent;
   cursor: not-allowed;
-  opacity: 0.54;
+  font-weight: 480;
+  opacity: 1;
 }
 
 .marketBar {
@@ -511,7 +515,7 @@ a.skipLink:focus-visible {
   min-height: 44px;
   padding: 4px 8px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   background: transparent;
   font-size: 11px;
@@ -535,7 +539,7 @@ a.skipLink:focus-visible {
 .gateBadge {
   padding: 5px 8px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent);
   background: var(--surface-raised);
   font-size: 9px;
@@ -614,7 +618,7 @@ a.skipLink:focus-visible {
   min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .panelHeader {
@@ -656,11 +660,16 @@ a.skipLink:focus-visible {
   vector-effect: non-scaling-stroke;
 }
 
+.chartGrid:first-child {
+  stroke: var(--border-strong);
+}
+
 .chartLine {
   fill: none;
   stroke: var(--accent);
+  stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2;
+  stroke-width: 1.8;
   vector-effect: non-scaling-stroke;
 }
 
@@ -674,7 +683,9 @@ a.skipLink:focus-visible {
   justify-content: space-between;
   color: var(--text-muted);
   font-family: var(--font-geist-mono), monospace;
-  font-size: 9px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 .rangeTabs,
@@ -690,7 +701,7 @@ a.skipLink:focus-visible {
 .orderTypes button {
   padding: 6px 8px;
   border: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   background: transparent;
   font-size: 11px;
@@ -768,9 +779,10 @@ a.skipLink:focus-visible {
 .dataTable thead th {
   height: 31px;
   color: var(--text-muted);
+  font-family: var(--font-geist-mono), monospace;
   font-size: 10px;
-  font-weight: 620;
-  letter-spacing: 0.055em;
+  font-weight: 560;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
@@ -796,10 +808,11 @@ a.skipLink:focus-visible {
 .bookRow,
 .tradeRow {
   position: relative;
-  min-height: 29px;
+  min-height: 30px;
   padding: 0 12px;
   font-family: var(--font-geist-mono), monospace;
-  font-size: 11px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .bookRow:hover,
@@ -808,12 +821,13 @@ a.skipLink:focus-visible {
 }
 
 .midPrice {
-  display: flex;
-  min-height: 44px;
+  display: grid;
+  min-height: 48px;
+  grid-template-columns: auto 1fr;
   align-items: center;
-  justify-content: space-between;
+  column-gap: 12px;
   margin: 4px 0;
-  padding: 9px 12px;
+  padding: 8px 12px;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   background: var(--surface-raised);
@@ -823,12 +837,20 @@ a.skipLink:focus-visible {
   color: var(--accent);
   font-family: var(--font-geist-mono), monospace;
   font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .midPrice span {
   color: var(--text-muted);
+  font-family: var(--font-geist-mono), monospace;
   font-size: 10px;
+  letter-spacing: 0.08em;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
   text-transform: uppercase;
+  white-space: normal;
 }
 
 .buyText {
@@ -880,7 +902,7 @@ a.skipLink:focus-visible {
   margin: 10px 14px;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--background);
 }
 
@@ -910,7 +932,7 @@ a.skipLink:focus-visible {
   min-height: 44px;
   padding: 0 14px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent);
   background: var(--surface-raised);
   font-size: 12px;
@@ -957,7 +979,7 @@ a.skipLink:focus-visible {
   margin: 14px 14px 9px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--background);
 }
 
@@ -965,7 +987,7 @@ a.skipLink:focus-visible {
   min-width: 44px;
   min-height: 44px;
   border: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   background: transparent;
   font-size: 12px;
@@ -1004,7 +1026,7 @@ a.skipLink:focus-visible {
   gap: 8px;
   padding: 0 11px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--background);
 }
 
@@ -1058,7 +1080,7 @@ a.skipLink:focus-visible {
 .percentRow button {
   min-height: 44px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   background: var(--surface-raised);
   font-size: 10px;
@@ -1125,7 +1147,7 @@ a.skipLink:focus-visible {
   margin: 9px 14px 0;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
 }
 
@@ -1255,6 +1277,7 @@ a.skipLink:focus-visible {
   top: 0;
   right: 0;
   bottom: 0;
+  opacity: 0.85;
   pointer-events: none;
 }
 
@@ -1285,7 +1308,7 @@ a.skipLink:focus-visible {
 .textButton {
   padding: 4px 8px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   background: var(--surface-raised);
   font-size: 11px;
@@ -1331,14 +1354,19 @@ a.skipLink:focus-visible {
 }
 
 .simpleMain {
-  max-width: 720px;
-  padding: 28px 20px 48px;
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 32px 24px 56px;
 }
 
 .simpleMain h1 {
-  margin-bottom: 12px;
-  font-size: clamp(22px, 4vw, 32px);
+  margin-bottom: 14px;
+  font-size: clamp(24px, 4vw, 36px);
+  font-weight: 640;
   letter-spacing: -0.03em;
+  line-height: 1.15;
+  text-wrap: balance;
 }
 
 .simpleMain p,
@@ -1404,7 +1432,7 @@ a.skipLink:focus-visible {
   margin: 0 14px 10px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--surface-raised);
 }
 
@@ -1458,7 +1486,7 @@ a.skipLink:focus-visible {
   min-height: 44px;
   padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   background: var(--surface-raised);
   font-size: 12px;
@@ -1615,7 +1643,7 @@ a.skipLink:focus-visible {
   gap: 8px;
   padding: 9px 12px;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   background: transparent;
   font-size: 12px;
@@ -1625,7 +1653,7 @@ a.skipLink:focus-visible {
 .poolTabs button small {
   padding: 3px 6px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent);
   font-size: 8px;
   letter-spacing: 0.04em;
@@ -1643,7 +1671,7 @@ a.skipLink:focus-visible {
   margin: 14px 22px 0;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   background: var(--surface-raised);
   font-size: 11px;
@@ -1665,7 +1693,7 @@ a.skipLink:focus-visible {
   align-items: center;
   padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--background);
 }
 
@@ -1708,7 +1736,7 @@ a.skipLink:focus-visible {
   height: 30px;
   place-items: center;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent);
   background: var(--surface-raised);
   font-size: 14px;
@@ -1741,8 +1769,15 @@ a.skipLink:focus-visible {
 }
 
 .riskCard {
+  display: flex;
+  flex-direction: column;
   padding: 28px 24px;
+  border: 1px solid var(--border);
   background: var(--surface);
+}
+
+.riskCard > .cleanList {
+  flex: 1 1 auto;
 }
 
 .riskCard h2 {
@@ -1780,7 +1815,7 @@ a.skipLink:focus-visible {
   left: 0;
   width: 5px;
   height: 5px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   content: "";
 }
@@ -1827,7 +1862,7 @@ a.skipLink:focus-visible {
   margin-top: 18px;
   padding: 15px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--surface-raised);
 }
 
@@ -1848,7 +1883,7 @@ a.skipLink:focus-visible {
   margin: 18px 22px 0;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--background);
 }
 
@@ -1916,7 +1951,7 @@ a.skipLink:focus-visible {
   justify-content: center;
   padding: 8px 14px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   background: var(--surface-raised);
   font-size: 12px;
@@ -1969,7 +2004,7 @@ a.skipLink:focus-visible {
   margin: 22px 22px 0;
   padding: 15px 17px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--surface-raised);
 }
 
@@ -1994,7 +2029,7 @@ a.skipLink:focus-visible {
   justify-content: center;
   padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent);
   background: var(--surface-raised);
   font-size: 10px;
@@ -2029,7 +2064,7 @@ a.skipLink:focus-visible {
   min-height: 44px;
   padding: 0 12px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   background: var(--background);
   font-size: 12px;
@@ -2184,7 +2219,7 @@ a.skipLink:focus-visible {
 .disabledReason {
   padding: 9px 10px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--sell) !important;
   background: var(--sell-soft);
 }
@@ -2195,7 +2230,7 @@ a.skipLink:focus-visible {
   margin-top: 14px;
   padding: 11px 12px;
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--sell);
   background: var(--sell-soft);
   font-size: 11px;
@@ -2289,11 +2324,52 @@ a.skipLink:focus-visible {
   overflow: visible;
   scroll-padding-top: 12px;
   scroll-padding-bottom: 12px;
-  padding: 24px 18px 16px;
-  border: 1px solid var(--border);
-  border-radius: 2px;
+  padding: 20px 22px 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
   color: var(--text);
   background: var(--surface);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.5), inset 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.educationProgress {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.educationSegment,
+.educationSegmentActive {
+  height: 3px;
+  flex: 1 1 auto;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.educationSegmentActive {
+  background: var(--accent);
+}
+
+.educationBody {
+  animation: education-step-in 200ms ease both;
+}
+
+@keyframes education-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .educationBody {
+    animation: none;
+  }
 }
 
 .educationDialog::backdrop {
@@ -2414,6 +2490,37 @@ a.skipLink:focus-visible {
   padding: 0 14px;
   flex: 1 0 auto;
   scroll-margin-bottom: 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.educationDialog .tourNav .tourContinue {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: transparent;
+}
+
+.educationDialog .tourNav .tourContinue:hover {
+  color: var(--accent-fg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.educationDialog .tourNav .tourBack {
+  color: var(--text-secondary);
+  border-color: transparent;
+  background: transparent;
+  flex: 0 1 auto;
+}
+
+.educationDialog .tourNav .tourBack:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.educationDialog .tourNav .tourBack:disabled {
+  color: var(--text-faint);
+  background: transparent;
 }
 
 .educationDialog .tourNav button:disabled {
@@ -2529,7 +2636,12 @@ a.skipLink:focus-visible {
   }
 
   .marketBar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
     grid-template-columns: 1fr;
+    border-bottom: 1px solid var(--border-strong);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
   }
 
   .tradeGrid {
@@ -2734,13 +2846,13 @@ a.skipLink:focus-visible {
 
   .tradeGrid {
     grid-template-areas:
-      "ticket"
       "chart"
+      "ticket"
       "book"
       "trades"
-      "settlement"
+      "blotter"
       "matcher"
-      "blotter";
+      "settlement";
     grid-template-columns: 1fr;
   }
 
@@ -2749,8 +2861,8 @@ a.skipLink:focus-visible {
       "chart"
       "ticket"
       "trades"
-      "settlement"
       "matcher"
+      "settlement"
       "blotter";
     grid-template-columns: 1fr;
   }
@@ -3128,6 +3240,7 @@ a.skipLink:focus-visible {
   width: 100%;
   min-height: 650px;
   grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: max-content;
   justify-items: center;
   align-content: start;
   gap: 18px;
@@ -3185,17 +3298,18 @@ a.skipLink:focus-visible {
 
 .simpleVenue .simpleTicket {
   grid-area: auto;
-  padding-bottom: 18px;
-  overflow: hidden;
+  min-height: auto;
+  padding-bottom: 22px;
+  overflow: visible;
   border-color: rgba(240, 193, 75, 0.24);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42), inset 0 1px rgba(255, 255, 255, 0.025);
 }
 
 .operatingShell .simpleVenue .simpleTicket {
   min-height: auto;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .simpleTicket .panelHeader {
@@ -3230,6 +3344,7 @@ a.skipLink:focus-visible {
 .simpleTicket .tokenRow > span:last-child {
   color: var(--text-muted);
   font-size: 10px;
+  white-space: nowrap;
 }
 
 .tokenAmount {
@@ -3244,11 +3359,13 @@ a.skipLink:focus-visible {
 
 .simpleTicket .tokenAmount strong {
   overflow: hidden;
+  min-width: 0;
   font-family: var(--font-geist-mono), monospace;
-  font-size: clamp(22px, 4vw, 30px);
+  font-size: clamp(19px, 4.5vw, 28px);
   font-weight: 560;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tokenAmount span {
@@ -3263,7 +3380,12 @@ a.skipLink:focus-visible {
 }
 
 .editableTokenAmount {
-  min-width: 210px;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .editableTokenAmount input {
@@ -3274,14 +3396,14 @@ a.skipLink:focus-visible {
   color: var(--text);
   background: transparent;
   font-family: var(--font-geist-mono), monospace;
-  font-size: clamp(22px, 4vw, 30px);
+  font-size: clamp(19px, 4.5vw, 28px);
   font-weight: 560;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   text-align: right;
 }
 
 .editableTokenAmount input:focus-visible {
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
@@ -3320,7 +3442,7 @@ a.skipLink:focus-visible {
   width: 100%;
   min-height: 54px;
   min-width: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--background);
 }
 
@@ -3340,7 +3462,7 @@ a.skipLink:focus-visible {
 .simpleTicket .sizeRow .maxButton {
   min-height: 54px;
   align-self: end;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .simpleTicket .ticketSummary {
@@ -3355,7 +3477,7 @@ a.skipLink:focus-visible {
 .simpleTicket .primaryAction {
   min-height: 54px;
   border: 0;
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 720;
 }
@@ -3363,7 +3485,7 @@ a.skipLink:focus-visible {
 .simpleSafetyNote {
   padding: 14px 16px;
   border: 1px solid rgba(126, 182, 255, 0.2);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   background: rgba(126, 182, 255, 0.05);
   font-size: 11px;

@@ -31,7 +31,7 @@
   height: 28px;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent-fg);
   background: var(--accent);
   box-shadow: none;

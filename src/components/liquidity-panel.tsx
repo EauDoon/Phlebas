@@ -659,6 +659,7 @@ export function LiquidityPanel({
           No shared AMM shares. Unused capacity stays in the provider wallet.
         </p>
         <button type="button" className={styles.primaryAction} disabled>
+          <span aria-hidden="true">🔒</span>
           Wallet actions stay disabled
         </button>
       </section>

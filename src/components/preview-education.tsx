@@ -95,19 +95,30 @@ export function PreviewEducation({ force = false }: { force?: boolean }) {
         dismiss();
       }}
     >
-      <p className={styles.eyebrow}>
-        Step {step + 1} of {PREVIEW_EDUCATION_STEPS.length}. Education, not consent.
-      </p>
-      <h2 id="preview-education-title" ref={headingRef} tabIndex={-1}>
-        {current.title}
-      </h2>
-      <p role="region" aria-label="Education copy">{current.body}</p>
+      <div className={styles.educationProgress} aria-hidden="true">
+        {PREVIEW_EDUCATION_STEPS.map((entry, index) => (
+          <span
+            key={entry.title}
+            className={index <= step ? styles.educationSegmentActive : styles.educationSegment}
+          />
+        ))}
+      </div>
+      <div key={step} className={styles.educationBody}>
+        <p className={styles.eyebrow}>
+          Step {step + 1} of {PREVIEW_EDUCATION_STEPS.length}. Education, not consent.
+        </p>
+        <h2 id="preview-education-title" ref={headingRef} tabIndex={-1}>
+          {current.title}
+        </h2>
+        <p role="region" aria-label="Education copy">{current.body}</p>
+      </div>
       <div className={styles.tourNav}>
-        <button type="button" disabled={step === 0} onClick={() => setStep((index) => index - 1)}>
+        <button type="button" className={styles.tourBack} disabled={step === 0} onClick={() => setStep((index) => index - 1)}>
           Back
         </button>
         <button
           type="button"
+          className={styles.tourContinue}
           onClick={last ? dismiss : () => setStep((index) => index + 1)}
         >
           Continue

@@ -1916,9 +1916,10 @@ test("ticket side type and time in force arrows move focus and Enter selects", a
   const limit = page.getByRole("button", { name: "Limit" });
   await limit.focus();
   await page.keyboard.press("End");
-  await expect(page.getByRole("button", { name: "Market" })).toBeFocused();
+  const twap = page.getByRole("button", { name: "TWAP" });
+  await expect(twap).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("button", { name: "Market" })).toHaveAttribute("aria-pressed", "true");
+  await expect(twap).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("Home");
   await page.keyboard.press("Enter");
   await expect(limit).toHaveAttribute("aria-pressed", "true");

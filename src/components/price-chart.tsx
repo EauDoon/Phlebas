@@ -50,13 +50,13 @@ export function PriceChart({ marketId, range, feedStatus }: PriceChartProps) {
             <stop offset="100%" stopColor="#f0c14b" stopOpacity="0" />
           </linearGradient>
         </defs>
-        {[0, 1, 2, 3].map((line) => (
+        {[0, 1, 2, 3, 4].map((line) => (
           <line
             key={line}
             x1="0"
             x2={CHART_DISPLAY_WIDTH}
-            y1={(CHART_DISPLAY_HEIGHT / 3) * line}
-            y2={(CHART_DISPLAY_HEIGHT / 3) * line}
+            y1={(CHART_DISPLAY_HEIGHT / 4) * line}
+            y2={(CHART_DISPLAY_HEIGHT / 4) * line}
             className={styles.chartGrid}
           />
         ))}
