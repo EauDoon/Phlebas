@@ -18,7 +18,7 @@ import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
-import { emptyManifest, recordBroadcast } from "../src/lib/mainnet-manifest.ts";
+import { emptyManifest, ETHEREUM_MAINNET_CHAIN_ID, recordBroadcast } from "../src/lib/mainnet-manifest.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(root, "infra/mainnet/ethereum-mainnet.json");
@@ -60,6 +60,28 @@ if (markDeployed) {
   }
   const provisional = recordBroadcast(current, broadcast, { commit: commit.trim() });
   let requestId = 0;
+
+  // eth_getCode alone does not prove the RPC is even talking to Ethereum
+  // Mainnet: an operator can point --rpc-url at the wrong network by
+  // mistake (stale env var, wrong keystore profile, a fork or devnet left
+  // running), and an address can carry bytecode on more than one chain.
+  // Ask the RPC's own chain ID before trusting anything it returns, the
+  // same way recordBroadcast refuses a broadcast file from any chain but
+  // Ethereum Mainnet.
+  const chainIdResponse = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: ++requestId, method: "eth_chainId", params: [] }),
+  });
+  if (!chainIdResponse.ok) throw new Error("Mainnet RPC chain ID check failed");
+  const chainIdPayload = await chainIdResponse.json();
+  if (chainIdPayload.error || typeof chainIdPayload.result !== "string" || !/^0x[0-9a-fA-F]+$/.test(chainIdPayload.result)) {
+    throw new Error("Mainnet RPC returned no usable chain ID");
+  }
+  if (BigInt(chainIdPayload.result) !== BigInt(ETHEREUM_MAINNET_CHAIN_ID)) {
+    throw new Error("--rpc-url is not connected to Ethereum Mainnet (chain ID 1)");
+  }
+
   for (const address of Object.values(provisional.contracts)) {
     if (!address) continue;
     const response = await fetch(rpcUrl, {

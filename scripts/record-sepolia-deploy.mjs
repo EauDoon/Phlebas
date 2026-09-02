@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
-import { emptyManifest, recordBroadcast } from "../src/lib/sepolia-manifest.ts";
+import { emptyManifest, recordBroadcast, SEPOLIA_CHAIN_ID } from "../src/lib/sepolia-manifest.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(root, "infra/testnet/arbitrum-sepolia.json");
@@ -37,6 +37,27 @@ if (markDeployed) {
   }
   const provisional = recordBroadcast(current, broadcast, { commit: commit.trim() });
   let requestId = 0;
+
+  // eth_getCode alone does not prove which chain answered it, and the
+  // same address can carry bytecode on more than one. An operator can
+  // point --rpc-url at the wrong network without noticing: a stale
+  // environment variable, the wrong profile, a fork or devnet still
+  // running. Ask the RPC its own chain ID first, the same way
+  // recordBroadcast refuses a broadcast file from any chain but this one.
+  const chainIdResponse = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: ++requestId, method: "eth_chainId", params: [] }),
+  });
+  if (!chainIdResponse.ok) throw new Error("Sepolia RPC chain ID check failed");
+  const chainIdPayload = await chainIdResponse.json();
+  if (chainIdPayload.error || typeof chainIdPayload.result !== "string" || !/^0x[0-9a-fA-F]+$/.test(chainIdPayload.result)) {
+    throw new Error("Sepolia RPC returned no usable chain ID");
+  }
+  if (BigInt(chainIdPayload.result) !== BigInt(SEPOLIA_CHAIN_ID)) {
+    throw new Error("--rpc-url is not connected to Arbitrum Sepolia (chain ID 421614)");
+  }
+
   for (const address of Object.values(provisional.contracts)) {
     if (!address) continue;
     const response = await fetch(rpcUrl, {
