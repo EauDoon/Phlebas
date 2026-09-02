@@ -790,7 +790,11 @@ test("landing and terminal banners stay a public preview", async () => {
   assert.match(globalError, /flex-wrap: wrap/);
   assert.match(globalError, /width: 100%/);
   assert.match(globalError, /flex: 1 1 calc\(50% - 4px\)/);
-  assert.match(globalError, /outline: 2px solid #03121b/);
+  // The focus ring has to be visible against the page it sits on. It is
+  // offset outside the link, so it is measured against #050816, where
+  // #03121b was 1.05:1 and invisible. These links are always shown, so
+  // the outline is the only focus change there is.
+  assert.match(globalError, /outline: 2px solid #4ddcff/);
   assert.match(globalError, /a:last-child/);
   assert.match(globalError, /flex-shrink: 0/);
   assert.doesNotMatch(globalError, /is a live exchange/);
