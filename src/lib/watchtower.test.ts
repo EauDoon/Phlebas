@@ -17,15 +17,23 @@ test("detectAlerts returns no alerts for a fresh coordinator", () => {
 });
 
 test("detectAlerts flags a missing-terminal-event when both legs are funded past the deadline", () => {
+  const firstObservedAt = 1_780_000_000n;
   let state: CoordinatorState = emptyCoordinator();
-  state = applyTransition(state, FILL_A, "evm-leg-funded", 100n);
-  state = applyTransition(state, FILL_A, "zec-leg-funded", 200n);
-  // evmRefundAfter is nowSeconds + 900000 from the empty fill default.
-  // Way past that with the deadline buffer.
-  const alerts = detectAlerts(state, 9_999_999_999n, config());
+  state = applyTransition(state, FILL_A, "evm-leg-funded", firstObservedAt);
+  state = applyTransition(state, FILL_A, "zec-leg-funded", firstObservedAt + 1n);
+  const fill = state.fills[FILL_A];
+  assert.ok(fill);
+  const evmRefundAfter = fill.evmRefundAfter;
+  assert.equal(evmRefundAfter, firstObservedAt + 900_000n);
+
+  const atBoundary = detectAlerts(state, evmRefundAfter + config().deadlineBuffer, config());
+  assert.equal(atBoundary.find((alert) => alert.alert === "missing-terminal-event"), undefined);
+
+  const alerts = detectAlerts(state, evmRefundAfter + config().deadlineBuffer + 1n, config());
   const missing = alerts.find((a) => a.alert === "missing-terminal-event");
   assert.ok(missing);
   assert.equal(missing.fillId, FILL_A);
+  assert.match(missing.message, new RegExp(String(evmRefundAfter + config().deadlineBuffer)));
 });
 
 test("detectAlerts flags a deadline breach when the EVM refund window has opened", () => {

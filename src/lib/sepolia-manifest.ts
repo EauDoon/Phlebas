@@ -118,7 +118,12 @@ export function recordBroadcast(
     }
     for (const address of Object.values(next.contracts)) {
       const code = address ? options.deployedCode?.[address.toLowerCase()] : undefined;
-      if (!code || !/^0x[0-9a-fA-F]{2,}$/.test(code) || /^0x0*$/.test(code)) {
+      if (
+        !code
+        || !/^0x[0-9a-fA-F]{2,}$/.test(code)
+        || (code.length - 2) % 2 !== 0
+        || /^0x0*$/.test(code)
+      ) {
         throw new Error("Cannot mark deployed without verified bytecode at every contract address");
       }
     }

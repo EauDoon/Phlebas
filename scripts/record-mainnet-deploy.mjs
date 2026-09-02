@@ -2,15 +2,13 @@
 // broadcast into infra/mainnet/ethereum-mainnet.json.
 //
 // The manifest stays deployed: false until --mark-deployed is passed and
-// every recorded address's on-chain bytecode has been fetched from a
-// mainnet RPC. Nothing here trusts the broadcast file alone.
+// every recorded address's on-chain bytecode presence has been observed
+// through a mainnet RPC. Nothing here trusts the broadcast file alone.
 //
-// With --configure-matcher usdc|usdt|both, the recorded Settlement address
-// is also written into the native matcher deployment manifests
-// (infra/matcher/native-zec-usdc.json, native-zec-usdt.json) as the EIP-712
-// verifying contract, with the deterministic configuration hash, and
-// deployed/submissionEnabled are flipped to true. This is the step that
-// lets the persistent matcher leave no-value mode.
+// This recorder deliberately cannot enable matcher submission. Code
+// presence does not prove that the address contains the reviewed build.
+// Matcher activation remains blocked until an exact approved runtime
+// identity can be checked against the observed on-chain bytecode.
 
 import { execFile } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
@@ -24,15 +22,18 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(root, "infra/mainnet/ethereum-mainnet.json");
 const broadcastPath = join(root, "contracts/broadcast/DeployMainnet.s.sol/1/run-latest.json");
 const markDeployed = process.argv.includes("--mark-deployed");
-const configureMatcherIndex = process.argv.indexOf("--configure-matcher");
-const configureMatcherInline = process.argv.find((value) => value.startsWith("--configure-matcher="))
-  ?.slice("--configure-matcher=".length);
-const configureMatcher = (configureMatcherInline ?? (configureMatcherIndex >= 0 ? process.argv[configureMatcherIndex + 1] : undefined))
-  ?.toLowerCase();
+const configureMatcherRequested = process.argv.includes("--configure-matcher")
+  || process.argv.some((value) => value.startsWith("--configure-matcher="));
 const rpcIndex = process.argv.indexOf("--rpc-url");
 const rpcInline = process.argv.find((value) => value.startsWith("--rpc-url="))?.slice("--rpc-url=".length);
 const rpcUrl = rpcInline ?? (rpcIndex >= 0 ? process.argv[rpcIndex + 1] : undefined) ?? process.env.ETHEREUM_MAINNET_RPC_URL;
 const execFileAsync = promisify(execFile);
+
+if (configureMatcherRequested) {
+  throw new Error(
+    "Matcher activation is disabled until the observed Settlement runtime bytecode matches an exact approved identity",
+  );
+}
 
 async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
@@ -92,7 +93,7 @@ if (markDeployed) {
     if (!response.ok) throw new Error("Mainnet RPC bytecode verification failed");
     const payload = await response.json();
     if (payload.error || typeof payload.result !== "string") {
-      throw new Error("Mainnet RPC returned no verified bytecode result");
+      throw new Error("Mainnet RPC returned no usable bytecode result");
     }
     deployedCode[address.toLowerCase()] = payload.result;
   }
@@ -106,35 +107,4 @@ console.log(`broadcastTx: ${next.broadcastTx ?? "none"}`);
 if (!next.deployed) {
   console.log("Manifest stays deployed: false until --mark-deployed is passed with a real mainnet tx.");
   process.exit(0);
-}
-
-if (configureMatcher) {
-  if (configureMatcher !== "usdc" && configureMatcher !== "usdt" && configureMatcher !== "both") {
-    throw new Error("--configure-matcher accepts usdc, usdt, or both");
-  }
-  const verifyingContract = next.contracts.Settlement;
-  const configurationHashScript = [
-    `import { computeNativeZecUsdcMatcherConfigurationHash } from "./src/lib/native-zec-usdc-matcher-manifest.ts";`,
-    `import { computeNativeZecUsdtMatcherConfigurationHash } from "./src/lib/native-zec-usdt-matcher-manifest.ts";`,
-    `const address = "${verifyingContract}";`,
-    `console.log(JSON.stringify({ usdc: computeNativeZecUsdcMatcherConfigurationHash(address), usdt: computeNativeZecUsdtMatcherConfigurationHash(address) }));`,
-  ].join("\n");
-  const { stdout: hashes } = await execFileAsync(
-    "node",
-    ["--experimental-strip-types", "--input-type=module", "-e", configurationHashScript],
-    { cwd: root },
-  );
-  const configurationHashes = JSON.parse(hashes);
-  const targets = configureMatcher === "both" ? ["usdc", "usdt"] : [configureMatcher];
-  for (const market of targets) {
-    const matcherManifestPath = join(root, `infra/matcher/native-zec-${market}.json`);
-    const matcherManifest = await readJson(matcherManifestPath);
-    if (matcherManifest.evm.chainId !== 1) throw new Error(`${matcherManifestPath} is not a mainnet manifest`);
-    matcherManifest.evm.verifyingContract = verifyingContract;
-    matcherManifest.configurationHash = configurationHashes[market];
-    matcherManifest.deployed = true;
-    matcherManifest.submissionEnabled = true;
-    await writeJson(matcherManifestPath, matcherManifest);
-    console.log(`Configured ${matcherManifestPath}: verifyingContract ${verifyingContract}, submission enabled.`);
-  }
 }

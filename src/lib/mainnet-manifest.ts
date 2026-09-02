@@ -2,8 +2,9 @@
 // Settlement CLOB contract: real USDC and USDT already exist on chain, and
 // the historical AMM surfaces (Factory, Router, mock tokens) deliberately
 // do not ship here. The manifest stays deployed: false until a real,
-// successful mainnet transaction is recorded and its on-chain bytecode is
-// verified against the local broadcast artifacts.
+// successful mainnet transaction is recorded and nonzero on-chain bytecode
+// is observed at its address. This evidence does not approve matcher
+// activation because it does not prove the bytecode's reviewed identity.
 
 export const ETHEREUM_MAINNET_CHAIN_ID = 1;
 
@@ -114,7 +115,7 @@ export function recordBroadcast(
       || (code.length - 2) % 2 !== 0
       || /^0x0*$/.test(code)
     ) {
-      throw new Error("Cannot mark deployed without verified on-chain bytecode for Settlement");
+      throw new Error("Cannot mark deployed without well-formed nonzero on-chain bytecode for Settlement");
     }
     next.deployed = true;
   }

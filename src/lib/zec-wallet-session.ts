@@ -61,11 +61,11 @@ export const disconnectedZecSession: ZecWalletSession = Object.freeze({
 });
 
 const DEFAULT_OBSERVED_CAPABILITIES: ObservedZecWalletCapabilities = Object.freeze({
-  sourceAddressControl: true,
-  pcztVersions: Object.freeze<(1 | 2)[]>([1, 2]),
-  arbitraryP2shFundingOutputs: true,
-  arbitraryP2shSpendingInputs: true,
-  exactLocktime: true,
+  sourceAddressControl: false,
+  pcztVersions: Object.freeze<(1 | 2)[]>([]),
+  arbitraryP2shFundingOutputs: false,
+  arbitraryP2shSpendingInputs: false,
+  exactLocktime: false,
   transactionExtraction: false,
   broadcast: false,
   keylessRecoveryExport: false,
@@ -128,7 +128,13 @@ export async function connectZecWalletSession(
     return Object.freeze({ ...disconnectedZecSession, state });
   }
 
-  const requestedObserved = options.observed ?? DEFAULT_OBSERVED_CAPABILITIES;
+  const requestedObserved = options.observed ?? {
+    ...DEFAULT_OBSERVED_CAPABILITIES,
+    // The default connect path attempts the one proof this flow can
+    // perform. The result below, not this request flag, determines whether
+    // source-address control is declared supported.
+    sourceAddressControl: true,
+  };
 
   // sourceAddressControl is the one capability this connect flow can
   // actually exercise, by asking the wallet to sign the challenge right

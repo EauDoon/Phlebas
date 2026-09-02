@@ -29,8 +29,15 @@ describe("capability statement assembly", () => {
   it("builds a schema-valid statement from observed capabilities", () => {
     const statement = zecCapabilityStatementFromObserved();
     assert.equal(statement.schema, "phlebas-transparent-zec-mainnet-wallet-capabilities-v1");
-    assert.equal(statement.capabilities.sourceAddressControl.proofMethod, "transparent-message-signature");
-    assert.deepEqual([...statement.capabilities.pczt.supportedVersions], [1, 2]);
+    assert.equal(statement.capabilities.sourceAddressControl.supported, false);
+    assert.equal(statement.capabilities.sourceAddressControl.proofMethod, "none");
+    assert.deepEqual([...statement.capabilities.pczt.supportedVersions], []);
+    assert.equal(statement.capabilities.arbitraryP2sh.fundingOutputs, false);
+    assert.equal(statement.capabilities.arbitraryP2sh.spendingInputs, false);
+    assert.equal(statement.capabilities.exactLocktime.supported, false);
+    assert.equal(statement.capabilities.transactionExtraction.supported, false);
+    assert.equal(statement.capabilities.broadcast.supported, false);
+    assert.equal(statement.capabilities.recoveryExport.supported, false);
   });
 
   it("never enables network actions, whatever was observed", () => {
@@ -56,8 +63,16 @@ describe("capability statement assembly", () => {
   it("declares unobserved capabilities as absent by default", () => {
     const statement = zecCapabilityStatementFromObserved();
     const assessment = assessTransparentZecMainnetWalletCapabilityStatement(statement);
-    assert.ok(assessment.missingCapabilities.includes("transaction-extraction"));
-    assert.ok(assessment.missingCapabilities.includes("broadcast"));
+    assert.deepEqual([...assessment.missingCapabilities], [
+      "source-address-control",
+      "pczt",
+      "arbitrary-p2sh-funding",
+      "arbitrary-p2sh-spending",
+      "exact-locktime",
+      "transaction-extraction",
+      "broadcast",
+      "keyless-recovery-export",
+    ]);
   });
 });
 
@@ -71,7 +86,21 @@ describe("connect session", () => {
     assert.equal(session.state.address, MAINNET_CANONICAL);
     assert.equal(session.state.error, null);
     assert.equal(session.addressControlSignature, "0xfeedface");
+    assert.equal(session.statement?.capabilities.sourceAddressControl.supported, true);
+    assert.deepEqual(session.statement?.capabilities.pczt.supportedVersions, []);
+    assert.equal(session.statement?.capabilities.arbitraryP2sh.fundingOutputs, false);
+    assert.equal(session.statement?.capabilities.arbitraryP2sh.spendingInputs, false);
+    assert.equal(session.statement?.capabilities.exactLocktime.supported, false);
     assert.equal(session.assessment?.statementValid, true);
+    assert.deepEqual(session.assessment?.missingCapabilities, [
+      "pczt",
+      "arbitrary-p2sh-funding",
+      "arbitrary-p2sh-spending",
+      "exact-locktime",
+      "transaction-extraction",
+      "broadcast",
+      "keyless-recovery-export",
+    ]);
     assert.equal(session.assessment?.broadcastEnabled, false);
   });
 

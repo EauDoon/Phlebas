@@ -60,10 +60,10 @@ export function detectAlerts(
       }
     }
     if (fill.evmLeg.state === "funded" && fill.zecLeg.state === "funded") {
-      const latestObservation = fill.evmLeg.observedAt > fill.zecLeg.observedAt
-        ? fill.evmLeg.observedAt
-        : fill.zecLeg.observedAt;
-      const minTerminalDeadline = latestObservation + fill.evmRefundAfter + config.deadlineBuffer;
+      // evmRefundAfter is already an absolute Unix timestamp. Adding an
+      // observation timestamp to it would double the epoch and suppress
+      // this alert for decades.
+      const minTerminalDeadline = fill.evmRefundAfter + config.deadlineBuffer;
       if (nowSeconds > minTerminalDeadline) {
         alerts.push({
           fillId,
