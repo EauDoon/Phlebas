@@ -31,7 +31,7 @@ test("education copy stays a public-preview briefing, not consent", () => {
     assert.doesNotMatch(step.body, /\blive funds\b/i);
     assert.doesNotMatch(step.body, /is trustless/);
   }
-  assert.equal(PREVIEW_EDUCATION_STEPS[0].title, "This public preview uses illustrative data.");
+  assert.equal(PREVIEW_EDUCATION_STEPS[0].title, "Phlebas is pre-launch. Market data is illustrative until activation.");
   assert.match(PREVIEW_EDUCATION_STEPS[0].body, /Ethereum Mainnet wallet can connect for identity/);
   assert.match(PREVIEW_EDUCATION_STEPS[0].body, /does not sign or submit a transaction/);
   assert.equal(PREVIEW_EDUCATION_STEPS[1].title, "Pairs are native ZEC against USDC and USDT.");
@@ -43,7 +43,7 @@ test("education copy stays a public-preview briefing, not consent", () => {
   assert.equal(PREVIEW_EDUCATION_STEPS[2].title, "Actions stay in this browser.");
   assert.match(PREVIEW_EDUCATION_STEPS[2].body, /Contracts are not deployed/);
   assert.match(PREVIEW_EDUCATION_STEPS[2].body, /no signing, submission, or asset movement is enabled/);
-  assert.equal(PREVIEW_EDUCATION_VERSION, "2026-09-01-3");
+  assert.equal(PREVIEW_EDUCATION_VERSION, "2026-09-02-1");
   assert.equal(PREVIEW_EDUCATION_STORAGE_KEY, "phlebas.previewEducationVersion");
 });
 

@@ -1832,7 +1832,7 @@ test("document metadata does not claim a live exchange", async ({ page }) => {
 
 test("terminal footer uses the site legal sentence", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
-  await expect(page.getByText("Phlebas is not a live exchange and not an offer of financial services.")).toBeVisible();
+  await expect(page.getByText("Phlebas is pre-launch. It is not yet a live exchange and is not an offer of financial services.")).toBeVisible();
   const footer = page.getByRole("navigation", { name: "Footer" });
   await expect(footer.getByRole("link", { name: "Docs" })).toBeVisible();
   await expect(footer.getByRole("link", { name: "Legal" })).toBeVisible();
