@@ -1562,8 +1562,11 @@ a.skipLink:focus-visible {
 }
 
 .ethereumMark {
+  /* #f4f8ff on #526ee8 measures 4.15:1, below the 4.5:1 body-text floor (WCAG 1.4.3).
+     Darkened the fill to #4560d0 (5.14:1) rather than lightening the text, so the mark
+     stays on-brand with the prismatic blue rather than drifting toward white. */
   color: #f4f8ff;
-  background: #526ee8;
+  background: #4560d0;
 }
 
 .walletOptions :global([class*="headerActions"]) {
