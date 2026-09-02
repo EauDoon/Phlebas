@@ -226,7 +226,10 @@ export function levelsFromBook(book: Book, side: OrderSide): Array<{ priceTicks:
     grouped.set(key, (grouped.get(key) ?? 0n) + order.remainingAtoms);
   }
   const prices = [...grouped.keys()].map((key) => BigInt(key));
-  prices.sort((left, right) => side === "buy" ? (left > right ? -1 : 1) : (left < right ? -1 : 1));
+  prices.sort((left, right) => {
+    if (left === right) return 0;
+    return side === "buy" ? (left > right ? -1 : 1) : (left < right ? -1 : 1);
+  });
   let total = 0n;
   return prices.map((priceTicks) => {
     const sizeAtoms = grouped.get(priceTicks.toString()) ?? 0n;
