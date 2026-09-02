@@ -31,8 +31,18 @@ export function LandingHeader() {
     event.preventDefault();
     closeMenu();
     const target = document.getElementById(href.slice(1));
-    target?.scrollIntoView();
-    target?.focus({ preventScroll: true });
+    // Closing a modal dialog returns focus to whatever opened it, which is
+    // the Menu button, and the browser does that after this handler
+    // returns. Focusing the section synchronously here therefore looked
+    // right and was undone a moment later, leaving a visitor who picked a
+    // destination from the menu back on the button they opened it with.
+    // Confirmed by reading document.activeElement after the click rather
+    // than by inference. Waiting a frame lets the dialog finish its
+    // restoration first, so the section keeps the focus that was asked for.
+    requestAnimationFrame(() => {
+      target?.scrollIntoView();
+      target?.focus({ preventScroll: true });
+    });
     window.history.replaceState(null, "", href);
   }
 
