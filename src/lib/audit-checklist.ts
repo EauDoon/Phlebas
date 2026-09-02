@@ -20,12 +20,32 @@ export type ParsedAuditChecklistRow = Readonly<{
   status: string;
 }>;
 
+/**
+ * Read the checklist table that `scripts/release-readiness.mjs` gates on.
+ *
+ * A row with the wrong number of cells raises rather than being dropped.
+ * Dropping it was a fail-open: the gate passes when it finds no
+ * incomplete required row, so one `|` inside a description cell split
+ * that row into six and removed an unfinished, required item from the
+ * gate's view entirely. Every row in the tracked checklist has five
+ * cells, so insisting on five rejects nothing legitimate.
+ */
 export function parseAuditChecklistRows(markdown: string): ReadonlyArray<ParsedAuditChecklistRow> {
   return markdown.split(/\r?\n/)
-    .filter((line) => line.trim().startsWith("|") && !/^\|\s*-/.test(line.trim()))
-    .map((line) => line.split("|").slice(1, -1).map((cell) => cell.trim().toLowerCase()))
-    .filter((cells) => cells.length === 5 && cells[0] !== "id")
-    .map((cells) => ({ id: cells[0], required: cells[2] === "yes", status: cells[4] }));
+    .map((line, index) => ({ line: line.trim(), lineNumber: index + 1 }))
+    .filter(({ line }) => line.startsWith("|") && !/^\|\s*-/.test(line))
+    .map(({ line, lineNumber }) => {
+      const cells = line.split("|").slice(1, -1).map((cell) => cell.trim().toLowerCase());
+      if (cells.length !== 5) {
+        throw new RangeError(
+          `Audit checklist row on line ${lineNumber} has ${cells.length} cells, expected 5. `
+          + "A cell containing a pipe splits the row and would hide it from the release gate.",
+        );
+      }
+      return cells;
+    })
+    .filter((cells) => cells[0] !== "id")
+    .map((cells) => ({ id: cells[0]!, required: cells[2] === "yes", status: cells[4]! }));
 }
 
 export function emptyAuditChecklist(): AuditChecklist {
