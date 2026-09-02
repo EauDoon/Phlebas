@@ -24,13 +24,18 @@ function event(
 const FILL_A = ("0x" + "aa".repeat(32)) as Hex32;
 const FILL_B = ("0x" + "bb".repeat(32)) as Hex32;
 
+// The reducer needs a real clock for every event. These fixtures put the
+// block a fixed distance into 2026 so a block height could never be
+// mistaken for the timestamp derived from it.
+const AT = (event: ZcashOutpointEvent): bigint => 1_780_000_000n + event.blockHeight;
+
 test("outpointKey lowercases the txid and includes the vout", () => {
   assert.equal(outpointKey("0xABCD", 1), "0xabcd:1");
 });
 
 test("reduceZcashEvents skips events without a known fill id", () => {
   const events: ZcashOutpointEvent[] = [event("funded", "0xa", 0, 100n)];
-  assert.equal(reduceZcashEvents(events).length, 0);
+  assert.equal(reduceZcashEvents(events, { blockTimestamp: AT }).length, 0);
 });
 
 test("reduceZcashEvents maps known events to transitions", () => {
@@ -39,7 +44,7 @@ test("reduceZcashEvents maps known events to transitions", () => {
     event("claimed", "0xa", 0, 200n),
   ];
   const lookup = { [outpointKey("0xa", 0)]: FILL_A };
-  const out = reduceZcashEvents(events, { fillIdByOutpoint: lookup });
+  const out = reduceZcashEvents(events, { fillIdByOutpoint: lookup, blockTimestamp: AT });
   assert.equal(out.length, 2);
   assert.equal(out[0].transition, "zec-leg-funded");
   assert.equal(out[1].transition, "zec-leg-claimed");
@@ -56,16 +61,16 @@ test("reduceZcashEvents sorts by observed timestamp then fill id", () => {
     [outpointKey("0xa", 0)]: FILL_A,
     [outpointKey("0xb", 0)]: FILL_B,
   };
-  const out = reduceZcashEvents(events, { fillIdByOutpoint: lookup });
+  const out = reduceZcashEvents(events, { fillIdByOutpoint: lookup, blockTimestamp: AT });
   assert.equal(out[0].fillId, FILL_A);
   assert.equal(out[0].transition, "zec-leg-funded");
-  assert.equal(out[0].observedAt, 100n);
+  assert.equal(out[0].observedAt, 1_780_000_100n);
   assert.equal(out[1].fillId, FILL_B);
   assert.equal(out[1].transition, "zec-leg-funded");
-  assert.equal(out[1].observedAt, 200n);
+  assert.equal(out[1].observedAt, 1_780_000_200n);
   assert.equal(out[2].fillId, FILL_A);
   assert.equal(out[2].transition, "zec-leg-claimed");
-  assert.equal(out[2].observedAt, 300n);
+  assert.equal(out[2].observedAt, 1_780_000_300n);
 });
 
 test("reduceZcashEvents uses the injected block timestamp oracle", () => {
@@ -78,5 +83,18 @@ test("reduceZcashEvents uses the injected block timestamp oracle", () => {
 test("reduceZcashEvents rejects a non-hex32 fill id in the lookup", () => {
   const events: ZcashOutpointEvent[] = [event("funded", "0xa", 0, 100n)];
   const lookup = { [outpointKey("0xa", 0)]: "0xnope" as unknown as Hex32 };
-  assert.throws(() => reduceZcashEvents(events, { fillIdByOutpoint: lookup }));
+  assert.throws(() => reduceZcashEvents(events, { fillIdByOutpoint: lookup, blockTimestamp: AT }));
+});
+
+test("reduceZcashEvents refuses to run without a block-timestamp source", () => {
+  // The default this replaces used event.blockHeight, a count of blocks,
+  // where the coordinator expects Unix seconds. A height near 2,600,000
+  // read as a second is January 1970, and every deadline computed from it
+  // is anchored to a moment that never existed.
+  const events: ZcashOutpointEvent[] = [event("funded", "0xa", 0, 2_600_000n)];
+  const lookup = { [outpointKey("0xa", 0)]: FILL_A };
+  assert.throws(
+    () => (reduceZcashEvents as (e: ZcashOutpointEvent[], o?: unknown) => unknown)(events, { fillIdByOutpoint: lookup }),
+    /block-timestamp source/,
+  );
 });
