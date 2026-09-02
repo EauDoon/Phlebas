@@ -7,7 +7,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptPath = join(dirname(fileURLToPath(import.meta.url)), "scan-secrets.mjs");
-const PEM = "-----BEGIN RSA PRIVATE KEY-----\nMIIEow==\n-----END RSA PRIVATE KEY-----\n";
+// Assembled at run time so this file does not itself contain the literal
+// the scanner looks for. The scanner skips exactly one path, its own, and
+// widening that exclusion to cover a test fixture would be a hole.
+const BEGIN = ["-----BEGIN", "RSA", "PRIVATE", "KEY-----"].join(" ");
+const END = ["-----END", "RSA", "PRIVATE", "KEY-----"].join(" ");
+const PEM = `${BEGIN}\nMIIEow==\n${END}\n`;
 
 /**
  * The scanner reads `git ls-files`, so a fixture needs a real repository.
