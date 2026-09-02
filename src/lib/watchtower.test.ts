@@ -7,7 +7,7 @@ import { detectAlerts } from "./watchtower.ts";
 const FILL_A = "0x" + "aa".repeat(32);
 
 function config() {
-  return { reorgDepth: 10n, deadlineBuffer: 60n };
+  return { reorgWindowSeconds: 120n, deadlineBuffer: 60n };
 }
 
 test("detectAlerts returns no alerts for a fresh coordinator", () => {
@@ -36,15 +36,32 @@ test("detectAlerts flags a deadline breach when the EVM refund window has opened
   assert.ok(breach);
 });
 
-test("detectAlerts does not flag a fill that is already settled", () => {
+function settledFill(): CoordinatorState {
   let state: CoordinatorState = emptyCoordinator();
   state = applyTransition(state, FILL_A, "evm-leg-funded", 100n);
   state = applyTransition(state, FILL_A, "zec-leg-funded", 200n);
   state = applyTransition(state, FILL_A, "zec-leg-claimed", 300n);
   state = applyTransition(state, FILL_A, "evm-leg-claimed", 400n);
-  const alerts = detectAlerts(state, 500n, config());
-  const breach = alerts.find((a) => a.fillId === FILL_A);
-  assert.equal(breach, undefined);
+  return state;
+}
+
+test("detectAlerts does not flag a settled fill once its reorganization window has passed", () => {
+  // The claim was observed at 400 and the window is 120s, so by 600 it is
+  // past reorganization and there is nothing left to warn about.
+  const alerts = detectAlerts(settledFill(), 600n, config());
+  assert.equal(alerts.find((a) => a.fillId === FILL_A), undefined);
+});
+
+test("detectAlerts flags a settled fill that is still inside the reorganization window", () => {
+  // This is the alert's entire purpose: a terminal event that a
+  // reorganization could still undo. The comparison used to be made
+  // against reorgDepth, a count of blocks, so with a depth of 10 the
+  // window was ten raw seconds and this alert effectively never fired.
+  // A claim seen 100 seconds ago is well inside a 120-second window.
+  const alerts = detectAlerts(settledFill(), 500n, config());
+  const alert = alerts.find((a) => a.fillId === FILL_A);
+  assert.equal(alert?.alert, "reorg-depth-exceeded");
+  assert.match(alert?.message ?? "", /120s reorganization window/);
 });
 
 test("detectAlerts aggregates alerts across fills", () => {

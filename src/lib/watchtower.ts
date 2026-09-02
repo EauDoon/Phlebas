@@ -22,7 +22,20 @@ export type WatchtowerAlert = Readonly<{
 }>;
 
 export type WatchtowerConfig = Readonly<{
-  reorgDepth: bigint;
+  /**
+   * How long after a terminal observation a reorganization could still
+   * undo it, in SECONDS.
+   *
+   * This used to be reorgDepth, and reorgDepth is a count of blocks
+   * everywhere else in the repository: reorg-detector.ts calls it
+   * depthBlocks and derives it from two tip heights. Comparing a seconds
+   * delta against it meant the alert stopped firing a handful of seconds
+   * after the observation instead of after a block-scaled window. Ten
+   * blocks is roughly two minutes on Ethereum and twelve on Zcash, and
+   * the two chains do not share the number, so the window has to be
+   * stated in the unit the comparison is actually made in.
+   */
+  reorgWindowSeconds: bigint;
   deadlineBuffer: bigint;
 }>;
 
@@ -35,12 +48,12 @@ export function detectAlerts(
   for (const fillId of Object.keys(state.fills)) {
     const fill = state.fills[fillId];
     if (!fill) continue;
-    if (fill.evmLeg.observedAt > 0n && nowSeconds - fill.evmLeg.observedAt < config.reorgDepth) {
+    if (fill.evmLeg.observedAt > 0n && nowSeconds - fill.evmLeg.observedAt < config.reorgWindowSeconds) {
       if (fill.evmLeg.state === "refunded" || fill.evmLeg.state === "claimed") {
         alerts.push({
           fillId,
           alert: "reorg-depth-exceeded",
-          message: `EVM leg ${fill.evmLeg.state} observed within reorg depth ${config.reorgDepth}`,
+          message: `EVM leg ${fill.evmLeg.state} observed within the ${config.reorgWindowSeconds}s reorganization window`,
           recommendedAction: "verify the canonical journal independently; do not act from this diagnostic",
           at: nowSeconds,
         });
