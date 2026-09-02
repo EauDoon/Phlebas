@@ -53,12 +53,14 @@ export function ticketReviewRows(input: {
   side: TicketSide;
   sizeLabel: string;
   priceLabel: string;
+  twapLabel?: string;
   settlementPair: Market["settlementPair"];
 }): TicketReviewRow[] {
   return [
     { label: "Side", value: input.side === "buy" ? "Buy" : "Sell" },
     { label: "Size", value: input.sizeLabel },
     { label: "Price", value: input.priceLabel },
+    ...(input.twapLabel ? [{ label: "Schedule", value: input.twapLabel }] : []),
     { label: "Settlement pair", value: ticketReviewSettlementCopy(input.settlementPair) },
     { label: "Networks", value: ticketReviewNetworksCopy() },
     { label: "Fee", value: ticketReviewFeeCopy() },

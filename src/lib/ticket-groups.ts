@@ -3,7 +3,7 @@ import type { TimeInForce } from "./matcher.ts";
 export const TICKET_SIDES = ["buy", "sell"] as const;
 export type TicketSide = (typeof TICKET_SIDES)[number];
 
-export const TICKET_ORDER_TYPES = ["limit", "market"] as const;
+export const TICKET_ORDER_TYPES = ["limit", "market", "twap"] as const;
 export type TicketOrderType = (typeof TICKET_ORDER_TYPES)[number];
 
 export const TICKET_TIFS = ["GTC", "IOC", "FOK"] as const satisfies readonly TimeInForce[];

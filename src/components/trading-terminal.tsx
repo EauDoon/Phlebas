@@ -57,6 +57,15 @@ import {
 import type { SessionLogEvent } from "@/lib/replay";
 import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingOrder, type TimeInForce } from "@/lib/matcher";
 import {
+  nextDueTwapSlice,
+  planTwap,
+  twapProgressCopy,
+  twapStopCopy,
+  type TwapDurationSeconds,
+  type TwapPlan,
+  type TwapSliceCount,
+} from "@/lib/twap";
+import {
   applySubmit,
   availableZec,
   availableQuote,
@@ -75,6 +84,7 @@ import {
   type PaperAccount,
   type UserFill,
 } from "@/lib/session";
+import { isTicketRejectCopy } from "@/lib/session";
 import { ZEC_DECIMALS, PRICE_DECIMALS, formatAtomicUnits } from "@/lib/units";
 
 import { ArchitecturePanel } from "./architecture-panel";
@@ -100,6 +110,17 @@ function viewUrl(
 ) {
   return terminalUrl({ view, market, feed, demo, mode });
 }
+
+type TwapJob = {
+  id: string;
+  marketId: MarketId;
+  side: "buy" | "sell";
+  priceTicks: bigint;
+  plan: TwapPlan;
+  /** Mutable progress: the scheduler advances job fields in place. */
+  completed: number;
+  stoppedReason: string | null;
+};
 
 function readStoredMode(): string | null {
   try {
@@ -195,6 +216,9 @@ export function TradingTerminal({
   const nextOrderId = useRef(1);
   const nextPriceNonce = useRef(1);
   const nextFillId = useRef(1);
+  const [twapJobs, setTwapJobs] = useState<TwapJob[]>([]);
+  const twapJobsRef = useRef<TwapJob[]>([]);
+  const executeOrderRef = useRef(executeUserOrder);
   const rangeRefs = useRef<Partial<Record<ChartRange, HTMLButtonElement | null>>>({});
   const marketRefs = useRef<Partial<Record<MarketId, HTMLButtonElement | null>>>({});
   const feedRefs = useRef<Partial<Record<FeedStatus, HTMLButtonElement | null>>>({});
@@ -323,25 +347,28 @@ export function TradingTerminal({
     return { nowUnix, nextBook, nextAccount, userExpired };
   }
 
-  function expireEvents(userExpired: RestingOrder[]): SessionLogEvent[] {
-    return userExpired.map((resting) => ({ kind: "cancel" as const, marketId, orderId: resting.id }));
+  function expireEvents(userExpired: RestingOrder[], targetMarketId: MarketId = marketId): SessionLogEvent[] {
+    return userExpired.map((resting) => ({ kind: "cancel" as const, marketId: targetMarketId, orderId: resting.id }));
   }
 
-  function submitUserOrder(order: {
-    side: "buy" | "sell";
-    tif: TimeInForce;
-    priceTicks: bigint;
-    sizeAtoms: bigint;
-    expiryUnix: bigint;
-  }): string {
+  function executeUserOrder(
+    targetMarketId: MarketId,
+    order: {
+      side: "buy" | "sell";
+      tif: TimeInForce;
+      priceTicks: bigint;
+      sizeAtoms: bigint;
+      expiryUnix: bigint;
+    },
+  ): string {
     const { nowUnix, nextBook, nextAccount, userExpired } = sweepExpired();
     if (!canCover(nextAccount, order.side, order.sizeAtoms, order.priceTicks)) {
       if (userExpired.length > 0) {
-        setBooks({ ...books, [marketId]: nextBook });
-        setAccounts({ ...accounts, [marketId]: nextAccount });
-        setEvents((current) => [...current, ...expireEvents(userExpired)]);
+        setBooks({ ...books, [targetMarketId]: nextBook });
+        setAccounts({ ...accounts, [targetMarketId]: nextAccount });
+        setEvents((current) => [...current, ...expireEvents(userExpired, targetMarketId)]);
       }
-      return inventoryRejectCopy(order.side, marketId);
+      return inventoryRejectCopy(order.side, targetMarketId);
     }
 
     const id = `user-${nextOrderId.current}`;
@@ -350,39 +377,117 @@ export function TradingTerminal({
     const result = submitOrder(nextBook, { id, ...matcherOrder, expiryUnix, nowUnix });
     if (wouldSelfTrade(result.fills)) {
       if (userExpired.length > 0) {
-        setBooks({ ...books, [marketId]: nextBook });
-        setAccounts({ ...accounts, [marketId]: nextAccount });
-        setEvents((current) => [...current, ...expireEvents(userExpired)]);
+        setBooks({ ...books, [targetMarketId]: nextBook });
+        setAccounts({ ...accounts, [targetMarketId]: nextAccount });
+        setEvents((current) => [...current, ...expireEvents(userExpired, targetMarketId)]);
       }
-      return selfTradeRejectCopy(marketId);
+      return selfTradeRejectCopy(targetMarketId);
     }
 
     const applied = applySubmit(nextAccount, order, result);
     if (applied.blockedReason) {
       if (userExpired.length > 0) {
-        setBooks({ ...books, [marketId]: nextBook });
-        setAccounts({ ...accounts, [marketId]: nextAccount });
-        setEvents((current) => [...current, ...expireEvents(userExpired)]);
+        setBooks({ ...books, [targetMarketId]: nextBook });
+        setAccounts({ ...accounts, [targetMarketId]: nextAccount });
+        setEvents((current) => [...current, ...expireEvents(userExpired, targetMarketId)]);
       }
-      return ticketRejectCopy(applied.blockedReason, marketId);
+      return ticketRejectCopy(applied.blockedReason, targetMarketId);
     }
 
-    setBooks({ ...books, [marketId]: result.book });
-    setAccounts({ ...accounts, [marketId]: applied.account });
-    setEvents((current) => [...current, ...expireEvents(userExpired), { kind: "submit", marketId, id, ...order }]);
+    setBooks({ ...books, [targetMarketId]: result.book });
+    setAccounts({ ...accounts, [targetMarketId]: applied.account });
+    setEvents((current) => [...current, ...expireEvents(userExpired, targetMarketId), { kind: "submit", marketId: targetMarketId, id, ...order }]);
     if (result.fills.length > 0) {
       const time = formatFillTime();
       setFills((current) => [
         ...result.fills.map((fill) => {
           const fillId = `fill-${nextFillId.current}`;
           nextFillId.current += 1;
-          return { ...fill, id: fillId, marketId, takerId: id, time };
+          return { ...fill, id: fillId, marketId: targetMarketId, takerId: id, time };
         }),
         ...current,
       ].slice(0, 50));
     }
-    return describeSubmit(result, marketId);
+    return describeSubmit(result, targetMarketId);
   }
+
+  function submitUserOrder(order: {
+    side: "buy" | "sell";
+    tif: TimeInForce;
+    priceTicks: bigint;
+    sizeAtoms: bigint;
+    expiryUnix: bigint;
+    twap?: { slices: TwapSliceCount; durationSeconds: TwapDurationSeconds };
+  }): string {
+    const { twap, ...single } = order;
+    if (twap) {
+      try {
+        const plan = planTwap({
+          totalSizeAtoms: single.sizeAtoms,
+          priceTicks: single.priceTicks,
+          slices: twap.slices,
+          durationSeconds: twap.durationSeconds,
+          startUnix: BigInt(Math.floor(Date.now() / 1000)),
+        });
+        const job: TwapJob = {
+          id: `twap-${nextOrderId.current}`,
+          marketId,
+          side: single.side,
+          priceTicks: single.priceTicks,
+          plan,
+          completed: 0,
+          stoppedReason: null,
+        };
+        twapJobsRef.current = [...twapJobsRef.current, job];
+        setTwapJobs(twapJobsRef.current);
+        return `TWAP started. ${plan.slices} slices over ${Math.round(twap.durationSeconds / 60)} minutes at a worst price of ${formatAtomicUnits(single.priceTicks, PRICE_DECIMALS, 2)}. Slices execute while the terminal is open.`;
+      } catch (error) {
+        return error instanceof Error ? error.message : "TWAP plan is invalid.";
+      }
+    }
+    return executeUserOrder(marketId, single);
+  }
+
+  useEffect(() => {
+    executeOrderRef.current = executeUserOrder;
+    twapJobsRef.current = twapJobs;
+  });
+
+  useEffect(() => {
+    // One slice per tick per job: a backgrounded tab throttles timers, and
+    // executing several stale-book slices in one tick would corrupt state.
+    // Slices resume one per second when ticks resume.
+    const timer = window.setInterval(() => {
+      const jobs = twapJobsRef.current;
+      if (jobs.length === 0) return;
+      const nowUnix = BigInt(Math.floor(Date.now() / 1000));
+      let changed = false;
+      for (const job of jobs) {
+        if (job.completed >= job.plan.slices || job.stoppedReason) continue;
+        const due = nextDueTwapSlice(job.plan, nowUnix, job.completed);
+        if (due === null) continue;
+        const size = job.plan.sliceSizes[due];
+        const result = executeOrderRef.current(job.marketId, {
+          side: job.side,
+          tif: "IOC",
+          priceTicks: job.priceTicks,
+          sizeAtoms: size,
+          expiryUnix: 0n,
+        });
+        changed = true;
+        if (isTicketRejectCopy(result)) {
+          job.stoppedReason = result;
+          setEvents((current) => [...current, { kind: "cancel", marketId: job.marketId, orderId: job.id }]);
+        } else {
+          job.completed += 1;
+        }
+      }
+      const next = jobs.filter((job) => job.completed < job.plan.slices && !job.stoppedReason);
+      twapJobsRef.current = next;
+      if (changed) setTwapJobs(next);
+    }, 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   function cancelUserOrder(orderId: string) {
     const resting = [...book.bids, ...book.asks].find((order) => order.id === orderId);
@@ -453,6 +558,18 @@ export function TradingTerminal({
   const publicTape = feed.showFixtures ? recentTrades[marketId] : [];
 
   const operatingView = initialAccess === "open" && (view === "trade" || view === "liquidity");
+  const twapStatus = (() => {
+    const jobs = twapJobs;
+    if (jobs.length === 0) return null;
+    return jobs.map((job) => (
+      <p key={job.id} className={styles.inlineNotice} role="status">
+        {job.stoppedReason
+          ? twapStopCopy(job.plan, job.completed, job.stoppedReason)
+          : twapProgressCopy(job.plan, job.completed)}
+      </p>
+    ));
+  })();
+
   const tradeTicket = (
     <Fragment key={feedStatus}>
       <TradeTicket
@@ -470,6 +587,7 @@ export function TradingTerminal({
         onRetryFeed={() => selectFeed("illustrative")}
         onSubmit={submitUserOrder}
       />
+      {twapStatus}
     </Fragment>
   );
 

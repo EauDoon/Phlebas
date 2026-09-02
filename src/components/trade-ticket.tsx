@@ -23,6 +23,14 @@ import {
 } from "@/lib/ticket-groups";
 import { maxTicketSizeAtoms } from "@/lib/ticket-size";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
+import {
+  TWAP_DURATION_LABELS,
+  TWAP_DURATION_SECONDS,
+  TWAP_SLICES,
+  planTwap,
+  type TwapDurationSeconds,
+  type TwapSliceCount,
+} from "@/lib/twap";
 import { collateralRequired, describeSubmit, isTicketRejectCopy, USER_ORDER_PREFIX } from "@/lib/session";
 import { quoteClob } from "@/lib/router";
 import {
@@ -139,6 +147,7 @@ export function TradeTicket({
     priceTicks: bigint;
     sizeAtoms: bigint;
     expiryUnix: bigint;
+    twap?: { slices: TwapSliceCount; durationSeconds: TwapDurationSeconds };
   }) => string;
 }) {
   const noticeId = useId();
@@ -147,7 +156,6 @@ export function TradeTicket({
   const sizeErrorId = useId();
   const slippageErrorId = useId();
   const expiryErrorId = useId();
-  const twapNoticeId = useId();
   const [side, setSide] = useState<TicketSide>("buy");
   const [sideFocus, setSideFocus] = useState<TicketSide>("buy");
   const [orderType, setOrderType] = useState<TicketOrderType>("limit");
@@ -161,6 +169,8 @@ export function TradeTicket({
   const [priceContext, setPriceContext] = useState(`${market.id}:${variant}`);
   const [size, setSize] = useState("10");
   const [slippagePercent, setSlippagePercent] = useState("0.50");
+  const [twapSlices, setTwapSlices] = useState<TwapSliceCount>(4);
+  const [twapDuration, setTwapDuration] = useState<TwapDurationSeconds>(900);
   const [expiry, setExpiry] = useState("0");
   const [notice, setNotice] = useState(ticketIdleNoticeCopy());
   const [rejected, setRejected] = useState<string | null>(null);
@@ -173,6 +183,7 @@ export function TradeTicket({
     sizeAtoms: bigint;
     tif: TimeInForce;
     expiryUnix: bigint;
+    twap?: { slices: TwapSliceCount; durationSeconds: TwapDurationSeconds };
     bookFingerprint: string;
     marketId: Market["id"];
     variant: TerminalMode;
@@ -180,7 +191,9 @@ export function TradeTicket({
   } | null>(null);
   const isSimple = variant === "simple";
   const effectiveOrderType: TicketOrderType = isSimple ? "market" : orderType;
-  const effectiveTif: TimeInForce = isSimple || effectiveOrderType === "market" ? "IOC" : tif;
+  const isTwap = !isSimple && effectiveOrderType === "twap";
+  const marketLikeOrder = effectiveOrderType === "market" || isTwap;
+  const effectiveTif: TimeInForce = isSimple || marketLikeOrder ? "IOC" : tif;
   const currentBookFingerprint = bookReviewFingerprint(book);
   const reviewIsCurrent = Boolean(
     review
@@ -262,7 +275,7 @@ export function TradeTicket({
   }, [activeReview, isSimple]);
 
   const lastPrice = Number(formatAtomicUnits(lastTicks, PRICE_DECIMALS, 2));
-  const priceParse = effectiveOrderType === "market"
+  const priceParse = marketLikeOrder
     ? { parsed: lastPrice, error: null }
     : parsePreviewDecimal(price, { atomicRule: QUOTE_PRICE_ATOMIC_RULE });
   const sizeParse = parsePreviewDecimal(size, { atomicRule: ZEC_ATOMIC_RULE });
@@ -331,7 +344,7 @@ export function TradeTicket({
   })();
   const priceError = priceParse.error ?? limitTicks.error;
   const sizeError = sizeParse.error ?? sizeAtoms.error;
-  const slippageError = effectiveOrderType === "market" ? worstPricePreview.error : null;
+  const slippageError = marketLikeOrder ? worstPricePreview.error : null;
   const expiryError = expiryParse.error;
   const inputError = priceError ?? sizeError ?? slippageError ?? expiryError;
   const simpleBookQuote = useMemo(() => {
@@ -443,7 +456,13 @@ export function TradeTicket({
     tifRefs.current[next]?.focus();
   }
 
-  function preparedOrder(): { priceTicks: bigint; sizeAtoms: bigint; tif: TimeInForce; expiryUnix: bigint } | string {
+  function preparedOrder(): {
+    priceTicks: bigint;
+    sizeAtoms: bigint;
+    tif: TimeInForce;
+    expiryUnix: bigint;
+    twap?: { slices: TwapSliceCount; durationSeconds: TwapDurationSeconds };
+  } | string {
     if (inputError) {
       return inputError;
     }
@@ -455,7 +474,7 @@ export function TradeTicket({
     }
 
     let priceTicks = limitTicks.ticks;
-    if (effectiveOrderType === "market") {
+    if (marketLikeOrder) {
       try {
         const slippageHundredths = parseAtomicUnits(slippagePercent, PRICE_DECIMALS, { allowZero: true });
         priceTicks = worstPriceTicks(lastTicks, side, slippageHundredths);
@@ -468,6 +487,26 @@ export function TradeTicket({
     }
     if (!isSimple && (expiryError || expiryParse.error)) {
       return expiryError ?? expiryParse.error ?? "Expiry must be a whole unix time, or 0 for none.";
+    }
+    if (isTwap) {
+      try {
+        planTwap({
+          totalSizeAtoms: sizeAtoms.atoms,
+          priceTicks,
+          slices: twapSlices,
+          durationSeconds: twapDuration,
+          startUnix: 0n,
+        });
+      } catch (error) {
+        return error instanceof Error ? error.message : "TWAP plan is invalid.";
+      }
+      return {
+        priceTicks,
+        sizeAtoms: sizeAtoms.atoms,
+        tif: effectiveTif,
+        expiryUnix: 0n,
+        twap: { slices: twapSlices, durationSeconds: twapDuration },
+      };
     }
     return {
       priceTicks,
@@ -498,7 +537,7 @@ export function TradeTicket({
       expiryUnix: prepared.expiryUnix,
       nowUnix,
     });
-    if (clobPreview.status === "rejected" && clobPreview.reason === "Order expiry has passed") {
+    if (!prepared.twap && clobPreview.status === "rejected" && clobPreview.reason === "Order expiry has passed") {
       const rejectedCopy = describeSubmit(clobPreview, market.id);
       setRejected(rejectedCopy);
       setNotice(rejectedCopy);
@@ -531,6 +570,7 @@ export function TradeTicket({
       priceTicks: activeReview.priceTicks,
       sizeAtoms: activeReview.sizeAtoms,
       expiryUnix: activeReview.expiryUnix,
+      ...(activeReview.twap ? { twap: activeReview.twap } : {}),
     });
     setRejected(isTicketRejectCopy(result) ? result : null);
     setNotice(result);
@@ -580,6 +620,9 @@ export function TradeTicket({
       side: activeReview.side,
       sizeLabel: `${formatAtomicUnits(activeReview.sizeAtoms, ZEC_DECIMALS)} ZEC`,
       priceLabel: `${formatAtomicUnits(activeReview.priceTicks, PRICE_DECIMALS, 2)} ${market.quote}`,
+      twapLabel: activeReview.twap
+        ? `${activeReview.twap.slices} slices over ${TWAP_DURATION_LABELS[activeReview.twap.durationSeconds]}`
+        : undefined,
       settlementPair: market.settlementPair,
     })
     : [];
@@ -719,16 +762,39 @@ export function TradeTicket({
                   },
                 )}
               >
-                {id === "limit" ? "Limit" : "Market"}
+                {id === "limit" ? "Limit" : id === "market" ? "Market" : "TWAP"}
               </button>
             ))}
-            <button type="button" disabled aria-describedby={twapNoticeId}>
-              TWAP
-            </button>
           </div>
-          <p id={twapNoticeId} className={styles.plannedOrderType}>
-            TWAP scheduling is planned. It is unavailable in this public preview.
-          </p>
+
+          {isTwap && (
+            <div className={styles.twapControls} role="group" aria-label="TWAP schedule">
+              <label className={styles.inputLabel}>
+                <span>Slices</span>
+                <select
+                  value={twapSlices}
+                  onChange={(event) => setTwapSlices(Number(event.currentTarget.value) as TwapSliceCount)}
+                  aria-label="TWAP slice count"
+                >
+                  {TWAP_SLICES.map((count) => (
+                    <option key={count} value={count}>{count} slices</option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.inputLabel}>
+                <span>Duration</span>
+                <select
+                  value={twapDuration}
+                  onChange={(event) => setTwapDuration(Number(event.currentTarget.value) as TwapDurationSeconds)}
+                  aria-label="TWAP duration"
+                >
+                  {TWAP_DURATION_SECONDS.map((seconds) => (
+                    <option key={seconds} value={seconds}>{TWAP_DURATION_LABELS[seconds]}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
 
           {effectiveOrderType === "limit" && (
             <div className={styles.orderTypes} role="group" aria-label="Time in force">
@@ -774,8 +840,8 @@ export function TradeTicket({
             <div className={styles.inputShell}>
               <input
                 inputMode="decimal"
-                value={effectiveOrderType === "market" ? "Best available" : price}
-                disabled={effectiveOrderType === "market"}
+                value={marketLikeOrder ? "Best available" : price}
+                disabled={marketLikeOrder}
                 onChange={(event) => setPrice(event.target.value)}
                 aria-label={`Price in ${market.quote}`}
                 aria-invalid={effectiveOrderType === "limit" && Boolean(priceError || notionalError || !priceIsValid)}
@@ -791,11 +857,15 @@ export function TradeTicket({
         </>
       )}
 
-      {effectiveOrderType === "market" && (
-        <p className={styles.inlineNotice}>{marketOrderConstraintCopy()}</p>
+      {marketLikeOrder && (
+        <p className={styles.inlineNotice}>
+          {isTwap
+            ? "TWAP splits the reviewed size into equal IOC slices at the signed worst price, executed on schedule from session inventory."
+            : marketOrderConstraintCopy()}
+        </p>
       )}
 
-      {effectiveOrderType === "market" && (
+      {marketLikeOrder && (
         <label className={styles.inputLabel}>
           <span>Maximum slippage</span>
           <div className={styles.inputShell}>
@@ -927,7 +997,7 @@ export function TradeTicket({
               <dd>{market.settlementPair}</dd>
             </div>
             <div>
-              <dt>{effectiveOrderType === "market" ? "Worst price" : "Limit price"}</dt>
+              <dt>{marketLikeOrder ? "Worst price" : "Limit price"}</dt>
               <dd>{Number.isFinite(worstPrice) ? worstPrice.toFixed(2) : "0.00"} {market.quote}</dd>
             </div>
             <div>

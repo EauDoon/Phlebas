@@ -73,11 +73,29 @@ test("advanced book click fills price and shows GTC IOC FOK", async ({ page }) =
   await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "IOC" })).toBeVisible();
   await expect(page.getByRole("button", { name: "FOK" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "TWAP" })).toBeDisabled();
-  await expect(page.getByText("TWAP scheduling is planned. It is unavailable in this public preview.")).toBeVisible();
 
   await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
+});
+
+test("TWAP splits a reviewed order into scheduled slices", async ({ page }) => {
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
+  await expectHonestPreview(page);
+
+  await page.getByRole("button", { name: "TWAP" }).click();
+  await expect(page.getByRole("button", { name: "TWAP" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("TWAP slice count")).toBeVisible();
+  await expect(page.getByLabel("TWAP duration")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Price in USDC" })).toBeDisabled();
+
+  await page.getByLabel("TWAP slice count").selectOption("4");
+  await page.getByLabel("TWAP duration").selectOption("300");
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByText("4 slices over 5 minutes")).toBeVisible();
+
+  await page.getByRole("button", { name: "Complete buy" }).click();
+  await expect(page.getByText(/TWAP started\. 4 slices over 5 minutes/)).toBeVisible();
+  await expect(page.getByText("TWAP running. 0 of 4 slices executed.")).toBeVisible();
 });
 
 test("advanced click persists and simple query overrides", async ({ page }) => {
