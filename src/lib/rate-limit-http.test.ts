@@ -15,14 +15,24 @@ function mkRequest(headers: Record<string, string | string[] | undefined>, remot
   } as unknown as IncomingMessage;
 }
 
-test("extractClientKey prefers the first X-Forwarded-For address", () => {
-  const req = mkRequest({ "x-forwarded-for": "203.0.113.1, 10.0.0.1" });
-  assert.equal(extractClientKey(req), "203.0.113.1");
+test("extractClientKey ignores forwarding headers unless a proxy is trusted", () => {
+  // These are request headers like any other. Reading them by default let
+  // a caller mint a fresh bucket per request and bypass the limiter
+  // outright, on servers that PHLEBAS_ALLOW_NON_LOOPBACK=1 can expose.
+  const spoofed = mkRequest({ "x-forwarded-for": "203.0.113.1", "x-real-ip": "198.51.100.5" }, "10.0.0.9");
+  assert.equal(extractClientKey(spoofed), "10.0.0.9");
+  assert.equal(extractClientKey(spoofed, {}), "10.0.0.9");
+  assert.equal(extractClientKey(spoofed, { trustForwardedHeaders: false }), "10.0.0.9");
 });
 
-test("extractClientKey falls back to X-Real-IP", () => {
+test("extractClientKey prefers the first X-Forwarded-For address when the proxy is trusted", () => {
+  const req = mkRequest({ "x-forwarded-for": "203.0.113.1, 10.0.0.1" });
+  assert.equal(extractClientKey(req, { trustForwardedHeaders: true }), "203.0.113.1");
+});
+
+test("extractClientKey falls back to X-Real-IP when the proxy is trusted", () => {
   const req = mkRequest({ "x-real-ip": "198.51.100.5" });
-  assert.equal(extractClientKey(req), "198.51.100.5");
+  assert.equal(extractClientKey(req, { trustForwardedHeaders: true }), "198.51.100.5");
 });
 
 test("extractClientKey falls back to the socket remote address", () => {

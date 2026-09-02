@@ -113,6 +113,7 @@ export type MatcherServerOptions = Readonly<{
   mutationRateLimit?: number;
   mutationRateWindowMilliseconds?: number;
   maximumRateLimitEntries?: number;
+  trustForwardedHeaders?: boolean;
   maximumJournalRecords?: number;
   maximumJournalLineBytes?: number;
   maximumJournalBytes?: number;
@@ -577,6 +578,10 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
     "Mutation rate window",
     24 * 60 * 60 * 1000,
   );
+  // Off unless an operator has actually put a header-sanitising proxy
+  // in front of this port. See ClientKeyOptions.
+  const trustForwardedHeaders = options.trustForwardedHeaders
+    ?? process.env.PHLEBAS_TRUST_FORWARDED_HEADERS === "1";
   const maximumRateLimitEntries = positiveBoundedInteger(
     options.maximumRateLimitEntries ?? DEFAULT_RATE_LIMIT_ENTRIES,
     "Maximum rate-limit entries",
@@ -633,7 +638,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
     request.socket.setTimeout(requestTimeoutMilliseconds);
     void (async () => {
       const requestNow = clockSeconds();
-      const clientKey = extractClientKey(request);
+      const clientKey = extractClientKey(request, { trustForwardedHeaders });
       rateLimit = pruneRateLimitMiddleware(rateLimit, requestNow, maximumRateLimitEntries);
       const rl = checkRateLimit(rateLimit, clientKey, requestNow);
       rateLimit = { state: rl.state, config: rateLimit.config };

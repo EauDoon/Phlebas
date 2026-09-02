@@ -59,14 +59,32 @@ export function pruneRateLimitMiddleware(
   };
 }
 
-export function extractClientKey(request: IncomingMessage): string {
-  const forwarded = request.headers["x-forwarded-for"];
-  if (typeof forwarded === "string" && forwarded.length > 0) {
-    const first = forwarded.split(",")[0];
-    if (first !== undefined && first.trim().length > 0) return first.trim();
+export type ClientKeyOptions = Readonly<{
+  /**
+   * Read the client address from X-Forwarded-For or X-Real-IP.
+   *
+   * Off by default, and it has to stay off unless every request reaches
+   * this server through a proxy that *overwrites* those headers. They are
+   * request headers like any other: a caller that can reach the port can
+   * set them, and a caller that varies one per request gets a fresh
+   * bucket every time, which is a complete bypass of the limiter rather
+   * than a weakening of it. Both servers here bind loopback by default,
+   * but PHLEBAS_ALLOW_NON_LOOPBACK=1 exists and there is no proxy in
+   * front of them that sanitises the header.
+   */
+  trustForwardedHeaders?: boolean;
+}>;
+
+export function extractClientKey(request: IncomingMessage, options: ClientKeyOptions = {}): string {
+  if (options.trustForwardedHeaders === true) {
+    const forwarded = request.headers["x-forwarded-for"];
+    if (typeof forwarded === "string" && forwarded.length > 0) {
+      const first = forwarded.split(",")[0];
+      if (first !== undefined && first.trim().length > 0) return first.trim();
+    }
+    const realIp = request.headers["x-real-ip"];
+    if (typeof realIp === "string" && realIp.length > 0) return realIp;
   }
-  const realIp = request.headers["x-real-ip"];
-  if (typeof realIp === "string" && realIp.length > 0) return realIp;
   return request.socket.remoteAddress ?? "unknown";
 }
 
