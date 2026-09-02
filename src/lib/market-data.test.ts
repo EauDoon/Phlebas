@@ -254,3 +254,36 @@ test("topFills returns the most recent fills up to the limit", () => {
 test("topFills rejects a negative limit", () => {
   assert.throws(() => topFills([], -1));
 });
+
+test("tickerFromOperator counts recent trades under a real clock", () => {
+  // The window used to be applied by comparing receipt.sequence, a counter
+  // starting at 1, against nowSeconds minus the window. Under any real
+  // clock that cutoff is in the billions, so every receipt was excluded
+  // and the 24h figures came back empty however recent the trades were.
+  // The old test only ever passed nowSeconds = 100n, which drove the
+  // cutoff negative and hid it.
+  const now = 1_788_327_627n;
+  const fresh = { ...liveReceipt(1, [liveFill(4_950n, 1_000n, "m1")]), observedAtSeconds: (now - 60n).toString() };
+  const ticker = tickerFromOperator(liveBook(), [fresh], now);
+  assert.equal(ticker.tradeCount24h, 1);
+  assert.equal(ticker.highTicks24h, "4950");
+  assert.equal(ticker.volumeBase24h, "1000");
+});
+
+test("tickerFromOperator drops a trade older than the window", () => {
+  const now = 1_788_327_627n;
+  const stale = { ...liveReceipt(1, [liveFill(4_950n, 1_000n, "m1")]), observedAtSeconds: (now - 90_000n).toString() };
+  const ticker = tickerFromOperator(liveBook(), [stale], now);
+  assert.equal(ticker.tradeCount24h, 0);
+  assert.equal(ticker.highTicks24h, null);
+  assert.equal(ticker.volumeBase24h, "0");
+});
+
+test("tickerFromOperator keeps a receipt that predates the timestamp field", () => {
+  // Not knowing when a receipt happened is not evidence that it happened
+  // outside the window, and dropping it is what emptied the ticker.
+  const now = 1_788_327_627n;
+  const untimed = liveReceipt(1, [liveFill(4_950n, 1_000n, "m1")]);
+  assert.equal(untimed.observedAtSeconds, undefined);
+  assert.equal(tickerFromOperator(liveBook(), [untimed], now).tradeCount24h, 1);
+});
