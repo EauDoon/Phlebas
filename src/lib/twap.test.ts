@@ -6,10 +6,25 @@ import {
   isTwapSliceCount,
   nextDueTwapSlice,
   planTwap,
+  TWAP_DURATION_SECONDS,
+  TWAP_SLICES,
   twapProgressCopy,
   twapSliceSizes,
   twapStopCopy,
 } from "./twap.ts";
+
+// Deterministic PRNG (mulberry32) so a failure is reproducible from the
+// printed seed instead of depending on Math.random's run-to-run state.
+function mulberry32(seed: number): () => number {
+  let state = seed;
+  return () => {
+    state |= 0;
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 describe("twap slice sizing", () => {
   it("splits evenly and carries the remainder on the earliest slices", () => {
@@ -25,6 +40,33 @@ describe("twap slice sizing", () => {
 
   it("rejects non-positive sizes", () => {
     assert.throws(() => twapSliceSizes(0n, 4), /must be positive/);
+  });
+
+  it("conserves the total and never regresses in size across many random inputs", () => {
+    // Property test: for any supported slice count and any positive total,
+    // the slices must sum to exactly the total (no atom created, dropped,
+    // or double-counted), every slice must be a non-negative integer, and
+    // sizes must be non-increasing left to right (planTwap's minimum-
+    // settlement check assumes the last slice is the smallest one).
+    const random = mulberry32(0xf0face);
+    for (let trial = 0; trial < 5_000; trial += 1) {
+      const slices = TWAP_SLICES[Math.floor(random() * TWAP_SLICES.length)];
+      const total = BigInt(Math.floor(random() * 50_000_000) + 1);
+      const sizes = twapSliceSizes(total, slices);
+
+      const sum = sizes.reduce((accumulator, size) => accumulator + size, 0n);
+      assert.equal(sum, total, `trial ${trial}: sizes summed to ${sum}, expected ${total} (slices=${slices})`);
+
+      for (const size of sizes) {
+        assert.ok(size >= 0n, `trial ${trial}: negative slice size ${size} (slices=${slices}, total=${total})`);
+      }
+      for (let index = 1; index < sizes.length; index += 1) {
+        assert.ok(
+          sizes[index] <= sizes[index - 1],
+          `trial ${trial}: slice ${index} (${sizes[index]}) exceeds slice ${index - 1} (${sizes[index - 1]})`,
+        );
+      }
+    }
   });
 });
 
@@ -58,6 +100,31 @@ describe("twap planning", () => {
     assert.equal(isTwapSliceCount(3), false);
     assert.equal(isTwapDurationSeconds(900), true);
     assert.equal(isTwapDurationSeconds(60), false);
+  });
+
+  it("keeps every schedule inside its duration window and conserves size, for every supported combination", () => {
+    // Exhaustive over the small enumerated domain (4 slice counts x 3
+    // durations): due times must start at startUnix, strictly increase,
+    // never reach past the requested duration, and slice sizes must still
+    // sum to the total.
+    for (const slices of TWAP_SLICES) {
+      for (const durationSeconds of TWAP_DURATION_SECONDS) {
+        const plan = planTwap({
+          totalSizeAtoms: 100_000_000n,
+          priceTicks: 1_000_000n,
+          slices,
+          durationSeconds,
+          startUnix: 10_000n,
+        });
+        assert.equal(plan.dueAtUnix[0], 10_000n);
+        for (let index = 1; index < plan.dueAtUnix.length; index += 1) {
+          assert.ok(plan.dueAtUnix[index] > plan.dueAtUnix[index - 1], "due times must strictly increase");
+        }
+        const last = plan.dueAtUnix[plan.dueAtUnix.length - 1];
+        assert.ok(last - 10_000n < BigInt(durationSeconds), "last slice must fire before the duration elapses");
+        assert.equal(plan.sliceSizes.reduce((total, size) => total + size, 0n), 100_000_000n);
+      }
+    }
   });
 });
 

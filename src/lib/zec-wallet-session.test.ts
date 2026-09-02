@@ -85,7 +85,15 @@ describe("connect session", () => {
     assert.deepEqual(session, { ...disconnectedZecSession, state: session.state });
   });
 
-  it("keeps the statement but reports the error when signing is refused", async () => {
+  it("keeps the statement but reports the error when signing is refused, and does not claim the unproven capability", async () => {
+    // A wallet that refuses (or fails) the address-control challenge just
+    // demonstrated that it cannot prove control of the address. The
+    // statement must reflect that failure, not the caller's a-priori
+    // assumption that the wallet would sign successfully. Regression for a
+    // bug where connectZecWalletSession built the statement from the
+    // pre-attempt assumption instead of the connect flow's own outcome, so
+    // a wallet that could not sign at all still passed sourceAddressControl
+    // and never showed up in assessment.missingCapabilities.
     const provider = providerWith({
       zcash_requestAccounts: async () => [MAINNET_T1],
       zcash_signMessage: async () => {
@@ -96,6 +104,41 @@ describe("connect session", () => {
     assert.equal(session.state.address, MAINNET_CANONICAL);
     assert.match(session.state.error ?? "", /signature request was rejected/);
     assert.equal(session.addressControlSignature, null);
-    assert.equal(session.statement?.capabilities.sourceAddressControl.supported, true);
+    assert.equal(session.statement?.capabilities.sourceAddressControl.supported, false);
+    assert.ok(session.assessment?.missingCapabilities.includes("source-address-control"));
+  });
+
+  it("fails fully closed when the capability statement itself is malformed, instead of keeping the address", async () => {
+    // Regression for a bug where a capability statement that failed to
+    // parse (e.g. a caller-supplied `observed` record outside the schema)
+    // still left `state.address` populated with `statement` and
+    // `assessment` both null. A naive `address !== null` connected check
+    // (the pattern the landing page uses) would then report a wallet as
+    // connected with a "capability statement declared" even though no
+    // statement exists. A rejected statement must disconnect the session
+    // entirely, matching the no-account case.
+    const provider = providerWith({
+      zcash_requestAccounts: async () => [MAINNET_T1],
+      zcash_signMessage: async () => "0xsig",
+    });
+    const malformedObserved = {
+      sourceAddressControl: true,
+      pcztVersions: [3] as unknown as (1 | 2)[], // outside the schema's allowed PCZT versions
+      arbitraryP2shFundingOutputs: true,
+      arbitraryP2shSpendingInputs: true,
+      exactLocktime: true,
+      transactionExtraction: false,
+      broadcast: false,
+      keylessRecoveryExport: false,
+    };
+    const session = await connectZecWalletSession(provider, {
+      challenge: "phlebas-connect-challenge-0001",
+      observed: malformedObserved,
+    });
+    assert.equal(session.state.address, null);
+    assert.match(session.state.error ?? "", /PCZT supportedVersions/);
+    assert.equal(session.statement, null);
+    assert.equal(session.assessment, null);
+    assert.equal(session.addressControlSignature, null);
   });
 });
