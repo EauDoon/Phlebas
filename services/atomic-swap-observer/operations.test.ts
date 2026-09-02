@@ -82,3 +82,45 @@ test("observer /slo returns the availability verdict", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("observer reports a failed request to the operator and stays opaque to the caller", async () => {
+  // The handler used to discard the error, so every 500 the observer
+  // returned was untraceable. A poll failure is the easiest one to force:
+  // the /observe route awaits the chain sources.
+  const dir = await mkdtemp(join(tmpdir(), "phlebas-observer-error-"));
+  try {
+    const path = join(dir, "snap.json");
+    const failing: ZcashEventSource = {
+      fetchAddressOutpoints: async () => { throw new Error("zcash rpc refused the connection"); },
+      fetchSpend: async () => ({ spent: false, spendTxid: null }),
+    };
+    const cfg = { ...mkConfig(path), zcash: { ...mkConfig(path).zcash, source: failing } };
+    const initial = await bootstrapService(cfg);
+    const reported: string[] = [];
+    const server = startService({
+      config: cfg,
+      initial,
+      host: "127.0.0.1",
+      port: 0,
+      onRequestError: (error) => reported.push(error instanceof Error ? error.message : String(error)),
+    });
+    await once(server, "listening");
+    const port = (server.address() as AddressInfo).port;
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/observe`, { method: "POST" });
+      assert.equal(res.status, 500);
+      const body = await res.json() as { reason?: string };
+      // The caller learns nothing beyond the generic reason.
+      assert.equal(body.reason, "diagnostic-service-error");
+      assert.equal(JSON.stringify(body).includes("rpc"), false);
+      // The operator learns why.
+      assert.equal(reported.length, 1);
+      assert.match(reported[0] ?? "", /zcash rpc refused the connection/);
+    } finally {
+      server.close();
+      await once(server, "close");
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

@@ -21,6 +21,7 @@ import type { CoordinatorState } from "../../src/lib/atomic-coordinator.ts";
 import { diagnosticStateOf } from "../../src/lib/swap-fill-projection.ts";
 import { defineCounter, emptyMetricsState, incCounter, renderPrometheusText, type MetricsState } from "../../src/lib/metrics.ts";
 import { emptySloState, recordSample, sloVerdict, type SloSample, type SloState, type SloTarget } from "../../src/lib/slo-tracker.ts";
+import { formatLog } from "../../src/lib/log-format.ts";
 import {
   DEFAULT_RATE_LIMIT_ENTRIES,
   checkRateLimit,
@@ -188,6 +189,12 @@ export type StartServiceOptions = Readonly<{
   port?: number;
   clock?: () => bigint;
   maximumRateLimitEntries?: number;
+  /**
+   * Where a request handler's failure is reported. Defaults to a single
+   * structured line on stderr. The response body stays generic either
+   * way: the operator gets the reason, the caller does not.
+   */
+  onRequestError?: (error: unknown) => void;
 }>;
 
 export function startService(options: StartServiceOptions): Server {
@@ -198,6 +205,15 @@ export function startService(options: StartServiceOptions): Server {
   if (!Number.isInteger(maximumRateLimitEntries) || maximumRateLimitEntries <= 0) {
     throw new RangeError("Maximum rate-limit entries must be a positive integer");
   }
+  const reportRequestError = options.onRequestError ?? ((error: unknown) => {
+    process.stderr.write(`${formatLog({
+      level: "error",
+      service: "atomic-swap-observer",
+      event: "request-failed",
+      fields: { reason: error instanceof Error ? error.message : String(error) },
+      at: options.clock ? options.clock() : BigInt(Math.floor(Date.now() / 1000)),
+    })}\n`);
+  });
   let rateLimit: RateLimitMiddleware = emptyRateLimitMiddleware({ capacity: 60n, refillPerSecond: 1n });
   const server = createServer((request: IncomingMessage, response: ServerResponse) => {
     void (async () => {
@@ -290,7 +306,11 @@ export function startService(options: StartServiceOptions): Server {
         return;
       }
       send(response, 404, { ok: false, reason: "not-found" });
-    })().catch(() => {
+    })().catch((error: unknown) => {
+      // The caller still gets an opaque reason. Discarding the error
+      // entirely, as this did, made every handler failure invisible to
+      // the operator of a service whose whole purpose is diagnostics.
+      reportRequestError(error);
       send(response, 500, { ok: false, reason: "diagnostic-service-error" });
     });
   });
