@@ -7,6 +7,7 @@ import {
   EIP6963_REQUEST_EVENT,
   discoverEip6963Providers,
   selectEip6963Provider,
+  subscribeEip6963Providers,
   type Eip6963ProviderDetail,
 } from "./evm-provider-discovery.ts";
 
@@ -59,4 +60,22 @@ test("discovery is server-safe and rejects unsafe wait or wallet identifiers", a
   assert.deepEqual(await discoverEip6963Providers(null), []);
   await assert.rejects(() => discoverEip6963Providers(new EventTarget(), -1), /integer from 0 to 1000/);
   assert.throws(() => selectEip6963Provider([], "not rdns"), /RDNS is invalid/);
+});
+
+test("subscription keeps listening for delayed EIP-6963 announcements", () => {
+  const target = new EventTarget();
+  const snapshots: Array<readonly Eip6963ProviderDetail[]> = [];
+  const unsubscribe = subscribeEip6963Providers((providers) => snapshots.push(providers), target);
+
+  announce(target, detail());
+  assert.equal(snapshots.length, 1);
+  assert.equal(snapshots[0]?.[0]?.info.rdns, "io.rabby");
+
+  unsubscribe();
+  announce(target, detail({
+    uuid: "d9a04b1d-f5e2-40db-8f8a-9b4469c7471f",
+    name: "MetaMask",
+    rdns: "io.metamask",
+  }));
+  assert.equal(snapshots.length, 1);
 });

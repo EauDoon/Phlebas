@@ -142,7 +142,7 @@ The candidate EVM leg is a non-upgradeable exact-token contract with these opera
 
 The contract has no token registry controlled by an administrator, callback, arbitrary recipient change, protocol balance, seizure path, hidden fee, proxy, or upgrade path.
 
-The exact quote identities are Ethereum Mainnet USDC at `0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` and Ethereum Mainnet USDT at `0xdac17f958d2ee523a2206206994597c13d831ec7`. USDT uses a zero-first-then-exact allowance policy; USDC uses exact allowance. The ConditionalLock deployment is still absent, so neither asset has an enabled settlement action.
+The exact quote identities are Ethereum Mainnet USDC at `0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` and Ethereum Mainnet USDT at `0xdac17f958d2ee523a2206206994597c13d831ec7`; USDT0 is excluded. USDT uses a zero-first-then-exact allowance policy, while USDC uses exact allowance. The ConditionalLock deployment is still absent, so neither asset has an enabled settlement action. Both quote assets still require current issuer, deployment, proxy, admin-model, and legal review before any chain action.
 
 Contract code and test dependencies remain local until Testnet deployment receives separate approval.
 

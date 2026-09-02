@@ -27,7 +27,7 @@ Version 1 includes:
 * responsive web, mobile, and keyboard-accessible interfaces;
 * public system, matcher, observer, and incident status.
 
-USDC is the first quote candidate. USDT and USDT0 remain unresolved until one exact asset passes issuer, contract, network, legal, and operational review.
+USDC is the first settlement target. The product also identifies the exact native Ethereum Mainnet USDT contract for ZEC/USDT and excludes USDT0. Both assets still require current issuer, contract, network, legal, and operational review before any value-moving release.
 
 ## 3. Non-goals
 
@@ -68,7 +68,7 @@ The operator runs the matcher and coordinator, publishes receipts and status, an
 | Display market | Base settlement | Quote settlement |
 | --- | --- | --- |
 | `ZEC/USDC` | Native transparent ZEC | Exact approved USDC contract |
-| `ZEC/USDT` | Native transparent ZEC | Exact approved USDT or USDT0 contract |
+| `ZEC/USDT` | Native transparent ZEC | Exact approved native Ethereum Mainnet USDT contract |
 
 ZEC quantities use integer zatoshis with 8 decimals. Quote quantities use the exact token's integer base units. Price uses a versioned integer tick.
 
@@ -292,7 +292,7 @@ The status surface reports:
 * swap queues by state;
 * incident state.
 
-Until approved integrations exist, status remains `liveFunds: false`, wallets disabled, contracts not deployed, and networks none.
+Until approved integrations exist, status remains `liveFunds: false`, value-moving wallet actions disabled, contracts not deployed, and networks limited to reviewed connection metadata. The public UI may establish a read-only Ethereum Mainnet wallet session, but it cannot sign, approve tokens, submit transactions, or move funds.
 
 ## 16. Release acceptance
 

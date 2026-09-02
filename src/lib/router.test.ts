@@ -20,6 +20,22 @@ test("CLOB preview does not mutate the seeded book", () => {
   assert.equal(book.asks.length, before);
 });
 
+test("CLOB preview fails closed when the route would cross a blocked maker", () => {
+  let book = emptyBook(5284n);
+  book = submitOrder(book, {
+    id: "user-1",
+    side: "sell",
+    tif: "GTC",
+    priceTicks: 5291n,
+    sizeAtoms: 1_00000000n,
+  }).book;
+  const quote = quoteClob(book, "buy", 1_00000000n, 5291n, "user-");
+  assert.equal(quote.complete, false);
+  assert.equal(quote.filledAtoms, 0n);
+  assert.equal(quote.quoteAtoms, 0n);
+  assert.equal(quote.blockedByMaker, true);
+});
+
 test("buy comparison prefers the cheaper complete venue", () => {
   const book = seedBook("ZEC/USDC");
   const comparison = compareVenues({

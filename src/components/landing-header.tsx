@@ -5,6 +5,7 @@ import { useRef, type MouseEvent } from "react";
 
 import { LANDING_HERO, LANDING_NAV } from "@/lib/landing-copy";
 
+import { LandingWalletConnect } from "./landing-wallet-connect";
 import styles from "./landing.module.css";
 
 export function LandingHeader() {
@@ -27,6 +28,7 @@ export function LandingHeader() {
     closeMenu();
     const target = document.getElementById(href.slice(1));
     target?.scrollIntoView();
+    target?.focus({ preventScroll: true });
     window.history.replaceState(null, "", href);
   }
 
@@ -48,6 +50,7 @@ export function LandingHeader() {
       <div className={styles.headerActions}>
         <Link href={LANDING_HERO.secondaryHref} className={styles.headerSecondary}>{LANDING_HERO.secondaryAction}</Link>
         <Link href={LANDING_HERO.primaryHref} className={styles.headerCta}>{LANDING_HERO.primaryAction}</Link>
+        <LandingWalletConnect />
         <button
           type="button"
           className={styles.menuButton}

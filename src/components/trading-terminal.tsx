@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { Fragment, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -213,6 +213,7 @@ export function TradingTerminal({
   }, [highlightIncidents]);
 
   function selectMode(nextMode: TerminalMode) {
+    setPriceSelection(null);
     persistMode(nextMode);
     router.replace(viewUrl(view, marketId, feedStatus, demoQuery, nextMode), { scroll: false });
   }
@@ -241,6 +242,7 @@ export function TradingTerminal({
   }
 
   function selectMarket(nextMarket: MarketId) {
+    setPriceSelection(null);
     setMarketFocusId(nextMarket);
     router.replace(viewUrl(view, nextMarket, feedStatus, demoQuery, mode), { scroll: false });
   }
@@ -451,6 +453,25 @@ export function TradingTerminal({
   const publicTape = feed.showFixtures ? recentTrades[marketId] : [];
 
   const operatingView = initialAccess === "open" && (view === "trade" || view === "liquidity");
+  const tradeTicket = (
+    <Fragment key={feedStatus}>
+      <TradeTicket
+        market={market}
+        book={displayedBook}
+        lastTicks={book.lastTicks}
+        priceSelection={priceSelection}
+        availableZecAtoms={availableZec(account)}
+        availableQuoteAtoms={availableQuote(account)}
+        reserveZecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
+        reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
+        accountEpoch={accountEpoch}
+        feedStatus={feedStatus}
+        variant={mode}
+        onRetryFeed={() => selectFeed("illustrative")}
+        onSubmit={submitUserOrder}
+      />
+    </Fragment>
+  );
 
   return (
     <div className={operatingView ? `${styles.shell} ${styles.operatingShell}` : styles.shell}>
@@ -462,12 +483,14 @@ export function TradingTerminal({
         {initialAccess === "open" && view === "trade" ? (
           <>
             <a className={styles.skipLink} href="#order-ticket" onClick={activateSkipLink}>Skip to order ticket</a>
-            <a className={styles.skipLink} href="#price-chart" onClick={activateSkipLink}>Skip to price chart</a>
             {isSimple ? null : (
-              <a className={styles.skipLink} href="#order-book" onClick={activateSkipLink}>Skip to order book</a>
+              <>
+                <a className={styles.skipLink} href="#price-chart" onClick={activateSkipLink}>Skip to price chart</a>
+                <a className={styles.skipLink} href="#order-book" onClick={activateSkipLink}>Skip to order book</a>
+                <a className={styles.skipLink} href="#session-blotter" onClick={activateSkipLink}>Skip to blotter</a>
+                <a className={styles.skipLink} href="#recent-trades" onClick={activateSkipLink}>Skip to recent trades</a>
+              </>
             )}
-            <a className={styles.skipLink} href="#session-blotter" onClick={activateSkipLink}>Skip to blotter</a>
-            <a className={styles.skipLink} href="#recent-trades" onClick={activateSkipLink}>Skip to recent trades</a>
           </>
         ) : null}
         {initialAccess === "open" && view === "settlement" ? (
@@ -575,7 +598,10 @@ export function TradingTerminal({
         {initialAccess === "blocked" && <CountryBlock />}
         {initialAccess === "open" && view === "trade" && (
           <>
-            <section className={styles.marketBar} aria-label="Selected market summary">
+            <section
+              className={isSimple ? `${styles.marketBar} ${styles.simpleMarketBar}` : styles.marketBar}
+              aria-label="Selected market summary"
+            >
               <div className={styles.marketSelectorWrap}>
                 <span className={styles.coinMark}>Z</span>
                 <div>
@@ -601,78 +627,111 @@ export function TradingTerminal({
                   </div>
                 </div>
                 <span className={styles.settlementBadge}>settles {market.settlementPair}</span>
-                <div>
-                  <span>Market data</span>
-                  <div className={styles.selectorTabs} role="radiogroup" aria-label="Market data state">
-                    {FEED_STATUSES.map((id) => (
-                      <button
-                        type="button"
-                        key={id}
-                        role="radio"
-                        aria-checked={feedStatus === id}
-                        tabIndex={feedFocusId === id ? 0 : -1}
-                        className={feedStatus === id ? styles.selectorActive : undefined}
-                        ref={(node) => {
-                          feedRefs.current[id] = node;
-                        }}
-                        onClick={() => selectFeed(id)}
-                        onKeyDown={(event) => onFeedKeyDown(event, id)}
-                      >
-                        {FEED_STATUS_LABELS[id]}
-                      </button>
-                    ))}
+                {isSimple ? (
+                  <span className={styles.simpleFeedStatus}>Market data · {FEED_STATUS_LABELS[feedStatus]}</span>
+                ) : (
+                  <div>
+                    <span>Market data</span>
+                    <div className={styles.selectorTabs} role="radiogroup" aria-label="Market data state">
+                      {FEED_STATUSES.map((id) => (
+                        <button
+                          type="button"
+                          key={id}
+                          role="radio"
+                          aria-checked={feedStatus === id}
+                          tabIndex={feedFocusId === id ? 0 : -1}
+                          className={feedStatus === id ? styles.selectorActive : undefined}
+                          ref={(node) => {
+                            feedRefs.current[id] = node;
+                          }}
+                          onClick={() => selectFeed(id)}
+                          onKeyDown={(event) => onFeedKeyDown(event, id)}
+                        >
+                          {FEED_STATUS_LABELS[id]}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
               <dl className={styles.marketStats} aria-label="Market statistics">
                 <div className={styles.priceStat}>
                   <dt>{sessionLastStatLabel(market.settlementPair, statsSurface.showFixtures)}</dt>
                   <dd>{statsSurface.showFixtures ? formatAtomicUnits(book.lastTicks, PRICE_DECIMALS, 2) : "—"}</dd>
                 </div>
-                <div>
-                  <dt>24h change</dt>
-                  <dd className={feed.showFixtures ? (market.changeBps >= 0 ? styles.buyText : styles.sellText) : undefined}>
-                    {feed.showFixtures ? formatSignedChange(market.changeBps) : "—"}
-                  </dd>
-                </div>
-                <div><dt>24h high</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
-                <div><dt>24h low</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
+                {isSimple ? null : (
+                  <>
+                    <div>
+                      <dt>24h change</dt>
+                      <dd className={feed.showFixtures ? (market.changeBps >= 0 ? styles.buyText : styles.sellText) : undefined}>
+                        {feed.showFixtures ? formatSignedChange(market.changeBps) : "—"}
+                      </dd>
+                    </div>
+                    <div><dt>24h high</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.highTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
+                    <div><dt>24h low</dt><dd>{feed.showFixtures ? formatAtomicUnits(market.lowTicks, PRICE_DECIMALS, 2) : "—"}</dd></div>
+                  </>
+                )}
               </dl>
               <p className={styles.inlineNotice}>{feed.statsNote}</p>
             </section>
 
-            <div className={isSimple ? `${styles.tradeGrid} ${styles.simpleTradeGrid}` : styles.tradeGrid}>
-              <section id="price-chart" tabIndex={-1} className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
-                <div className={styles.panelHeader}>
-                  <div>
-                    <span className={styles.eyebrow}>{chartPanelEyebrowCopy(market.settlementPair)}</span>
-                    <h2 id="chart-title" aria-label={chartPanelHeadingCopy(marketId)}>{marketId}</h2>
-                  </div>
-                  <div className={styles.rangeTabs} role="radiogroup" aria-label="Chart range">
-                    {CHART_RANGES.map((item) => (
-                      <button
-                        type="button"
-                        key={item}
-                        role="radio"
-                        aria-checked={range === item}
-                        aria-label={chartRangeTabLabel(item, market.settlementPair)}
-                        tabIndex={range === item ? 0 : -1}
-                        className={range === item ? styles.textActive : undefined}
-                        ref={(node) => {
-                          rangeRefs.current[item] = node;
-                        }}
-                        onClick={() => setRange(item)}
-                        onKeyDown={(event) => onRangeKeyDown(event, item)}
-                      >
-                        {item}
-                      </button>
-                    ))}
-                  </div>
+            {isSimple ? (
+              <div className={styles.simpleVenue}>
+                <div className={styles.simpleVenueIntro}>
+                  <span className={styles.eyebrow}>Simple market swap</span>
+                  <h2>Trade ZEC without the terminal noise.</h2>
+                  <p>
+                    Your market swap crosses the same {marketId} order book used in Advanced mode.
+                    It submits as an immediate-or-cancel order with your slippage limit.
+                  </p>
                 </div>
-                <PriceChart marketId={marketId} range={range} feedStatus={feedStatus} />
-              </section>
+                {tradeTicket}
+                <div className={styles.simpleSafetyNote} role="note">
+                  <strong>No native value moves in this preview.</strong>
+                  <p>
+                    A matched fill still requires separate wallet-held funding, claim, and refund steps.
+                  </p>
+                  <button type="button" onClick={() => selectView("settlement")}>
+                    Review the settlement path
+                  </button>
+                </div>
+                <button type="button" className={styles.advancedModeLink} onClick={() => selectMode("advanced")}>
+                  Open the full order book
+                </button>
+              </div>
+            ) : (
+              <div className={styles.tradeGrid}>
+                {tradeTicket}
+                <section id="price-chart" tabIndex={-1} className={`${styles.panel} ${styles.chartPanel}`} aria-labelledby="chart-title">
+                  <div className={styles.panelHeader}>
+                    <div>
+                      <span className={styles.eyebrow}>{chartPanelEyebrowCopy(market.settlementPair)}</span>
+                      <h2 id="chart-title" aria-label={chartPanelHeadingCopy(marketId)}>{marketId}</h2>
+                    </div>
+                    <div className={styles.rangeTabs} role="radiogroup" aria-label="Chart range">
+                      {CHART_RANGES.map((item) => (
+                        <button
+                          type="button"
+                          key={item}
+                          role="radio"
+                          aria-checked={range === item}
+                          aria-label={chartRangeTabLabel(item, market.settlementPair)}
+                          tabIndex={range === item ? 0 : -1}
+                          className={range === item ? styles.textActive : undefined}
+                          ref={(node) => {
+                            rangeRefs.current[item] = node;
+                          }}
+                          onClick={() => setRange(item)}
+                          onKeyDown={(event) => onRangeKeyDown(event, item)}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <PriceChart marketId={marketId} range={range} feedStatus={feedStatus} />
+                </section>
 
-              {isSimple ? null : (
                 <OrderBook
                   marketId={marketId}
                   book={displayedBook}
@@ -682,23 +741,6 @@ export function TradingTerminal({
                     nextPriceNonce.current += 1;
                   }}
                 />
-              )}
-              <TradeTicket
-                key={feedStatus}
-                market={market}
-                book={displayedBook}
-                lastTicks={book.lastTicks}
-                priceSelection={priceSelection}
-                availableZecAtoms={availableZec(account)}
-                availableQuoteAtoms={availableQuote(account)}
-                reserveZecAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveZecAtoms}
-                reserveQuoteAtoms={(marketId === "ZEC/USDT" ? pools[1] : pools[0]).reserveQuoteAtoms}
-                accountEpoch={accountEpoch}
-                feedStatus={feedStatus}
-                variant={mode}
-                onRetryFeed={() => selectFeed("illustrative")}
-                onSubmit={submitUserOrder}
-              />
 
               <NativeMatcherOrderAction
                 marketId={marketId}
@@ -767,7 +809,8 @@ export function TradingTerminal({
                 variant="compact"
                 activeFillId={sessionTape[0]?.id}
               />
-            </div>
+              </div>
+            )}
           </>
         )}
 

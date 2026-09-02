@@ -55,6 +55,40 @@ function browserEventTarget(): Eip6963EventTarget | null {
   return typeof window === "undefined" ? null : window;
 }
 
+function sortedProviders(
+  providers: ReadonlyMap<string, Eip6963ProviderDetail>,
+): readonly Eip6963ProviderDetail[] {
+  return Object.freeze([...providers.values()].sort((left, right) => (
+    left.info.rdns.localeCompare(right.info.rdns)
+      || left.info.name.localeCompare(right.info.name)
+      || left.info.uuid.localeCompare(right.info.uuid)
+  )));
+}
+
+export function subscribeEip6963Providers(
+  onChange: (providers: readonly Eip6963ProviderDetail[]) => void,
+  target: Eip6963EventTarget | null = browserEventTarget(),
+): () => void {
+  if (typeof onChange !== "function") {
+    throw new TypeError("EIP-6963 discovery callback must be a function");
+  }
+  if (!target) {
+    onChange(Object.freeze([]));
+    return () => undefined;
+  }
+
+  const providers = new Map<string, Eip6963ProviderDetail>();
+  const listener: EventListener = (event) => {
+    const detail = canonicalProviderDetail((event as Event & { detail?: unknown }).detail);
+    if (!detail || providers.has(detail.info.uuid)) return;
+    providers.set(detail.info.uuid, detail);
+    onChange(sortedProviders(providers));
+  };
+  target.addEventListener(EIP6963_ANNOUNCE_EVENT, listener);
+  target.dispatchEvent(new Event(EIP6963_REQUEST_EVENT));
+  return () => target.removeEventListener(EIP6963_ANNOUNCE_EVENT, listener);
+}
+
 export async function discoverEip6963Providers(
   target: Eip6963EventTarget | null = browserEventTarget(),
   settleMilliseconds = 50,
@@ -64,23 +98,16 @@ export async function discoverEip6963Providers(
   }
   if (!target) return Object.freeze([]);
 
-  const providers = new Map<string, Eip6963ProviderDetail>();
-  const listener: EventListener = (event) => {
-    const detail = canonicalProviderDetail((event as Event & { detail?: unknown }).detail);
-    if (detail && !providers.has(detail.info.uuid)) providers.set(detail.info.uuid, detail);
-  };
-  target.addEventListener(EIP6963_ANNOUNCE_EVENT, listener);
+  let providers: readonly Eip6963ProviderDetail[] = Object.freeze([]);
+  const unsubscribe = subscribeEip6963Providers((discovered) => {
+    providers = discovered;
+  }, target);
   try {
-    target.dispatchEvent(new Event(EIP6963_REQUEST_EVENT));
     await new Promise<void>((resolve) => setTimeout(resolve, settleMilliseconds));
   } finally {
-    target.removeEventListener(EIP6963_ANNOUNCE_EVENT, listener);
+    unsubscribe();
   }
-  return Object.freeze([...providers.values()].sort((left, right) => (
-    left.info.rdns.localeCompare(right.info.rdns)
-      || left.info.name.localeCompare(right.info.name)
-      || left.info.uuid.localeCompare(right.info.uuid)
-  )));
+  return providers;
 }
 
 export function selectEip6963Provider(

@@ -27,7 +27,7 @@ Each matched fill will become one two-chain atomic-swap workflow:
 
 The [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf) states that transparent addresses include P2SH and that BIP 16 and BIP 65 apply from the Zcash genesis block. [ZIP 300](https://zips.z.cash/zip-0300) gives a candidate transparent atomic-swap construction with a hash-protected claim branch and a lock-time refund branch. [BIP 65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki) defines `OP_CHECKLOCKTIMEVERIFY` lock-time semantics. Exact scripts, relay policy, transaction construction, and wallet interoperability still require current test evidence before any chain action.
 
-The EVM order authorization uses [EIP-712](https://eips.ethereum.org/EIPS/eip-712) domain separation and deterministic structured-data hashing. Any deployed stablecoin contract identity must come from its current issuer registry. Circle currently publishes the [USDC contract registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). USDT and USDT0 remain unresolved until the product selects one exact asset and verifies its current issuer and deployment records.
+The EVM order authorization uses [EIP-712](https://eips.ethereum.org/EIPS/eip-712) domain separation and deterministic structured-data hashing. Any deployed stablecoin contract identity must come from its current issuer registry. Circle currently publishes the [USDC contract registry](https://developers.circle.com/stablecoins/usdc-contract-addresses). The product selects native Ethereum Mainnet USDT for ZEC/USDT and excludes USDT0, while current issuer and deployment records remain a release-time verification gate.
 
 ## Order-book role
 
@@ -101,7 +101,7 @@ Testnet remains blocked until all applicable items below pass:
 * current primary-source verification of the selected Zcash script and transaction rules;
 * executed wallet tests for funding, claim, and refund paths;
 * approved Zcash and EVM deadline construction;
-* exact USDC and USDT or USDT0 asset selection;
+* exact USDC and native Ethereum Mainnet USDT identity verification;
 * independent review of both chain transaction builders and the EVM contract;
 * deterministic, property, fuzz, timeout, replacement, and reorganization tests;
 * persistent observer and coordinator recovery tests;

@@ -22,7 +22,7 @@ export function ticketReviewNetworksCopy(): string {
 }
 
 export function ticketReviewRefundCopy(): string {
-  return "Incomplete swaps refund on the signed deadlines: quote first, then ZEC. Wallets control refunds.";
+  return "Signed deadlines make refunds eligible: quote first, then ZEC. Wallets must claim refunds.";
 }
 
 export function ticketReviewSettlementCopy(settlementPair: Market["settlementPair"]): string {
