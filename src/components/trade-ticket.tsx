@@ -30,9 +30,9 @@ import {
   sideControlCopy,
   ZEC_ATOMIC_RULE,
   QUOTE_PRICE_ATOMIC_RULE,
-  calculatePreviewNotional,
   calculateWorstPrice,
-  formatQuotePreviewAmount,
+  formatQuoteAtoms,
+  previewQuoteAtoms,
 } from "@/lib/order";
 import {
   ticketCompleteActionCopy,
@@ -230,22 +230,29 @@ export function TradeTicket({
   const limitTicks = effectiveOrderType === "limit" ? parseTicks(price) : { ticks: 0n, error: null };
   const sizeAtoms = parseSizeAtoms(size);
 
+  // The exact ticks behind the displayed price: the limit input for a
+  // limit order, the last trade for a market one. The estimate is
+  // computed from these rather than from the parsed floats, so it is the
+  // amount the engine would settle rather than an approximation of it.
   const notionalPreview = useMemo(() => {
-    if (!priceIsValid || !sizeIsValid) {
-      return { value: 0, error: null };
+    // The exact ticks behind the displayed price: the limit input for a
+    // limit order, the last trade for a market one.
+    const ticks = effectiveOrderType === "limit" ? limitTicks.ticks : lastTicks;
+    if (!priceIsValid || !sizeIsValid || ticks <= 0n || sizeAtoms.atoms <= 0n) {
+      return { value: 0n, error: null };
     }
     try {
-      return { value: calculatePreviewNotional(parsedPrice, parsedSize), error: null };
+      return { value: previewQuoteAtoms(ticks, sizeAtoms.atoms, side), error: null };
     } catch (error) {
       return {
-        value: 0,
+        value: 0n,
         error: error instanceof Error ? error.message : "Price and size are outside the preview range.",
       };
     }
-  }, [parsedPrice, parsedSize, priceIsValid, sizeIsValid]);
+  }, [effectiveOrderType, limitTicks.ticks, lastTicks, sizeAtoms.atoms, side, priceIsValid, sizeIsValid]);
   const notional = notionalPreview.value;
   const notionalError = notionalPreview.error;
-  const formattedNotional = notional > 0 ? formatQuotePreviewAmount(notional) : "0.00";
+  const formattedNotional = notional > 0n ? formatQuoteAtoms(notional) : "0.00";
 
   const worstPricePreview = useMemo(() => {
     if (effectiveOrderType === "limit") {
