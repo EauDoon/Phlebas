@@ -6,6 +6,8 @@ import {
   isTwapSliceCount,
   nextDueTwapSlice,
   planTwap,
+  TWAP_USER_CANCELLED_REASON,
+  twapCancelCopy,
   twapProgressCopy,
   twapSliceSizes,
   twapStopCopy,
@@ -88,5 +90,13 @@ describe("twap execution helpers", () => {
       twapStopCopy(plan, 1, "Session quote inventory is insufficient"),
       "TWAP stopped after 1 of 4 slices. Session quote inventory is insufficient.",
     );
+  });
+
+  it("formats a user-cancelled stop distinct from a rejection stop", () => {
+    assert.equal(
+      twapCancelCopy(plan, 3),
+      "TWAP cancelled after 3 of 4 slices. Remaining slices will not execute.",
+    );
+    assert.equal(TWAP_USER_CANCELLED_REASON, "Cancelled by you. Remaining slices will not execute.");
   });
 });
