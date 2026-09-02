@@ -51,3 +51,33 @@ test("isHex rejects strings without the 0x prefix", () => {
 test("isHex rejects strings with non-hex characters", () => {
   assert.equal(isHex("0x" + "zz".repeat(20), 20), false);
 });
+
+test("hexToBytes rejects a trailing non-hex nibble instead of truncating it", () => {
+  // parseInt("1z", 16) stops at the first invalid character and returns 1,
+  // so a pair-wise parseInt decoder silently accepts "1z" as the byte 0x01.
+  assert.throws(() => hexToBytes("1z"), /invalid character/);
+  assert.throws(() => hexToBytes("ag"), /invalid character/);
+  assert.throws(() => hexToBytes("0x1z"), /invalid character/);
+});
+
+test("hexToBytes rejects a signed or whitespace-padded pair", () => {
+  // parseInt tolerates leading whitespace and a sign, and a negative value
+  // wraps when it is stored into a Uint8Array: "-1" would decode to 0xff.
+  assert.throws(() => hexToBytes("-1"), /invalid character/);
+  assert.throws(() => hexToBytes("+1"), /invalid character/);
+  assert.throws(() => hexToBytes(" 1"), /invalid character/);
+  assert.throws(() => hexToBytes("1 "), /invalid character/);
+});
+
+test("hexToBytes accepts uppercase hex", () => {
+  assert.equal(bytesToHex(hexToBytes("0xDEADBEEF")), "0xdeadbeef");
+});
+
+test("hexToBytes rejects a bare 0x prefix with an odd remainder", () => {
+  assert.throws(() => hexToBytes("0x0"), /even length/);
+});
+
+test("hexToBytes decodes an empty string to zero bytes", () => {
+  assert.equal(hexToBytes("").length, 0);
+  assert.equal(hexToBytes("0x").length, 0);
+});
