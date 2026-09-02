@@ -313,6 +313,7 @@ Mainnet also requires successful Testnet operation, independent audits, reproduc
 | [Zcash transaction lab](docs/ZCASH_TRANSACTION_LAB.md) | Transparent HTLC and unsigned artifact boundaries |
 | [Operations](docs/OPERATIONS.md) | Service, recovery, observability, and incident requirements |
 | [Delivery plan](docs/DELIVERY_PLAN.md) | Build sequence, acceptance gates, and release protocol |
+| [Mainnet deployment runbook](docs/MAINNET_DEPLOYMENT.md) | Settlement contract deployment, evidence recording, and matcher activation |
 | [Sources](docs/SOURCES.md) | Primary protocol, contract, wallet, and regulatory references |
 
 ## Contributing and security

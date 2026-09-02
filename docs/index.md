@@ -46,6 +46,7 @@ the corresponding file in the docs tree.
 ## Delivery and product
 
 - [DELIVERY_PLAN.md](DELIVERY_PLAN.md) — delivery plan
+- [MAINNET_DEPLOYMENT.md](MAINNET_DEPLOYMENT.md) — mainnet settlement deployment runbook
 - [LAUNCH_PLAN.md](LAUNCH_PLAN.md) — launch plan
 - [LANDING_AND_USER_JOURNEYS.md](LANDING_AND_USER_JOURNEYS.md) — landing and user journeys
 - [LEGAL_AND_COMPLIANCE.md](LEGAL_AND_COMPLIANCE.md) — legal and compliance
