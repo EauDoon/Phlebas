@@ -13,7 +13,7 @@ export const LANDING_HERO = {
 export const LANDING_BANNER = {
   label: "Product disclosure",
   kicker: "Public preview",
-  body: "Ethereum Mainnet wallet connection is available. Signing, submission, and value movement are disabled. Contracts are not deployed. This is not a live exchange.",
+  body: "Ethereum Mainnet wallet connection is available. Signing, submission, and value movement are disabled until activation. Contracts are not deployed yet. This is not yet a live exchange.",
 } as const;
 
 export const LANDING_HEADER_STATUS = "Public preview";
@@ -48,7 +48,7 @@ export const LANDING_LEDGER = [
   { label: "Country access", value: "Deny by default" },
 ] as const;
 
-export const LANDING_LEDGER_NOTE = "Market data is illustrative. This is not a live exchange.";
+export const LANDING_LEDGER_NOTE = "Market data is illustrative until activation. Phlebas is not yet a live exchange.";
 
 export const LANDING_STATUS_DETAILS = "Open status details";
 
@@ -130,4 +130,4 @@ export const LANDING_PATHS_INTRO = {
 } as const;
 
 export const LANDING_FOOTER =
-  "Phlebas is not a live exchange and not an offer of financial services.";
+  "Phlebas is pre-launch. It is not yet a live exchange and is not an offer of financial services.";
