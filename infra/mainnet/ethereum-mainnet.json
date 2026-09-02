@@ -1,0 +1,11 @@
+{
+  "network": "ethereum-mainnet",
+  "chainId": 1,
+  "commit": "UNDEPLOYED",
+  "deployed": false,
+  "label": "Ethereum Mainnet settlement",
+  "broadcastTx": null,
+  "contracts": {
+    "Settlement": null
+  }
+}

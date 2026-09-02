@@ -1,0 +1,118 @@
+// Records an Ethereum Mainnet Settlement deployment from a Foundry
+// broadcast into infra/mainnet/ethereum-mainnet.json.
+//
+// The manifest stays deployed: false until --mark-deployed is passed and
+// every recorded address's on-chain bytecode has been fetched from a
+// mainnet RPC. Nothing here trusts the broadcast file alone.
+//
+// With --configure-matcher usdc|usdt|both, the recorded Settlement address
+// is also written into the native matcher deployment manifests
+// (infra/matcher/native-zec-usdc.json, native-zec-usdt.json) as the EIP-712
+// verifying contract, with the deterministic configuration hash, and
+// deployed/submissionEnabled are flipped to true. This is the step that
+// lets the persistent matcher leave no-value mode.
+
+import { execFile } from "node:child_process";
+import { readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
+
+import { emptyManifest, recordBroadcast } from "../src/lib/mainnet-manifest.ts";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const manifestPath = join(root, "infra/mainnet/ethereum-mainnet.json");
+const broadcastPath = join(root, "contracts/broadcast/DeployMainnet.s.sol/1/run-latest.json");
+const markDeployed = process.argv.includes("--mark-deployed");
+const configureMatcherIndex = process.argv.indexOf("--configure-matcher");
+const configureMatcherInline = process.argv.find((value) => value.startsWith("--configure-matcher="))
+  ?.slice("--configure-matcher=".length);
+const configureMatcher = (configureMatcherInline ?? (configureMatcherIndex >= 0 ? process.argv[configureMatcherIndex + 1] : undefined))
+  ?.toLowerCase();
+const rpcIndex = process.argv.indexOf("--rpc-url");
+const rpcInline = process.argv.find((value) => value.startsWith("--rpc-url="))?.slice("--rpc-url=".length);
+const rpcUrl = rpcInline ?? (rpcIndex >= 0 ? process.argv[rpcIndex + 1] : undefined) ?? process.env.ETHEREUM_MAINNET_RPC_URL;
+const execFileAsync = promisify(execFile);
+
+async function readJson(path) {
+  return JSON.parse(await readFile(path, "utf8"));
+}
+
+async function writeJson(path, value) {
+  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+const current = await readJson(manifestPath).catch(() => emptyManifest());
+let broadcast;
+try {
+  broadcast = await readJson(broadcastPath);
+} catch {
+  console.error("No Foundry broadcast at contracts/broadcast/DeployMainnet.s.sol/1/run-latest.json");
+  console.error("Run a mainnet --broadcast first. Leaving deployed: false.");
+  process.exit(1);
+}
+
+const { stdout: commit } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root });
+const deployedCode = {};
+if (markDeployed) {
+  if (!rpcUrl) {
+    throw new Error("--mark-deployed requires --rpc-url or ETHEREUM_MAINNET_RPC_URL for bytecode verification");
+  }
+  const provisional = recordBroadcast(current, broadcast, { commit: commit.trim() });
+  let requestId = 0;
+  for (const address of Object.values(provisional.contracts)) {
+    if (!address) continue;
+    const response = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: ++requestId, method: "eth_getCode", params: [address, "latest"] }),
+    });
+    if (!response.ok) throw new Error("Mainnet RPC bytecode verification failed");
+    const payload = await response.json();
+    if (payload.error || typeof payload.result !== "string") {
+      throw new Error("Mainnet RPC returned no verified bytecode result");
+    }
+    deployedCode[address.toLowerCase()] = payload.result;
+  }
+}
+const next = recordBroadcast(current, broadcast, { markDeployed, commit: commit.trim(), deployedCode });
+await writeJson(manifestPath, next);
+console.log(`Wrote ${manifestPath}`);
+console.log(`deployed: ${next.deployed}`);
+console.log(`Settlement: ${next.contracts.Settlement ?? "none"}`);
+console.log(`broadcastTx: ${next.broadcastTx ?? "none"}`);
+if (!next.deployed) {
+  console.log("Manifest stays deployed: false until --mark-deployed is passed with a real mainnet tx.");
+  process.exit(0);
+}
+
+if (configureMatcher) {
+  if (configureMatcher !== "usdc" && configureMatcher !== "usdt" && configureMatcher !== "both") {
+    throw new Error("--configure-matcher accepts usdc, usdt, or both");
+  }
+  const verifyingContract = next.contracts.Settlement;
+  const configurationHashScript = [
+    `import { computeNativeZecUsdcMatcherConfigurationHash } from "./src/lib/native-zec-usdc-matcher-manifest.ts";`,
+    `import { computeNativeZecUsdtMatcherConfigurationHash } from "./src/lib/native-zec-usdt-matcher-manifest.ts";`,
+    `const address = "${verifyingContract}";`,
+    `console.log(JSON.stringify({ usdc: computeNativeZecUsdcMatcherConfigurationHash(address), usdt: computeNativeZecUsdtMatcherConfigurationHash(address) }));`,
+  ].join("\n");
+  const { stdout: hashes } = await execFileAsync(
+    "node",
+    ["--experimental-strip-types", "--input-type=module", "-e", configurationHashScript],
+    { cwd: root },
+  );
+  const configurationHashes = JSON.parse(hashes);
+  const targets = configureMatcher === "both" ? ["usdc", "usdt"] : [configureMatcher];
+  for (const market of targets) {
+    const matcherManifestPath = join(root, `infra/matcher/native-zec-${market}.json`);
+    const matcherManifest = await readJson(matcherManifestPath);
+    if (matcherManifest.evm.chainId !== 1) throw new Error(`${matcherManifestPath} is not a mainnet manifest`);
+    matcherManifest.evm.verifyingContract = verifyingContract;
+    matcherManifest.configurationHash = configurationHashes[market];
+    matcherManifest.deployed = true;
+    matcherManifest.submissionEnabled = true;
+    await writeJson(matcherManifestPath, matcherManifest);
+    console.log(`Configured ${matcherManifestPath}: verifyingContract ${verifyingContract}, submission enabled.`);
+  }
+}
