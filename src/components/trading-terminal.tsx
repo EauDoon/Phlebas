@@ -59,6 +59,7 @@ import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingO
 import {
   nextDueTwapSlice,
   planTwap,
+  retainedTwapJobs,
   TWAP_USER_CANCELLED_REASON,
   twapCancelCopy,
   twapProgressCopy,
@@ -492,9 +493,19 @@ export function TradingTerminal({
           job.completed += 1;
         }
       }
-      const next = jobs.filter((job) => job.completed < job.plan.slices && !job.stoppedReason);
+      // Terminal jobs stay in the list so their last line renders. They
+      // used to be filtered out in the same tick that made them terminal,
+      // which meant two of the three endings could never be seen: a job
+      // whose final slice landed was dropped before "TWAP complete. 4 of
+      // 4 slices executed." could render, and a job stopped by a
+      // rejection was dropped before "TWAP stopped after 1 of 4 slices.
+      // Session quote inventory is insufficient." could render. The
+      // progress line simply vanished, telling the visitor nothing about
+      // whether the order finished or failed. Only the user-cancelled
+      // line survived, because cancelTwapJob publishes the list itself.
+      const next = retainedTwapJobs(jobs);
       twapJobsRef.current = next;
-      if (changed) setTwapJobs(next);
+      if (changed || next.length !== jobs.length) setTwapJobs(next);
     }, 1_000);
     return () => window.clearInterval(timer);
   }, []);
