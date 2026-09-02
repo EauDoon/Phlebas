@@ -23,7 +23,7 @@ The intended first impression is a serious market design with its limits shown i
 
 Use the current terminal as the visual source, not as the landing layout.
 
-- Preserve the near-black background, warm yellow accent, cool information blue, green buy state, red sell state, restrained borders, and mono numeric type.
+- Preserve the navy-black background, prismatic cyan and blue brand accents, distinct information blue, green buy state, red sell state, restrained borders, and mono numeric type.
 - Let the landing page breathe more than the terminal. The terminal remains dense because it is an operating surface.
 - Use an offset editorial grid and a visible status ledger. Do not use a centered crypto slogan over a gradient orb, a fake live ticker, a leaderboard, a referral block, a volume counter, or a row of equal promotional cards.
 - Use square or lightly clipped surfaces. Keep the existing Phlebas mark and its irregular corner treatment.

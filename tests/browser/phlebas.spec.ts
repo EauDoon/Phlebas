@@ -3089,7 +3089,7 @@ test("skip-nav keeps wrapped line-height, 390px two-up ring, gutter, and header 
   expect(skipStyle.lineHeight).toBeGreaterThanOrEqual(skipStyle.fontSize * 1.25);
   expect(skipStyle.minHeight).toBeGreaterThanOrEqual(44);
   expect(skipStyle.minWidth).toBeGreaterThanOrEqual(44);
-  expect(skipStyle.outlineColor).toBe("rgb(22, 18, 4)");
+  expect(skipStyle.outlineColor).toBe("rgb(3, 18, 27)");
 
   const nav = page.getByRole("navigation", { name: "Skip links" });
   expect(await nav.evaluate((element) => getComputedStyle(element).scrollbarGutter)).toBe("stable");
@@ -3156,7 +3156,7 @@ test("skip-nav keeps wrapped line-height, 390px two-up ring, gutter, and header 
       color: style.outlineColor,
     };
   });
-  expect(ring390.color).toBe("rgb(22, 18, 4)");
+  expect(ring390.color).toBe("rgb(3, 18, 27)");
   expect(ring390.left).toBeGreaterThanOrEqual(-0.5);
   expect(ring390.top).toBeGreaterThanOrEqual(-0.5);
   expect(ring390.right).toBeLessThanOrEqual(390.5);
@@ -3302,7 +3302,7 @@ test("skip-nav two-up at 768 and 390 keeps 44px links, wrap, gutter, and Menu cl
       color: style.outlineColor,
     };
   });
-  expect(tradeRing.color).toBe("rgb(22, 18, 4)");
+  expect(tradeRing.color).toBe("rgb(3, 18, 27)");
   expect(tradeRing.left).toBeGreaterThanOrEqual(-0.5);
   expect(tradeRing.top).toBeGreaterThanOrEqual(-0.5);
   expect(tradeRing.right).toBeLessThanOrEqual(390.5);
@@ -4107,7 +4107,7 @@ test("education last-step Continue stays in 320px Continue ring is teal leftover
   await expect(continueButton).toBeFocused();
   await expect.poll(async () => {
     return continueButton.evaluate((element) => getComputedStyle(element).outlineColor);
-  }).toBe("rgb(240, 193, 75)");
+  }).toBe("rgb(77, 220, 255)");
 
   await continueButton.click();
   await continueButton.click();
@@ -4552,7 +4552,7 @@ test("education Enter Back heading 44px Continue ring at 390 and heading ring at
       parentRight: parentRect?.right ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(240, 193, 75)");
+  expect(continueRing.color).toBe("rgb(77, 220, 255)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
   expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
@@ -4695,7 +4695,7 @@ test("education Enter Back 44px Continue ring at 768 and heading ring at 390", a
       parentRight: parentRect?.right ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(240, 193, 75)");
+  expect(continueRing.color).toBe("rgb(77, 220, 255)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
   expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
@@ -4833,7 +4833,7 @@ test("education Enter Back heading 44px Continue ring at 1440 and heading ring a
       parentRight: parentRect?.right ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(240, 193, 75)");
+  expect(continueRing.color).toBe("rgb(77, 220, 255)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
   expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);
@@ -5184,7 +5184,7 @@ test("education Continue in 1440 Enter Back in 768 heading ring 768 and Continue
       parentBottom: parentRect?.bottom ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(240, 193, 75)");
+  expect(continueRing.color).toBe("rgb(77, 220, 255)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(Number.parseFloat(continueRing.scrollMarginBottom)).toBeGreaterThanOrEqual(12);
   expect(Number.parseFloat(continueRing.paddingBottom)).toBeGreaterThanOrEqual(12);
@@ -5292,7 +5292,7 @@ test("education Enter Back in 1440 heading ring 1440 Continue ring 768 and Conti
       parentBottom: parentRect?.bottom ?? 0,
     };
   });
-  expect(continueRing.color).toBe("rgb(240, 193, 75)");
+  expect(continueRing.color).toBe("rgb(77, 220, 255)");
   expect(Number.parseFloat(continueRing.width)).toBeGreaterThanOrEqual(2);
   expect(continueRing.top).toBeGreaterThanOrEqual(continueRing.parentTop - 0.5);
   expect(continueRing.bottom).toBeLessThanOrEqual(continueRing.parentBottom + 0.5);

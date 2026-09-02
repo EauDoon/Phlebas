@@ -41,8 +41,14 @@ export function SiteChrome({
         </div>
       </header>
       <main id="main-content" tabIndex={-1} className={styles.simpleMain}>
-        <h1>{title}</h1>
-        {children}
+        <div className={styles.simpleFrame}>
+          <header className={styles.simpleHero}>
+            <span className={styles.eyebrow}>Phlebas public preview</span>
+            <h1>{title}</h1>
+            <p>Transparent system boundaries, operational evidence, and clearly labeled preview state.</p>
+          </header>
+          <div className={styles.simpleContent}>{children}</div>
+        </div>
       </main>
       <SiteFooter />
     </div>

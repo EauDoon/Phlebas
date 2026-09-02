@@ -17,8 +17,13 @@ export default function StatusPage() {
       title="Status"
       skipTo={{ href: "#status-ledger", label: "Skip to status ledger" }}
     >
-      <p>This preview does not accept funds. No mainnet funds.</p>
-      <dl id="status-ledger" tabIndex={-1} role="list" aria-label="Status ledger">
+      <section className="status-summary" aria-label="Preview status summary">
+        <article><span>Environment</span><strong>{status.mode}</strong><p>Public interface preview</p></article>
+        <article><span>Funds</span><strong>{status.liveFunds ? "Live" : "Disabled"}</strong><p>No deposits or custody</p></article>
+        <article><span>Execution</span><strong>{status.matcherExecution}</strong><p>Matcher state is explicit</p></article>
+      </section>
+      <p className="status-intro">This preview does not accept funds. No mainnet funds.</p>
+      <dl className="status-ledger" id="status-ledger" tabIndex={-1} role="list" aria-label="Status ledger">
         <div role="listitem"><dt>Mode</dt><dd>{status.mode}</dd></div>
         <div role="listitem"><dt>Live funds</dt><dd>{status.liveFunds ? "yes" : "no"}</dd></div>
         <div role="listitem"><dt>Matcher</dt><dd>{status.matcher}</dd></div>
@@ -38,6 +43,7 @@ export default function StatusPage() {
         <div role="listitem"><dt>Country access</dt><dd>{status.countryAccess}</dd></div>
         <div role="listitem"><dt>Sequence root</dt><dd>{status.sequenceRoot === null ? "none" : status.sequenceRoot}</dd></div>
       </dl>
+      <div className="status-links">
       <p>
         Incident copy on Architecture is a labeled demonstration, not a live outage.
         {" "}
@@ -62,6 +68,7 @@ export default function StatusPage() {
       <p>
         Architecture includes labeled historical-state demonstrations for blocked access, review, reorg, planned maintenance, and unplanned maintenance. They are copy-only. This status page is not an incident feed.
       </p>
+      </div>
     </SiteChrome>
   );
 }

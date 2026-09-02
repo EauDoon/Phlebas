@@ -8,7 +8,7 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, background: "#0a0908", color: "#f3efe6", fontFamily: "Segoe UI, sans-serif" }}>
+      <body style={{ margin: 0, background: "#050816", color: "#f4f8ff", fontFamily: "Segoe UI, sans-serif" }}>
         <style>{`
           nav[aria-label="Skip links"] {
             display: flex;
@@ -33,7 +33,7 @@ export default function GlobalError({
             flex-shrink: 0;
           }
           nav[aria-label="Skip links"] a:focus-visible {
-            outline: 2px solid #161204;
+            outline: 2px solid #03121b;
             outline-offset: 2px;
           }
         `}</style>
@@ -46,8 +46,8 @@ export default function GlobalError({
               minHeight: 44,
               alignItems: "center",
               padding: "9px 12px",
-              color: "#161204",
-              background: "#f0c14b",
+              color: "#03121b",
+              background: "#4ddcff",
               fontSize: 12,
               fontWeight: 700,
             }}
@@ -62,8 +62,8 @@ export default function GlobalError({
               minHeight: 44,
               alignItems: "center",
               padding: "9px 12px",
-              color: "#161204",
-              background: "#f0c14b",
+              color: "#03121b",
+              background: "#4ddcff",
               fontSize: 12,
               fontWeight: 700,
             }}
@@ -72,7 +72,7 @@ export default function GlobalError({
           </a>
         </nav>
         <main id="main-content" tabIndex={-1} style={{ maxWidth: 720, padding: 28 }}>
-          <p style={{ color: "#f0c14b", letterSpacing: "0.08em", textTransform: "uppercase", fontSize: 11 }}>Public preview</p>
+          <p style={{ color: "#4ddcff", letterSpacing: "0.08em", textTransform: "uppercase", fontSize: 11 }}>Public preview</p>
           <h1>The page failed to start</h1>
           <p>Nothing was submitted to a chain, matcher, or custody system.</p>
           <p>An unexpected rendering error occurred. No private diagnostic details are shown here.</p>
@@ -85,7 +85,7 @@ export default function GlobalError({
                 minWidth: 44,
                 minHeight: 44,
                 alignItems: "center",
-                color: "#f0c14b",
+                color: "#4ddcff",
                 background: "transparent",
                 border: 0,
                 font: "inherit",
