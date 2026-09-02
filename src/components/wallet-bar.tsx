@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   discoverEip6963Providers,
+  subscribeEip6963Providers,
   type Eip6963ProviderDetail,
 } from "@/lib/evm-provider-discovery";
 import type { Market } from "@/lib/market-data";
@@ -49,16 +50,19 @@ export function WalletBar({
 
   useEffect(() => {
     let active = true;
-    void discoverEip6963Providers().then((discovered) => {
+    const unsubscribe = subscribeEip6963Providers((discovered) => {
       if (!active) return;
       setProviders(discovered);
       setSelectedProviderId((selected) => (
         selected && discovered.some((entry) => entry.info.uuid === selected)
           ? selected
-          : (discovered[0]?.info.uuid ?? null)
+          : null
       ));
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => () => {

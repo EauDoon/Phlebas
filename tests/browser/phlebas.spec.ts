@@ -540,7 +540,7 @@ test("review names exact market, networks, refund, and public-linkability terms 
   await expect(ticket.getByText("Settlement pair", { exact: true }).locator("..")).toContainText("ZEC-USDC");
   await expect(ticket.getByText("Networks", { exact: true }).locator("..")).toContainText("Zcash and EVM");
   await expect(ticket.getByText("Fee", { exact: true }).last().locator("..")).toContainText("Zero protocol fee");
-  await expect(ticket.getByText("Refund", { exact: true }).locator("..")).toContainText("Wallets control refunds");
+  await expect(ticket.getByText("Refund", { exact: true }).locator("..")).toContainText("Wallets must claim refunds");
   await expect(ticket.getByText("Public linkability", { exact: true }).locator("..")).toContainText("publicly linkable");
 });
 
@@ -800,7 +800,7 @@ test("320px market buy at zero slippage does not fill beyond the signed worst pr
 test("invalid expiry stays on the ticket and does not open review", async ({ page }) => {
   await page.goto("/trade", { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Order expiry unix time" }).fill("1.5");
-  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   await expect(page.getByText("Expiry must be a whole unix time, or 0 for none.").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
@@ -1078,7 +1078,9 @@ test("market switching cannot enable undeployed testnet signing", async ({ page 
   const nativeMatcher = page.locator("#native-matcher-order-action");
   await expect(nativeMatcher).toContainText(NATIVE_MATCHER_DISABLED_COPY);
   await page.getByRole("radio", { name: /ZEC \/ USDT|ZEC\/USDT/ }).click();
-  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Price in USDT" })).toHaveValue("52.79");
   await expect(page.getByRole("button", { name: /Sign.*testnet/ })).toHaveCount(0);
   await expect(nativeMatcher).toHaveAttribute("data-native-matcher-state", "manifest-disabled");
   await expect(nativeMatcher).toContainText(NATIVE_MATCHER_USDT_DISABLED_COPY);
@@ -1590,9 +1592,9 @@ test("landing skip links follow on-page order", async ({ page }) => {
   const skipOrder = [
     { label: "Skip to main content", href: "#main-content" },
     { label: "Skip to markets", href: "#markets" },
+    { label: "Skip to terminal preview", href: "#terminal-preview" },
     { label: "Skip to settlement", href: "#settlement-how" },
     { label: "Skip to why not wrapped", href: "#why-not-wrapped" },
-    { label: "Skip to terminal preview", href: "#terminal-preview" },
     { label: "Skip to paths", href: "#paths" },
   ] as const;
 
@@ -1622,6 +1624,7 @@ test("landing Menu Markets opens the market section at 320px", async ({ page }) 
   await page.getByRole("dialog").getByRole("link", { name: "Markets" }).click();
   await expect(page.getByRole("dialog", { name: "Navigate Phlebas" })).not.toBeVisible();
   await expect(page).toHaveURL(/#markets$/);
+  await expect(page.locator("#markets")).toBeFocused();
   await expect(page.locator("#markets")).toBeInViewport();
   const overflow = await page.evaluate(() => ({
     body: document.body.scrollWidth - document.body.clientWidth,
@@ -1793,8 +1796,7 @@ test("invalid size shows a field error and keeps review closed", async ({ page }
   await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("abc");
   await expect(page.getByText("Value must use plain decimal notation").first()).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Order size in ZEC" })).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
-  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
@@ -2829,9 +2831,9 @@ test("terminal skip-link focus ring skip-nav inset and remaining landing skip-ma
   expect(landingBox?.y ?? 0).toBeGreaterThanOrEqual(12);
 
   for (const skip of [
+    { label: "Skip to terminal preview", id: "#terminal-preview" },
     { label: "Skip to settlement", id: "#settlement-how" },
     { label: "Skip to why not wrapped", id: "#why-not-wrapped" },
-    { label: "Skip to terminal preview", id: "#terminal-preview" },
     { label: "Skip to paths", id: "#paths" },
   ] as const) {
     await page.goto("/", { waitUntil: "networkidle" });

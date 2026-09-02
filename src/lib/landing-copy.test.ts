@@ -99,9 +99,9 @@ test("landing skip links follow the shipped section ids", () => {
     [
       "#main-content",
       "#markets",
+      "#terminal-preview",
       "#settlement-how",
       "#why-not-wrapped",
-      "#terminal-preview",
       "#paths",
     ],
   );
@@ -117,9 +117,11 @@ test("two markets bind native ZEC to exact Ethereum Mainnet quote assets", () =>
   assert.match(LANDING_MARKETS[0].kicker, /First settlement target/i);
   assert.match(LANDING_MARKETS[0].body, /native transparent ZEC/i);
   assert.match(LANDING_MARKETS[0].body, /exact Ethereum Mainnet USDC/i);
+  assert.equal(LANDING_MARKETS[0].href, "/trade?view=settlement&market=ZEC%2FUSDC");
   assert.equal(LANDING_MARKETS[1]?.title, "ZEC / USDT");
   assert.match(LANDING_MARKETS[1].kicker, /Exact mainnet quote asset/i);
   assert.match(LANDING_MARKETS[1].body, /exact Ethereum Mainnet USDT/i);
+  assert.equal(LANDING_MARKETS[1].href, "/trade?view=settlement&market=ZEC%2FUSDT");
   assert.match(LANDING_MARKETS_INTRO.supporting, /USDT0 is abandoned/);
   assert.doesNotMatch(corpus(LANDING_MARKETS), /USDT0/);
 });

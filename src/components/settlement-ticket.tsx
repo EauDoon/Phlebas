@@ -302,7 +302,8 @@ export function SettlementTicket({
             <span className={styles.eyebrow}>Recovery path</span>
             <h3 id="fill-refund-title">Later-deadline ZEC refund</h3>
             <p>
-              Each wallet keeps its signed refund path. A refund is unavailable before the applicable deadline.
+              The target protocol keeps a wallet-controlled refund path for each funder. This preview signs
+              nothing, and a future refund remains unavailable before the applicable deadline.
               {" "}{CLAIM_REFUND_EXCLUSIVE}
             </p>
             <dl>

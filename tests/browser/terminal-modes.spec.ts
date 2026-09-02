@@ -16,7 +16,7 @@ import {
   test,
 } from "./fixtures";
 
-const viewports = [375, 768, 1280] as const;
+const viewports = [320, 375, 390, 768, 900, 1280, 1440] as const;
 
 function expectedMarketBuyCopy() {
   const book = seedBook("ZEC/USDC");
@@ -59,8 +59,7 @@ test("simple market review confirm uses matcher IOC copy", async ({ page }) => {
   await page.getByRole("button", { name: "Review buy" }).click();
   await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(copy, { exact: true })).toBeVisible();
-  await expect(page.getByRole("table", { name: /Recent ZEC\/USDC trades settled as ZEC-USDC/ })
-    .getByRole("row", { name: /^Buy 52\.91 1\.00 / })).toBeVisible();
+  await expect(page.locator("#recent-trades")).toHaveCount(0);
 });
 
 test("advanced book click fills price and shows GTC IOC FOK", async ({ page }) => {
@@ -74,6 +73,8 @@ test("advanced book click fills price and shows GTC IOC FOK", async ({ page }) =
   await expect(page.getByRole("button", { name: "GTC" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "IOC" })).toBeVisible();
   await expect(page.getByRole("button", { name: "FOK" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "TWAP" })).toBeDisabled();
+  await expect(page.getByText("TWAP scheduling is planned. It is unavailable in this public preview.")).toBeVisible();
 
   await page.getByRole("button", { name: "Review buy" }).click();
   await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
@@ -96,6 +97,20 @@ test("advanced click persists and simple query overrides", async ({ page }) => {
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
   await expect(page.getByRole("radio", { name: "Simple" })).toHaveAttribute("aria-checked", "true");
   await expect(page.locator("#order-book")).toBeHidden();
+});
+
+test("order review resets when the selected market or mode changes", async ({ page }) => {
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
+
+  await page.getByRole("radio", { name: "ZEC / USDT" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Review buy" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toBeVisible();
+
+  await page.getByRole("radio", { name: "Simple" }).click();
+  await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
 });
 
 test("terminal mode radios support roving focus and arrow navigation", async ({ page }) => {
@@ -172,6 +187,51 @@ test("EVM connect without provider names the rejection and has no seed field", a
   );
   await expect(page.getByText(/seed phrase|spending key|spend key|viewing key/i)).toHaveCount(0);
   await expect(page.locator("input[type=password]")).toHaveCount(0);
+});
+
+test("landing Connect keeps ZEC unavailable and offers injected Ethereum wallets", async ({ page }) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Connect wallets" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Close wallet dialog" })).toBeFocused();
+  await expect(dialog.getByRole("heading", { name: "Transparent ZEC wallet" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "ZEC connector unavailable" })).toBeDisabled();
+  const connect = dialog.getByRole("button", { name: "Connect Ethereum Mainnet wallet" });
+  await expect(connect).toBeVisible();
+  await dialog.getByLabel("Settlement market").selectOption("ZEC-USDT");
+  await expect(connect).toHaveAttribute("title", /ZEC-USDT/);
+  await expect(dialog.getByText(/reconnect after navigation/)).toBeVisible();
+  await expect(dialog.locator("input[type=password]")).toHaveCount(0);
+  expect(await page.evaluate(() => document.body.style.overflow)).toBe("hidden");
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect", exact: true })).toBeFocused();
+  expect(await page.evaluate(() => document.body.style.overflow)).toBe("");
+});
+
+test("simple rejects slippage precision finer than one basis point", async ({ page }) => {
+  await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Maximum slippage percent" }).fill("0.501");
+  await expect(page.getByRole("alert").filter({ hasText: "no more than 2 decimal places" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
+});
+
+test("simple blocks review when the requested IOC size is only partially fillable", async ({ page }) => {
+  await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
+  await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("120");
+  await expect(page.getByText(/requested size is only partially fillable/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
+});
+
+test("landing USDT market action opens the USDT settlement route", async ({ page }) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.getByRole("list", { name: "Two markets" }).getByRole("link", { name: "Read settlement" }).click();
+  await expect(page).toHaveURL(/view=settlement&market=ZEC%2FUSDT/);
+  await expect(page.getByRole("heading", { name: "USDT settlement undeployed" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Selected settlement market" })).toHaveValue("ZEC/USDT");
 });
 
 for (const width of viewports) {

@@ -32,14 +32,18 @@ async function expectNoHorizontalOverflow(page: {
 test("simple mode shows a Uniswap-style market ticket without the book", async ({ page }) => {
   await page.goto("/trade?mode=simple", { waitUntil: "networkidle" });
 
-  await expect(page.getByText("Token in", { exact: true })).toBeVisible();
-  await expect(page.getByText("Token out", { exact: true })).toBeVisible();
+  await expect(page.locator('#order-ticket [aria-label="Token in"]')).toBeVisible();
+  await expect(page.locator('#order-ticket [aria-label="Token out"]')).toBeVisible();
   await expect(page.getByRole("button", { name: "Switch" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Max" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Review buy" })).toBeVisible();
 
   await expect(page.getByRole("heading", { name: "Order book" })).toHaveCount(0);
   await expect(page.locator("#order-book")).toHaveCount(0);
+  await expect(page.locator("#price-chart")).toHaveCount(0);
+  await expect(page.locator("#recent-trades")).toHaveCount(0);
+  await expect(page.locator("#session-blotter")).toHaveCount(0);
+  await expect(page.locator("#native-matcher-order-action")).toHaveCount(0);
   await expect(page.getByLabel("Asks")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "GTC" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Limit" })).toHaveCount(0);
@@ -77,8 +81,7 @@ test("simple Review confirm completes an IOC market fill", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
   await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.locator("#order-ticket").getByText(expectedMarketBuyCopy(), { exact: true })).toBeVisible();
-  await expect(page.getByRole("table", { name: /Recent ZEC\/USDC trades settled as ZEC-USDC/ })
-    .getByRole("row", { name: /^Buy 52\.91 1\.00 / })).toBeVisible();
+  await expect(page.locator("#recent-trades")).toHaveCount(0);
 });
 
 test("simple Review is disabled when the feed gate blocks it", async ({ page }) => {
@@ -87,6 +90,24 @@ test("simple Review is disabled when the feed gate blocks it", async ({ page }) 
   await expect(review).toBeDisabled();
   await review.click({ force: true });
   await expect(page.getByRole("button", { name: "Complete buy" })).toHaveCount(0);
+});
+
+test("simple preview fails closed when it would cross the user's resting order", async ({ page }) => {
+  await page.goto("/trade?mode=advanced", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Sell" }).click();
+  await page.getByRole("textbox", { name: "Price in USDC" }).fill("54.00");
+  await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("5.61");
+  await page.getByRole("button", { name: "Review sell" }).click();
+  await page.getByRole("button", { name: "Complete sell" }).click();
+
+  await page.getByRole("radio", { name: "Simple" }).click();
+  await page.getByRole("button", { name: "Switch" }).click();
+  await page.getByRole("textbox", { name: "Order size in ZEC" }).fill("120");
+  await page.getByRole("textbox", { name: "Maximum slippage percent" }).fill("2.20");
+
+  await expect(page.getByText("This route would cross your own resting order.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review buy" })).toBeDisabled();
+  await expect(page.getByText("Partial or unavailable", { exact: true })).toBeVisible();
 });
 
 test("simple mode at 375px has 44px primary buttons and no overflow", async ({ page }) => {

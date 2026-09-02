@@ -55,9 +55,9 @@ export const LANDING_STATUS_DETAILS = "Open status details";
 export const LANDING_SKIP_LINKS = [
   { href: "#main-content", label: "Skip to main content" },
   { href: "#markets", label: "Skip to markets" },
+  { href: "#terminal-preview", label: "Skip to terminal preview" },
   { href: "#settlement-how", label: "Skip to settlement" },
   { href: "#why-not-wrapped", label: "Skip to why not wrapped" },
-  { href: "#terminal-preview", label: "Skip to terminal preview" },
   { href: "#paths", label: "Skip to paths" },
 ] as const;
 
@@ -72,14 +72,14 @@ export const LANDING_MARKETS = [
     kicker: "First settlement target",
     title: "ZEC / USDC",
     body: "Native transparent ZEC against exact Ethereum Mainnet USDC. Value-moving settlement remains disabled.",
-    href: "/trade?view=settlement",
+    href: "/trade?view=settlement&market=ZEC%2FUSDC",
     action: "How settlement works",
   },
   {
     kicker: "Exact mainnet quote asset",
     title: "ZEC / USDT",
     body: "Native transparent ZEC against exact Ethereum Mainnet USDT. Value-moving settlement remains disabled.",
-    href: "/trade?view=settlement",
+    href: "/trade?view=settlement&market=ZEC%2FUSDT",
     action: "Read settlement",
   },
 ] as const;

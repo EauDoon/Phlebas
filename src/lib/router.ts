@@ -7,6 +7,7 @@ export type VenueQuote = {
   filledAtoms: bigint;
   quoteAtoms: bigint;
   complete: boolean;
+  blockedByMaker: boolean;
 };
 
 export type SplitQuote = {
@@ -32,6 +33,7 @@ export function quoteClob(
   side: OrderSide,
   sizeAtoms: bigint,
   limitTicks: bigint,
+  blockedMakerPrefix?: string,
 ): VenueQuote {
   const result = submitOrder(book, {
     id: "router-preview",
@@ -40,12 +42,22 @@ export function quoteClob(
     priceTicks: limitTicks,
     sizeAtoms,
   });
+  if (blockedMakerPrefix && result.fills.some((fill) => fill.makerId.startsWith(blockedMakerPrefix))) {
+    return {
+      venue: "clob",
+      filledAtoms: 0n,
+      quoteAtoms: 0n,
+      complete: false,
+      blockedByMaker: true,
+    };
+  }
   const quoteAtoms = quoteAtomsForFills(result.fills, side === "buy" ? "up" : "down");
   return {
     venue: "clob",
     filledAtoms: sizeAtoms - result.remainingAtoms,
     quoteAtoms,
     complete: result.remainingAtoms === 0n,
+    blockedByMaker: false,
   };
 }
 
@@ -57,13 +69,14 @@ export function quoteAmm(
 ): VenueQuote {
   const quoted = quoteAmmLeg(side, sizeAtoms, reserveZecAtoms, reserveQuoteAtoms);
   if (!quoted) {
-    return { venue: "amm", filledAtoms: 0n, quoteAtoms: 0n, complete: false };
+    return { venue: "amm", filledAtoms: 0n, quoteAtoms: 0n, complete: false, blockedByMaker: false };
   }
   return {
     venue: "amm",
     filledAtoms: sizeAtoms,
     quoteAtoms: quoted.quoteAtoms,
     complete: true,
+    blockedByMaker: false,
   };
 }
 

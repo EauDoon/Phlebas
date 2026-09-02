@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 
 import { activateSkipLink } from "@/lib/skip-link";
 
@@ -35,8 +36,29 @@ import { SiteFooter } from "./site-footer";
 import styles from "./landing.module.css";
 
 export function LandingPage() {
+  const pageRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const root = pageRef.current;
+    if (!root || !("IntersectionObserver" in window)) return;
+
+    root.dataset.motion = "ready";
+    const targets = root.querySelectorAll<HTMLElement>("[data-reveal]");
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          (entry.target as HTMLElement).dataset.revealed = "true";
+          observer.unobserve(entry.target);
+        }
+      }
+    }, { rootMargin: "0px 0px -12%", threshold: 0.08 });
+
+    targets.forEach((target) => observer.observe(target));
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className={styles.page}>
+    <div className={styles.page} ref={pageRef}>
       <nav className={styles.skipNav} aria-label="Skip links">
         {LANDING_SKIP_LINKS.map((link) => (
           <a className={styles.skipLink} href={link.href} key={link.href} onClick={activateSkipLink}>{link.label}</a>
@@ -46,8 +68,12 @@ export function LandingPage() {
       <LandingHeader />
 
       <main id="main-content" tabIndex={-1}>
-        <section className={styles.hero} aria-labelledby="hero-title">
+        <section className={styles.hero} aria-labelledby="hero-title" data-reveal>
           <div className={styles.heroStatement}>
+            <div className={styles.heroSignal}>
+              <span aria-hidden="true" />
+              Simple and Advanced. One shared book per market.
+            </div>
             <div>
               <span className={styles.eyebrow}>{LANDING_HERO.eyebrow}</span>
               <h1 id="hero-title">{LANDING_HERO.heading}</h1>
@@ -55,7 +81,26 @@ export function LandingPage() {
             <p>{LANDING_HERO.supporting}</p>
           </div>
 
+          <div className={styles.heroActions}>
+            <Link href={LANDING_HERO.primaryHref} className={styles.primaryCta}>{LANDING_HERO.primaryAction} <span>↗</span></Link>
+            <Link href={LANDING_HERO.secondaryHref} className={styles.secondaryCta}>{LANDING_HERO.secondaryAction}</Link>
+            <p>{LANDING_HERO.disclosure}</p>
+          </div>
+
           <aside className={styles.systemLedger} aria-labelledby="system-ledger-title">
+            <div className={styles.heroMarketTape} aria-label="Illustrative ZEC/USDC market preview">
+              <div>
+                <span>Illustrative · ZEC / USDC</span>
+                <strong>52.84</strong>
+              </div>
+              <div>
+                <span>24h</span>
+                <strong>+5.85%</strong>
+              </div>
+              <div className={styles.depthPulse} aria-hidden="true">
+                <i /><i /><i /><i /><i /><i /><i /><i />
+              </div>
+            </div>
             <div className={styles.ledgerHeader}>
               <h2 id="system-ledger-title">{LANDING_LEDGER_HEADING}</h2>
               <span className={styles.designPill}>{LANDING_LEDGER_PILL}</span>
@@ -71,15 +116,9 @@ export function LandingPage() {
             <p>{LANDING_LEDGER_NOTE}</p>
             <Link href="/status" className={styles.secondaryCta}>{LANDING_STATUS_DETAILS}</Link>
           </aside>
-
-          <div className={styles.heroActions}>
-            <Link href={LANDING_HERO.primaryHref} className={styles.primaryCta}>{LANDING_HERO.primaryAction} <span>↗</span></Link>
-            <Link href={LANDING_HERO.secondaryHref} className={styles.secondaryCta}>{LANDING_HERO.secondaryAction}</Link>
-            <p>{LANDING_HERO.disclosure}</p>
-          </div>
         </section>
 
-        <section className={styles.marketSection} id="markets" tabIndex={-1} aria-labelledby="markets-title">
+        <section className={styles.marketSection} id="markets" tabIndex={-1} aria-labelledby="markets-title" data-reveal>
           <div className={styles.sectionIntro}>
             <span className={styles.eyebrow}>{LANDING_MARKETS_INTRO.eyebrow}</span>
             <h2 id="markets-title">{LANDING_MARKETS_INTRO.heading}</h2>
@@ -100,7 +139,9 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className={styles.pairsSection} id="settlement-how" tabIndex={-1} aria-labelledby="settlement-how-title">
+        <LandingTerminalPreview />
+
+        <section className={styles.pairsSection} id="settlement-how" tabIndex={-1} aria-labelledby="settlement-how-title" data-reveal>
           <div className={`${styles.pairsCopy} ${styles.sectionIntro}`}>
             <span className={styles.eyebrow}>{LANDING_SETTLEMENT_INTRO.eyebrow}</span>
             <h2 id="settlement-how-title">{LANDING_SETTLEMENT_INTRO.heading}</h2>
@@ -119,7 +160,7 @@ export function LandingPage() {
           </ol>
         </section>
 
-        <section className={styles.evidenceSection} id="why-not-wrapped" tabIndex={-1} aria-labelledby="why-not-wrapped-title">
+        <section className={styles.evidenceSection} id="why-not-wrapped" tabIndex={-1} aria-labelledby="why-not-wrapped-title" data-reveal>
           <div className={styles.sectionIntro}>
             <span className={styles.eyebrow}>{LANDING_WHY_NOT_WRAPPED_INTRO.eyebrow}</span>
             <h2 id="why-not-wrapped-title">{LANDING_WHY_NOT_WRAPPED_INTRO.heading}</h2>
@@ -138,9 +179,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <LandingTerminalPreview />
-
-        <section className={styles.journeySection} id="paths" tabIndex={-1} aria-labelledby="paths-title">
+        <section className={styles.journeySection} id="paths" tabIndex={-1} aria-labelledby="paths-title" data-reveal>
           <div className={styles.sectionIntro}>
             <span className={styles.eyebrow}>{LANDING_PATHS_INTRO.eyebrow}</span>
             <h2 id="paths-title">{LANDING_PATHS_INTRO.heading}</h2>
@@ -148,7 +187,7 @@ export function LandingPage() {
           <LandingJourneys />
         </section>
 
-        <section className={styles.gatesSection} id="launch-gates" tabIndex={-1} aria-labelledby="gates-title">
+        <section className={styles.gatesSection} id="launch-gates" tabIndex={-1} aria-labelledby="gates-title" data-reveal>
           <div className={styles.sectionIntro}>
             <span className={styles.eyebrow}>{LANDING_GATES_INTRO.eyebrow}</span>
             <h2 id="gates-title">{LANDING_GATES_INTRO.heading}</h2>

@@ -23,7 +23,8 @@ import {
 } from "@/lib/ticket-groups";
 import { maxTicketSizeAtoms } from "@/lib/ticket-size";
 import { submitOrder, type Book, type TimeInForce } from "@/lib/matcher";
-import { describeSubmit, isTicketRejectCopy } from "@/lib/session";
+import { collateralRequired, describeSubmit, isTicketRejectCopy, USER_ORDER_PREFIX } from "@/lib/session";
+import { quoteClob } from "@/lib/router";
 import {
   parseStrictDecimal,
   marketOrderConstraintCopy,
@@ -90,6 +91,23 @@ function parseSizeAtoms(value: string): { atoms: bigint; error: string | null } 
   }
 }
 
+function bookReviewFingerprint(book: Book): string {
+  const serializeOrder = (order: Book["bids"][number]) => [
+    order.id,
+    order.side,
+    order.priceTicks.toString(),
+    order.remainingAtoms.toString(),
+    order.seq,
+    order.expiryUnix?.toString() ?? null,
+  ];
+  return JSON.stringify({
+    seq: book.seq,
+    lastTicks: book.lastTicks.toString(),
+    bids: book.bids.map(serializeOrder),
+    asks: book.asks.map(serializeOrder),
+  });
+}
+
 export function TradeTicket({
   market,
   book,
@@ -129,6 +147,7 @@ export function TradeTicket({
   const sizeErrorId = useId();
   const slippageErrorId = useId();
   const expiryErrorId = useId();
+  const twapNoticeId = useId();
   const [side, setSide] = useState<TicketSide>("buy");
   const [sideFocus, setSideFocus] = useState<TicketSide>("buy");
   const [orderType, setOrderType] = useState<TicketOrderType>("limit");
@@ -139,6 +158,7 @@ export function TradeTicket({
   const typeRefs = useRef<Partial<Record<TicketOrderType, HTMLButtonElement | null>>>({});
   const tifRefs = useRef<Partial<Record<TicketTif, HTMLButtonElement | null>>>({});
   const [price, setPrice] = useState(() => formatAtomicUnits(lastTicks, PRICE_DECIMALS, 2));
+  const [priceContext, setPriceContext] = useState(`${market.id}:${variant}`);
   const [size, setSize] = useState("10");
   const [slippagePercent, setSlippagePercent] = useState("0.50");
   const [expiry, setExpiry] = useState("0");
@@ -153,10 +173,33 @@ export function TradeTicket({
     sizeAtoms: bigint;
     tif: TimeInForce;
     expiryUnix: bigint;
+    bookFingerprint: string;
+    marketId: Market["id"];
+    variant: TerminalMode;
+    accountEpoch: number;
   } | null>(null);
   const isSimple = variant === "simple";
   const effectiveOrderType: TicketOrderType = isSimple ? "market" : orderType;
   const effectiveTif: TimeInForce = isSimple || effectiveOrderType === "market" ? "IOC" : tif;
+  const currentBookFingerprint = bookReviewFingerprint(book);
+  const reviewIsCurrent = Boolean(
+    review
+    && review.marketId === market.id
+    && review.variant === variant
+    && review.accountEpoch === accountEpoch
+    && review.bookFingerprint === currentBookFingerprint,
+  );
+  const activeReview = reviewIsCurrent ? review : null;
+
+  if (priceContext !== `${market.id}:${variant}`) {
+    setPriceContext(`${market.id}:${variant}`);
+    setPrice(formatAtomicUnits(lastTicks, PRICE_DECIMALS, 2));
+  }
+
+  if (review && !reviewIsCurrent) {
+    setReview(null);
+    setNotice("Market context changed after review. Review the current order again.");
+  }
 
   if (priceSelection && priceSelection.nonce !== appliedPriceNonce) {
     setAppliedPriceNonce(priceSelection.nonce);
@@ -168,15 +211,15 @@ export function TradeTicket({
   }
 
   useEffect(() => {
-    reviewOpenRef.current = review !== null;
-  }, [review]);
+    reviewOpenRef.current = activeReview !== null;
+  }, [activeReview]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const action = interpretTicketKey(event.key, {
         target: event.target,
         dialogOpen: Boolean(document.querySelector("dialog[open]")),
-        reviewOpen: review !== null,
+        reviewOpen: activeReview !== null,
       });
       if (action === "escape") {
         setReview(null);
@@ -216,7 +259,7 @@ export function TradeTicket({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isSimple, review]);
+  }, [activeReview, isSimple]);
 
   const lastPrice = Number(formatAtomicUnits(lastTicks, PRICE_DECIMALS, 2));
   const priceParse = effectiveOrderType === "market"
@@ -258,7 +301,11 @@ export function TradeTicket({
     if (effectiveOrderType === "limit") {
       return { value: parsedPrice, error: null };
     }
-    const slippageParse = parsePreviewDecimal(slippagePercent, { allowZero: true, maximumExclusive: 100 });
+    const slippageParse = parsePreviewDecimal(slippagePercent, {
+      allowZero: true,
+      maximumExclusive: 100,
+      atomicRule: QUOTE_PRICE_ATOMIC_RULE,
+    });
     if (slippageParse.error) {
       return { value: Number.NaN, error: slippageParse.error };
     }
@@ -287,6 +334,18 @@ export function TradeTicket({
   const slippageError = effectiveOrderType === "market" ? worstPricePreview.error : null;
   const expiryError = expiryParse.error;
   const inputError = priceError ?? sizeError ?? slippageError ?? expiryError;
+  const simpleBookQuote = useMemo(() => {
+    if (!isSimple || !sizeIsValid || sizeAtoms.error || sizeAtoms.atoms <= 0n) {
+      return null;
+    }
+    try {
+      const slippageHundredths = parseAtomicUnits(slippagePercent, PRICE_DECIMALS, { allowZero: true });
+      const limitPriceTicks = worstPriceTicks(lastTicks, side, slippageHundredths);
+      return quoteClob(book, side, sizeAtoms.atoms, limitPriceTicks, USER_ORDER_PREFIX);
+    } catch {
+      return null;
+    }
+  }, [book, isSimple, lastTicks, side, sizeAtoms.atoms, sizeAtoms.error, sizeIsValid, slippagePercent]);
   const bookEmpty = book.bids.length === 0 && book.asks.length === 0;
   const gate = ticketGate(feedStatus, bookEmpty, market.settlementPair);
 
@@ -451,11 +510,15 @@ export function TradeTicket({
     setReview({
       ...prepared,
       side,
+      bookFingerprint: currentBookFingerprint,
+      marketId: market.id,
+      variant,
+      accountEpoch,
     });
   }
 
   function completeReview() {
-    if (!review || !gate.canReview) {
+    if (!activeReview || !gate.canReview) {
       if (!gate.canReview) {
         setNotice(gate.message);
         setReview(null);
@@ -463,11 +526,11 @@ export function TradeTicket({
       return;
     }
     const result = onSubmit({
-      side: review.side,
-      tif: review.tif,
-      priceTicks: review.priceTicks,
-      sizeAtoms: review.sizeAtoms,
-      expiryUnix: review.expiryUnix,
+      side: activeReview.side,
+      tif: activeReview.tif,
+      priceTicks: activeReview.priceTicks,
+      sizeAtoms: activeReview.sizeAtoms,
+      expiryUnix: activeReview.expiryUnix,
     });
     setRejected(isTicketRejectCopy(result) ? result : null);
     setNotice(result);
@@ -482,14 +545,70 @@ export function TradeTicket({
   const availableOut = side === "buy"
     ? `${formatAtomicUnits(availableZecAtoms, ZEC_DECIMALS)} ZEC`
     : `${formatAtomicUnits(availableQuoteAtoms, QUOTE_DECIMALS, 2)} ${market.quote}`;
-  const reviewRows = review
+  const quotedZec = simpleBookQuote
+    ? formatAtomicUnits(simpleBookQuote.filledAtoms, ZEC_DECIMALS)
+    : (sizeIsValid ? size : "0");
+  const quotedStable = simpleBookQuote
+    ? formatAtomicUnits(simpleBookQuote.quoteAtoms, QUOTE_DECIMALS, 2)
+    : formattedNotional;
+  const tokenInAmount = side === "buy" ? quotedStable : quotedZec;
+  const tokenOutAmount = side === "buy" ? quotedZec : quotedStable;
+  const averageBookPrice = simpleBookQuote && simpleBookQuote.filledAtoms > 0n
+    ? Number(formatAtomicUnits(simpleBookQuote.quoteAtoms, QUOTE_DECIMALS, 6))
+      / Number(formatAtomicUnits(simpleBookQuote.filledAtoms, ZEC_DECIMALS))
+    : Number.NaN;
+  const priceImpact = Number.isFinite(averageBookPrice) && lastPrice > 0
+    ? Math.abs(((averageBookPrice - lastPrice) / lastPrice) * 100)
+    : Number.NaN;
+  const simpleRouteComplete = Boolean(
+    simpleBookQuote?.complete && simpleBookQuote.filledAtoms === sizeAtoms.atoms,
+  );
+  const simpleInventoryCovered = useMemo(() => {
+    if (!isSimple || !sizeIsValid || sizeAtoms.error || sizeAtoms.atoms <= 0n) return false;
+    try {
+      const slippageHundredths = parseAtomicUnits(slippagePercent, PRICE_DECIMALS, { allowZero: true });
+      const limitPriceTicks = worstPriceTicks(lastTicks, side, slippageHundredths);
+      const required = collateralRequired(side, sizeAtoms.atoms, limitPriceTicks);
+      return side === "buy" ? availableQuoteAtoms >= required : availableZecAtoms >= required;
+    } catch {
+      return false;
+    }
+  }, [availableQuoteAtoms, availableZecAtoms, isSimple, lastTicks, side, sizeAtoms.atoms, sizeAtoms.error, sizeIsValid, slippagePercent]);
+  const simpleQuoteComplete = simpleRouteComplete && simpleInventoryCovered;
+  const reviewRows = activeReview
     ? ticketReviewRows({
-      side: review.side,
-      sizeLabel: `${formatAtomicUnits(review.sizeAtoms, ZEC_DECIMALS)} ZEC`,
-      priceLabel: `${formatAtomicUnits(review.priceTicks, PRICE_DECIMALS, 2)} ${market.quote}`,
+      side: activeReview.side,
+      sizeLabel: `${formatAtomicUnits(activeReview.sizeAtoms, ZEC_DECIMALS)} ZEC`,
+      priceLabel: `${formatAtomicUnits(activeReview.priceTicks, PRICE_DECIMALS, 2)} ${market.quote}`,
       settlementPair: market.settlementPair,
     })
     : [];
+
+  function renderSimpleTokenAmount(token: string, amount: string) {
+    if (token === "ZEC") {
+      return (
+        <div className={`${styles.tokenAmount} ${styles.editableTokenAmount}`}>
+          <input
+            inputMode="decimal"
+            value={size}
+            onChange={(event) => setSize(event.target.value)}
+            aria-label="Order size in ZEC"
+            aria-invalid={!sizeIsValid || Boolean(sizeError || notionalError)}
+            aria-errormessage={sizeError ? sizeErrorId : undefined}
+            aria-describedby={sizeError ? `${sizeErrorId} ${noticeId}` : noticeId}
+          />
+          <span>ZEC</span>
+          <button type="button" className={styles.maxButton} onClick={applyMax}>Max</button>
+        </div>
+      );
+    }
+    return (
+      <div className={styles.tokenAmount}>
+        <strong>{amount}</strong>
+        <span>{token}</span>
+      </div>
+    );
+  }
 
   return (
     <section
@@ -499,8 +618,8 @@ export function TradeTicket({
       aria-labelledby="trade-ticket-title"
     >
       <div className={styles.panelHeader}>
-        <h2 id="trade-ticket-title">Order entry</h2>
-        <span className={styles.statusDot}>CLOB</span>
+        <h2 id="trade-ticket-title">{isSimple ? "Swap" : "Order entry"}</h2>
+        <span className={styles.statusDot}>{isSimple ? "Shared book" : "CLOB"}</span>
       </div>
 
       {!gate.canReview && (
@@ -523,17 +642,17 @@ export function TradeTicket({
         <>
           <div className={styles.tokenRow} aria-label="Token in">
             <span>Token in</span>
-            <strong>{tokenIn}</strong>
+            {renderSimpleTokenAmount(tokenIn, tokenInAmount)}
             <span>Available {availableIn}</span>
           </div>
           <div className={styles.switchRow}>
-            <button type="button" onClick={switchSide}>
-              Switch
+            <button type="button" onClick={switchSide} aria-label="Switch">
+              <span aria-hidden="true">↓</span>
             </button>
           </div>
           <div className={styles.tokenRow} aria-label="Token out">
             <span>Token out</span>
-            <strong>{tokenOut}</strong>
+            {renderSimpleTokenAmount(tokenOut, tokenOutAmount)}
             <span>Available {availableOut}</span>
           </div>
         </>
@@ -603,7 +722,13 @@ export function TradeTicket({
                 {id === "limit" ? "Limit" : "Market"}
               </button>
             ))}
+            <button type="button" disabled aria-describedby={twapNoticeId}>
+              TWAP
+            </button>
           </div>
+          <p id={twapNoticeId} className={styles.plannedOrderType}>
+            TWAP scheduling is planned. It is unavailable in this public preview.
+          </p>
 
           {effectiveOrderType === "limit" && (
             <div className={styles.orderTypes} role="group" aria-label="Time in force">
@@ -691,28 +816,25 @@ export function TradeTicket({
         <p id={slippageErrorId} className={styles.inlineNotice} role="alert">{slippageError}</p>
       ) : null}
 
-      <div className={isSimple ? styles.sizeRow : undefined}>
-        <label className={styles.inputLabel}>
-          <span>Size</span>
-          <div className={styles.inputShell}>
-            <input
-              inputMode="decimal"
-              value={size}
-              onChange={(event) => setSize(event.target.value)}
-              aria-label="Order size in ZEC"
-              aria-invalid={!sizeIsValid || Boolean(sizeError || notionalError)}
-              aria-errormessage={sizeError ? sizeErrorId : undefined}
-              aria-describedby={sizeError ? `${sizeErrorId} ${noticeId}` : noticeId}
-            />
-            <span>ZEC</span>
-          </div>
-        </label>
-        {isSimple ? (
-          <button type="button" className={styles.maxButton} onClick={applyMax}>
-            Max
-          </button>
-        ) : null}
-      </div>
+      {isSimple ? null : (
+        <div>
+          <label className={styles.inputLabel}>
+            <span>Size</span>
+            <div className={styles.inputShell}>
+              <input
+                inputMode="decimal"
+                value={size}
+                onChange={(event) => setSize(event.target.value)}
+                aria-label="Order size in ZEC"
+                aria-invalid={!sizeIsValid || Boolean(sizeError || notionalError)}
+                aria-errormessage={sizeError ? sizeErrorId : undefined}
+                aria-describedby={sizeError ? `${sizeErrorId} ${noticeId}` : noticeId}
+              />
+              <span>ZEC</span>
+            </div>
+          </label>
+        </div>
+      )}
       {sizeError ? (
         <p id={sizeErrorId} className={styles.inlineNotice} role="alert">{sizeError}</p>
       ) : null}
@@ -763,44 +885,92 @@ export function TradeTicket({
       ) : null}
 
       <dl className={styles.ticketSummary}>
-        <div>
-          <dt>Estimated value</dt>
-          <dd>{formattedNotional} {market.quote}</dd>
-        </div>
-        <div>
-          <dt>Settlement</dt>
-          <dd>{market.settlementPair}</dd>
-        </div>
-        <div>
-          <dt>{effectiveOrderType === "market" ? "Worst price" : "Limit price"}</dt>
-          <dd>{Number.isFinite(worstPrice) ? worstPrice.toFixed(2) : "0.00"} {market.quote}</dd>
-        </div>
-        <div>
-          <dt>Time in force</dt>
-          <dd>{effectiveTif}</dd>
-        </div>
-        <div>
-          <dt>Fee</dt>
-          {/* feeEnvelopeCopy is the proposed CLOB envelope; it is not charged. */}
-          <dd>{ticketReviewFeeCopy()}</dd>
-        </div>
-        <div>
-          <dt>Account epoch</dt>
-          <dd>{accountEpoch}</dd>
-        </div>
-        <div>
-          <dt>Session nonce</dt>
-          <dd>{sessionNonce}</dd>
-        </div>
-        {isSimple ? null : (
+        {isSimple ? (
+          <>
+            <div>
+              <dt>Route</dt>
+              <dd>Advanced order book</dd>
+            </div>
+            <div>
+              <dt>Book fill</dt>
+              <dd>{simpleRouteComplete ? "Complete" : "Partial or unavailable"}</dd>
+            </div>
+            <div>
+              <dt>Session inventory</dt>
+              <dd>{simpleInventoryCovered ? "Available" : "Insufficient"}</dd>
+            </div>
+            <div>
+              <dt>Average price</dt>
+              <dd>{Number.isFinite(averageBookPrice) ? averageBookPrice.toFixed(2) : "—"} {market.quote}</dd>
+            </div>
+            <div>
+              <dt>Price impact</dt>
+              <dd>{Number.isFinite(priceImpact) ? `${priceImpact.toFixed(2)}%` : "—"}</dd>
+            </div>
+            <div>
+              <dt>Maximum slippage</dt>
+              <dd>{slippagePercent || "0"}%</dd>
+            </div>
+            <div>
+              <dt>Settlement</dt>
+              <dd>{market.settlementPair}</dd>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <dt>Estimated value</dt>
+              <dd>{formattedNotional} {market.quote}</dd>
+            </div>
+            <div>
+              <dt>Settlement</dt>
+              <dd>{market.settlementPair}</dd>
+            </div>
+            <div>
+              <dt>{effectiveOrderType === "market" ? "Worst price" : "Limit price"}</dt>
+              <dd>{Number.isFinite(worstPrice) ? worstPrice.toFixed(2) : "0.00"} {market.quote}</dd>
+            </div>
+            <div>
+              <dt>Time in force</dt>
+              <dd>{effectiveTif}</dd>
+            </div>
+            <div>
+              <dt>Fee</dt>
+              {/* feeEnvelopeCopy is the proposed CLOB envelope; it is not charged. */}
+              <dd>{ticketReviewFeeCopy()}</dd>
+            </div>
+            <div>
+              <dt>Account epoch</dt>
+              <dd>{accountEpoch}</dd>
+            </div>
+            <div>
+              <dt>Session nonce</dt>
+              <dd>{sessionNonce}</dd>
+            </div>
           <div>
             <dt>Expiry</dt>
             <dd>{expiry.trim() === "" || expiry.trim() === "0" ? "none" : expiry.trim()}</dd>
           </div>
+          </>
         )}
       </dl>
 
-      {review ? (
+      {isSimple && simpleBookQuote?.blockedByMaker && !inputError ? (
+        <p className={styles.inlineNotice} role="status">
+          This route would cross your own resting order. Cancel it in Advanced mode or change the order size.
+        </p>
+      ) : isSimple && !simpleInventoryCovered && !inputError ? (
+        <p className={styles.inlineNotice} role="status">
+          Session inventory cannot fund this order size. Reduce the ZEC amount before review.
+        </p>
+      ) : isSimple && !simpleRouteComplete && !inputError ? (
+        <p className={styles.inlineNotice} role="status">
+          The requested size is only partially fillable at this slippage limit. Reduce the ZEC amount
+          or raise the limit before review.
+        </p>
+      ) : null}
+
+      {activeReview ? (
         <div className={styles.reviewBlock}>
           <p className={styles.gateNotice} aria-label="Review custody notice">
             {ticketReviewNoticeCopy()} {custodyRedemptionCopy()}
@@ -815,10 +985,10 @@ export function TradeTicket({
           </dl>
           <button
             type="button"
-            className={`${styles.primaryAction} ${review.side === "sell" ? styles.sellAction : ""}`}
+            className={`${styles.primaryAction} ${activeReview.side === "sell" ? styles.sellAction : ""}`}
             onClick={completeReview}
           >
-            {ticketCompleteActionCopy(review.side)}
+            {ticketCompleteActionCopy(activeReview.side)}
           </button>
           <button type="button" className={styles.textButton} onClick={() => setReview(null)}>
             Back
@@ -829,7 +999,12 @@ export function TradeTicket({
           type="button"
           className={`${styles.primaryAction} ${side === "sell" ? styles.sellAction : ""}`}
           onClick={() => openReview(BigInt(Math.floor(Date.now() / 1000)))}
-          disabled={!gate.canReview}
+          disabled={
+            !gate.canReview
+            || Boolean(inputError)
+            || Boolean(notionalError)
+            || (isSimple && !simpleQuoteComplete)
+          }
         >
           {ticketReviewActionCopy(side)}
         </button>
