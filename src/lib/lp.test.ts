@@ -38,7 +38,12 @@ test("mint then burn returns the added reserves on a fresh pool ratio", () => {
 
   const burned = burnShares(minted.pool, minted.shares);
   assert.equal(burned.zecAtoms, 10_00000000n);
-  assert.equal(burned.quoteAtoms, minted.quoteAtoms);
+  // Mint rounds the required quote contribution UP (favouring the pool) and
+  // burn rounds the returned quote atoms DOWN (also favouring the pool), so
+  // an immediate round trip can leave at most a few atoms of dust behind in
+  // the pool -- it must never hand the depositor back more than they put in.
+  assert.ok(burned.quoteAtoms <= minted.quoteAtoms);
+  assert.ok(minted.quoteAtoms - burned.quoteAtoms <= 1n);
   assert.equal(burned.pool.reserveZecAtoms, pool.reserveZecAtoms);
   assert.equal(burned.pool.totalShares, pool.totalShares);
 });
@@ -46,6 +51,52 @@ test("mint then burn returns the added reserves on a fresh pool ratio", () => {
 test("rejects a zero mint", () => {
   const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
   assert.throws(() => mintShares(pool, 0n), /positive/);
+});
+
+test("mint never lets a depositor extract more value than they contributed", () => {
+  // Reproduces the balancedQuoteAtoms floor-rounding bug: mintShares used to
+  // round the required quote-side contribution DOWN, so a depositor could
+  // pay less than their proportional share while still being credited a
+  // full share of zecAtoms. Walking two LPs through mint/burn on a pool
+  // whose ratio does not divide zecAtoms evenly (3 zec : 10 quote) shows the
+  // effect directly: the second depositor could cash out for one more quote
+  // atom than they put in, taken straight out of the first LP's reserve
+  // claim.
+  const pool0 = seedPool(3n, 10n);
+
+  const minted = mintShares(pool0, 1n);
+  // The depositor must be asked for at least the exact proportional share
+  // (ceil(1 * 10 / 3) = 4), never the floored 3 -- a floor would let them in
+  // for less than their share is worth.
+  assert.equal(minted.quoteAtoms, 4n);
+
+  // The original LP's 3 shares must still be worth exactly what they put in
+  // (all of pool0) once the new deposit lands; a floor-rounded contribution
+  // would leave them short.
+  const originalLpQuoteClaim = (3n * minted.pool.reserveQuoteAtoms) / minted.pool.totalShares;
+  assert.equal(originalLpQuoteClaim, 10n);
+
+  // Burn in either order and confirm nobody withdraws more than they put in.
+  const originalBurn = burnShares(minted.pool, 3n);
+  assert.equal(originalBurn.zecAtoms, 3n);
+  assert.equal(originalBurn.quoteAtoms, 10n);
+
+  const newDepositorBurn = burnShares(originalBurn.pool, minted.shares);
+  assert.equal(newDepositorBurn.zecAtoms, 1n);
+  assert.ok(newDepositorBurn.quoteAtoms <= minted.quoteAtoms);
+});
+
+test("mint-then-immediately-burn round trip never profits the holder", () => {
+  const pool = seedPool(pools[0].reserveZecAtoms, pools[0].reserveQuoteAtoms);
+  for (const zecAtoms of [1n, 2n, 3n, 7n, 999_999n, 123_456_789n]) {
+    const minted = mintShares(pool, zecAtoms);
+    const burned = burnShares(minted.pool, minted.shares);
+    assert.ok(burned.zecAtoms <= zecAtoms, `zec: withdrew ${burned.zecAtoms} for a ${zecAtoms} deposit`);
+    assert.ok(
+      burned.quoteAtoms <= minted.quoteAtoms,
+      `quote: withdrew ${burned.quoteAtoms} for a ${minted.quoteAtoms} deposit`,
+    );
+  }
 });
 
 test("LP risk copy covers PRODUCT_SPEC toxic flow and emergency restrictions", () => {

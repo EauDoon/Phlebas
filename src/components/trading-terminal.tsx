@@ -512,7 +512,14 @@ export function TradingTerminal({
 
   function cancelUserOrder(orderId: string) {
     const resting = [...book.bids, ...book.asks].find((order) => order.id === orderId);
-    if (!resting) {
+    // Only user orders ever reserve account inventory: applySubmit reserves
+    // for "user-" ids, and seedBook posts the venue fixture liquidity
+    // straight into the book without touching the account. Releasing a
+    // venue order would subtract a reservation that was never added and
+    // credit the account with balance it never had. The blotter lists only
+    // user orders today, so this guards the function rather than a reachable
+    // path, but replayLog had the same shape and there it was reachable.
+    if (!resting || !resting.id.startsWith(USER_ORDER_PREFIX)) {
       return;
     }
     setBooks({ ...books, [marketId]: cancelOrder(book, orderId) });

@@ -137,5 +137,13 @@ export function balancedQuoteAtoms(
   if (reserveZecAtoms <= 0n || reserveQuoteAtoms <= 0n) {
     throw new Error("Pool reserves must be positive");
   }
-  return (zecAtoms * reserveQuoteAtoms) / reserveZecAtoms;
+  // This is the quote-atom side of a proportional LP mint: the depositor must
+  // put in at least the pool's current ratio, never less. Floor division here
+  // would let a minter round their required quote contribution down while
+  // still being credited the full (unrounded-down) share count computed from
+  // zecAtoms alone, quietly shorting the pool by up to one atom per mint.
+  // That shortfall is real value: it comes straight out of the other LPs'
+  // reserveQuoteAtoms claim. Round up so the pool is never shorted.
+  const numerator = zecAtoms * reserveQuoteAtoms;
+  return (numerator + reserveZecAtoms - 1n) / reserveZecAtoms;
 }
