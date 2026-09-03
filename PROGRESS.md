@@ -9,6 +9,18 @@
 - Settlement preview distinguishes per-leg refund eligibility, observed refunds, and confirmed refunds, with synthetic timestamps and identities explicitly labeled. No wallet action is enabled.
 - The release-readiness command uses the shared fail-closed evaluator and includes browser acceptance. Unknown gates, invalid runtime statuses, and deleted, duplicated, or downgraded canonical audit items cannot produce a ready result. A passing software verdict never substitutes for wallet, audit, legal, Testnet, or Mainnet approval.
 
+## Local coordinator storage — not deployed
+
+The canonical swap coordinator now has a local persistence library with explicit initialization, an exclusive writer lock, bounded canonical JSON, replay-verified snapshots, and durable replacement before acknowledgement. Exact expected journal heads and state roots serialize mutations; uncertain writes stop further mutations. Opening a missing store never creates a fresh history.
+
+The library reuses the existing swap event/state schema and filesystem durability helper. It adds no service endpoint, RPC, wallet, signing, broadcast, or Vercel runtime. [Storage recovery](docs/runbooks/swap-coordinator-storage.md) describes stale-lock handling, uncertain commits, and the external checkpoint still required to detect a coherent rollback of every local file. Real-chain observer and operator qualification remain open.
+
+The diagnostic EVM observer now requires exact ConditionalLock event topic counts, padded nonzero addresses, positive ABI amounts, and valid log identifiers before emitting a record. It exposes decoded fields through the existing diagnostic data record. This does not establish receipt success, contract identity, canonical inclusion, finality, or a claim preimage; canonical funding and spend facts still require independently verified chain sources.
+
+## Unsigned matcher terms — no submission enabled
+
+An order-book fill can now be materialized into the existing canonical swap terms for either exact Mainnet market, with explicit settlement context and wallet-derived roles and Zcash script. Both order venue permissions are checked in the shared plan builder. Non-exact quote rounding and solver quote materialization fail closed; differing signed fee caps use their lower limit and the charged fee remains zero. Integration tests create policy-bound initial states with no authorizations and no funded leg. Wallet qualification, signature verification, matcher manifests, chain evidence, and release approvals remain required.
+
 ## Previous checkpoint (historical as of 01-09-2026)
 
 - Active UI branch: `feat/prelaunch-copy-honesty`, cut from `main` after PR #34. Public chrome is a pre-launch venue (warm yellow accent, persistent preview chip, Open terminal). Landing, terminal, settlement fill ticket, and solver quotes. Vercel hosts UI only; no mainnet funds.

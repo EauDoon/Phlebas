@@ -1,5 +1,6 @@
 import { hashTypedOrder, type OrderDomain, type TypedOrderIntent } from "./eip712-order.ts";
 import { keccak256Text } from "./keccak.ts";
+import { KNOWN_VENUES, VENUE_CLOB, VENUE_SOLVER } from "./order-policy.ts";
 import { assertZcashTransparentAccount, assertZcashTransparentP2pkhAccount } from "./zcash-address.ts";
 import {
   UINT64_MAX,
@@ -287,6 +288,17 @@ export function createAtomicSwapPlan(input: {
   policy: AtomicSwapPolicy;
 }): AtomicSwapPlan {
   assertPolicy(input.policy);
+  if (input.venue !== "order-book" && input.venue !== "solver") throw new Error("Unknown atomic-swap venue");
+  const requiredVenue = input.venue === "order-book" ? VENUE_CLOB : VENUE_SOLVER;
+  for (const party of [input.taker, input.counterparty]) {
+    const venues = party.order.allowedVenues;
+    if (!Number.isInteger(venues) || venues < 1 || venues > KNOWN_VENUES || (venues & requiredVenue) === 0) {
+      throw new Error("Atomic-swap party does not authorize the selected venue");
+    }
+  }
+  if (input.venue !== "solver" && input.counterparty.authorizationKind === "solver-quote") {
+    throw new Error("Solver quote authorization requires the solver venue");
+  }
   if (!Number.isSafeInteger(input.fillIndex) || input.fillIndex < 0 || input.fillIndex > 127) {
     throw new RangeError("Fill index must be an integer from 0 to 127");
   }

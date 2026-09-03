@@ -1,9 +1,6 @@
-// EVM observer for the ConditionalLock contract. The observer polls a
-// JSON-RPC endpoint for the contract's Funded, Claimed, and
-// Refunded events and emits a per-fill event record that the
-// coordinator consumes. The observer never holds a key and never
-// signs a transaction. The signing surface lives in the wallet
-// adapter, not here.
+// Diagnostic ConditionalLock log decoder. ABI validity does not establish
+// receipt success, immutable contract terms, canonical inclusion, or finality.
+// These records cannot become canonical swap evidence without those checks.
 
 import {
   CLAIMED_EVENT_SIGNATURE,
@@ -45,6 +42,7 @@ const REFUNDED_TOPIC = `0x${REFUNDED_EVENT_SIGNATURE}` as const;
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 const BYTES32_PATTERN = /^0x[0-9a-fA-F]{64}$/;
 const ZERO_ADDRESS = `0x${"0".repeat(40)}`;
+const ZERO_WORD = `0x${"0".repeat(64)}`;
 
 export const EVMTOPICS: Readonly<Record<EVMEventKind, `0x${string}`>> = {
   funded: FUNDED_TOPIC,
@@ -66,30 +64,56 @@ export function fillIdFromTopic(topicData: ReadonlyArray<string>): string | null
   // emits `bytes32 indexed swapId` first. A malformed or missing
   // indexed value is ignored so it cannot create a synthetic fill.
   const fillId = topicData[1];
-  return fillId && BYTES32_PATTERN.test(fillId) ? fillId.toLowerCase() : null;
+  return fillId && BYTES32_PATTERN.test(fillId) && fillId !== ZERO_WORD ? fillId.toLowerCase() : null;
+}
+
+function indexedAddress(word: string): string | null {
+  if (!/^0x0{24}[0-9a-fA-F]{40}$/.test(word)) return null;
+  const address = `0x${word.slice(26).toLowerCase()}`;
+  return address === ZERO_ADDRESS ? null : address;
+}
+
+function decodeEventData(kind: EVMEventKind, topics: readonly string[], raw: string): EVMEvent["data"] | null {
+  if (topics.length !== (kind === "funded" ? 4 : 3) || !BYTES32_PATTERN.test(raw)) return null;
+  const recipient = indexedAddress(topics[2]);
+  const amount = BigInt(raw);
+  if (!recipient || amount === 0n) return null;
+  if (kind === "funded") {
+    const token = indexedAddress(topics[3]);
+    return token ? Object.freeze({ raw, funder: recipient, token, amountAtoms: amount.toString() }) : null;
+  }
+  return Object.freeze({ raw, recipient, amountAtoms: amount.toString() });
 }
 
 export async function pollOnce(config: EVMObserverConfig): Promise<ReadonlyArray<EVMEvent>> {
   if (!ADDRESS_PATTERN.test(config.contractAddress) || config.contractAddress.toLowerCase() === ZERO_ADDRESS) {
     throw new RangeError("ConditionalLock contract address must be a nonzero 20-byte address");
   }
+  if (typeof config.fromBlock !== "bigint" || config.fromBlock < 0n) {
+    throw new RangeError("Observer start block must be a nonnegative bigint");
+  }
   const contractAddress = config.contractAddress.toLowerCase();
   const logs = await config.source.fetchLogs(config.fromBlock, contractAddress);
   const events: EVMEvent[] = [];
   for (const log of logs) {
     if (!ADDRESS_PATTERN.test(log.address) || log.address.toLowerCase() !== contractAddress) continue;
+    if (typeof log.blockNumber !== "bigint" || log.blockNumber < config.fromBlock
+      || !BYTES32_PATTERN.test(log.txHash) || log.txHash === ZERO_WORD
+      || !Number.isSafeInteger(log.logIndex) || log.logIndex < 0) continue;
     const kind = classifyTopic(log.topics[0] ?? "");
     if (kind === null) continue;
     const fillId = fillIdFromTopic(log.topics);
     if (fillId === null) continue;
-    events.push({
+    const data = decodeEventData(kind, log.topics, log.data);
+    if (data === null) continue;
+    events.push(Object.freeze({
       kind,
       fillId,
       blockNumber: log.blockNumber,
-      txHash: log.txHash,
+      txHash: log.txHash.toLowerCase(),
       logIndex: log.logIndex,
-      data: { raw: log.data },
-    });
+      data,
+    }));
   }
-  return events;
+  return Object.freeze(events);
 }
