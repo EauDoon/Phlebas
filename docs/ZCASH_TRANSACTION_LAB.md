@@ -2,7 +2,7 @@
 
 Status: key-independent candidate implementation
 
-Updated: 02-09-2026
+Updated: 03-09-2026
 
 ## Boundary
 
@@ -112,6 +112,24 @@ The refund path requires a network-correct P2PKH address whose hash matches the 
 ## Observer evidence boundary
 
 The key-independent observer accepts parsed public transparent-input evidence from its injected source. It never connects to a node by itself. Terminal classification is bound to one exact configured outpoint and redeem script, the corresponding testnet P2SH address, and the canonical claim or refund scriptSig shape. Claim evidence must reveal a 32-byte preimage that satisfies the script hashlock. Refund evidence must select the false branch and satisfy the script's CLTV locktime and nonfinal-sequence conditions. Funding height is never used to infer a terminal branch. Absent, duplicate, malformed, or mismatched evidence fails closed.
+
+## V5 transparent signature digest
+
+`computeTransparentSighash` computes the ZIP 244 transparent `SIGHASH_ALL` digest for one input of a verified committed v5 artifact. It commits the transaction header, all transparent outpoints, amounts, spent scriptPubKeys, sequences and outputs, and the selected input. For P2SH, ZIP 244 commits the spent scriptPubKey rather than the redeem script. The existing artifact validator still checks that the redeem script matches that P2SH output.
+
+The digest uses personalized BLAKE2b-256 from the pinned `@noble/hashes` dependency. It is distinct from the SHA-256 manifest commitment and is not a transaction ID, signature, serialized transaction, or proof of wallet or node acceptance. The helper accepts neither keys nor signatures and does not change artifact readiness.
+
+Only v5 is supported. V6 remains rejected pending its own current specification and independent vectors; the existing offline v6 profile does not imply signing support. The current [ZIP 229](https://zips.z.cash/zip-0229) proposal is Draft, while the older [ZIP 230](https://zips.z.cash/zip-0230) and [ZIP 246](https://zips.z.cash/zip-0246) proposals are Withdrawn. No v6 digest is inferred from the v5 implementation.
+
+Fixed fund, claim and refund vectors use independent Python `hashlib.blake2b` calculations following [ZIP 244](https://zips.z.cash/zip-0244). They also match the official `signature_digest` function at [zcash-test-vectors commit `113b3914`](https://github.com/zcash/zcash-test-vectors/blob/113b3914c79dfe7eb68cb754cd7fea20b75e2e61/zcash_test_vectors/zip_0244.py). They are offline construction vectors, not chain receipts or funded transactions. Tests also reject coinbase inputs, unsupported versions, invalid input indexes, and tampered artifact envelopes.
+
+The local oracle can be regenerated with `python3 tests/fixtures/zip244-v5/generate_zip244_vectors.py`. To repeat the official cross-check, obtain that exact upstream commit separately and run:
+
+```bash
+PYTHONPATH=/path/to/pinned/zcash-test-vectors python3 tests/fixtures/zip244-v5/check_official_reference.py tests/fixtures/zip244-v5/zip244-v5-vectors.json
+```
+
+The reference checkout is a test tool and is not a runtime dependency.
 
 ## PCZT and wallet review
 

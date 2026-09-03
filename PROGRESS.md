@@ -25,6 +25,10 @@ A pure EVM receipt adapter now binds caller-supplied successful deployment and f
 
 An order-book fill can now be materialized into the existing canonical swap terms for either exact Mainnet market, with explicit settlement context and wallet-derived roles and Zcash script. Both order venue permissions are checked in the shared plan builder. Non-exact quote rounding and solver quote materialization fail closed; differing signed fee caps use their lower limit and the charged fee remains zero. Integration tests create policy-bound initial states with no authorizations and no funded leg. Wallet qualification, signature verification, matcher manifests, chain evidence, and release approvals remain required.
 
+## Offline Zcash v5 signature digest — no wallet action
+
+The transaction lab computes ZIP 244 transparent `SIGHASH_ALL` digests from verified committed v5 manifests using pinned personalized BLAKE2b-256. Independent Python vectors for fund, claim and refund match the pinned official Zcash reference implementation. The helper rejects v6, coinbase inputs and invalid indexes, and revalidates artifact integrity. It produces neither a signature nor transaction bytes or a transaction ID, and changes no wallet, chain, or release readiness. V6 requires separately verified current rules and vectors; transaction extraction, wallet qualification, and broadcast remain gated.
+
 ## Previous checkpoint (historical as of 01-09-2026)
 
 - Active UI branch: `feat/prelaunch-copy-honesty`, cut from `main` after PR #34. Public chrome is a pre-launch venue (warm yellow accent, persistent preview chip, Open terminal). Landing, terminal, settlement fill ticket, and solver quotes. Vercel hosts UI only; no mainnet funds.
