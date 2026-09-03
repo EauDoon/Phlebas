@@ -2,6 +2,8 @@
 
 > Current summary as of 03-09-2026. This document supersedes the earlier cumulative branch diary. It intentionally does not pin a commit SHA, because a progress file that names its own pre-commit head becomes stale as soon as it is committed.
 
+The coordinator now has a manifest-gated terminal receipt reader that independently reacquires the approved deployment and funding bundle before reading a claim or refund. It snapshots caller state and authority, binds receipt and transaction identities, verifies the caller role, exact calldata and canonical terminal event, enforces block and timestamp ordering against the pinned finalized anchor, and rechecks that anchor and chain before returning frozen transport data. Existing funding/spend binders and observer attestations remain separate requirements; the reader supplies no network client, signing, broadcast, journal mutation, confirmation, wallet qualification, or live-value permission. Its injected authority seam is restricted to the defining core and tests.
+
 ## Key-independent settlement boundary update — 03-09-2026
 
 - Observer ingestion now has a canonical journal seam that replays accepted state and checks the exact expected journal head and state root before accepting funding or spend observations. It cannot authorize terms, confirm finality, sign, or broadcast. Durable coordinator hosting and independently verified chain sources remain open work.

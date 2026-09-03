@@ -243,7 +243,7 @@ function normalizeFundingFact(state: SwapState, funding: FundingFact, terms: Con
   return Object.freeze({ factId, ...unsigned });
 }
 
-function decodeTerminalLog(
+export function validateConditionalLockTerminalLog(
   log: EvmReceiptLog,
   action: "claim" | "refund",
   terms: ConditionalLockTerms,
@@ -340,7 +340,7 @@ export function bindEvmSpendReceipt(
     }
     if (log.topics[0] !== (action === "claim" ? CLAIMED_TOPIC : REFUNDED_TOPIC)) continue;
     if (terminalLog) throw new Error("Spend receipt contains duplicate terminal events");
-    decodeTerminalLog(log, action, terms);
+    validateConditionalLockTerminalLog(log, action, terms);
     terminalLog = log;
   }
   if (!terminalLog) throw new Error("Spend receipt is missing the requested terminal event");

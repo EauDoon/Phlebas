@@ -1,9 +1,13 @@
 import {
+  decodeClaimCalldata,
   decodeConditionalLockConstructorArgs,
   encodeConditionalLockConstructorArgs,
   encodeFundCalldata,
+  encodeRefundCalldata,
+  CLAIMED_EVENT_SIGNATURE,
   FUNDED_EVENT_SIGNATURE,
   LOCK_CREATED_EVENT_SIGNATURE,
+  REFUNDED_EVENT_SIGNATURE,
   type ConditionalLockTerms,
 } from "../../src/lib/conditional-lock-abi.ts";
 import {
@@ -30,12 +34,17 @@ import type {
   EvmFundingReceipt,
   EvmReceiptLog,
 } from "../../src/lib/evm-bound-evidence.ts";
-import { conditionalLockTermsForSwapState } from "../../src/lib/evm-bound-evidence.ts";
+import {
+  conditionalLockTermsForSwapState,
+  validateConditionalLockTerminalLog,
+} from "../../src/lib/evm-bound-evidence.ts";
 
 const ZERO_ADDRESS = `0x${"00".repeat(20)}`;
 const ZERO_HEX32 = `0x${"00".repeat(32)}`;
 const LOCK_CREATED_TOPIC = `0x${LOCK_CREATED_EVENT_SIGNATURE}`;
 const FUNDED_TOPIC = `0x${FUNDED_EVENT_SIGNATURE}`;
+const CLAIMED_TOPIC = `0x${CLAIMED_EVENT_SIGNATURE}`;
+const REFUNDED_TOPIC = `0x${REFUNDED_EVENT_SIGNATURE}`;
 const MAX_RECEIPT_LOGS = 1_024;
 // ponytail: bound untrusted receipt log data to 1 MiB; use indexed source queries if this ceiling proves too low.
 const MAX_RECEIPT_DATA_BYTES = 1_048_576;
@@ -61,16 +70,15 @@ export type EvmFundingReceiptBundle = Readonly<{
   finalizedBlock: EvmFinalizedBlock;
 }>;
 
+export type EvmTerminalReceiptBundle = Readonly<{
+  funding: EvmFundingReceiptBundle;
+  receipt: EvmFundingReceipt;
+  transactionInput: string;
+}>;
+
 type RawRecord = Record<string, unknown>;
 
-type NormalizedAuthority = Readonly<{
-  address: HexAddress;
-  transactionHash: Hex32;
-  blockNumber: bigint;
-  blockHash: Hex32;
-  runtimeBytecodeSha256: Hex32;
-  terms: ConditionalLockTerms;
-}>;
+type NormalizedAuthority = StablecoinLockDeploymentAuthority;
 
 type ParsedReceipt = Readonly<{
   transactionHash: Hex32;
@@ -285,7 +293,9 @@ function parseTransaction(value: unknown, label: string): ParsedTransaction {
 }
 
 function normalizeAuthority(value: StablecoinLockDeploymentAuthority): NormalizedAuthority {
-  const terms = decodeConditionalLockConstructorArgs(encodeConditionalLockConstructorArgs(value.terms));
+  const terms = decodeConditionalLockConstructorArgs(
+    encodeConditionalLockConstructorArgs(value.terms),
+  ) as StablecoinLockDeploymentAuthority["terms"];
   const blockNumber = value.blockNumber;
   assertUint(blockNumber, 64, "Approved deployment block number");
   if (blockNumber === 0n) throw new RangeError("Approved deployment block number must be positive");
@@ -356,6 +366,45 @@ function assertEvent(logs: readonly EvmReceiptLog[], topic: string, address: Hex
   if (matches.length !== 1) throw new Error(`${label} must contain exactly one matching event`);
 }
 
+function assertTerminalEvent(
+  logs: readonly EvmReceiptLog[],
+  action: "claim" | "refund",
+  address: HexAddress,
+  terms: ConditionalLockTerms,
+): void {
+  const expectedTopic = action === "claim" ? CLAIMED_TOPIC : REFUNDED_TOPIC;
+  const oppositeTopic = action === "claim" ? REFUNDED_TOPIC : CLAIMED_TOPIC;
+  let matching: EvmReceiptLog | undefined;
+  for (const log of logs) {
+    if (log.address !== address) continue;
+    if (log.topics[0] === oppositeTopic) {
+      throw new Error("Terminal receipt contains the opposite terminal event");
+    }
+    if (log.topics[0] !== expectedTopic) continue;
+    if (matching) throw new Error("Terminal receipt contains duplicate requested terminal events");
+    matching = log;
+  }
+  if (!matching) throw new Error("Terminal receipt is missing the requested terminal event");
+  validateConditionalLockTerminalLog(matching, action, terms);
+}
+
+function assertTerminalCalldata(
+  input: string,
+  action: "claim" | "refund",
+  hashlock: string,
+): void {
+  if (action === "refund") {
+    if (input !== encodeRefundCalldata()) {
+      throw new Error("Refund transaction input does not match the exact refund call");
+    }
+    return;
+  }
+  const preimage = decodeClaimCalldata(input);
+  if (sha256Hex(hexToBytes(preimage)) !== hashlock) {
+    throw new Error("Claim transaction preimage does not match the canonical hashlock");
+  }
+}
+
 async function request(
   provider: StablecoinClaimReadProvider,
   method: string,
@@ -364,7 +413,6 @@ async function request(
   return provider.request({ method, params });
 }
 
-/** Test seam; production callers must use readEvmFundingBundle's manifest gate. */
 /** Synthetic transport seam. Active callers must use the manifest-gated entry point below. */
 export async function readEvmFundingBundleWithAuthority(
   provider: StablecoinClaimReadProvider,
@@ -527,4 +575,129 @@ export async function readEvmFundingBundle(
 ): Promise<EvmFundingReceiptBundle> {
   const authority = approvedDeploymentManifest();
   return readEvmFundingBundleWithAuthority(provider, state, fundingTransactionHash, authority);
+}
+
+/**
+ * Test seam; production callers must use readEvmTerminalReceipt's manifest gate.
+ * It returns source-checked transport only. Existing funding and spend binders
+ * remain responsible for semantic facts and caller-supplied observer evidence.
+ */
+export async function readEvmTerminalReceiptWithAuthority(
+  provider: StablecoinClaimReadProvider,
+  state: SwapState,
+  fundingTransactionHash: string,
+  terminalTransactionHash: string,
+  action: "claim" | "refund",
+  authorityValue: StablecoinLockDeploymentAuthority,
+): Promise<EvmTerminalReceiptBundle> {
+  if (provider === null || typeof provider !== "object" || typeof provider.request !== "function") {
+    throw new TypeError("EVM receipt source provider is unavailable");
+  }
+  if (action !== "claim" && action !== "refund") {
+    throw new TypeError("EVM terminal action is not recognized");
+  }
+
+  // Clone before validation so the state passed into the funding reader and
+  // every primitive used after its awaits cannot be changed by the caller.
+  const stateSnapshot = structuredClone(state);
+  const validatedState = assertSwapStateIntegrity(stateSnapshot);
+  const authority = normalizeAuthority(authorityValue);
+  const fundingHash = nonzeroHex32(fundingTransactionHash, "Funding transaction hash");
+  const terminalHash = nonzeroHex32(terminalTransactionHash, "Terminal transaction hash");
+  if (fundingHash === authority.transactionHash) {
+    throw new Error("Funding transaction must differ from the approved deployment transaction");
+  }
+  if (terminalHash === authority.transactionHash || terminalHash === fundingHash) {
+    throw new Error("Terminal transaction must differ from the deployment and funding transactions");
+  }
+  assertStateAuthority(validatedState, authority);
+  const terms = Object.freeze({ ...conditionalLockTermsForSwapState(validatedState) });
+  const expectedSender = action === "claim" ? terms.claimRecipient : terms.refundRecipient;
+
+  const funding = await readEvmFundingBundleWithAuthority(
+    provider,
+    stateSnapshot,
+    fundingHash,
+    authority,
+  );
+  const terminalReceipt = parseReceipt(
+    await request(provider, "eth_getTransactionReceipt", [terminalHash]),
+    "Terminal receipt",
+  );
+  const terminalTransaction = parseTransaction(
+    await request(provider, "eth_getTransactionByHash", [terminalHash]),
+    "Terminal transaction",
+  );
+  assertReceiptAndTransactionIdentity(terminalReceipt, terminalTransaction, "Terminal");
+  if (terminalReceipt.transactionHash !== terminalHash
+    || terminalReceipt.to !== authority.address
+    || terminalReceipt.from !== expectedSender
+    || terminalReceipt.contractAddress !== null
+    || terminalTransaction.value !== 0n) {
+    throw new Error("Terminal receipt and transaction do not match the approved lock action");
+  }
+  assertTerminalCalldata(terminalTransaction.input, action, terms.hashlock);
+
+  if (terminalReceipt.blockNumber <= funding.receipt.blockNumber) {
+    throw new Error("Terminal must be in a block after funding");
+  }
+  const terminalBlock = parseBlock(
+    await request(provider, "eth_getBlockByNumber", [quantityHex(terminalReceipt.blockNumber), false]),
+    "Terminal block",
+    terminalReceipt.blockNumber,
+  );
+  assertReceiptAtBlock(terminalReceipt, terminalBlock, "Terminal");
+  if (terminalBlock.timestampSeconds <= funding.receipt.blockTimestampSeconds) {
+    throw new Error("Terminal block timestamp must be after funding block timestamp");
+  }
+  assertAtOrBeforeFinalized(terminalBlock, funding.finalizedBlock, "Terminal");
+  if (terminalReceipt.transactionHash === funding.receipt.blockHash
+    || terminalBlock.hash === funding.receipt.transactionHash
+    || terminalBlock.hash === funding.receipt.blockHash) {
+    throw new Error("Terminal receipt reuses a funding transaction or block identity");
+  }
+  assertTerminalEvent(terminalReceipt.logs, action, authority.address, terms);
+
+  const recheckedFinalizedBlock = parseBlock(
+    await request(provider, "eth_getBlockByNumber", [quantityHex(funding.finalizedBlock.number), false]),
+    "Rechecked finalized block",
+    funding.finalizedBlock.number,
+  );
+  sameBlock(funding.finalizedBlock, recheckedFinalizedBlock, "Finalized block");
+  const finalChainId = await request(provider, "eth_chainId", []);
+  assertMainnetChainId(finalChainId);
+
+  const receipt: EvmFundingReceipt = Object.freeze({
+    chainId: ETHEREUM_MAINNET_CHAIN_HEX,
+    transactionHash: terminalReceipt.transactionHash,
+    blockNumber: terminalReceipt.blockNumber,
+    blockHash: terminalReceipt.blockHash,
+    blockTimestampSeconds: terminalBlock.timestampSeconds,
+    receiptStatus: "0x1",
+    logs: terminalReceipt.logs,
+  });
+  return Object.freeze({ funding, receipt, transactionInput: terminalTransaction.input });
+}
+
+/**
+ * Production entry point. The tracked manifest is consulted before provider
+ * validation or any provider request; no signing, broadcasting, journal
+ * mutation, or finality attestation is performed here.
+ */
+export async function readEvmTerminalReceipt(
+  provider: StablecoinClaimReadProvider,
+  state: SwapState,
+  fundingTransactionHash: string,
+  terminalTransactionHash: string,
+  action: "claim" | "refund",
+): Promise<EvmTerminalReceiptBundle> {
+  const authority = approvedDeploymentManifest();
+  return readEvmTerminalReceiptWithAuthority(
+    provider,
+    state,
+    fundingTransactionHash,
+    terminalTransactionHash,
+    action,
+    authority,
+  );
 }

@@ -88,7 +88,7 @@ test("application callers cannot bypass manifest-gated stablecoin authority entr
       assert.doesNotMatch(source, /(?:FundingActions?|ClaimAction|RefundAction)WithAuthority/, path);
     }
     if (!receiptCore) {
-      assert.doesNotMatch(source, /readEvmFundingBundleWithAuthority/, path);
+      assert.doesNotMatch(source, /readEvm(?:FundingBundle|TerminalReceipt)WithAuthority/, path);
     }
   }
 });

@@ -2,10 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  CLAIMED_EVENT_SIGNATURE,
   FUNDED_EVENT_SIGNATURE,
   LOCK_CREATED_EVENT_SIGNATURE,
+  REFUNDED_EVENT_SIGNATURE,
+  encodeClaimCalldata,
   encodeConditionalLockConstructorArgs,
   encodeFundCalldata,
+  encodeRefundCalldata,
   type ConditionalLockTerms,
 } from "../../src/lib/conditional-lock-abi.ts";
 import {
@@ -19,6 +23,7 @@ import { hashSwapMarketPolicy } from "../../src/lib/swap-domain.ts";
 import type { Hex32 } from "../../src/lib/order-domain.ts";
 import { sha256Hex } from "../../src/lib/sha256.ts";
 import {
+  bindEvmSpendReceipt,
   bindEvmFundingReceipt,
   type EvmReceiptLog,
 } from "../../src/lib/evm-bound-evidence.ts";
@@ -39,6 +44,8 @@ import type {
 import {
   readEvmFundingBundle,
   readEvmFundingBundleWithAuthority,
+  readEvmTerminalReceipt,
+  readEvmTerminalReceiptWithAuthority,
 } from "./evm-receipt-source.ts";
 
 // Synthetic vectors only. They are not deployment, wallet, or chain evidence.
@@ -47,8 +54,11 @@ const DEPLOYMENT_BLOCK_HASH = `0x${"12".repeat(32)}` as Hex32;
 const FUNDING_TRANSACTION_HASH = `0x${"21".repeat(32)}` as Hex32;
 const FUNDING_BLOCK_HASH = `0x${"22".repeat(32)}` as Hex32;
 const FINALIZED_BLOCK_HASH = `0x${"31".repeat(32)}` as Hex32;
+const TERMINAL_TRANSACTION_HASH = `0x${"41".repeat(32)}` as Hex32;
+const TERMINAL_BLOCK_HASH = `0x${"42".repeat(32)}` as Hex32;
 const DEPLOYER = "0x7777777777777777777777777777777777777777";
 const RUNTIME_BYTECODE = "0x6000600055";
+const CLAIM_PREIMAGE = `0x${"43".repeat(32)}` as Hex32;
 
 function quantity(value: bigint): string {
   return `0x${value.toString(16)}`;
@@ -92,6 +102,22 @@ function canonicalState(symbol: "USDC" | "USDT" = "USDC"): SwapState {
     : sampleMarketPolicy;
   return createSwapState(
     terms,
+    sampleTimingPolicy,
+    sampleEvidencePolicies,
+    marketPolicy,
+  );
+}
+
+function claimState(symbol: "USDC" | "USDT" = "USDC"): SwapState {
+  const base = canonicalState(symbol);
+  const marketPolicy = symbol === "USDT"
+    ? {
+      ...sampleMarketPolicy,
+      markets: [{ ...sampleMarketPolicy.markets[0]!, quoteAsset: ETHEREUM_MAINNET_USDT_ASSET }],
+    }
+    : sampleMarketPolicy;
+  return createSwapState(
+    { ...base.terms, secretHash: sha256Hex(hexToBytes(CLAIM_PREIMAGE)) as Hex32 },
     sampleTimingPolicy,
     sampleEvidencePolicies,
     marketPolicy,
@@ -177,9 +203,54 @@ function fundedLog(state: SwapState): EvmReceiptLog {
   };
 }
 
+type TerminalAction = "claim" | "refund";
+
+function terminalSender(state: SwapState, action: TerminalAction): string {
+  return action === "claim" ? state.terms.evmClaimRecipient : state.terms.evmFunder;
+}
+
+function terminalRecipient(state: SwapState, action: TerminalAction): string {
+  return action === "claim" ? state.terms.evmClaimRecipient : state.terms.evmRefundRecipient;
+}
+
+function terminalInput(action: TerminalAction): string {
+  return action === "claim" ? encodeClaimCalldata(CLAIM_PREIMAGE) : encodeRefundCalldata();
+}
+
+function terminalTimestamp(state: SwapState, action: TerminalAction): bigint {
+  return action === "claim" ? state.terms.evmClaimSafetyCutoff : state.terms.evmRefundTime;
+}
+
+function terminalLog(
+  state: SwapState,
+  action: TerminalAction,
+  logIndex = 0n,
+): EvmReceiptLog {
+  return {
+    address: state.terms.evmEscrowContract,
+    logIndex,
+    topics: [
+      `0x${action === "claim" ? CLAIMED_EVENT_SIGNATURE : REFUNDED_EVENT_SIGNATURE}`,
+      state.swapId,
+      addressWord(terminalRecipient(state, action)),
+    ],
+    data: uintWord(state.terms.quoteAmountAtoms),
+  };
+}
+
 type SyntheticChain = Readonly<{
   responses: unknown[];
   calls: Array<{ method: string; params: unknown[] }>;
+}>;
+
+type TerminalChainOverrides = Readonly<{
+  finalizedBlock?: Record<string, unknown>;
+  recheckedFinalizedBlock?: Record<string, unknown>;
+  terminalReceipt?: Record<string, unknown>;
+  terminalTransaction?: Record<string, unknown>;
+  terminalBlock?: Record<string, unknown>;
+  terminalRecheckedFinalizedBlock?: Record<string, unknown>;
+  finalChainId?: string;
 }>;
 
 function syntheticChain(state: SwapState, overrides: {
@@ -265,6 +336,69 @@ function syntheticChain(state: SwapState, overrides: {
   return chain;
 }
 
+function syntheticTerminalChain(
+  state: SwapState,
+  action: TerminalAction,
+  overrides: TerminalChainOverrides = {},
+): SyntheticChain {
+  const terminalBlockNumber = 102n;
+  const terminalBlockTimestamp = terminalTimestamp(state, action);
+  const finalizedTimestamp = terminalBlockTimestamp + 1n;
+  const finalizedBlock = overrides.finalizedBlock ?? {
+    number: quantity(200n),
+    hash: FINALIZED_BLOCK_HASH,
+    timestamp: quantity(finalizedTimestamp),
+  };
+  const chain = syntheticChain(state, {
+    finalizedBlock,
+    recheckedFinalizedBlock: overrides.recheckedFinalizedBlock ?? finalizedBlock,
+  });
+  const terminalLogValue = rawLog(
+    terminalLog(state, action),
+    TERMINAL_TRANSACTION_HASH,
+    terminalBlockNumber,
+    TERMINAL_BLOCK_HASH,
+  );
+  const sender = terminalSender(state, action);
+  chain.responses.push(
+    overrides.terminalReceipt ?? {
+      transactionHash: TERMINAL_TRANSACTION_HASH,
+      blockNumber: quantity(terminalBlockNumber),
+      blockHash: TERMINAL_BLOCK_HASH,
+      status: "0x1",
+      from: sender,
+      to: state.terms.evmEscrowContract,
+      contractAddress: null,
+      logs: [terminalLogValue],
+    },
+    overrides.terminalTransaction ?? {
+      hash: TERMINAL_TRANSACTION_HASH,
+      blockNumber: quantity(terminalBlockNumber),
+      blockHash: TERMINAL_BLOCK_HASH,
+      from: sender,
+      to: state.terms.evmEscrowContract,
+      input: terminalInput(action),
+      value: "0x0",
+    },
+    overrides.terminalBlock ?? {
+      number: quantity(terminalBlockNumber),
+      hash: TERMINAL_BLOCK_HASH,
+      timestamp: quantity(terminalBlockTimestamp),
+    },
+    overrides.terminalRecheckedFinalizedBlock ?? finalizedBlock,
+    overrides.finalChainId ?? ETHEREUM_MAINNET_CHAIN_HEX,
+  );
+  return chain;
+}
+
+function terminalResponse(chain: SyntheticChain, offset: 0 | 1 | 2 | 3 | 4): Record<string, unknown> {
+  return chain.responses[11 + offset] as Record<string, unknown>;
+}
+
+function terminalLogRecord(chain: SyntheticChain): Record<string, unknown> {
+  return (terminalResponse(chain, 0).logs as Record<string, unknown>[])[0]!;
+}
+
 function providerFor(chain: SyntheticChain): StablecoinClaimReadProvider {
   return {
     request: async (args) => {
@@ -279,6 +413,130 @@ function providerFor(chain: SyntheticChain): StablecoinClaimReadProvider {
 function read(state: SwapState, chain: SyntheticChain, value = authority(state)) {
   return readEvmFundingBundleWithAuthority(providerFor(chain), state, FUNDING_TRANSACTION_HASH, value);
 }
+
+function readTerminal(
+  state: SwapState,
+  chain: SyntheticChain,
+  action: TerminalAction,
+  value = authority(state),
+  terminalHash = TERMINAL_TRANSACTION_HASH,
+) {
+  return readEvmTerminalReceiptWithAuthority(
+    providerFor(chain),
+    state,
+    FUNDING_TRANSACTION_HASH,
+    terminalHash,
+    action,
+    value,
+  );
+}
+
+test("reads both terminal actions for both issuer markets and composes canonical binders", async () => {
+  for (const symbol of ["USDC", "USDT"] as const) {
+    for (const action of ["claim", "refund"] as const) {
+      const state = claimState(symbol);
+      const chain = syntheticTerminalChain(state, action);
+      const bundle = await readTerminal(state, chain, action);
+      const funding = bindEvmFundingReceipt(
+        state,
+        bundle.funding.deploymentReceipt,
+        bundle.funding.deploymentLogs,
+        bundle.funding.receipt,
+      );
+      const spend = bindEvmSpendReceipt(
+        state,
+        funding,
+        bundle.receipt,
+        action,
+        action === "claim" ? bundle.transactionInput : undefined,
+      );
+
+      assert.equal(bundle.funding.receipt.transactionHash, FUNDING_TRANSACTION_HASH);
+      assert.equal(bundle.receipt.transactionHash, TERMINAL_TRANSACTION_HASH);
+      assert.equal(bundle.transactionInput, terminalInput(action));
+      assert.equal(spend.action, action);
+      assert.equal(spend.asset, state.terms.quoteAsset);
+      assert.equal(spend.amountAtoms, state.terms.quoteAmountAtoms);
+      assert.equal(Object.isFrozen(bundle), true);
+      assert.equal(Object.isFrozen(bundle.funding), true);
+      assert.equal(Object.isFrozen(bundle.receipt), true);
+      assert.equal(Object.isFrozen(bundle.receipt.logs), true);
+      assert.deepEqual(
+        chain.calls.map(({ method }) => method),
+        [
+          "eth_chainId",
+          "eth_getBlockByNumber",
+          "eth_getTransactionReceipt",
+          "eth_getTransactionByHash",
+          "eth_getBlockByNumber",
+          "eth_getTransactionReceipt",
+          "eth_getTransactionByHash",
+          "eth_getBlockByNumber",
+          "eth_getCode",
+          "eth_getBlockByNumber",
+          "eth_chainId",
+          "eth_getTransactionReceipt",
+          "eth_getTransactionByHash",
+          "eth_getBlockByNumber",
+          "eth_getBlockByNumber",
+          "eth_chainId",
+        ],
+      );
+    }
+  }
+});
+
+test("production terminal reader fails the manifest gate before any provider request", async () => {
+  const state = claimState();
+  let calls = 0;
+  const provider = {
+    request: async () => {
+      calls += 1;
+      throw new Error("provider must not be reached");
+    },
+  } as StablecoinClaimReadProvider;
+
+  await assert.rejects(
+    readEvmTerminalReceipt(provider, state, FUNDING_TRANSACTION_HASH, TERMINAL_TRANSACTION_HASH, "claim"),
+    /No approved Ethereum Mainnet conditional lock deployment manifest is active/,
+  );
+  assert.equal(calls, 0);
+});
+
+test("snapshots mutable state and authority before the first terminal await", async () => {
+  const mutableState = structuredClone(claimState()) as SwapState;
+  const originalLock = mutableState.terms.evmEscrowContract;
+  const authorityValue = authority(mutableState);
+  const chain = syntheticTerminalChain(mutableState, "claim");
+  const provider = providerFor(chain);
+  const mutatingProvider = {
+    request: async (args: { method: string; params?: unknown[] }) => {
+      const result = await provider.request(args);
+      if (args.method === "eth_chainId" && chain.calls.length === 1) {
+        (mutableState.terms as { evmEscrowContract: string; evmClaimRecipient: string }).evmEscrowContract =
+          "0x8888888888888888888888888888888888888888";
+        (mutableState.terms as { evmClaimRecipient: string }).evmClaimRecipient =
+          "0x9999999999999999999999999999999999999999";
+        (authorityValue as { address: string }).address = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        (authorityValue.terms as { claimRecipient: string }).claimRecipient =
+          "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+      }
+      return result;
+    },
+  };
+
+  const bundle = await readEvmTerminalReceiptWithAuthority(
+    mutatingProvider,
+    mutableState,
+    FUNDING_TRANSACTION_HASH,
+    TERMINAL_TRANSACTION_HASH,
+    "claim",
+    authorityValue,
+  );
+  assert.equal(bundle.funding.deploymentReceipt.address, originalLock);
+  assert.equal(bundle.receipt.logs[0]!.address, originalLock);
+  assert.equal(bundle.transactionInput, terminalInput("claim"));
+});
 
 test("assembles source-checked receipts and composes with the existing binder", async () => {
   for (const symbol of ["USDC", "USDT"] as const) {
@@ -510,4 +768,210 @@ test("requires the synthetic authority to bind the exact canonical EVM market", 
   const chain = syntheticChain(state);
   await assert.rejects(read(state, chain, mismatched), /canonical swap terms/);
   assert.equal(chain.responses.length, 11);
+});
+
+test("rejects malformed terminal receipts, transactions, events, and ordering", async () => {
+  const state = claimState();
+  const cases: ReadonlyArray<readonly [
+    string,
+    RegExp,
+    (chain: SyntheticChain) => void,
+  ]> = [
+    ["null terminal receipt", /Terminal receipt must be an object/, (chain) => {
+      chain.responses[11] = null;
+    }],
+    ["failed terminal receipt", /Terminal receipt must report successful execution/, (chain) => {
+      terminalResponse(chain, 0).status = "0x0";
+    }],
+    ["terminal receipt and transaction identity", /Terminal receipt and transaction identities disagree/, (chain) => {
+      terminalResponse(chain, 1).blockHash = `0x${"52".repeat(32)}`;
+    }],
+    ["terminal log provenance", /Terminal receipt log 0 does not identify its containing receipt/, (chain) => {
+      terminalLogRecord(chain).transactionHash = `0x${"51".repeat(32)}`;
+    }],
+    ["terminal sender", /Terminal receipt and transaction do not match the approved lock action/, (chain) => {
+      terminalResponse(chain, 0).from = DEPLOYER;
+      terminalResponse(chain, 1).from = DEPLOYER;
+    }],
+    ["terminal target", /Terminal receipt and transaction do not match the approved lock action/, (chain) => {
+      const otherLock = "0x8888888888888888888888888888888888888888";
+      terminalResponse(chain, 0).to = otherLock;
+      terminalResponse(chain, 1).to = otherLock;
+    }],
+    ["terminal value", /Terminal receipt and transaction do not match the approved lock action/, (chain) => {
+      terminalResponse(chain, 1).value = "0x1";
+    }],
+    ["malformed terminal claim calldata", /claim calldata must be exactly selector plus bytes32/, (chain) => {
+      terminalResponse(chain, 1).input = "0xdeadbeef";
+    }],
+    ["wrong terminal claim preimage", /Claim transaction preimage does not match the canonical hashlock/, (chain) => {
+      terminalResponse(chain, 1).input = encodeClaimCalldata(`0x${"44".repeat(32)}`);
+    }],
+    ["terminal opposite event", /Terminal receipt contains the opposite terminal event/, (chain) => {
+      terminalLogRecord(chain).topics = [
+        `0x${REFUNDED_EVENT_SIGNATURE}`,
+        state.swapId,
+        addressWord(state.terms.evmRefundRecipient),
+      ];
+    }],
+    ["missing terminal event", /Terminal receipt is missing the requested terminal event/, (chain) => {
+      terminalLogRecord(chain).topics = [`0x${"53".repeat(32)}`];
+    }],
+    ["duplicate terminal event", /Terminal receipt contains duplicate requested terminal events/, (chain) => {
+      const log = terminalLogRecord(chain);
+      terminalResponse(chain, 0).logs = [log, { ...log, logIndex: "0x1" }];
+    }],
+    ["malformed terminal event", /claim event must contain exactly three topics/, (chain) => {
+      terminalLogRecord(chain).topics = (terminalLogRecord(chain).topics as string[]).slice(0, 2);
+    }],
+    ["terminal event terms", /claim event does not match the canonical conditional lock terms/, (chain) => {
+      terminalLogRecord(chain).topics = [
+        `0x${CLAIMED_EVENT_SIGNATURE}`,
+        `0x${"54".repeat(32)}`,
+        addressWord(state.terms.evmClaimRecipient),
+      ];
+    }],
+    ["terminal block identity", /Terminal receipt is not in its queried block/, (chain) => {
+      terminalResponse(chain, 2).hash = `0x${"55".repeat(32)}`;
+    }],
+    ["terminal block ordering", /Terminal must be in a block after funding/, (chain) => {
+      terminalResponse(chain, 0).blockNumber = quantity(101n);
+      terminalResponse(chain, 1).blockNumber = quantity(101n);
+      terminalResponse(chain, 2).number = quantity(101n);
+      terminalLogRecord(chain).blockNumber = quantity(101n);
+    }],
+    ["terminal timestamp ordering", /Terminal block timestamp must be after funding block timestamp/, (chain) => {
+      terminalResponse(chain, 2).timestamp = quantity(101n);
+    }],
+    ["terminal funding block identity reuse", /Terminal receipt reuses a funding transaction or block identity/, (chain) => {
+      terminalResponse(chain, 0).blockHash = FUNDING_BLOCK_HASH;
+      terminalResponse(chain, 1).blockHash = FUNDING_BLOCK_HASH;
+      terminalResponse(chain, 2).hash = FUNDING_BLOCK_HASH;
+      terminalLogRecord(chain).blockHash = FUNDING_BLOCK_HASH;
+    }],
+    ["terminal log data bound", /Terminal receipt log 0 data must be bounded even-length hexadecimal bytes/, (chain) => {
+      terminalLogRecord(chain).data = `0x${"00".repeat(1_048_577)}`;
+    }],
+    ["terminal log count bound", /Terminal receipt logs exceed the bounded receipt limit/, (chain) => {
+      const log = terminalLogRecord(chain);
+      terminalResponse(chain, 0).logs = Array.from({ length: 1_025 }, (_, index) => ({
+        ...log,
+        logIndex: quantity(BigInt(index)),
+      }));
+    }],
+    ["terminal input bound", /Terminal transaction input must be bounded even-length hexadecimal bytes/, (chain) => {
+      terminalResponse(chain, 1).input = `0x${"00".repeat(1_048_577)}`;
+    }],
+  ];
+
+  for (const [label, expected, mutate] of cases) {
+    const chain = syntheticTerminalChain(state, "claim");
+    mutate(chain);
+    await assert.rejects(readTerminal(state, chain, "claim"), expected, label);
+  }
+});
+
+test("rejects terminal identity reuse and finalized-anchor mutations before evidence is returned", async () => {
+  const state = claimState();
+  const zeroChain = syntheticTerminalChain(state, "claim");
+  await assert.rejects(
+    readEvmTerminalReceiptWithAuthority(
+      providerFor(zeroChain),
+      state,
+      FUNDING_TRANSACTION_HASH,
+      `0x${"00".repeat(32)}`,
+      "claim",
+      authority(state),
+    ),
+    /Terminal transaction hash cannot be zero/,
+  );
+  assert.equal(zeroChain.calls.length, 0);
+
+  const reusedFundingChain = syntheticTerminalChain(state, "claim");
+  await assert.rejects(
+    readEvmTerminalReceiptWithAuthority(
+      providerFor(reusedFundingChain),
+      state,
+      FUNDING_TRANSACTION_HASH,
+      FUNDING_TRANSACTION_HASH,
+      "claim",
+      authority(state),
+    ),
+    /Terminal transaction must differ from the deployment and funding transactions/,
+  );
+  assert.equal(reusedFundingChain.calls.length, 0);
+
+  const reusedDeploymentChain = syntheticTerminalChain(state, "claim");
+  await assert.rejects(
+    readEvmTerminalReceiptWithAuthority(
+      providerFor(reusedDeploymentChain),
+      state,
+      FUNDING_TRANSACTION_HASH,
+      DEPLOYMENT_TRANSACTION_HASH,
+      "claim",
+      authority(state),
+    ),
+    /Terminal transaction must differ from the deployment and funding transactions/,
+  );
+  assert.equal(reusedDeploymentChain.calls.length, 0);
+
+  const afterFinalized = syntheticTerminalChain(state, "claim", {
+    finalizedBlock: {
+      number: quantity(101n),
+      hash: FUNDING_BLOCK_HASH,
+      timestamp: quantity(101n),
+    },
+  });
+  await assert.rejects(
+    readTerminal(state, afterFinalized, "claim"),
+    /Terminal is after the pinned finalized block/,
+  );
+
+  const sameHeightFinalized = syntheticTerminalChain(state, "claim", {
+    finalizedBlock: {
+      number: quantity(102n),
+      hash: FINALIZED_BLOCK_HASH,
+      timestamp: quantity(terminalTimestamp(state, "claim")),
+    },
+  });
+  await assert.rejects(
+    readTerminal(state, sameHeightFinalized, "claim"),
+    /Terminal block identity does not match the pinned finalized block/,
+  );
+
+  const recheck = syntheticTerminalChain(state, "claim", {
+    terminalRecheckedFinalizedBlock: {
+      number: quantity(200n),
+      hash: `0x${"56".repeat(32)}`,
+      timestamp: quantity(terminalTimestamp(state, "claim") + 1n),
+    },
+  });
+  await assert.rejects(readTerminal(state, recheck, "claim"), /Finalized block changed during the read/);
+
+  const finalChain = syntheticTerminalChain(state, "claim", { finalChainId: "0x5" });
+  await assert.rejects(readTerminal(state, finalChain, "claim"), /Ethereum Mainnet chain ID 1 is required/);
+});
+
+test("enforces the exact refund selector and rejects unknown terminal actions", async () => {
+  const state = claimState();
+  const wrongRefundInput = syntheticTerminalChain(state, "refund");
+  terminalResponse(wrongRefundInput, 1).input = encodeClaimCalldata(CLAIM_PREIMAGE);
+  await assert.rejects(
+    readTerminal(state, wrongRefundInput, "refund"),
+    /Refund transaction input does not match the exact refund call/,
+  );
+
+  const unknownAction = syntheticTerminalChain(state, "claim");
+  await assert.rejects(
+    readEvmTerminalReceiptWithAuthority(
+      providerFor(unknownAction),
+      state,
+      FUNDING_TRANSACTION_HASH,
+      TERMINAL_TRANSACTION_HASH,
+      "exchange" as "claim",
+      authority(state),
+    ),
+    /EVM terminal action is not recognized/,
+  );
+  assert.equal(unknownAction.calls.length, 0);
 });
