@@ -17,6 +17,7 @@ import {
   type UnqualifiedWalletCapabilityAssessment,
 } from "./zcash-wallet-capabilities.ts";
 import {
+  canonicalTransparentAddresses,
   connectZecWallet,
   proveSourceAddressControl,
   ZEC_RPC_METHODS,
@@ -71,6 +72,8 @@ const DEFAULT_OBSERVED_CAPABILITIES: ObservedZecWalletCapabilities = Object.free
   keylessRecoveryExport: false,
 });
 
+const ZEC_ACCOUNT_REVALIDATION_ERROR = "ZEC wallet account could not be revalidated.";
+
 /**
  * Defaults describe only what the connect flow itself demonstrated: a
  * provider that answered `zcash_requestAccounts` and returned a valid
@@ -121,20 +124,24 @@ export function zecCapabilityStatementFromObserved(
 
 export async function connectZecWalletSession(
   provider: ZecJsonRpcProvider,
-  options: { challenge: string; observed?: ObservedZecWalletCapabilities } = { challenge: "" },
+  options: { challenge: string; observed?: ObservedZecWalletCapabilities; signal?: AbortSignal } = { challenge: "" },
 ): Promise<ZecWalletSession> {
-  const state = await connectZecWallet(provider);
+  const { challenge, observed: observedOverride, signal } = options;
+  const requestedObserved: ObservedZecWalletCapabilities = observedOverride
+    ? { ...observedOverride, pcztVersions: [...observedOverride.pcztVersions] }
+    : {
+      ...DEFAULT_OBSERVED_CAPABILITIES,
+      // The default connect path attempts the one proof this flow can
+      // perform. The result below, not this request flag, determines whether
+      // source-address control is declared supported.
+      sourceAddressControl: true,
+    };
+
+  const state = await connectZecWallet(provider, signal);
+  if (signal?.aborted) return disconnectedZecSession;
   if (!state.address) {
     return Object.freeze({ ...disconnectedZecSession, state });
   }
-
-  const requestedObserved = options.observed ?? {
-    ...DEFAULT_OBSERVED_CAPABILITIES,
-    // The default connect path attempts the one proof this flow can
-    // perform. The result below, not this request flag, determines whether
-    // source-address control is declared supported.
-    sourceAddressControl: true,
-  };
 
   // sourceAddressControl is the one capability this connect flow can
   // actually exercise, by asking the wallet to sign the challenge right
@@ -146,11 +153,32 @@ export async function connectZecWalletSession(
   let addressControlSignature: string | null = null;
   let addressControlError: string | null = null;
   if (requestedObserved.sourceAddressControl) {
-    const proof = await proveSourceAddressControl(provider, state.address, options.challenge);
+    if (signal?.aborted) return disconnectedZecSession;
+    const proof = await proveSourceAddressControl(provider, state.address, challenge);
+    if (signal?.aborted) return disconnectedZecSession;
     if ("error" in proof) {
       addressControlError = proof.error;
     } else {
       addressControlSignature = proof.signature;
+      // A wallet can switch accounts while the signing request is open.
+      // Re-read the selected account before declaring the proof usable.
+      let currentAccounts: unknown;
+      try {
+        currentAccounts = await provider.request({ method: ZEC_RPC_METHODS.accounts });
+      } catch {
+        if (signal?.aborted) return disconnectedZecSession;
+        return Object.freeze({
+          ...disconnectedZecSession,
+          state: Object.freeze({ address: null, error: ZEC_ACCOUNT_REVALIDATION_ERROR }),
+        });
+      }
+      if (signal?.aborted) return disconnectedZecSession;
+      if ((canonicalTransparentAddresses(currentAccounts)[0] ?? null) !== state.address) {
+        return Object.freeze({
+          ...disconnectedZecSession,
+          state: Object.freeze({ address: null, error: ZEC_ACCOUNT_REVALIDATION_ERROR }),
+        });
+      }
     }
   }
   const observed: ObservedZecWalletCapabilities = {
