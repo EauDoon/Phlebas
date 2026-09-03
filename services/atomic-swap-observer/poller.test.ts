@@ -72,7 +72,7 @@ test("pollOnceInto applies EVM transitions and persists the snapshot", async () 
       logIndex: 0,
       data: { raw: "0x" },
     };
-    const evm: EVMEventSource = { fetchLogs: async () => [{ address: CONTRACT, blockNumber: 100n, txHash: evmEvent.txHash, logIndex: 0, topics: [EVMTOPICS.funded, FILL_A, "0x" + "00".repeat(32), "0x" + "00".repeat(32)], data: "0x" }] };
+    const evm: EVMEventSource = { fetchLogs: async () => [{ address: CONTRACT, blockNumber: 100n, txHash: evmEvent.txHash, logIndex: 0, topics: [EVMTOPICS.funded, FILL_A, "0x" + "00".repeat(12) + "22".repeat(20), "0x" + "00".repeat(12) + "33".repeat(20)], data: "0x" + "00".repeat(31) + "01" }] };
     const zcash: ZcashEventSource = { fetchAddressOutpoints: async () => [], fetchSpend: async () => ({ spent: false, spendTxid: null }) };
     const cfg = mkCfg(path, evm, zcash);
     const out = await pollOnceInto(emptyCoordinator(), cfg, 100n);
