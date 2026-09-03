@@ -2,6 +2,8 @@ import { expect, test } from "./fixtures";
 
 test("refund deadlines never stand in for observed or confirmed recovery", async ({ page }) => {
   await page.goto("/trade?view=settlement&market=ZEC/USDC");
+  await expect(page.getByText("ZEC funds first", { exact: true })).toBeVisible();
+  await expect(page.getByText("USDC first", { exact: true })).toHaveCount(0);
   await page.getByRole("combobox", { name: "Evidence case" }).selectOption("refund");
   const recovery = page.getByRole("region", { name: "Later-deadline ZEC refund" });
   const usdc = recovery.locator("dl > div").filter({ has: page.getByText("USDC refund", { exact: true }) });
