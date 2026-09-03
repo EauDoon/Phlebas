@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import type { MarketId } from "@/lib/market-data";
+import { mainnetMarket } from "@/lib/mainnet-assets";
+import { swapDeadlineStatus } from "@/lib/swap-policy";
 import {
   CLAIM_REFUND_EXCLUSIVE,
   SETTLEMENT_MATCHER_HONESTY,
@@ -45,6 +47,16 @@ export function SettlementTicket({
   const shouldFocusPhase = useRef(false);
   const compact = variant === "compact";
   const locks = settlementLockCopy();
+  const market = mainnetMarket(marketId);
+  const assetIdentity = (
+    <div className={styles.termsCard}>
+      <dl>
+        <div><dt>Base network</dt><dd>Native transparent ZEC · Zcash Mainnet</dd></div>
+        <div><dt>Quote network</dt><dd>Ethereum Mainnet · chain ID {market.quote.chainId.toString()}</dd></div>
+        <div><dt>{market.quote.symbol} token · {market.quote.decimals} decimals</dt><dd><code>{market.quote.address}</code></dd></div>
+      </dl>
+    </div>
+  );
 
   useEffect(() => {
     if (!shouldFocusPhase.current) return;
@@ -89,6 +101,7 @@ export function SettlementTicket({
             <span className={styles.warningPill}>Settlement disabled</span>
           </div>
           <p id={disabledReasonId} className={styles.compactLead}>{ticket.reason}</p>
+          {assetIdentity}
           <button type="button" className={styles.primaryAction} disabled aria-describedby={disabledReasonId}>
             Claim disabled
           </button>
@@ -106,6 +119,7 @@ export function SettlementTicket({
             <span className={styles.warningPill}>Settlement disabled</span>
           </div>
           <p className={styles.featureLead}>{USDT_SETTLEMENT_DISABLED.body}</p>
+          {assetIdentity}
           {onMarketChange ? (
             <div className={styles.settlementToolbar}>
               <label>
@@ -154,6 +168,28 @@ export function SettlementTicket({
   const terms = settlementTermsRows(session.state);
   const disabledReasonId = action.disabledReason ? "native-swap-action-disabled" : undefined;
   const dispute = session.state.disputes.at(-1);
+  const deadlines = swapDeadlineStatus(session.state.terms, session.nowSeconds);
+  const refundRows = (["evm", "zec"] as const).map((leg) => {
+    const legPhase = session.state[leg].phase;
+    const eligible = leg === "evm" ? deadlines.evmRefundEligible : deadlines.zecRefundEligible;
+    const status = dispute ? "Disputed — recovery evidence required"
+      : legPhase === "refunded-confirmed" ? "Refund confirmed in preview"
+      : legPhase === "refund-seen" ? "Refund observed — confirmation pending"
+      : legPhase === "claimed-confirmed" ? "Claim confirmed — refund closed"
+      : legPhase === "claim-seen" ? "Claim observed — refund blocked pending evidence"
+      : legPhase === "funded-confirmed" ? (eligible ? "Deadline eligible — refund unconfirmed" : "Locked — deadline not reached")
+      : legPhase === "funding-seen" ? "Funding observed — confirmation pending"
+      : "No confirmed funding";
+    return (
+      <div key={leg}>
+        <dt>{leg === "evm" ? "USDC" : "ZEC"} refund</dt>
+        <dd>
+          {formatSettlementTime(leg === "evm" ? session.state.terms.evmRefundTime : session.state.terms.zecRefundTime)}
+          <br />{status}
+        </dd>
+      </div>
+    );
+  });
 
   function advanceTicket() {
     if (!action.enabled) return;
@@ -179,6 +215,8 @@ export function SettlementTicket({
           </Link>
         </div>
         <p className={styles.compactLead}>{locks.zec.detail} {locks.evm.detail} {CLAIM_REFUND_EXCLUSIVE}</p>
+        <p className={styles.disabledReason}>Synthetic ticket. Controls advance preview state only; no wallet signing or broadcast.</p>
+        {assetIdentity}
         {dispute ? (
           <div className={styles.unsafeNotice} role="alert">
             <strong>Unsafe evidence</strong>
@@ -198,9 +236,9 @@ export function SettlementTicket({
           </button>
         </div>
         <dl className={styles.compactLocks}>
-          <div><dt>USDC refund</dt><dd>{formatSettlementTime(session.state.terms.evmRefundTime)}</dd></div>
-          <div><dt>ZEC refund</dt><dd>{formatSettlementTime(session.state.terms.zecRefundTime)}</dd></div>
+          {refundRows}
         </dl>
+        <p className={styles.disabledReason}>Deadline eligibility does not prove an unspent lock or a confirmed refund.</p>
         <p className={styles.srOnly} aria-live="polite" aria-atomic="true">{announcement}</p>
       </section>
     );
@@ -219,6 +257,10 @@ export function SettlementTicket({
 
         <p className={styles.featureLead}>
           {locks.zec.detail} {locks.evm.detail} {CLAIM_REFUND_EXCLUSIVE} {SETTLEMENT_MATCHER_HONESTY}
+        </p>
+        <p className={styles.disabledReason}>
+          Synthetic ticket on the Zcash Mainnet and Ethereum Mainnet asset domains. Times, locks, recipients,
+          and evidence below are examples. No contract is deployed and no address shown may receive funds.
         </p>
 
         <div className={styles.settlementToolbar}>
@@ -274,7 +316,7 @@ export function SettlementTicket({
             {dispute && (
               <div className={styles.unsafeNotice} role="alert">
                 <strong>Unsafe evidence</strong>
-                <span>{dispute.detail} Reset the ticket before funding or claiming.</span>
+                <span>{dispute.detail} Reset restarts this synthetic example; it cannot resolve a chain dispute.</span>
               </div>
             )}
           </section>
@@ -307,10 +349,14 @@ export function SettlementTicket({
               {" "}{CLAIM_REFUND_EXCLUSIVE}
             </p>
             <dl>
-              <div><dt>USDC refund</dt><dd>{formatSettlementTime(session.state.terms.evmRefundTime)}</dd></div>
-              <div><dt>ZEC refund</dt><dd>{formatSettlementTime(session.state.terms.zecRefundTime)}</dd></div>
-              <div><dt>Safety margin</dt><dd>600 seconds</dd></div>
+              {refundRows}
+              <div><dt>Safety margin</dt><dd>{(session.state.terms.zecRefundTime - session.state.terms.evmRefundTime).toString()} seconds · synthetic policy</dd></div>
             </dl>
+            <p>
+              Deadline eligibility does not prove an unspent lock or a confirmed refund. Actual recovery requires
+              current chain evidence and the funder’s wallet approval. Browser time and resetting this ticket
+              grant no spending authority.
+            </p>
           </section>
 
           <section className={styles.termsCard} aria-labelledby="fill-terms-title">

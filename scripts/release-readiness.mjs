@@ -7,7 +7,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseAuditChecklistRows } from "../src/lib/audit-checklist.ts";
+import { evaluateAuditChecklistRows, parseAuditChecklistRows } from "../src/lib/audit-checklist.ts";
+import { evaluateReadiness } from "../src/lib/release-readiness.ts";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptDirectory, "..");
@@ -35,30 +36,12 @@ function readAuditChecklistGate() {
   if (!existsSync(path)) {
     return { name: "audit-checklist", status: "fail", detail: "audit checklist not found" };
   }
-  const rows = parseAuditChecklistRows(readFileSync(path, "utf8"));
-  const requiredRows = rows.filter((row) => row.required);
-  if (requiredRows.length === 0) {
-    return { name: "audit-checklist", status: "fail", detail: "audit checklist has no required rows" };
+  try {
+    return { name: "audit-checklist", ...evaluateAuditChecklistRows(parseAuditChecklistRows(readFileSync(path, "utf8"))) };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return { name: "audit-checklist", status: "fail", detail: detail.slice(0, 500) };
   }
-  const duplicateIds = requiredRows
-    .map((row) => row.id)
-    .filter((id, index, ids) => ids.indexOf(id) !== index);
-  if (duplicateIds.length > 0) {
-    return {
-      name: "audit-checklist",
-      status: "fail",
-      detail: `duplicate required item IDs: ${[...new Set(duplicateIds)].join(", ")}`,
-    };
-  }
-  const incomplete = requiredRows.filter((row) => row.status !== "done");
-  if (incomplete.length > 0) {
-    return {
-      name: "audit-checklist",
-      status: "fail",
-      detail: `${incomplete.length} required items not done: ${incomplete.map((row) => row.id).join(", ")}`,
-    };
-  }
-  return { name: "audit-checklist", status: "pass", detail: "all required items done" };
 }
 
 const gates = [
@@ -71,13 +54,15 @@ const gates = [
   runGate("contracts", ["run", "test:contracts"]),
   runGate("secret-scan", ["run", "scan:secrets"]),
   runGate("build", ["run", "build"]),
+  runGate("browser", ["run", "test:browser"]),
   readAuditChecklistGate(),
 ];
 
+const evaluated = evaluateReadiness(gates, BigInt(Math.floor(Date.now() / 1000)));
 const verdict = {
-  ready: gates.length > 0 && gates.every((gate) => gate.status === "pass"),
+  ...evaluated,
   gates,
-  generatedAt: BigInt(Math.floor(Date.now() / 1000)).toString(),
+  generatedAt: evaluated.generatedAt.toString(),
 };
 
 process.stdout.write(`${JSON.stringify(verdict, null, 2)}\n`);

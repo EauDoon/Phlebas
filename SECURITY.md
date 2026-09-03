@@ -1,6 +1,6 @@
 # Security Policy
 
-> Status as of 01-09-2026: Phlebas is a no-value simulation with undeployed contract sources and optional local Testnet services. It is not a deployed exchange, bridge, automated market maker, or custody service. It must not be used with real funds or mainnet TEX.
+> Status as of 03-09-2026: Phlebas is a no-value preview with undeployed contract sources and isolated local services. It is not a live exchange or an offer of financial services. Testnet and Mainnet value movement remain blocked on their documented release gates.
 
 ## Supported versions
 
@@ -14,12 +14,13 @@ Phlebas has no production release and no production security support commitment.
 The public Vercel app is a no-value interface. Local optional stubs exist and are not production:
 
 - In-browser session matcher, plus a loopback matcher operator that is never hosted on Vercel.
-- Undeployed Arbitrum Sepolia contract sources. The manifest stays `deployed: false` until a real Sepolia transaction is recorded.
-- Optional EIP-1193 wallet connection on Arbitrum Sepolia only. Signing stays disabled until the manifest is backed by a successful Sepolia receipt and verified deployed bytecode.
+- Exact-token ConditionalLock sources are undeployed. Historical Arbitrum Sepolia artifacts are not an active settlement target.
+- EIP-6963 Ethereum Mainnet wallet identity connection and unsigned action review. Both matcher manifests remain disabled; a wallet connection or deployment receipt cannot enable signing, submission, or value movement.
+- Native transparent ZEC against issuer-native Ethereum Mainnet USDC and USDT only. Exact identities are recorded in `docs/ARCHITECTURE.md`; USDT0 is excluded.
 - Keyless TEX parsing and historical state tours only. No address generator, mint-attestation runtime, Zebra RPC, or mainnet TEX.
 - No custody, attester, governance, deployer, or treasury keys in Vercel or git.
 
-Do not set `PHLEBAS_MATCHER_URL` on Vercel. Public API routes refuse any operator URL that is not loopback HTTP.
+Do not set `PHLEBAS_MATCHER_URL`, `PHLEBAS_MATCHER_USDC_URL`, or `PHLEBAS_MATCHER_USDT_URL` on Vercel. Matcher, observer, and coordinator services and journals stay outside Vercel. A loopback URL does not authorize hosting a service there.
 
 Do not send ZEC, pZEC, USDC, USDT0, or any other asset to an address presented by an unverified Phlebas build.
 
@@ -65,7 +66,7 @@ A release must remain simulation-only until all applicable gates pass:
 
 1. The exact contracts, Zcash transaction format, services, wallet signing policy, and operating entity are defined.
 2. Every critical accounting and authorization invariant has deterministic tests.
-3. Zcash reorganization, Arbitrum finality, signer loss, stablecoin controls, and reserve-deficit responses are exercised.
+3. Zcash reorganization, Ethereum finality, wallet unavailability, stablecoin controls, timeout, and refund recovery responses are exercised.
 4. Independent reviews cover the Zcash conditional-lock and wallet path, and separately cover EVM escrow, settlement coordination, matching, and recovery.
 5. Every Critical and High finding is fixed and the fix is re-reviewed.
 6. The deployed bytecode, constructor arguments, roles, addresses, and source commit match the reviewed release.

@@ -1,8 +1,15 @@
 # Phlebas current progress
 
-> Current summary as of 01-09-2026. This document supersedes the earlier cumulative branch diary. It intentionally does not pin a commit SHA, because a progress file that names its own pre-commit head becomes stale as soon as it is committed.
+> Current summary as of 03-09-2026. This document supersedes the earlier cumulative branch diary. It intentionally does not pin a commit SHA, because a progress file that names its own pre-commit head becomes stale as soon as it is committed.
 
-## Current checkpoint
+## Key-independent settlement boundary update — 03-09-2026
+
+- Observer ingestion now has a canonical journal seam that replays accepted state and checks the exact expected journal head and state root before accepting funding or spend observations. It cannot authorize terms, confirm finality, sign, or broadcast. Durable coordinator hosting and independently verified chain sources remain open work.
+- EVM claim review binds read-only code and state requests to one canonical finalized block hash; mixed-block evidence fails closed. The undeployed manifest still blocks production action review.
+- Settlement preview distinguishes per-leg refund eligibility, observed refunds, and confirmed refunds, with synthetic timestamps and identities explicitly labeled. No wallet action is enabled.
+- The release-readiness command uses the shared fail-closed evaluator and includes browser acceptance. Unknown gates, invalid runtime statuses, and deleted, duplicated, or downgraded canonical audit items cannot produce a ready result. A passing software verdict never substitutes for wallet, audit, legal, Testnet, or Mainnet approval.
+
+## Previous checkpoint (historical as of 01-09-2026)
 
 - Active UI branch: `feat/prelaunch-copy-honesty`, cut from `main` after PR #34. Public chrome is a pre-launch venue (warm yellow accent, persistent preview chip, Open terminal). Landing, terminal, settlement fill ticket, and solver quotes. Vercel hosts UI only; no mainnet funds.
 - Terminal and liquidity primary nav is Markets · Terminal · Liquidity · Docs · Status. SiteFooter carries “Phlebas is not a live exchange and not an offer of financial services.” 24h volume is off the market bar. The public UI may connect an EIP-6963 wallet on Ethereum Mainnet for read-only authority review; signing, approvals, submission, and value movement remain disabled. Historical AMM lives under Docs → Historical models only.
