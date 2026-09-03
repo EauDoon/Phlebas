@@ -21,7 +21,7 @@ export type ReleaseVerdict = Readonly<{
   generatedAt: bigint;
 }>;
 
-export const REQUIRED_RELEASE_GATES = [
+export const REQUIRED_RELEASE_GATES = Object.freeze([
   "lint",
   "contract-format",
   "typecheck",
@@ -33,7 +33,9 @@ export const REQUIRED_RELEASE_GATES = [
   "browser",
   "contracts",
   "audit-checklist",
-] as const;
+] as const);
+
+const REQUIRED_RELEASE_GATE_SET = new Set<string>(REQUIRED_RELEASE_GATES);
 
 export function evaluateReadiness(gates: ReadonlyArray<GateResult>, nowSeconds: bigint): ReleaseVerdict {
   if (typeof nowSeconds !== "bigint" || nowSeconds < 0n) throw new RangeError("Now must be a non-negative bigint");
@@ -45,10 +47,17 @@ export function evaluateReadiness(gates: ReadonlyArray<GateResult>, nowSeconds: 
       || typeof g.detail !== "string" || !g.detail.trim()) {
       throw new TypeError("Release gates require a canonical name and nonempty evidence detail");
     }
-    if (g.status === "pass") passing.push(g.name);
-    else if (g.status === "fail") failing.push(g.name);
-    else if (g.status === "skip") skipped.push(g.name);
-    else failing.push(`invalid-status:${g.name}`);
+    const knownGate = REQUIRED_RELEASE_GATE_SET.has(g.name);
+    if (!knownGate) failing.push(`unknown-gate:${g.name}`);
+    if (g.status === "pass") {
+      if (knownGate) passing.push(g.name);
+    } else if (g.status === "fail") {
+      failing.push(g.name);
+    } else if (g.status === "skip") {
+      if (knownGate) skipped.push(g.name);
+    } else {
+      failing.push(`invalid-status:${g.name}`);
+    }
   }
   const counts = new Map<string, number>();
   for (const gate of gates) counts.set(gate.name, (counts.get(gate.name) ?? 0) + 1);

@@ -59,6 +59,13 @@ test("evaluateReadiness rejects duplicate gate identities", () => {
   assert.ok(v.failing.includes("duplicate:lint"));
 });
 
+test("evaluateReadiness rejects unknown gate identities", () => {
+  const v = evaluateReadiness([...allPassing(), emptyGateResult("extra-review", "pass", "ok")], 100n);
+  assert.equal(v.ready, false);
+  assert.ok(v.failing.includes("unknown-gate:extra-review"));
+  assert.equal(v.passing.length, REQUIRED_RELEASE_GATES.length);
+});
+
 test("runtime status corruption cannot pass a required or additional gate", () => {
   for (const status of ["ready", "PASS", "", null, undefined, true]) {
     const invalid = { name: "lint", status, detail: "unverified" } as unknown as GateResult;

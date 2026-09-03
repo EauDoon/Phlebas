@@ -17,19 +17,19 @@ test("evaluateReadiness preserves gate order in passing and failing", () => {
     emptyGateResult("lint", "pass", "0 errors"),
     emptyGateResult("typecheck", "fail", "1 error"),
     emptyGateResult("tests", "pass", "612 pass"),
-    emptyGateResult("audit", "skip", "manual review"),
+    emptyGateResult("audit-checklist", "skip", "manual review"),
   ];
   const v = evaluateReadiness(gates, 100n);
   assert.deepEqual(v.passing, ["lint", "tests"]);
   assert.equal(v.failing[0], "typecheck");
   assert.ok(v.failing.includes("missing:contracts"));
-  assert.deepEqual(v.skipped, ["audit"]);
+  assert.deepEqual(v.skipped, ["audit-checklist"]);
 });
 
 test("evaluateReadiness returns not ready when only skips are present", () => {
   const v = evaluateReadiness([
     emptyGateResult("contracts", "skip", "no forge"),
-    emptyGateResult("audit", "skip", "manual"),
+    emptyGateResult("audit-checklist", "skip", "manual"),
   ], 100n);
   assert.equal(v.ready, false);
   assert.equal(v.passing.length, 0);
