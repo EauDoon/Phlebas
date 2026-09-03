@@ -9,6 +9,12 @@
 - Settlement preview distinguishes per-leg refund eligibility, observed refunds, and confirmed refunds, with synthetic timestamps and identities explicitly labeled. No wallet action is enabled.
 - The release-readiness command uses the shared fail-closed evaluator and includes browser acceptance. Unknown gates, invalid runtime statuses, and deleted, duplicated, or downgraded canonical audit items cannot produce a ready result. A passing software verdict never substitutes for wallet, audit, legal, Testnet, or Mainnet approval.
 
+## Local coordinator storage — not deployed
+
+The canonical swap coordinator now has a local persistence library with explicit initialization, an exclusive writer lock, bounded canonical JSON, replay-verified snapshots, and durable replacement before acknowledgement. Exact expected journal heads and state roots serialize mutations; uncertain writes stop further mutations. Opening a missing store never creates a fresh history.
+
+The library reuses the existing swap event/state schema and filesystem durability helper. It adds no service endpoint, RPC, wallet, signing, broadcast, or Vercel runtime. [Storage recovery](docs/runbooks/swap-coordinator-storage.md) describes stale-lock handling, uncertain commits, and the external checkpoint still required to detect a coherent rollback of every local file. Real-chain observer and operator qualification remain open.
+
 ## Previous checkpoint (historical as of 01-09-2026)
 
 - Active UI branch: `feat/prelaunch-copy-honesty`, cut from `main` after PR #34. Public chrome is a pre-launch venue (warm yellow accent, persistent preview chip, Open terminal). Landing, terminal, settlement fill ticket, and solver quotes. Vercel hosts UI only; no mainnet funds.

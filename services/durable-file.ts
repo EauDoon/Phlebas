@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 const WINDOWS_DIRECTORY_SYNC_ERRORS = new Set(["EPERM", "EINVAL", "ENOSYS"]);
 
-async function syncDirectory(path: string): Promise<void> {
+export async function syncDirectory(path: string): Promise<void> {
   const directory = await open(path, "r");
   try {
     await directory.sync();
