@@ -114,6 +114,11 @@ The sequence evidence detects mutation, omission inside a published chain, gaps,
 
 ## Current protocol anchors
 
+The Arbitrum entries below preserve the original offline matcher fixture context.
+They do not select the active settlement network or listed assets. The current product
+uses native transparent ZEC and exact issuer-native Ethereum Mainnet USDC and USDT
+as specified in `../ARCHITECTURE.md`; USDT0 is excluded.
+
 The no-value policy records current facts without converting them into executable chain logic:
 
 * The [Zcash protocol specification](https://zips.z.cash/protocol/protocol.pdf) applies BIP 16 and BIP 65 to transparent P2SH and does not support BIP 68. The candidate refund must therefore use absolute CLTV semantics, not an assumed relative CSV delay.
@@ -131,7 +136,7 @@ This decision does not approve Testnet, Mainnet, or live funds. At minimum, the 
 * current Zcash transparent P2SH standardness, transaction version, `nExpiryHeight`, fee, relay, replacement, and reorganization behavior;
 * exact Zcash fund, claim, and refund transaction templates and wallet interoperability;
 * exact EVM conditional-lock contract, audit, deployment, runtime code hash, and token behavior;
-* final USDT, USDT0, or alternative quote asset selection;
+* current issuer, code, and legal verification of the exact Ethereum Mainnet USDC and USDT identities; no USDT0 or alternative token substitution;
 * observer, coordinator, watchtower, dispute, and recovery implementation;
 * production signing policy, signer rotation, and contract-wallet support;
 * independent security audit, load tests, monitoring, backups, and incident drills;

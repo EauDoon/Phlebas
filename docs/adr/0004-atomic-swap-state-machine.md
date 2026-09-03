@@ -1,8 +1,35 @@
 # ADR 0004: Atomic Swap State Machine and UI
 
 Date: 01-09-2026
-Status: Accepted for key-independent development
+Status: Historical diagnostic design; superseded for settlement authority
 Production status: Not approved
+
+## Current authority — 03-09-2026
+
+The `Fill` projection and transitions below are historical diagnostics, as recorded in
+[ADR 0006](0006-atomic-swap-observer.md). They must not authorize wallet actions or
+override [ADR 0002](0002-native-zec-atomic-settlement.md), `SwapTermsV1`, the canonical
+`SwapState`, or its hash-chained journal.
+
+The active sequence is: both parties authorize exact per-fill terms; ZEC funds first;
+policy-confirmed ZEC evidence permits EVM funding; the ZEC seller claims the stablecoin;
+policy-confirmed EVM claim evidence permits the stablecoin seller to claim ZEC.
+Both legs use the same SHA-256 commitment over exactly 32 preimage bytes. The EVM
+refund deadline precedes the ZEC refund deadline by the signed safety margin.
+
+The historical EVM-first order, ZEC-first secret reveal, signing flag, preimage lifecycle,
+and claim-signature description below are not current implementation instructions.
+No environment variable enables wallet signing or live funds. A preview reset cannot
+resolve an actual chain dispute. Terms, evidence, state roots, and journal replay must
+agree; source verification, durable service operation, wallet qualification, independent
+review, and separate Testnet/Mainnet authorization remain required.
+
+`services/swap-coordinator/evidence.ts` provides only key-independent ingestion of
+canonical funding and spend observations at an exact expected journal head and state
+root. It neither verifies a chain source nor automatically authorizes or confirms an
+event. Persistence and live service deployment are separate work.
+
+## Historical record
 
 Current Zcash boundary: references below to a signing-capable Zcash wallet adapter or a next-PR signing surface are historical and superseded by `docs/ZCASH_TRANSACTION_LAB.md`. The present candidate PCZT integration is header-only. Its API exposes no dedicated seed, spending-key, private-key, viewing-key, or signature-byte parameters, but opaque PCZT content remains potentially sensitive. Wallet readiness stays blocked while full serialization and relayability remain unresolved.
 
