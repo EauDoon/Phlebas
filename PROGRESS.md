@@ -17,6 +17,8 @@ The library reuses the existing swap event/state schema and filesystem durabilit
 
 The diagnostic EVM observer now requires exact ConditionalLock event topic counts, padded nonzero addresses, positive ABI amounts, and valid log identifiers before emitting a record. It exposes decoded fields through the existing diagnostic data record. This does not establish receipt success, contract identity, canonical inclusion, finality, or a claim preimage; canonical funding and spend facts still require independently verified chain sources.
 
+The existing ConditionalLock ABI module also decodes exact constructor arguments, `LockCreated` topics/data, and claim calldata. Decoding rejects malformed widths, noncanonical address padding, out-of-range deadlines, and invalid bound terms. These pure codecs return structural data only: they do not verify a deployment, receipt, contract identity, preimage hash, canonical inclusion, or finality, and they do not produce authoritative funding or spend facts.
+
 ## Unsigned matcher terms — no submission enabled
 
 An order-book fill can now be materialized into the existing canonical swap terms for either exact Mainnet market, with explicit settlement context and wallet-derived roles and Zcash script. Both order venue permissions are checked in the shared plan builder. Non-exact quote rounding and solver quote materialization fail closed; differing signed fee caps use their lower limit and the charged fee remains zero. Integration tests create policy-bound initial states with no authorizations and no funded leg. Wallet qualification, signature verification, matcher manifests, chain evidence, and release approvals remain required.
