@@ -32,8 +32,12 @@ export async function atomicWriteFile(path: string, contents: string): Promise<v
     await syncDirectory(directoryPath);
   } finally {
     if (!renamed) {
-      await handle.close().catch(() => undefined);
-      await unlink(temporaryPath).catch(() => undefined);
+      await handle.close().catch((err) => {
+        console.warn("durable-file: temp handle close failed during cleanup", err);
+      });
+      await unlink(temporaryPath).catch((err) => {
+        console.warn("durable-file: temp file unlink failed during cleanup", err);
+      });
     }
   }
 }
