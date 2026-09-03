@@ -12,6 +12,10 @@ import {
   zecCapabilityStatementFromObserved,
 } from "./zec-wallet-session.ts";
 
+import proofVectors from "../../tests/fixtures/zcash-message/synthetic-vectors.json" with { type: "json" };
+
+const validProof = proofVectors.vectors.find((vector) => vector.name === "provider-session-challenge")!;
+
 const MAINNET_T1 = "t1HsxXoGneCWcA56J24xLE34CFDWNK6RCqD";
 const MAINNET_CANONICAL = `zcash:mainnet:${MAINNET_T1}`;
 
@@ -77,15 +81,30 @@ describe("capability statement assembly", () => {
 });
 
 describe("connect session", () => {
-  it("connects, proves control, and returns a frozen session", async () => {
+  it("keeps invalid provider signatures unproven and all network actions disabled", async () => {
     const provider = providerWith({
-      zcash_requestAccounts: async () => [MAINNET_T1],
+      zcash_requestAccounts: async () => [validProof.account],
       zcash_signMessage: async () => "0xfeedface",
     });
+    const session = await connectZecWalletSession(provider, { challenge: validProof.message });
+    assert.match(session.state.error ?? "", /does not verify/);
+    assert.equal(session.addressControlSignature, null);
+    assert.equal(session.statement?.capabilities.sourceAddressControl.supported, false);
+    assert.ok(session.assessment?.missingCapabilities.includes("source-address-control"));
+    assert.equal(session.assessment?.mainnetFundsEnabled, false);
+    assert.equal(session.assessment?.transactionExtractionEnabled, false);
+    assert.equal(session.assessment?.broadcastEnabled, false);
+  });
+
+  it("connects, proves control, and returns a frozen session", async () => {
+    const provider = providerWith({
+      zcash_requestAccounts: async () => [validProof.account],
+      zcash_signMessage: async () => validProof.signatureBase64,
+    });
     const session = await connectZecWalletSession(provider, { challenge: "phlebas-connect-challenge-0001" });
-    assert.equal(session.state.address, MAINNET_CANONICAL);
+    assert.equal(session.state.address, validProof.account);
     assert.equal(session.state.error, null);
-    assert.equal(session.addressControlSignature, "0xfeedface");
+    assert.equal(session.addressControlSignature, validProof.signatureBase64);
     assert.equal(session.statement?.capabilities.sourceAddressControl.supported, true);
     assert.deepEqual(session.statement?.capabilities.pczt.supportedVersions, []);
     assert.equal(session.statement?.capabilities.arbitraryP2sh.fundingOutputs, false);

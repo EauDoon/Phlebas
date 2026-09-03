@@ -1,12 +1,13 @@
 // Discovery and typed access for an injected transparent-ZEC wallet provider.
 //
 // Zcash browser wallets do not yet share an EIP-6963-style discovery
-// standard, so this module detects the de-facto injected surface
-// (`window.zcash` with a JSON-RPC `request`) and accepts an explicit
-// provider for environments where the injection point differs. Everything
+// standard. This candidate adapter detects `window.zcash` with a JSON-RPC
+// `request` and accepts an explicit provider; these names do not establish
+// a shipped wallet standard or qualified compatibility. Everything
 // here is fail-closed: a provider that answers wrongly is treated as
 // absent or disconnected, never as connected.
 
+import { verifyZcashTransparentSignedMessage } from "./zcash-signed-message.ts";
 import {
   assertZcashTransparentP2pkhAccount,
   canonicalZcashTransparentAccount,
@@ -128,10 +129,10 @@ export async function connectZecWallet(
 }
 
 /**
- * Ask the wallet to sign a fixed challenge so the adapter can assert
- * source-address control. The signature is verified out of band by the
- * qualification reviewer, not parsed here; this call only proves the
- * wallet is present, unlocked, and willing to sign for the account.
+ * Ask the wallet to sign the supplied challenge and verify its zcashd-format
+ * compact signature against the requested account. Challenge freshness and
+ * session binding belong to the caller. A valid proof does not qualify the
+ * wallet or authorize any transaction action.
  */
 export async function proveSourceAddressControl(
   provider: ZecJsonRpcProvider,
@@ -139,7 +140,7 @@ export async function proveSourceAddressControl(
   challenge: string,
 ): Promise<Readonly<{ signature: string } | { error: string }>> {
   assertZcashTransparentP2pkhAccount(address, "mainnet");
-  if (!/^[ -~]{16,512}$/.test(challenge)) {
+  if (typeof challenge !== "string" || challenge.length > 512 || !/^[ -~]{16,512}$/.test(challenge)) {
     return { error: "Challenge is not printable ASCII within the accepted length." };
   }
   try {
@@ -149,6 +150,9 @@ export async function proveSourceAddressControl(
     });
     if (typeof signature !== "string" || signature.length === 0) {
       return { error: "The wallet did not return a signature." };
+    }
+    if (!verifyZcashTransparentSignedMessage(address, challenge, signature)) {
+      return { error: "The wallet signature does not verify for this ZEC account and challenge." };
     }
     return Object.freeze({ signature });
   } catch (error: unknown) {
