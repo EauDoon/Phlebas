@@ -252,7 +252,7 @@ export function SettlementTicket({
             <span className={styles.eyebrow}>Fill ticket</span>
             <h2 id="native-swap-title" ref={phaseHeading} tabIndex={-1}>Fill ticket</h2>
           </div>
-          <span className={styles.warningPill}>USDC first</span>
+          <span className={styles.warningPill}>ZEC funds first</span>
         </div>
 
         <p className={styles.featureLead}>
