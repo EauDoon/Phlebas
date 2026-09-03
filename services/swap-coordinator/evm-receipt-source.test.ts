@@ -39,7 +39,6 @@ import type {
 import {
   readEvmFundingBundle,
   readEvmFundingBundleWithAuthority,
-  type EvmFundingReceiptBundle,
 } from "./evm-receipt-source.ts";
 
 // Synthetic vectors only. They are not deployment, wallet, or chain evidence.

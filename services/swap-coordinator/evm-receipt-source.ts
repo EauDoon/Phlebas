@@ -365,6 +365,7 @@ async function request(
 }
 
 /** Test seam; production callers must use readEvmFundingBundle's manifest gate. */
+/** Synthetic transport seam. Active callers must use the manifest-gated entry point below. */
 export async function readEvmFundingBundleWithAuthority(
   provider: StablecoinClaimReadProvider,
   state: SwapState,
