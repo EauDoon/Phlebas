@@ -8,6 +8,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { parseAuditChecklistRows } from "../src/lib/audit-checklist.ts";
+import { evaluateReadiness } from "../src/lib/release-readiness.ts";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptDirectory, "..");
@@ -71,13 +72,15 @@ const gates = [
   runGate("contracts", ["run", "test:contracts"]),
   runGate("secret-scan", ["run", "scan:secrets"]),
   runGate("build", ["run", "build"]),
+  runGate("browser", ["run", "test:browser"]),
   readAuditChecklistGate(),
 ];
 
+const evaluated = evaluateReadiness(gates, BigInt(Math.floor(Date.now() / 1000)));
 const verdict = {
-  ready: gates.length > 0 && gates.every((gate) => gate.status === "pass"),
+  ...evaluated,
   gates,
-  generatedAt: BigInt(Math.floor(Date.now() / 1000)).toString(),
+  generatedAt: evaluated.generatedAt.toString(),
 };
 
 process.stdout.write(`${JSON.stringify(verdict, null, 2)}\n`);
