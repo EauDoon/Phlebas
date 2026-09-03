@@ -51,7 +51,7 @@ Phlebas may prepare or relay a reviewable transaction artifact. It must never re
 
 ZIP 321 payment requests and TEX addresses do not authorize P2SH atomic-swap scripts. Wallet compatibility requires executed tests for the exact fund, claim, and refund transactions. The current [Zallet PCZT documentation](https://zcash.github.io/zallet/rpc/index.html) provides transaction construction, inspection, signing, and extraction roles, but Phlebas must prove the selected P2SH path works with a current wallet release before labeling it compatible.
 
-The [key-independent transaction lab](../ZCASH_TRANSACTION_LAB.md) implements exact script vectors and committed unsigned-artifact plans. It stops before transaction serialization, wallet access, signing, extraction, and broadcast.
+The [key-independent transaction lab](../ZCASH_TRANSACTION_LAB.md) implements exact script vectors, committed unsigned-artifact plans, v5 signature digests, and unsigned v5 wire bytes with empty scriptSigs. Those bytes contain no spending authorization. Wallet access, signing, extraction of an authorized transaction, and broadcast remain gated; unsigned serialization changes no release readiness.
 
 ## Deterministic safety rules
 

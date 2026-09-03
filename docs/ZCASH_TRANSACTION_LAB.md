@@ -6,7 +6,7 @@ Updated: 03-09-2026
 
 ## Boundary
 
-The lab builds deterministic plans for transparent Zcash P2SH funding, claim, and refund transactions. It does not serialize a consensus transaction, produce a transaction ID, connect to a wallet or node, sign, extract, broadcast, or claim relayability.
+The lab builds deterministic plans for transparent Zcash P2SH funding, claim, and refund transactions, computes v5 signature digests, and encodes unsigned v5 bytes with empty scriptSigs for offline inspection. It does not produce an authorized transaction or transaction ID, connect to a wallet or node, sign, extract, broadcast, or claim relayability.
 
 Each committed artifact identifies itself as `candidate-unsigned-effecting-data-manifest`. Its SHA-256 manifest digest binds the ordered inputs, outputs, values, scripts, fee, profile, target height, expiry height, locktime, sequence, and authorization plan. The digest is an artifact commitment. It is not a Zcash transaction ID.
 
@@ -18,7 +18,7 @@ The Mainnet projection accepts only native ZEC on the canonical Zcash BIP-122 id
 
 The terms-bound funding builder accepts public UTXO, height, fee, size, and change evidence, but it does not accept caller-selected contract value, redeem script, funding cutoff, or refund margin. Those effecting fields are derived from `SwapTermsV1`. Claim and refund builders require a policy-confirmed canonical ZEC funding fact from the authoritative swap state. They derive the exact funded outpoint, P2SH script, P2PKH recipient, value, and branch from that state and the signed terms.
 
-Every artifact receives a canonical binding over the swap ID, terms hash, action, and artifact-manifest digest. The authoritative journal helper records the binding digest, not an unscoped artifact hash. The bound PCZT review package additionally commits the header-checked PCZT bytes and carries an immutable `blocked` release state. This closes artifact-substitution paths in the key-independent construction layer. It does not supply participant signature evidence, full ZIP 374 parsing, a transaction serializer, wallet compatibility, or chain authority.
+Every artifact receives a canonical binding over the swap ID, terms hash, action, and artifact-manifest digest. The authoritative journal helper records the binding digest, not an unscoped artifact hash. The bound PCZT review package additionally commits the header-checked PCZT bytes and carries an immutable `blocked` release state. This closes artifact-substitution paths in the key-independent construction layer. It does not supply participant signature evidence, full ZIP 374 parsing, signed-transaction extraction, wallet compatibility, or chain authority.
 
 ## Current source findings
 
@@ -82,7 +82,7 @@ The lab pins a named NU6.3 encoding fixture:
 
 These values identify an offline construction profile. They do not assert a live chain tip or current UTXO state. A future consensus epoch requires a new profile and new vectors.
 
-Manifest identifiers use normal eight-digit hexadecimal display order. A later consensus serializer must encode the applicable 32-bit transaction fields in their protocol byte order. Display transaction IDs are reversed exactly once when serialized as transparent prevouts.
+Manifest identifiers use normal eight-digit hexadecimal display order. The unsigned v5 serializer encodes applicable 32-bit transaction fields in little-endian protocol byte order. Display transaction IDs are reversed exactly once when serialized as transparent prevouts.
 
 Funding and claim inputs use sequence `0xffffffff`. Refund inputs use `0xfffffffe`, which enables absolute locktime without asserting relative lock or replacement semantics. The refund transaction locktime equals the redeem-script operand. Funding construction requires the refund lock operand to be later than the supplied height or time cutoff by the exact committed positive safety margin.
 
@@ -130,6 +130,21 @@ PYTHONPATH=/path/to/pinned/zcash-test-vectors python3 tests/fixtures/zip244-v5/c
 ```
 
 The reference checkout is a test tool and is not a runtime dependency.
+
+## Unsigned v5 wire bytes
+
+`serializeUnsignedV5TransparentTransaction` encodes a verified v5 artifact in the transparent transaction format defined by [Final ZIP 225](https://zips.z.cash/zip-0225). It preserves input and output order, transaction-ID byte order, values, scripts, locktime, expiry, and sequences. Every input has an empty scriptSig. The bytes contain no signature or claim/refund witness and cannot authorize spending.
+
+The encoder emits zero Sapling spend, Sapling output and Orchard action counts. It accepts no shielded data and rejects v6, coinbase inputs, and altered artifact envelopes. Fixed wire vectors match the official `TransactionV5` serializer at [zcash-test-vectors commit `113b3914`](https://github.com/zcash/zcash-test-vectors/blob/113b3914c79dfe7eb68cb754cd7fea20b75e2e61/zcash_test_vectors/transaction.py).
+
+These are unsigned construction bytes, not a wallet-extracted transaction. Their length excludes the missing authorization data. The artifact's complete serialized-size, relayability and transaction-ID assessments remain unresolved; no PCZT, wallet, node, or release gate is promoted. Wallet-supported signing, exact signed-byte inspection, full PCZT parsing, and approved chain evidence remain required.
+
+Regenerate the wire vectors and repeat the pinned upstream check with:
+
+```bash
+python3 tests/fixtures/zip244-v5/generate_v5_wire_vectors.py tests/fixtures/zip244-v5/zip244-v5-vectors.json tests/fixtures/zip244-v5/v5-wire-vectors.json
+PYTHONPATH=/path/to/pinned/zcash-test-vectors python3 tests/fixtures/zip244-v5/check_official_v5_wire.py tests/fixtures/zip244-v5/zip244-v5-vectors.json tests/fixtures/zip244-v5/v5-wire-vectors.json
+```
 
 ## PCZT and wallet review
 
