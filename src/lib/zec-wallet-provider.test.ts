@@ -99,6 +99,47 @@ describe("connect flow", () => {
     const state = await connectZecWallet(providerWith([]));
     assert.deepEqual(state, { ...disconnectedZecWallet, error: state.error });
   });
+
+  it("does not turn rejected, pending, or unknown requests into read-only connections", async () => {
+    for (const code of [4001, "4001", -32002, "-32002", -32000]) {
+      const methods: string[] = [];
+      const provider = {
+        async request(args: { method: string }) {
+          methods.push(args.method);
+          if (args.method === "zcash_requestAccounts") {
+            throw Object.assign(new Error("provider diagnostic"), { code });
+          }
+          if (args.method === "zcash_accounts") return [MAINNET_T1];
+          throw new Error(`unexpected method ${args.method}`);
+        },
+      };
+      const state = await connectZecWallet(provider);
+
+      assert.deepEqual(methods, ["zcash_requestAccounts"]);
+      assert.equal(state.address, null);
+      assert.equal(state.error, publicZecConnectionError({ code }));
+    }
+  });
+
+  it("falls back to zcash_accounts only for explicit unsupported-method errors", async () => {
+    for (const code of [-32601, "-32601", 4200, "4200"]) {
+      const methods: string[] = [];
+      const provider = {
+        async request(args: { method: string }) {
+          methods.push(args.method);
+          if (args.method === "zcash_requestAccounts") {
+            throw Object.assign(new Error("unsupported"), { code });
+          }
+          if (args.method === "zcash_accounts") return [MAINNET_T1];
+          throw new Error(`unexpected method ${args.method}`);
+        },
+      };
+      const state = await connectZecWallet(provider);
+
+      assert.deepEqual(methods, ["zcash_requestAccounts", "zcash_accounts"]);
+      assert.deepEqual(state, { address: MAINNET_CANONICAL, error: null });
+    }
+  });
 });
 
 describe("source-address-control proof", () => {

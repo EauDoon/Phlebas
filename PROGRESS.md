@@ -45,6 +45,10 @@ The EVM adapter also binds caller-supplied claim and refund receipts to the exac
 
 The coordinator has an injected read-only EVM receipt acquisition path that cross-checks the approved deployment, funding transaction, receipts, containing blocks, logs and finalized runtime code before returning the existing receipt transport shapes. The production wrapper checks the repository deployment manifest before any provider request; the current undeployed record therefore blocks all RPC access through this entry point. Synthetic transport checks do not establish independent source quorum, cryptographic inclusion, observer attestations, reorg recovery or release approval, and no journal append, confirmation or wallet action is performed.
 
+## ZEC wallet consent and lifecycle — qualification remains blocked
+
+The candidate ZEC connection flow stops after rejected or pending wallet requests and uses a fresh browser-generated challenge nonce, invalidates pending results when the dialog closes or the component unmounts, and rechecks the selected transparent account after a valid address proof. Cancellation prevents later provider requests but cannot revoke a request already shown by the wallet. These checks do not provide ongoing wallet-account monitoring or authorize an order, fill or transaction; wallet qualification and all value-moving release gates remain required.
+
 ## Previous checkpoint (historical as of 01-09-2026)
 
 - Active UI branch: `feat/prelaunch-copy-honesty`, cut from `main` after PR #34. Public chrome is a pre-launch venue (warm yellow accent, persistent preview chip, Open terminal). Landing, terminal, settlement fill ticket, and solver quotes. Vercel hosts UI only; no mainnet funds.
