@@ -62,8 +62,8 @@ test("observer retries require the current head and root even for an exact dupli
   assert.throws(() => ingestSwapEvidence(accepted.journal, accepted.journal.head, swapStateRoot(initial.state), payload), /state root/);
   const retry = ingest(accepted, payload);
   assert.equal(retry.appended, false);
-  assert.equal(retry.receipt, accepted.receipt);
-  assert.equal(retry.journal, accepted.journal);
+  assert.deepEqual(retry.receipt, accepted.receipt);
+  assert.deepEqual(retry.journal, accepted.journal);
 });
 
 test("observer rejects semantic-slot conflicts without changing accepted history", () => {
@@ -148,4 +148,18 @@ test("accepted observer payloads cannot be mutated through source or receipt ali
   assert.throws(() => Object.assign(stored.evidence.fact, { amountAtoms: 1n }), TypeError);
   assert.throws(() => Object.assign(stored.evidence.attestation, { tipBlockHeight: 0n }), TypeError);
   assert.deepEqual(replaySwapJournal(accepted.journal.initialState, accepted.journal), accepted.state);
+});
+
+test("duplicate ingestion owns and freezes rehydrated receipt history", () => {
+  const initial = preparedJournal();
+  const payload: Observation = { kind: "observe-funding", evidence: fundingEvidence("zec", "1", terms) };
+  const mutable = structuredClone(appendSwapEvent(initial.journal, initial.state, payload));
+  const retry = ingest(mutable, payload);
+  assert.equal(retry.appended, false);
+  const stored = retry.receipt.payload as Observation;
+  assert.throws(() => Object.assign(stored.evidence.fact, { amountAtoms: 1n }), TypeError);
+  assert.throws(() => Object.assign(retry.journal.receipts[0]!.payload, { occurredAtSeconds: 0n }), TypeError);
+  Object.assign((mutable.receipt.payload as Observation).evidence.fact, { amountAtoms: 1n });
+  assert.equal(stored.evidence.fact.amountAtoms, payload.evidence.fact.amountAtoms);
+  assert.deepEqual(replaySwapJournal(retry.journal.initialState, retry.journal), retry.state);
 });
