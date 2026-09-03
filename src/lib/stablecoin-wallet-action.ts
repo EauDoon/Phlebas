@@ -490,7 +490,8 @@ async function readProviderClaimHead(
     await provider.request({ method: "eth_getBlockByNumber", params: ["finalized", false] }),
     "Ethereum finalized block",
   );
-  const finalizedTag = `0x${finalized.number.toString(16)}`;
+  // EIP-1898 pins both reads even if this height changes between requests.
+  const finalizedTag = Object.freeze({ blockHash: finalized.hash, requireCanonical: true });
   const code = runtimeBytecode(
     requiredString(
       await provider.request({ method: "eth_getCode", params: [lock, finalizedTag] }),
@@ -512,6 +513,18 @@ async function readProviderClaimHead(
     await provider.request({ method: "eth_getBlockByNumber", params: ["latest", false] }),
     "Ethereum latest block",
   );
+  const checkedFinalized = rpcBlock(
+    await provider.request({
+      method: "eth_getBlockByNumber",
+      params: [`0x${finalized.number.toString(16)}`, false],
+    }),
+    "Rechecked Ethereum finalized block",
+  );
+  if (checkedFinalized.number !== finalized.number
+    || checkedFinalized.hash !== finalized.hash
+    || checkedFinalized.timestampSeconds !== finalized.timestampSeconds) {
+    throw new Error("Ethereum finalized block changed while claim evidence was read");
+  }
   const finalChain = assertEthereumMainnetChainId(await provider.request({ method: "eth_chainId" }));
   if (initialChain !== finalChain) throw new Error("Ethereum chain changed while claim evidence was read");
   const evidence = Object.freeze({
@@ -572,6 +585,7 @@ export async function observeFinalizedStablecoinClaimHead(
     || right.lockState !== "funded") {
     throw new Error("Independent Ethereum providers disagree on finalized conditional lock evidence");
   }
+  const verifiedAtSeconds = unixNowSeconds();
   const evidence = Object.freeze({
     providerCount: 2 as const,
     chainId: ETHEREUM_MAINNET_CHAIN_HEX,
@@ -579,7 +593,10 @@ export async function observeFinalizedStablecoinClaimHead(
     finalizedBlockNumber: left.finalizedBlockNumber,
     finalizedBlockHash: left.finalizedBlockHash,
     finalizedBlockTimestampSeconds: left.finalizedBlockTimestampSeconds,
-    latestHeads: Object.freeze([left.latestHead, right.latestHead]) as StablecoinClaimHeadEvidence["latestHeads"],
+    latestHeads: Object.freeze([
+      Object.freeze({ ...left.latestHead, verifiedAtSeconds }),
+      Object.freeze({ ...right.latestHead, verifiedAtSeconds }),
+    ]) as StablecoinClaimHeadEvidence["latestHeads"],
     runtimeBytecodeSha256: left.runtimeBytecodeSha256,
     lockState: "funded" as const,
   });

@@ -130,15 +130,23 @@ function claimProviderFixture(input: Readonly<{
     async request({ method, params }) {
       calls.push(method);
       if (method === "eth_chainId") return "0x1";
-      if (method === "eth_getBlockByNumber" && params?.[0] === "finalized") {
+      if (method === "eth_getBlockByNumber"
+        && (params?.[0] === "finalized" || params?.[0] === `0x${finalizedNumber.toString(16)}`)) {
         return {
           number: `0x${finalizedNumber.toString(16)}`,
           hash: input.finalizedHash ?? `0x${"51".repeat(32)}`,
           timestamp: `0x${(input.now - 900n).toString(16)}`,
         };
       }
-      if (method === "eth_getCode") return input.runtime ?? RUNTIME;
-      if (method === "eth_call") return `0x${(input.state ?? 1n).toString(16).padStart(64, "0")}`;
+      if (method === "eth_getCode" || method === "eth_call") {
+        assert.deepEqual(params?.[1], {
+          blockHash: input.finalizedHash ?? `0x${"51".repeat(32)}`,
+          requireCanonical: true,
+        });
+        return method === "eth_getCode"
+          ? input.runtime ?? RUNTIME
+          : `0x${(input.state ?? 1n).toString(16).padStart(64, "0")}`;
+      }
       if (method === "eth_getBlockByNumber" && params?.[0] === "latest") {
         return {
           number: `0x${(finalizedNumber + (input.latestOffset ?? 64n)).toString(16)}`,
@@ -354,6 +362,7 @@ test("two-provider claim quorum reads matching finalized evidence without a tran
     "eth_getCode",
     "eth_call",
     "eth_getBlockByNumber",
+    "eth_getBlockByNumber",
     "eth_chainId",
   ];
   assert.deepEqual(left.calls, expectedCalls);
@@ -366,6 +375,85 @@ test("two-provider claim quorum reads matching finalized evidence without a tran
   assert.equal(evidence.latestHeads[1].blockHash, `0x${"53".repeat(32)}`);
   assert.equal(evidence.runtimeBytecodeSha256, AUTHORITY.runtimeBytecodeSha256);
   assert.equal(evidence.lockState, "funded");
+});
+
+test("claim evidence rejects changed or malformed pinned-block metadata", async () => {
+  const now = BigInt(Math.floor(Date.now() / 1_000));
+  for (const replacement of [
+    { hash: `0x${"59".repeat(32)}` },
+    { number: "0x1" },
+    { timestamp: `0x${(now - 899n).toString(16)}` },
+    { hash: null },
+    { timestamp: "0x00" },
+    null,
+  ]) {
+    const left = claimProviderFixture({ now });
+    const right = claimProviderFixture({ now });
+    const changingProvider: StablecoinClaimReadProvider = {
+      async request(args) {
+        const result = await left.provider.request(args);
+        if (args.method === "eth_getBlockByNumber" && String(args.params?.[0]).startsWith("0x")) {
+          return replacement === null ? null : { ...result as object, ...replacement };
+        }
+        return result;
+      },
+    };
+    await assert.rejects(
+      observeFinalizedStablecoinClaimHead([changingProvider, right.provider], LOCK),
+      /finalized block changed|Rechecked Ethereum finalized block/,
+    );
+  }
+});
+
+test("claim evidence never falls back when canonical hash-pinned reads fail", async () => {
+  const now = BigInt(Math.floor(Date.now() / 1_000));
+  for (const failingMethod of ["eth_getCode", "eth_call"]) {
+    for (const reason of ["block is not canonical", "block not found", "unsupported block parameter"]) {
+      const left = claimProviderFixture({ now });
+      const right = claimProviderFixture({ now });
+      let failedReads = 0;
+      const provider: StablecoinClaimReadProvider = {
+        async request(args) {
+          if (args.method === failingMethod) {
+            failedReads += 1;
+            assert.deepEqual(args.params?.[1], {
+              blockHash: `0x${"51".repeat(32)}`,
+              requireCanonical: true,
+            });
+            throw new Error(reason);
+          }
+          return left.provider.request(args);
+        },
+      };
+      await assert.rejects(
+        observeFinalizedStablecoinClaimHead([provider, right.provider], LOCK),
+        { message: reason },
+      );
+      assert.equal(failedReads, 1);
+    }
+  }
+});
+
+test("claim quorum rechecks freshness after a slower provider completes", async (t) => {
+  const now = 1_800_000_000n;
+  let clock = now;
+  t.mock.method(Date, "now", () => Number(clock * 1_000n));
+  const left = claimProviderFixture({ now });
+  const right = claimProviderFixture({ now, latestTimestampOffset: -12n, latestOffset: 65n });
+  let chainReads = 0;
+  const delayedProvider: StablecoinClaimReadProvider = {
+    async request(args) {
+      if (args.method === "eth_chainId" && ++chainReads === 2) {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        clock += STABLECOIN_CLAIM_HEAD_MAX_AGE_SECONDS;
+      }
+      return right.provider.request(args);
+    },
+  };
+  await assert.rejects(
+    observeFinalizedStablecoinClaimHead([left.provider, delayedProvider], LOCK),
+    /latest head is stale/,
+  );
 });
 
 test("claim review rejects stale, mismatched, unsafe, or non-funded head evidence before revealing a preimage", () => {
