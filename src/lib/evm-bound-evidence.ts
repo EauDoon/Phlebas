@@ -124,7 +124,7 @@ function validateLogs(logs: readonly EvmReceiptLog[], label: string): EvmReceipt
   });
 }
 
-function expectedTerms(state: SwapState): ConditionalLockTerms {
+export function conditionalLockTermsForSwapState(state: SwapState): ConditionalLockTerms {
   const terms = state.terms;
   if (terms.zecChain !== ZCASH_MAINNET_NETWORK || terms.zecAsset !== NATIVE_ZEC_ASSET) {
     throw new Error("EVM funding requires the exact Zcash Mainnet native ZEC market");
@@ -282,7 +282,7 @@ export function bindEvmSpendReceipt(
   claimCalldata?: string,
 ): SpendFact {
   const canonicalState = assertSwapStateIntegrity(state);
-  const terms = expectedTerms(canonicalState);
+  const terms = conditionalLockTermsForSwapState(canonicalState);
   // Reuse the constructor validator for all ConditionalLock role and timeline invariants.
   encodeConditionalLockConstructorArgs(terms);
   const canonicalFunding = normalizeFundingFact(canonicalState, funding, terms);
@@ -377,7 +377,7 @@ export function bindEvmFundingReceipt(
   receipt: EvmFundingReceipt,
 ): FundingFact {
   const canonicalState = assertSwapStateIntegrity(state);
-  const terms = expectedTerms(canonicalState);
+  const terms = conditionalLockTermsForSwapState(canonicalState);
   // The encoder is the existing authority for the contract's 11-term invariants.
   const encodedExpectedTerms = encodeConditionalLockConstructorArgs(terms);
 

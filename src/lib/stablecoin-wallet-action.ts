@@ -280,7 +280,7 @@ function unixNowSeconds(): bigint {
  * manifest is intentionally undeployed, so this function currently fails
  * closed before any approval or lock calldata can be created.
  */
-function approvedDeploymentManifest(): StablecoinLockDeploymentAuthority {
+export function approvedDeploymentManifest(): StablecoinLockDeploymentAuthority {
   const manifest = record(TRACKED_CONDITIONAL_LOCK_MANIFEST, "Tracked conditional lock manifest");
   const deployment = record(manifest.deployment, "Tracked conditional lock deployment");
   const terms = record(record(manifest.terms, "Tracked conditional lock terms").values, "Tracked conditional lock values");

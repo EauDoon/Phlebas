@@ -41,6 +41,10 @@ The existing candidate wallet adapter now rejects nonempty but invalid address-p
 
 The EVM adapter also binds caller-supplied claim and refund receipts to the exact prior funding fact for USDC or USDT. It checks terminal event identity, payout amount and role, funding provenance, known state timestamps, strict later-block ordering, deadline edges and claim preimage. It returns the existing immutable spend fact without an attestation or state mutation. Caller-supplied calldata is structurally checked but not proven to belong to the transaction; receipt provenance, runtime/source identity, canonical inclusion, finality and participant authorization remain external requirements. No network or value-moving path is enabled.
 
+## EVM receipt acquisition — approved deployment required
+
+The coordinator has an injected read-only EVM receipt acquisition path that cross-checks the approved deployment, funding transaction, receipts, containing blocks, logs and finalized runtime code before returning the existing receipt transport shapes. The production wrapper checks the repository deployment manifest before any provider request; the current undeployed record therefore blocks all RPC access through this entry point. Synthetic transport checks do not establish independent source quorum, cryptographic inclusion, observer attestations, reorg recovery or release approval, and no journal append, confirmation or wallet action is performed.
+
 ## Previous checkpoint (historical as of 01-09-2026)
 
 - Active UI branch: `feat/prelaunch-copy-honesty`, cut from `main` after PR #34. Public chrome is a pre-launch venue (warm yellow accent, persistent preview chip, Open terminal). Landing, terminal, settlement fill ticket, and solver quotes. Vercel hosts UI only; no mainnet funds.
