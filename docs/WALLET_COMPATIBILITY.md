@@ -42,6 +42,16 @@ No current documented wallet interface supports the full Phlebas lifecycle for a
 
 Phlebas therefore uses a transport-neutral, content-addressed PCZT review boundary. Browser-to-Zallet RPC, speculative `window.zcash` APIs, and fund-only enablement remain prohibited. Mainnet funding, claim, refund, extraction, and broadcast must qualify together for one exact wallet release.
 
+## Local address-proof verification — not wallet qualification
+
+The existing candidate provider adapter verifies returned compact signatures locally before declaring source-address control. The verifier accepts canonical Mainnet P2PKH accounts, the existing 16–512 printable-ASCII challenge policy, and canonical Base64 encoding of a 65-byte compact signature. It hashes CompactSize-prefixed `Zcash Signed Message:\n` and challenge strings with SHA-256 twice, recovers the compressed or uncompressed public key, and compares HASH160 with the account payload. Ethereum recovery retains its separate low-s rule.
+
+The format follows immutable zcashd source at `558f686599586f55def3db86955d74d3be44605e`: [message magic](https://github.com/zcash/zcash/blob/558f686599586f55def3db86955d74d3be44605e/src/main.cpp#L145), [message verification](https://github.com/zcash/zcash/blob/558f686599586f55def3db86955d74d3be44605e/src/rpc/misc.cpp#L493-L501), and [compact public-key recovery](https://github.com/zcash/zcash/blob/558f686599586f55def3db86955d74d3be44605e/src/pubkey.cpp#L44-L62). This is a format reference, not a recommendation to operate deprecated zcashd on the current network. Strict canonical Base64 and headers 27–34 are local acceptance restrictions.
+
+Public synthetic fixtures are generated without private keys by `python3 tests/fixtures/zcash-message/reference_vectors.py --write`; rerunning without `--write` checks exact reproduction. `python3 tests/fixtures/zcash-message/check_openssl.py` independently verifies every public signature with system OpenSSL, including high-s and recovery IDs 2/3.
+
+No current wallet release was exercised or qualified by these offline checks. The candidate provider method names remain unstandardized. A valid signature proves only the supplied message/account relation; callers must manage fresh session-bound challenges. It is neither a signed order or fill authorization nor transaction authority. PCZT, HTLC funding and spending, extraction, broadcast, and release gates remain unchanged.
+
 ## Protocol contract
 
 ### ZIP 320 TEX deposits

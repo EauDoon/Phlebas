@@ -10,6 +10,10 @@ import {
   publicZecConnectionError,
 } from "./zec-wallet-provider.ts";
 
+import proofVectors from "../../tests/fixtures/zcash-message/synthetic-vectors.json" with { type: "json" };
+
+const validProof = proofVectors.vectors.find((vector) => vector.name === "provider-session-challenge")!;
+
 const MAINNET_T1 = "t1HsxXoGneCWcA56J24xLE34CFDWNK6RCqD";
 const MAINNET_CANONICAL = `zcash:mainnet:${MAINNET_T1}`;
 const TESTNET_TM = "tmPZ3ntqAkxPQwU3e1AZxVpon6XNZtYLPs9";
@@ -98,12 +102,27 @@ describe("connect flow", () => {
 });
 
 describe("source-address-control proof", () => {
+  it("rejects nonempty signatures and valid signatures for a different account or challenge", async () => {
+    for (const [account, challenge, signature] of [
+      [validProof.account, validProof.message, "0xdeadbeef"],
+      [MAINNET_CANONICAL, validProof.message, validProof.signatureBase64],
+      [validProof.account, validProof.message + "x", validProof.signatureBase64],
+    ]) {
+      const provider = providerWith([], { zcash_signMessage: async () => signature });
+      const proof = await proveSourceAddressControl(provider, account, challenge);
+      assert.deepEqual(proof, { error: "The wallet signature does not verify for this ZEC account and challenge." });
+    }
+  });
+
   it("returns the signature for a valid challenge", async () => {
     const provider = providerWith([], {
-      zcash_signMessage: async () => "0xdeadbeef",
+      zcash_signMessage: async (args) => {
+        assert.deepEqual(args, { method: "zcash_signMessage", params: { account: validProof.account, message: validProof.message } });
+        return validProof.signatureBase64;
+      },
     });
-    const proof = await proveSourceAddressControl(provider, MAINNET_CANONICAL, "phlebas-connect-challenge-0001");
-    assert.deepEqual(proof, { signature: "0xdeadbeef" });
+    const proof = await proveSourceAddressControl(provider, validProof.account, validProof.message);
+    assert.deepEqual(proof, { signature: validProof.signatureBase64 });
   });
 
   it("rejects a challenge outside the printable-ASCII length bound", async () => {

@@ -28,7 +28,7 @@ export const ZEC_WALLET_ADAPTER_ID = "phlebas-injected-zec";
 export const ZEC_WALLET_ADAPTER_VERSION = "1.0.0";
 
 export type ObservedZecWalletCapabilities = Readonly<{
-  /** The wallet can produce a signature for the connected account. */
+  /** A challenge signature verified locally for the connected account. */
   sourceAddressControl: boolean;
   /** ZIP 374 PCZT versions the wallet says it can consume. */
   pcztVersions: readonly (1 | 2)[];

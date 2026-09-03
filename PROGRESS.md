@@ -33,6 +33,10 @@ The transaction lab computes ZIP 244 transparent `SIGHASH_ALL` digests from veri
 
 The lab serializes verified v5 artifacts into unsigned transparent transaction bytes with empty scriptSigs and no shielded payload. Independent wire vectors for fund, claim and refund match the pinned official ZIP 225 v5 serializer. Tests cover canonical input-count encoding across 252/253, exact byte order and scripts, fresh output buffers, and rejected v6, null coinbase outpoints and tampered artifacts. Sighash and wire tests share canonical fixture construction. No signature, signed-transaction extraction, transaction ID, complete signed size, relayability, wallet qualification, or release readiness follows from these bytes.
 
+## ZEC address proof — local verification only
+
+The existing candidate wallet adapter now rejects nonempty but invalid address-proof signatures. It verifies zcashd-format compact signatures against the exact requested Mainnet P2PKH account and challenge, with canonical Base64, bounded input, SHA-256 message hashing, public-key recovery and HASH160 comparison. The EVM `recoverAddress` path retains its low-s rule; Zcash compact recovery accepts zcashd's valid high-s signatures. A verified message does not qualify a wallet, prove fresh session ownership, authorize an order or fill, or enable extraction, broadcast or funds. No real wallet, key, node or network action was used.
+
 ## Previous checkpoint (historical as of 01-09-2026)
 
 - Active UI branch: `feat/prelaunch-copy-honesty`, cut from `main` after PR #34. Public chrome is a pre-launch venue (warm yellow accent, persistent preview chip, Open terminal). Landing, terminal, settlement fill ticket, and solver quotes. Vercel hosts UI only; no mainnet funds.
