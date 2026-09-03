@@ -282,7 +282,9 @@ export function startService(options: StartServiceOptions): Server {
         return;
       }
       send(response, 404, { ok: false, reason: "not-found" });
-    })().catch(() => {
+    })().catch((err) => {
+      // log it — the user only sees "diagnostic-service-error" otherwise
+      console.error("atomic-swap-observer diagnostic request failed", err);
       send(response, 500, { ok: false, reason: "diagnostic-service-error" });
     });
   });
