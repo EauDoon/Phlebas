@@ -37,6 +37,10 @@ The lab serializes verified v5 artifacts into unsigned transparent transaction b
 
 The existing candidate wallet adapter now rejects nonempty but invalid address-proof signatures. It verifies zcashd-format compact signatures against the exact requested Mainnet P2PKH account and challenge, with canonical Base64, bounded input, SHA-256 message hashing, public-key recovery and HASH160 comparison. The EVM `recoverAddress` path retains its low-s rule; Zcash compact recovery accepts zcashd's valid high-s signatures. A verified message does not qualify a wallet, prove fresh session ownership, authorize an order or fill, or enable extraction, broadcast or funds. No real wallet, key, node or network action was used.
 
+## EVM terminal receipt binding — structural evidence only
+
+The EVM adapter also binds caller-supplied claim and refund receipts to the exact prior funding fact for USDC or USDT. It checks terminal event identity, payout amount and role, funding provenance, known state timestamps, strict later-block ordering, deadline edges and claim preimage. It returns the existing immutable spend fact without an attestation or state mutation. Caller-supplied calldata is structurally checked but not proven to belong to the transaction; receipt provenance, runtime/source identity, canonical inclusion, finality and participant authorization remain external requirements. No network or value-moving path is enabled.
+
 ## Previous checkpoint (historical as of 01-09-2026)
 
 - Active UI branch: `feat/prelaunch-copy-honesty`, cut from `main` after PR #34. Public chrome is a pre-launch venue (warm yellow accent, persistent preview chip, Open terminal). Landing, terminal, settlement fill ticket, and solver quotes. Vercel hosts UI only; no mainnet funds.

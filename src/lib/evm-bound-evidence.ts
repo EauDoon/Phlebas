@@ -1,8 +1,11 @@
 import {
+  CLAIMED_EVENT_SIGNATURE,
   decodeConditionalLockCreatedLog,
+  decodeClaimCalldata,
   encodeConditionalLockConstructorArgs,
   FUNDED_EVENT_SIGNATURE,
   LOCK_CREATED_EVENT_SIGNATURE,
+  REFUNDED_EVENT_SIGNATURE,
   type ConditionalLockTerms,
 } from "./conditional-lock-abi.ts";
 import {
@@ -16,11 +19,15 @@ import {
   NATIVE_ZEC_ASSET,
   ZCASH_MAINNET_NETWORK,
 } from "./mainnet-assets.ts";
+import { hexToBytes } from "./keccak.ts";
 import { assertUint, normalizeAddress, normalizeHex32, type Hex32 } from "./order-domain.ts";
+import { sha256Hex } from "./sha256.ts";
 import {
   assertSwapStateIntegrity,
   fundingFactId,
+  spendFactId,
   type FundingFact,
+  type SpendFact,
   type SwapState,
 } from "./swap-state.ts";
 import type { StablecoinLockDeploymentReceipt } from "./stablecoin-wallet-action.ts";
@@ -49,6 +56,8 @@ const MAX_RECEIPT_LOGS = 1_024;
 const ZERO_HEX32 = `0x${"00".repeat(32)}`;
 const LOCK_CREATED_TOPIC = `0x${LOCK_CREATED_EVENT_SIGNATURE}`;
 const FUNDED_TOPIC = `0x${FUNDED_EVENT_SIGNATURE}`;
+const CLAIMED_TOPIC = `0x${CLAIMED_EVENT_SIGNATURE}`;
+const REFUNDED_TOPIC = `0x${REFUNDED_EVENT_SIGNATURE}`;
 const ADDRESS_WORD = /^0x0{24}[0-9a-f]{40}$/;
 const ABI_WORD = /^0x[0-9a-f]{64}$/;
 const HEX_BYTES = /^0x[0-9a-f]*$/;
@@ -162,6 +171,203 @@ function decodeFundedLog(log: EvmReceiptLog, terms: ConditionalLockTerms): void 
   if (swapId !== terms.swapId || funder !== terms.funder || token !== terms.token || amount !== terms.amount) {
     throw new Error("Funded event does not match the canonical conditional lock terms");
   }
+}
+
+function normalizeFundingFact(state: SwapState, funding: FundingFact, terms: ConditionalLockTerms): FundingFact {
+  if (funding.leg !== "evm") throw new TypeError("EVM spend evidence requires an EVM funding fact");
+  const unsigned: Omit<FundingFact, "factId"> = {
+    leg: "evm",
+    swapId: nonzeroHex32(funding.swapId, "Funding swap ID"),
+    termsHash: nonzeroHex32(funding.termsHash, "Funding terms hash"),
+    transactionId: nonzeroHex32(funding.transactionId, "Funding transaction hash"),
+    blockHash: nonzeroHex32(funding.blockHash, "Funding block hash"),
+    blockHeight: uint64(funding.blockHeight, "Funding block number"),
+    executedAtSeconds: uint64(funding.executedAtSeconds, "Funding block timestamp"),
+    outputIndex: uint64(funding.outputIndex, "Funding log index", true),
+    chain: funding.chain,
+    asset: funding.asset,
+    amountAtoms: uint64(funding.amountAtoms, "Funding amount"),
+    lockIdentity: nonzeroAddress(funding.lockIdentity, "Funding lock identity"),
+    escrowRecordId: nonzeroHex32(funding.escrowRecordId, "Funding escrow record ID"),
+    funder: nonzeroAddress(funding.funder, "Funding funder"),
+    claimRecipient: nonzeroAddress(funding.claimRecipient, "Funding claim recipient"),
+    refundRecipient: nonzeroAddress(funding.refundRecipient, "Funding refund recipient"),
+    secretHash: nonzeroHex32(funding.secretHash, "Funding secret hash"),
+    refundTime: uint64(funding.refundTime, "Funding refund time"),
+    successful: funding.successful,
+  };
+  const factId = nonzeroHex32(funding.factId, "Funding fact ID");
+  if (factId !== fundingFactId(unsigned)) throw new Error("Funding fact ID does not match its canonical content");
+  if (unsigned.swapId !== state.swapId || unsigned.termsHash !== state.termsHash) {
+    throw new Error("Funding fact does not bind this swap");
+  }
+  if (unsigned.successful !== true) throw new Error("Failed transaction execution is not funding evidence");
+  if (unsigned.chain !== state.terms.quoteChain
+    || unsigned.asset !== state.terms.quoteAsset
+    || unsigned.amountAtoms !== terms.amount
+    || unsigned.lockIdentity !== state.terms.evmEscrowContract
+    || unsigned.escrowRecordId !== state.swapId
+    || unsigned.funder !== terms.funder
+    || unsigned.claimRecipient !== terms.claimRecipient
+    || unsigned.refundRecipient !== terms.refundRecipient
+    || unsigned.secretHash !== state.terms.secretHash
+    || unsigned.refundTime !== terms.refundTime) {
+    throw new Error("Funding fact does not match the canonical EVM lock terms");
+  }
+  const current = state.evm;
+  if (current.funding && (
+    current.funding.factId !== factId
+    || current.funding.transactionId !== unsigned.transactionId
+    || current.funding.outputIndex !== unsigned.outputIndex
+    || current.funding.lockIdentity !== unsigned.lockIdentity
+    || current.funding.escrowRecordId !== unsigned.escrowRecordId
+  )) {
+    throw new Error("Funding fact does not match the current EVM funding provenance");
+  }
+  if (unsigned.executedAtSeconds > state.terms.evmFundBy) {
+    throw new Error("Funding fact occurred after the canonical EVM funding cutoff");
+  }
+  if (current.fundingPreparedAtSeconds !== undefined
+    && unsigned.executedAtSeconds < current.fundingPreparedAtSeconds) {
+    throw new Error("Funding fact cannot predate its prepared artifact");
+  }
+  for (const authorizedAt of Object.values(state.authorizations)) {
+    if (unsigned.executedAtSeconds < authorizedAt) {
+      throw new Error("Funding fact cannot predate exact terms authorization");
+    }
+  }
+  if (state.zec.fundingConfirmedAtSeconds !== undefined
+    && unsigned.executedAtSeconds < state.zec.fundingConfirmedAtSeconds) {
+    throw new Error("EVM funding fact cannot predate policy-confirmed ZEC funding");
+  }
+  return Object.freeze({ factId, ...unsigned });
+}
+
+function decodeTerminalLog(
+  log: EvmReceiptLog,
+  action: "claim" | "refund",
+  terms: ConditionalLockTerms,
+): void {
+  const expectedTopic = action === "claim" ? CLAIMED_TOPIC : REFUNDED_TOPIC;
+  if (log.topics[0] !== expectedTopic || log.topics.length !== 3) {
+    throw new RangeError(`${action} event must contain exactly three topics`);
+  }
+  if (log.data.length !== 66 || !ABI_WORD.test(log.data)) {
+    throw new RangeError(`${action} event must contain exactly one uint256 data word`);
+  }
+  const swapId = nonzeroHex32(log.topics[1]!, `${action} swap ID`);
+  const recipientWord = log.topics[2]!;
+  if (!ADDRESS_WORD.test(recipientWord)) {
+    throw new RangeError(`${action} recipient topic must be zero-left-padded`);
+  }
+  const recipient = nonzeroAddress(`0x${recipientWord.slice(26)}`, `${action} recipient`);
+  const expectedRecipient = action === "claim" ? terms.claimRecipient : terms.refundRecipient;
+  const amount = BigInt(log.data);
+  if (swapId !== terms.swapId || recipient !== expectedRecipient || amount !== terms.amount) {
+    throw new Error(`${action} event does not match the canonical conditional lock terms`);
+  }
+}
+
+/**
+ * Binds caller-supplied successful terminal receipt structure to the existing
+ * spend-fact schema. Receipt inclusion, caller identity, signatures, and
+ * finality remain outside this structural-only adapter; supplied calldata is
+ * decoded and hash-checked but cannot be proved to belong to this transaction.
+ */
+export function bindEvmSpendReceipt(
+  state: SwapState,
+  funding: FundingFact,
+  receipt: EvmFundingReceipt,
+  action: "claim" | "refund",
+  claimCalldata?: string,
+): SpendFact {
+  const canonicalState = assertSwapStateIntegrity(state);
+  const terms = expectedTerms(canonicalState);
+  // Reuse the constructor validator for all ConditionalLock role and timeline invariants.
+  encodeConditionalLockConstructorArgs(terms);
+  const canonicalFunding = normalizeFundingFact(canonicalState, funding, terms);
+
+  if (action !== "claim" && action !== "refund") throw new TypeError("EVM spend action is not recognized");
+  let preimage: `0x${string}` | undefined;
+  if (action === "claim") {
+    if (claimCalldata === undefined) throw new TypeError("Claim spend evidence requires claim calldata");
+    preimage = decodeClaimCalldata(claimCalldata) as `0x${string}`;
+    if (sha256Hex(hexToBytes(preimage)) !== canonicalState.terms.secretHash) {
+      throw new Error("Claim calldata preimage does not match the signed hashlock");
+    }
+  } else if (claimCalldata !== undefined) {
+    throw new TypeError("Refund spend evidence must omit claim calldata");
+  }
+
+  assertEthereumMainnetChainId(receipt.chainId);
+  if (receipt.receiptStatus !== "0x1") throw new Error("Spend receipt must report successful execution");
+  const transactionHash = nonzeroHex32(receipt.transactionHash, "Spend transaction hash");
+  const blockHash = nonzeroHex32(receipt.blockHash, "Spend block hash");
+  const blockNumber = uint64(receipt.blockNumber, "Spend block number");
+  const blockTimestampSeconds = uint64(receipt.blockTimestampSeconds, "Spend block timestamp");
+  if (blockNumber <= canonicalFunding.blockHeight) {
+    throw new Error("Spend receipt must be in a later block than funding");
+  }
+  if (transactionHash === blockHash
+    || transactionHash === canonicalFunding.transactionId
+    || transactionHash === canonicalFunding.blockHash
+    || blockHash === canonicalFunding.transactionId
+    || blockHash === canonicalFunding.blockHash) {
+    throw new Error("Spend receipt reuses a funding transaction or block identity");
+  }
+  if (blockTimestampSeconds < canonicalFunding.executedAtSeconds) {
+    throw new Error("Spend receipt timestamp cannot predate funding");
+  }
+  if (canonicalState.evm.fundingConfirmedAtSeconds !== undefined
+    && blockTimestampSeconds < canonicalState.evm.fundingConfirmedAtSeconds) {
+    throw new Error("Spend receipt cannot predate policy-confirmed EVM funding");
+  }
+  if (action === "claim" && blockTimestampSeconds > canonicalState.terms.evmClaimSafetyCutoff) {
+    throw new Error("Claim receipt occurred after the canonical EVM claim cutoff");
+  }
+  if (action === "refund" && blockTimestampSeconds < canonicalState.terms.evmRefundTime) {
+    throw new Error("Refund receipt occurred before the canonical EVM refund time");
+  }
+
+  const normalizedLogs = validateLogs(receipt.logs, "Spend receipt");
+  const lock = canonicalState.terms.evmEscrowContract;
+  let terminalLog: EvmReceiptLog | undefined;
+  const oppositeTopic = action === "claim" ? REFUNDED_TOPIC : CLAIMED_TOPIC;
+  for (const log of normalizedLogs) {
+    if (log.address !== lock) continue;
+    if (log.topics[0] === oppositeTopic) {
+      throw new Error("Spend receipt contains the opposite terminal event");
+    }
+    if (log.topics[0] !== (action === "claim" ? CLAIMED_TOPIC : REFUNDED_TOPIC)) continue;
+    if (terminalLog) throw new Error("Spend receipt contains duplicate terminal events");
+    decodeTerminalLog(log, action, terms);
+    terminalLog = log;
+  }
+  if (!terminalLog) throw new Error("Spend receipt is missing the requested terminal event");
+
+  const unsigned: Omit<SpendFact, "factId"> = {
+    fundingFactId: canonicalFunding.factId,
+    fundingTransactionId: canonicalFunding.transactionId,
+    fundingOutputIndex: canonicalFunding.outputIndex,
+    leg: "evm",
+    action,
+    swapId: canonicalState.swapId,
+    termsHash: canonicalState.termsHash,
+    transactionId: transactionHash,
+    blockHash,
+    blockHeight: blockNumber,
+    executedAtSeconds: blockTimestampSeconds,
+    inputOrLogIndex: terminalLog.logIndex,
+    chain: canonicalState.terms.quoteChain,
+    asset: canonicalState.terms.quoteAsset,
+    amountAtoms: canonicalState.terms.quoteAmountAtoms,
+    lockIdentity: canonicalFunding.lockIdentity,
+    escrowRecordId: canonicalFunding.escrowRecordId,
+    recipient: action === "claim" ? terms.claimRecipient : terms.refundRecipient,
+    successful: true,
+    ...(preimage === undefined ? {} : { preimage }),
+  };
+  return Object.freeze({ factId: spendFactId(unsigned), ...unsigned });
 }
 
 export function bindEvmFundingReceipt(
