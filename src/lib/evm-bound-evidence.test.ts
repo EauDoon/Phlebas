@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  CLAIMED_EVENT_SIGNATURE,
   FUNDED_EVENT_SIGNATURE,
   LOCK_CREATED_EVENT_SIGNATURE,
+  REFUNDED_EVENT_SIGNATURE,
+  encodeClaimCalldata,
   encodeConditionalLockConstructorArgs,
   type ConditionalLockTerms,
 } from "./conditional-lock-abi.ts";
@@ -19,20 +22,25 @@ import {
 } from "./mainnet-assets.ts";
 import { hashSwapMarketPolicy, type SwapMarketPolicyV1, type SwapTermsV1 } from "./swap-domain.ts";
 import { hashSwapFinalityPolicy } from "./swap-policy.ts";
+import { hexToBytes } from "./keccak.ts";
+import { sha256Hex } from "./sha256.ts";
 import {
   authorizeSwapTerms,
   createSwapState,
   fundingFactId,
+  spendFactId,
   type FundingFact,
   type SwapState,
 } from "./swap-state.ts";
 import {
+  fundedSwap,
   sampleEvidencePolicies,
   sampleMarketPolicy,
   sampleSwapTerms,
   sampleTimingPolicy,
 } from "./swap-test-fixtures.ts";
 import {
+  bindEvmSpendReceipt,
   bindEvmFundingReceipt,
   type EvmFundingReceipt,
   type EvmReceiptLog,
@@ -46,10 +54,15 @@ const SYNTHETIC_DEPLOYMENT_BLOCK_HASH = `0x${"91".repeat(32)}`;
 const SYNTHETIC_RUNTIME_HASH = `0x${"92".repeat(32)}`;
 const SYNTHETIC_FUNDING_TX = `0x${"a0".repeat(32)}`;
 const SYNTHETIC_FUNDING_BLOCK_HASH = `0x${"a1".repeat(32)}`;
+const SYNTHETIC_CLAIM_TX = `0x${"b0".repeat(32)}`;
+const SYNTHETIC_CLAIM_BLOCK_HASH = `0x${"b1".repeat(32)}`;
+const SYNTHETIC_REFUND_TX = `0x${"c0".repeat(32)}`;
+const SYNTHETIC_REFUND_BLOCK_HASH = `0x${"c1".repeat(32)}`;
 const SYNTHETIC_OTHER_ADDRESS = "0x7777777777777777777777777777777777777777";
 const SYNTHETIC_OTHER_CLAIMANT = "0x8888888888888888888888888888888888888888";
 const SYNTHETIC_OTHER_REFUND = "0x9999999999999999999999999999999999999999";
 const MAX_RECEIPT_DATA_BYTES = 1_048_576;
+const CLAIM_PREIMAGE = `0x${"42".repeat(32)}` as const;
 
 const USDT_MARKET_POLICY: SwapMarketPolicyV1 = {
   version: 1,
@@ -243,6 +256,54 @@ function fundingReceipt(
     blockTimestampSeconds: state.terms.evmFundBy,
     receiptStatus: "0x1",
     logs: [fundedLog(state)],
+    ...changes,
+  };
+}
+
+function stateWithClaimPreimage(symbol: QuoteSymbol): { state: SwapState; preimage: `0x${string}` } {
+  const terms = {
+    ...termsFor(symbol),
+    secretHash: sha256Hex(hexToBytes(CLAIM_PREIMAGE)),
+  };
+  return {
+    state: createSwapState(terms, sampleTimingPolicy, sampleEvidencePolicies, marketPolicyFor(symbol)),
+    preimage: CLAIM_PREIMAGE,
+  };
+}
+
+function terminalLog(
+  state: SwapState,
+  action: "claim" | "refund",
+  changes: Partial<EvmReceiptLog> = {},
+): EvmReceiptLog {
+  const recipient = action === "claim" ? state.terms.evmClaimRecipient : state.terms.evmRefundRecipient;
+  return {
+    address: state.terms.evmEscrowContract,
+    logIndex: 0n,
+    topics: [
+      `0x${action === "claim" ? CLAIMED_EVENT_SIGNATURE : REFUNDED_EVENT_SIGNATURE}`,
+      state.swapId,
+      addressWord(recipient),
+    ],
+    data: uintWord(state.terms.quoteAmountAtoms),
+    ...changes,
+  };
+}
+
+function spendReceipt(
+  state: SwapState,
+  funding: FundingFact,
+  action: "claim" | "refund",
+  changes: Partial<EvmFundingReceipt> = {},
+): EvmFundingReceipt {
+  return {
+    chainId: ETHEREUM_MAINNET_CHAIN_HEX,
+    transactionHash: action === "claim" ? SYNTHETIC_CLAIM_TX : SYNTHETIC_REFUND_TX,
+    blockNumber: funding.blockHeight + 1n,
+    blockHash: action === "claim" ? SYNTHETIC_CLAIM_BLOCK_HASH : SYNTHETIC_REFUND_BLOCK_HASH,
+    blockTimestampSeconds: action === "claim" ? state.terms.evmClaimSafetyCutoff : state.terms.evmRefundTime,
+    receiptStatus: "0x1",
+    logs: [terminalLog(state, action)],
     ...changes,
   };
 }
@@ -565,4 +626,363 @@ test("caps receipt logs at 1024 and rejects duplicate or ambiguous indices", () 
     }),
     "aggregate receipt data cap",
   );
+});
+
+test("binds exact Claimed and Refunded facts for both Mainnet markets", () => {
+  for (const symbol of ["USDC", "USDT"] as const) {
+    const { state, preimage } = stateWithClaimPreimage(symbol);
+    const deployment = deploymentReceipt(state);
+    const fundingReceiptValue = fundingReceipt(state, deployment);
+    const funding = bindEvmFundingReceipt(state, deployment, [lockCreatedLog(state)], fundingReceiptValue);
+    const before = structuredClone(state);
+
+    const claim = bindEvmSpendReceipt(
+      state,
+      funding,
+      spendReceipt(state, funding, "claim"),
+      "claim",
+      encodeClaimCalldata(preimage),
+    );
+    assert.equal(claim.leg, "evm");
+    assert.equal(claim.action, "claim");
+    assert.equal(claim.fundingFactId, funding.factId);
+    assert.equal(claim.fundingTransactionId, funding.transactionId);
+    assert.equal(claim.fundingOutputIndex, funding.outputIndex);
+    assert.equal(claim.swapId, state.swapId);
+    assert.equal(claim.termsHash, state.termsHash);
+    assert.equal(claim.chain, state.terms.quoteChain);
+    assert.equal(claim.asset, state.terms.quoteAsset);
+    assert.equal(claim.amountAtoms, state.terms.quoteAmountAtoms);
+    assert.equal(claim.lockIdentity, state.terms.evmEscrowContract);
+    assert.equal(claim.escrowRecordId, state.swapId);
+    assert.equal(claim.recipient, state.terms.evmClaimRecipient);
+    assert.equal(claim.preimage, preimage);
+    assert.equal(claim.successful, true);
+    const { factId, ...unsignedClaim } = claim;
+    assert.equal(factId, spendFactId(unsignedClaim));
+    assert.equal(Object.isFrozen(claim), true);
+    assert.equal("attestation" in claim, false);
+    assert.equal("claimCalldata" in claim, false);
+
+    const refund = bindEvmSpendReceipt(state, funding, spendReceipt(state, funding, "refund"), "refund");
+    assert.equal(refund.action, "refund");
+    assert.equal(refund.recipient, state.terms.evmRefundRecipient);
+    assert.equal(refund.preimage, undefined);
+    assert.equal(Object.isFrozen(refund), true);
+    assert.deepEqual(state, before);
+  }
+});
+
+test("enforces terminal event shape, identity, and exclusivity", () => {
+  const { state, preimage } = stateWithClaimPreimage("USDC");
+  const deployment = deploymentReceipt(state);
+  const funding = bindEvmFundingReceipt(
+    state,
+    deployment,
+    [lockCreatedLog(state)],
+    fundingReceipt(state, deployment),
+  );
+  const validClaim = spendReceipt(state, funding, "claim");
+  const claimData = encodeClaimCalldata(preimage);
+  const invalid: ReadonlyArray<readonly [string, EvmFundingReceipt, "claim" | "refund", string | undefined]> = [
+    ["missing terminal event", { ...validClaim, logs: [] }, "claim", claimData],
+    ["wrong terminal address", {
+      ...validClaim,
+      logs: [{ ...terminalLog(state, "claim"), address: SYNTHETIC_OTHER_ADDRESS }],
+    }, "claim", claimData],
+    ["wrong swap ID", {
+      ...validClaim,
+      logs: [terminalLog(state, "claim", { topics: [
+        `0x${CLAIMED_EVENT_SIGNATURE}`,
+        bytes32("ab"),
+        addressWord(state.terms.evmClaimRecipient),
+      ] })],
+    }, "claim", claimData],
+    ["wrong recipient", {
+      ...validClaim,
+      logs: [terminalLog(state, "claim", { topics: [
+        `0x${CLAIMED_EVENT_SIGNATURE}`,
+        state.swapId,
+        addressWord(SYNTHETIC_OTHER_CLAIMANT),
+      ] })],
+    }, "claim", claimData],
+    ["wrong amount", {
+      ...validClaim,
+      logs: [terminalLog(state, "claim", { data: uintWord(state.terms.quoteAmountAtoms + 1n) })],
+    }, "claim", claimData],
+    ["malformed topic count", {
+      ...validClaim,
+      logs: [terminalLog(state, "claim", { topics: [
+        `0x${CLAIMED_EVENT_SIGNATURE}`,
+        state.swapId,
+      ] })],
+    }, "claim", claimData],
+    ["malformed data width", {
+      ...validClaim,
+      logs: [terminalLog(state, "claim", { data: "0x" })],
+    }, "claim", claimData],
+    ["opposite refund event", {
+      ...validClaim,
+      logs: [terminalLog(state, "refund")],
+    }, "claim", claimData],
+    ["duplicate claim event", {
+      ...validClaim,
+      logs: [terminalLog(state, "claim"), terminalLog(state, "claim", { logIndex: 1n })],
+    }, "claim", claimData],
+  ];
+  for (const [label, receipt, action, calldata] of invalid) {
+    assert.throws(() => bindEvmSpendReceipt(state, funding, receipt, action, calldata), label);
+  }
+
+  assert.throws(
+    () => bindEvmSpendReceipt(state, funding, {
+      ...validClaim,
+      logs: [terminalLog(state, "claim"), terminalLog(state, "refund", { logIndex: 1n })],
+    }, "claim", claimData),
+    "opposite terminal event",
+  );
+});
+
+test("enforces claim and refund deadline boundaries and calldata rules", () => {
+  const { state, preimage } = stateWithClaimPreimage("USDC");
+  const deployment = deploymentReceipt(state);
+  const funding = bindEvmFundingReceipt(state, deployment, [lockCreatedLog(state)], fundingReceipt(state, deployment));
+
+  const atClaimCutoff = spendReceipt(state, funding, "claim", {
+    blockTimestampSeconds: state.terms.evmClaimSafetyCutoff,
+  });
+  assert.equal(
+    bindEvmSpendReceipt(state, funding, atClaimCutoff, "claim", encodeClaimCalldata(preimage)).executedAtSeconds,
+    state.terms.evmClaimSafetyCutoff,
+  );
+  assert.throws(
+    () => bindEvmSpendReceipt(
+      state,
+      funding,
+      { ...atClaimCutoff, blockTimestampSeconds: state.terms.evmClaimSafetyCutoff + 1n },
+      "claim",
+      encodeClaimCalldata(preimage),
+    ),
+    "claim cutoff",
+  );
+  assert.throws(
+    () => bindEvmSpendReceipt(state, funding, atClaimCutoff, "claim"),
+    "requires claim calldata",
+  );
+  assert.throws(
+    () => bindEvmSpendReceipt(state, funding, atClaimCutoff, "claim", encodeClaimCalldata(`0x${"43".repeat(32)}`)),
+    "hashlock",
+  );
+
+  const atRefundTime = spendReceipt(state, funding, "refund", {
+    blockTimestampSeconds: state.terms.evmRefundTime,
+  });
+  assert.equal(
+    bindEvmSpendReceipt(state, funding, atRefundTime, "refund").executedAtSeconds,
+    state.terms.evmRefundTime,
+  );
+  assert.throws(
+    () => bindEvmSpendReceipt(
+      state,
+      funding,
+      { ...atRefundTime, blockTimestampSeconds: state.terms.evmRefundTime - 1n },
+      "refund",
+    ),
+    "refund time",
+  );
+  assert.throws(
+    () => bindEvmSpendReceipt(state, funding, atRefundTime, "refund", encodeClaimCalldata(preimage)),
+    "omit claim calldata",
+  );
+});
+
+test("reuses receipt success and uint64 bounds for terminal evidence", () => {
+  const { state, preimage } = stateWithClaimPreimage("USDC");
+  const deployment = deploymentReceipt(state);
+  const funding = bindEvmFundingReceipt(state, deployment, [lockCreatedLog(state)], fundingReceipt(state, deployment));
+  const valid = spendReceipt(state, funding, "claim");
+  const claimCalldata = encodeClaimCalldata(preimage);
+  const invalidReceipts: ReadonlyArray<readonly [string, EvmFundingReceipt]> = [
+    ["wrong chain", { ...valid, chainId: "0x5" as typeof ETHEREUM_MAINNET_CHAIN_HEX }],
+    ["failed receipt", { ...valid, receiptStatus: "0x0" as "0x1" }],
+    ["negative block", { ...valid, blockNumber: -1n }],
+    ["wide block", { ...valid, blockNumber: UINT64_MAX + 1n }],
+    ["negative timestamp", { ...valid, blockTimestampSeconds: -1n }],
+    ["wide timestamp", { ...valid, blockTimestampSeconds: UINT64_MAX + 1n }],
+    ["negative log index", { ...valid, logs: [terminalLog(state, "claim", { logIndex: -1n })] }],
+    ["wide log index", { ...valid, logs: [terminalLog(state, "claim", { logIndex: UINT64_MAX + 1n })] }],
+  ];
+  for (const [label, bad] of invalidReceipts) {
+    assert.throws(() => bindEvmSpendReceipt(state, funding, bad, "claim", claimCalldata), label);
+  }
+});
+
+test("rejects tampered funding provenance before binding a spend", () => {
+  const { state, preimage } = stateWithClaimPreimage("USDT");
+  const deployment = deploymentReceipt(state);
+  const funding = bindEvmFundingReceipt(state, deployment, [lockCreatedLog(state)], fundingReceipt(state, deployment));
+  const claimReceipt = spendReceipt(state, funding, "claim");
+  const tampered: ReadonlyArray<FundingFact> = [
+    { ...funding, amountAtoms: funding.amountAtoms - 1n } as FundingFact,
+    { ...funding, lockIdentity: SYNTHETIC_OTHER_ADDRESS } as FundingFact,
+    { ...funding, escrowRecordId: bytes32("ab") } as FundingFact,
+    { ...funding, transactionId: SYNTHETIC_CLAIM_TX } as FundingFact,
+    { ...funding, successful: false } as FundingFact,
+  ];
+  for (const candidate of tampered) {
+    assert.throws(
+      () => bindEvmSpendReceipt(state, candidate, claimReceipt, "claim", encodeClaimCalldata(preimage)),
+      "funding provenance",
+    );
+  }
+});
+
+test("requires supplied funding to match an already recorded EVM funding fact", () => {
+  const state = fundedSwap({ ...termsFor("USDC"), secretHash: sha256Hex(hexToBytes(CLAIM_PREIMAGE)) });
+  const funding = state.evm.funding!;
+  const alternateFunding = {
+    ...funding,
+    transactionId: SYNTHETIC_CLAIM_TX as typeof funding.transactionId,
+    factId: fundingFactId({ ...funding, transactionId: SYNTHETIC_CLAIM_TX as typeof funding.transactionId }),
+  } as FundingFact;
+  const receipt = spendReceipt(state, funding, "claim");
+  assert.doesNotThrow(() => bindEvmSpendReceipt(state, funding, receipt, "claim", encodeClaimCalldata(CLAIM_PREIMAGE)));
+
+  assert.throws(
+    () => bindEvmSpendReceipt(state, alternateFunding, receipt, "claim", encodeClaimCalldata(CLAIM_PREIMAGE)),
+    /current EVM funding provenance/,
+  );
+});
+
+test("enforces causal receipt identities and bounded spend logs", () => {
+  const { state, preimage } = stateWithClaimPreimage("USDC");
+  const deployment = deploymentReceipt(state);
+  const funding = bindEvmFundingReceipt(state, deployment, [lockCreatedLog(state)], fundingReceipt(state, deployment));
+  const claimCalldata = encodeClaimCalldata(preimage);
+  const valid = spendReceipt(state, funding, "claim");
+
+  const identityReuse: ReadonlyArray<Partial<EvmFundingReceipt>> = [
+    { transactionHash: funding.transactionId },
+    { transactionHash: funding.blockHash },
+    { blockHash: funding.transactionId },
+    { blockHash: funding.blockHash },
+    { transactionHash: SYNTHETIC_CLAIM_BLOCK_HASH, blockHash: SYNTHETIC_CLAIM_BLOCK_HASH },
+  ];
+  for (const changes of identityReuse) {
+    assert.throws(
+      () => bindEvmSpendReceipt(state, funding, { ...valid, ...changes }, "claim", claimCalldata),
+      "identity reuse",
+    );
+  }
+  assert.throws(
+    () => bindEvmSpendReceipt(
+      state,
+      funding,
+      { ...valid, blockNumber: funding.blockHeight, blockTimestampSeconds: funding.executedAtSeconds },
+      "claim",
+      claimCalldata,
+    ),
+    "later block",
+  );
+  assert.throws(
+    () => bindEvmSpendReceipt(
+      state,
+      funding,
+      { ...valid, blockNumber: funding.blockHeight + 1n, blockTimestampSeconds: funding.executedAtSeconds - 1n },
+      "claim",
+      claimCalldata,
+    ),
+    "timestamp",
+  );
+
+  const atLimitLogs = [
+    terminalLog(state, "claim"),
+    ...Array.from({ length: 1023 }, (_, index) => unknownLog(state, BigInt(index + 1))),
+  ];
+  assert.equal(
+    bindEvmSpendReceipt(state, funding, { ...valid, logs: atLimitLogs }, "claim", claimCalldata).inputOrLogIndex,
+    0n,
+  );
+  assert.throws(
+    () => bindEvmSpendReceipt(
+      state,
+      funding,
+      { ...valid, logs: [...atLimitLogs, unknownLog(state, 1024n)] },
+      "claim",
+      claimCalldata,
+    ),
+    "1024",
+  );
+  assert.throws(
+    () => bindEvmSpendReceipt(
+      state,
+      funding,
+      { ...valid, logs: [terminalLog(state, "claim"), unknownLog(state, 0n)] },
+      "claim",
+      claimCalldata,
+    ),
+    "duplicate log index",
+  );
+  const halfLimitData = `0x${"00".repeat(MAX_RECEIPT_DATA_BYTES / 2)}`;
+  const overLimitData = `0x${"00".repeat(MAX_RECEIPT_DATA_BYTES / 2 + 1)}`;
+  assert.throws(
+    () => bindEvmSpendReceipt(
+      state,
+      funding,
+      {
+        ...valid,
+        logs: [
+          terminalLog(state, "claim"),
+          { ...unknownLog(state, 1n), data: halfLimitData },
+          { ...unknownLog(state, 2n), data: overLimitData },
+        ],
+      },
+      "claim",
+      claimCalldata,
+    ),
+    "aggregate receipt data cap",
+  );
+});
+
+test("rejects rehashed funding facts with altered terms or known authorization time", () => {
+  const { state, preimage } = stateWithClaimPreimage("USDT");
+  const deployment = deploymentReceipt(state);
+  const funding = bindEvmFundingReceipt(state, deployment, [lockCreatedLog(state)], fundingReceipt(state, deployment));
+  const receipt = spendReceipt(state, funding, "claim");
+  const calldata = encodeClaimCalldata(preimage);
+  for (const change of [
+    { amountAtoms: funding.amountAtoms - 1n },
+    { asset: ETHEREUM_MAINNET_USDC_ASSET },
+    { claimRecipient: SYNTHETIC_OTHER_CLAIMANT },
+    { refundTime: funding.refundTime + 1n },
+    { lockIdentity: SYNTHETIC_OTHER_ADDRESS },
+    { successful: false },
+  ]) {
+    const altered = { ...funding, ...change };
+    const rehashed = { ...altered, factId: fundingFactId(altered) };
+    assert.throws(() => bindEvmSpendReceipt(state, rehashed, receipt, "claim", calldata), /canonical EVM lock terms|Failed transaction/);
+  }
+  const authorizedAt = state.terms.authorizationDeadline - 1n;
+  const partial = authorizeSwapTerms(state, state.terms.zecSellerId, state.termsHash, authorizedAt);
+  const early = { ...funding, executedAtSeconds: authorizedAt - 1n };
+  assert.throws(() => bindEvmSpendReceipt(partial, { ...early, factId: fundingFactId(early) }, receipt, "claim", calldata), /cannot predate exact terms authorization/);
+});
+
+test("cannot bind a spend before recorded EVM funding confirmation", () => {
+  const state = fundedSwap({ ...termsFor("USDC"), secretHash: sha256Hex(hexToBytes(CLAIM_PREIMAGE)) });
+  const funding = state.evm.funding!;
+  const receipt = spendReceipt(state, funding, "claim", { blockTimestampSeconds: state.evm.fundingConfirmedAtSeconds! - 1n });
+  assert.throws(() => bindEvmSpendReceipt(state, funding, receipt, "claim", encodeClaimCalldata(CLAIM_PREIMAGE)), /cannot predate policy-confirmed EVM funding/);
+});
+
+test("requires the complete ConditionalLock constructor invariants for spend facts", () => {
+  const state = createSwapState(
+    { ...termsFor("USDC"), evmRefundRecipient: SYNTHETIC_OTHER_REFUND },
+    sampleTimingPolicy, sampleEvidencePolicies, sampleMarketPolicy,
+  );
+  const deployment = deploymentReceipt(state);
+  const receipt = fundingReceipt(state, deployment);
+  const unsigned = expectedFunding(state, deployment, receipt, fundedLog(state));
+  const funding = { ...unsigned, factId: fundingFactId(unsigned) };
+  assert.throws(() => bindEvmSpendReceipt(state, funding, spendReceipt(state, funding, "refund"), "refund"), /refundRecipient must equal funder/);
 });
