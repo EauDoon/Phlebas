@@ -813,6 +813,23 @@ test("does not let an initially backdated event revive an expired order", async 
   });
 });
 
+test("the journal records array is a live reference appended in place", async () => {
+  await withDirectory(async (directory) => {
+    const store = await PersistentMatcherStore.open(paths(directory));
+    const records = store.journal.records;
+    await store.mutate(orderEvent("live-reference-one", 1n));
+    await store.mutate(orderEvent("live-reference-two", 2n));
+    // The documented contract (ADR 0010, option C): the journal keeps one
+    // records array for the store's lifetime and appends to it, so an
+    // append is O(1). A caller holding the array sees appends; the scalar
+    // fields describe the moment of the get.
+    assert.strictEqual(store.journal.records, records);
+    assert.equal(records.length, 3);
+    assert.equal(store.journal.sequence, 3n);
+    await store.close();
+  });
+});
+
 test("fails closed when trusted time moves backward after an accepted event", async () => {
   await withDirectory(async (directory) => {
     let trustedNow = now;
