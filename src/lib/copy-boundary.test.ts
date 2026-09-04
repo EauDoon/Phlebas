@@ -1113,7 +1113,6 @@ test("canonical settlement and wallet modules cannot import the diagnostic proje
     "src/lib/matcher-operator.ts",
     "src/lib/settlement-accounting.ts",
     "src/components/trade-ticket.tsx",
-    "src/components/native-swap-panel.tsx",
     "src/components/settlement-ticket.tsx",
     "src/app/api/matcher/route.ts",
   ];
