@@ -39,7 +39,6 @@ import {
   sideControlCopy,
   ZEC_ATOMIC_RULE,
   QUOTE_PRICE_ATOMIC_RULE,
-  calculateWorstPrice,
   formatQuoteAtoms,
   previewQuoteAtoms,
 } from "@/lib/order";
@@ -323,26 +322,22 @@ export function TradeTicket({
 
   const worstPricePreview = useMemo(() => {
     if (effectiveOrderType === "limit") {
-      return { value: parsedPrice, error: null };
-    }
-    const slippageParse = parsePreviewDecimal(slippagePercent, {
-      allowZero: true,
-      maximumExclusive: 100,
-      atomicRule: QUOTE_PRICE_ATOMIC_RULE,
-    });
-    if (slippageParse.error) {
-      return { value: Number.NaN, error: slippageParse.error };
+      return limitTicks.error ? { ticks: 0n, error: limitTicks.error } : { ticks: limitTicks.ticks, error: null };
     }
     try {
-      return { value: calculateWorstPrice(lastPrice, side, slippageParse.parsed), error: null };
+      // The same parse and the same primitive the submission path uses,
+      // so the price shown as the worst price is the price the order
+      // signs, not a float approximation of it.
+      const slippageHundredths = parseAtomicUnits(slippagePercent, PRICE_DECIMALS, { allowZero: true });
+      return { ticks: worstPriceTicks(lastTicks, side, slippageHundredths), error: null };
     } catch (error) {
       return {
-        value: Number.NaN,
+        ticks: 0n,
         error: error instanceof Error ? error.message : "Worst price is outside the preview range.",
       };
     }
-  }, [effectiveOrderType, lastPrice, parsedPrice, side, slippagePercent]);
-  const worstPrice = worstPricePreview.value;
+  }, [effectiveOrderType, lastTicks, limitTicks.error, limitTicks.ticks, side, slippagePercent]);
+  const worstPriceTicksValue = worstPricePreview.ticks;
   const expiryParse = (() => {
     try {
       return { value: parseExpiryUnix(expiry), error: null as string | null };
@@ -1025,7 +1020,7 @@ export function TradeTicket({
             </div>
             <div>
               <dt>{marketLikeOrder ? "Worst price" : "Limit price"}</dt>
-              <dd>{Number.isFinite(worstPrice) ? worstPrice.toFixed(2) : "0.00"} {market.quote}</dd>
+              <dd>{worstPriceTicksValue > 0n ? formatAtomicUnits(worstPriceTicksValue, PRICE_DECIMALS, 2) : "0.00"} {market.quote}</dd>
             </div>
             <div>
               <dt>Time in force</dt>

@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  calculatePreviewNotional,
-  calculateWorstPrice,
   formatZecPreviewAmount,
   marketOrderConstraintCopy,
   sideControlCopy,
@@ -11,12 +9,11 @@ import {
   parseStrictDecimal,
   ZEC_ATOMIC_RULE,
   QUOTE_PRICE_ATOMIC_RULE,
-  QUOTE_TOKEN_ATOM,
   QUOTE_TOKEN_ATOMIC_RULE,
   previewQuoteAtoms,
   formatQuoteAtoms,
 } from "./order.ts";
-import { meetsMinimumQuoteSettlement, quoteAtomsForFill, worstPriceTicks } from "./units.ts";
+import { meetsMinimumQuoteSettlement, quoteAtomsForFill } from "./units.ts";
 
 test("parses only explicit finite decimal syntax", () => {
   assert.equal(parseStrictDecimal("10.25"), 10.25);
@@ -29,8 +26,12 @@ test("parses only explicit finite decimal syntax", () => {
   assert.throws(() => parseStrictDecimal("1".repeat(129)), /outside the preview range/);
 });
 
-test("calculates a positive preview notional", () => {
-  assert.equal(calculatePreviewNotional(50.25, 2), 100.5);
+test("calculates a positive preview notional through the engine's own arithmetic", () => {
+  // The float multiply-and-display path is gone (review-5): the ticket's
+  // estimated value comes from previewQuoteAtoms, the same integer
+  // arithmetic the engine settles with, on the ticket's side.
+  assert.equal(previewQuoteAtoms(5025n, 200_000_000n, "buy"), 100_500_000n);
+  assert.equal(formatQuoteAtoms(previewQuoteAtoms(5025n, 200_000_000n, "buy")), "100.50");
 });
 
 test("enforces exact order-input atomic precision", () => {
@@ -51,81 +52,10 @@ test("enforces exact order-input atomic precision", () => {
   );
 });
 
-test("rejects negative price and size even when their product is positive", () => {
-  assert.throws(() => calculatePreviewNotional(-50, -2), /Price must be positive/);
-});
-
-test("rejects zero, non-finite, and overflowing preview inputs", () => {
-  assert.throws(() => calculatePreviewNotional(50, 0), /Size must be positive/);
-  assert.throws(() => calculatePreviewNotional(Number.POSITIVE_INFINITY, 2), /Price must be positive/);
-  assert.throws(() => calculatePreviewNotional(Number.MAX_VALUE, 2), /outside the preview range/);
-});
-
-test("rejects underflow, sub-tick price, sub-atom size, and sub-atom quote notional", () => {
-  assert.throws(() => calculatePreviewNotional(Number.MIN_VALUE, 0.5), /outside the preview range/);
-  assert.throws(() => calculatePreviewNotional(0.001, 1), /Price must be at least 0.01/);
-  assert.throws(() => calculatePreviewNotional(1_000, 0.000000001), /Size must be at least 0.00000001/);
-  assert.throws(() => calculatePreviewNotional(0.01, 0.00000001), /Notional must be at least 0.000001/);
-  assert.throws(() => calculatePreviewNotional(1_000_000_000, 10), /outside the preview range/);
-});
-
 test("never formats accepted atomic amounts as zero", () => {
   assert.equal(formatZecPreviewAmount(0.00000001), "0.00000001");
-  assert.equal(formatQuotePreviewAmount(QUOTE_TOKEN_ATOM), "0.000001");
+  assert.equal(formatQuotePreviewAmount(Number(QUOTE_TOKEN_ATOMIC_RULE.minimumAtomicUnits) / 1_000_000), "0.000001");
   assert.throws(() => formatZecPreviewAmount(0.000000001), /at least 0.00000001/);
-});
-
-test("caps a market buy above the reference price", () => {
-  assert.equal(calculateWorstPrice(50, "buy", 0.5), 50.25);
-});
-
-test("floors a market sell below the reference price", () => {
-  assert.equal(calculateWorstPrice(50, "sell", 0.5), 49.75);
-});
-
-test("rounds market caps conservatively to the quote-price tick", () => {
-  assert.equal(calculateWorstPrice(52.84, "buy", 0.5), 53.11);
-  assert.equal(calculateWorstPrice(52.84, "sell", 0.5), 52.57);
-  assert.equal(calculateWorstPrice(52.84, "buy", 0.001), 52.85);
-  assert.equal(calculateWorstPrice(52.84, "sell", 0.001), 52.83);
-});
-
-test("the float worst-price preview agrees with the signed worst-price primitive", () => {
-  // The ticket displays the market-order worst price from
-  // calculateWorstPrice (float) while the order is signed with
-  // worstPriceTicks (exact). Two implementations of one primitive is a
-  // divergence hazard, and the divergence is real: at extreme slippage
-  // the float error escapes the rounding tolerance and the displayed
-  // tick differs from the signed tick.
-  const divergentCases = [
-    { ticks: 410_263_000n, slippageHundredths: 9620n, side: "sell" as const },
-    { ticks: 310_644_000n, slippageHundredths: 9845n, side: "sell" as const },
-    { ticks: 436_615_000n, slippageHundredths: 9268n, side: "sell" as const },
-  ];
-  for (const { ticks, slippageHundredths, side } of divergentCases) {
-    const displayed = calculateWorstPrice(Number(ticks) / 100, side, Number(slippageHundredths) / 100);
-    const signed = worstPriceTicks(ticks, side, slippageHundredths);
-    assert.equal(Math.round(displayed * 100), Number(signed), `ticks=${ticks} slippage=${slippageHundredths}`);
-  }
-
-  // Across realistic ranges the two must agree tick-for-tick, and must
-  // throw on exactly the same inputs.
-  for (let ticks = 1n; ticks <= 20_000n; ticks += 97n) {
-    for (let slippageHundredths = 0n; slippageHundredths < 2000n; slippageHundredths += 13n) {
-      for (const side of ["buy", "sell"] as const) {
-        let displayed: number;
-        let signed: bigint;
-        try {
-          displayed = calculateWorstPrice(Number(ticks) / 100, side, Number(slippageHundredths) / 100);
-        } catch {
-          assert.throws(() => worstPriceTicks(ticks, side, slippageHundredths));
-          continue;
-        }
-        signed = worstPriceTicks(ticks, side, slippageHundredths);
-        assert.equal(Math.round(displayed * 100), Number(signed), `ticks=${ticks} slippage=${slippageHundredths} side=${side}`);
-      }
-    }
-  }
 });
 
 test("side control copy names Buy and Sell without color-only selection", () => {
@@ -145,16 +75,6 @@ test("market-order constraint copy names IOC and a signed worst price", () => {
   assert.match(marketOrderConstraintCopy(), /not live settlement/);
   assert.doesNotMatch(marketOrderConstraintCopy(), /pZEC/);
   assert.doesNotMatch(marketOrderConstraintCopy(), /trustless/);
-});
-
-test("rejects an unsafe slippage percentage", () => {
-  assert.throws(() => calculateWorstPrice(50, "sell", 100), /between 0 and 100/);
-});
-
-test("rejects non-finite, overflowing, and rounded-to-zero worst prices", () => {
-  assert.throws(() => calculateWorstPrice(Number.MAX_VALUE, "buy", 99), /outside the preview range/);
-  assert.throws(() => calculateWorstPrice(1e308, "sell", 99), /outside the preview range/);
-  assert.throws(() => calculateWorstPrice(0.01, "sell", 99), /outside the preview range/);
 });
 
 test("previewQuoteAtoms matches what the engine would settle, on the right side", () => {

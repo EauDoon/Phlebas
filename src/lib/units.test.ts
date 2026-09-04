@@ -55,3 +55,13 @@ test("integer worst buy price rounds up to the next tick", () => {
   assert.equal(worstPriceTicks(5284n, "buy", 50n), 5311n);
   assert.equal(worstPriceTicks(5000n, "sell", 50n), 4975n);
 });
+
+test("worstPriceTicks is the only worst-price primitive, pinned where the float copy diverged", () => {
+  // These inputs made the removed float preview in order.ts disagree by
+  // one tick with the signed primitive: the float error escaped the
+  // rounding tolerance at extreme slippage. They stay pinned to the
+  // exact answers so the divergence cannot return with a second copy.
+  assert.equal(worstPriceTicks(410_263_000n, "sell", 9620n), 15_589_994n);
+  assert.equal(worstPriceTicks(310_644_000n, "sell", 9845n), 4_814_982n);
+  assert.equal(worstPriceTicks(436_615_000n, "sell", 9268n), 31_960_218n);
+});

@@ -4,20 +4,19 @@ import {
   meetsMinimumQuoteSettlement,
   quoteAtomsForFill,
 } from "./units.ts";
-
 export type OrderSide = "buy" | "sell";
 
 /**
  * The quote amount a ticket would actually settle for, in quote atoms.
  *
- * This is the same integer arithmetic the engine uses, on the same side.
- * calculatePreviewNotional multiplies two JS numbers and takes no side,
- * so the figure under "Estimated value" could sit one quote atom below
- * what a buy would be charged: at price 777.77 and size 77.77777777 it
- * showed 60493.222216 where the fill costs 60493.222217. One atom is a
- * millionth of a dollar, but a venue that displays a total should
- * display the total, and the two rounding directions are exactly what
- * quoteAtomsForFill exists to keep straight.
+ * This is the same integer arithmetic the engine uses, on the same side:
+ * a buy is charged the rounded-up quote amount and a sell receives the
+ * rounded-down one. A side-blind float product cannot tell those apart:
+ * at price 777.77 and size 77.77777777 it is 60493.2222166... exactly,
+ * and the ticket must show the buy the 60493.222217 it pays, not the
+ * sell's 60493.222216. One atom is a millionth of a dollar, but a venue
+ * that displays a total should display the total, and the two rounding
+ * directions are exactly what quoteAtomsForFill exists to keep straight.
  *
  * The admission gate is the engine's own meetsMinimumQuoteSettlement
  * rather than a float threshold that happens to coincide with it, so the
@@ -66,10 +65,6 @@ export const QUOTE_TOKEN_ATOMIC_RULE = {
   decimalPlaces: 6,
   minimumAtomicUnits: 1n,
 } as const satisfies AtomicDecimalRule;
-
-export const QUOTE_PRICE_TICK = 0.01;
-export const ZEC_ATOM = 0.00000001;
-export const QUOTE_TOKEN_ATOM = 0.000001;
 
 function atomicScale(decimalPlaces: number): bigint {
   if (!Number.isInteger(decimalPlaces) || decimalPlaces < 0 || decimalPlaces > 18) {
@@ -169,76 +164,6 @@ export function formatQuotePreviewAmount(value: number): string {
   return formatAtomicPreviewAmount(value, QUOTE_TOKEN_ATOMIC_RULE, 2);
 }
 
-export function calculatePreviewNotional(price: number, size: number): number {
-  if (!Number.isFinite(price) || price <= 0) {
-    throw new Error("Price must be positive");
-  }
-  if (!Number.isFinite(size) || size <= 0) {
-    throw new Error("Size must be positive");
-  }
-
-  const notional = price * size;
-  if (!Number.isFinite(notional) || notional <= 0) {
-    throw new Error("Notional is outside the preview range");
-  }
-  if (price < QUOTE_PRICE_TICK) {
-    throw new Error(`Price must be at least ${formatAtomicMinimum(QUOTE_PRICE_ATOMIC_RULE)}`);
-  }
-  if (size < ZEC_ATOM) {
-    throw new Error(`Size must be at least ${formatAtomicMinimum(ZEC_ATOMIC_RULE)}`);
-  }
-  if (notional < QUOTE_TOKEN_ATOM) {
-    throw new Error(`Notional must be at least ${formatAtomicMinimum(QUOTE_TOKEN_ATOMIC_RULE)}`);
-  }
-  if (notional * (10 ** QUOTE_TOKEN_ATOMIC_RULE.decimalPlaces) > Number.MAX_SAFE_INTEGER) {
-    throw new Error("Notional is outside the preview range");
-  }
-  return notional;
-}
-
 export function marketOrderConstraintCopy(): string {
   return "Market orders are IOC with a signed worst price. There is no unbounded market instruction. This preview is not live settlement.";
-}
-
-export function calculateWorstPrice(
-  referencePrice: number,
-  side: OrderSide,
-  slippagePercent: number,
-): number {
-  if (!Number.isFinite(referencePrice) || referencePrice < QUOTE_PRICE_TICK) {
-    throw new Error(`Reference price must be at least ${formatAtomicMinimum(QUOTE_PRICE_ATOMIC_RULE)}`);
-  }
-  if (!Number.isFinite(slippagePercent) || slippagePercent < 0 || slippagePercent >= 100) {
-    throw new Error("Slippage must be between 0 and 100 percent");
-  }
-
-  const multiplier = slippagePercent / 100;
-  const worstPrice = side === "buy"
-    ? referencePrice * (1 + multiplier)
-    : referencePrice * (1 - multiplier);
-  if (!Number.isFinite(worstPrice) || worstPrice <= 0) {
-    throw new Error("Worst price is outside the preview range");
-  }
-
-  const scaledWorstPrice = worstPrice * 100;
-  if (
-    !Number.isFinite(scaledWorstPrice)
-    || scaledWorstPrice <= 0
-    || scaledWorstPrice > Number.MAX_SAFE_INTEGER
-  ) {
-    throw new Error("Worst price is outside the preview range");
-  }
-
-  const nearestTick = Math.round(scaledWorstPrice);
-  const tolerance = Number.EPSILON * Math.max(1, Math.abs(scaledWorstPrice)) * 4;
-  const normalizedScaledPrice = Math.abs(scaledWorstPrice - nearestTick) <= tolerance
-    ? nearestTick
-    : scaledWorstPrice;
-  const roundedWorstPrice = (side === "buy"
-    ? Math.ceil(normalizedScaledPrice)
-    : Math.floor(normalizedScaledPrice)) / 100;
-  if (!Number.isFinite(roundedWorstPrice) || roundedWorstPrice <= 0) {
-    throw new Error("Worst price is outside the preview range");
-  }
-  return roundedWorstPrice;
 }
