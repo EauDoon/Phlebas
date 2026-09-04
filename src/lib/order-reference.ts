@@ -204,11 +204,44 @@ export function orderReferenceSnapshot(state: OrderReferenceState): string {
   const receiptByOrderHash = new Map(
     state.receiptChain.receipts.map((receipt) => [canonicalHex32(receipt.orderHash, "Receipt order hash"), receipt]),
   );
+  // ADR 0010 option B: acceptedOrders is the live index, a bounded
+  // subset of the durable intake evidence. The receipt chain, the
+  // accepted-order markers, the struct bindings and the nonce claims are
+  // the durable record and stay complete; only the body-bearing live
+  // entries are pruned, so the durable checks below are body-free and
+  // the per-entry checks apply to the live subset only.
+  if (state.receiptChain.receipts.length !== acceptedHashes.length) {
+    throw new Error("Receipt chain does not cover every accepted order marker");
+  }
+  const claimedHashes = new Set<string>();
+  for (const [claimKey, claimedHash] of Object.entries(state.lifecycle.nonceClaims)) {
+    const canonicalClaimedHash = canonicalHex32(claimedHash, "Nonce claim order hash");
+    if (!state.lifecycle.acceptedOrderHashes[canonicalClaimedHash]) {
+      throw new Error("Nonce claim does not bind an accepted order marker");
+    }
+    canonicalNonceKey(claimKey, "Nonce claim key");
+    if (claimedHashes.has(canonicalClaimedHash)) throw new Error("Accepted order is claimed by more than one nonce");
+    claimedHashes.add(canonicalClaimedHash);
+  }
+  if (claimedHashes.size !== acceptedHashes.length) {
+    throw new Error("Accepted order markers do not match nonce claims");
+  }
+  for (const orderHash of acceptedHashes) {
+    if (!state.lifecycle.acceptedOrderStructHashes[orderHash]) {
+      throw new Error("Accepted order marker is missing its struct binding");
+    }
+    if (!receiptByOrderHash.has(orderHash)) {
+      throw new Error("Accepted order marker is missing its intake receipt");
+    }
+  }
   const seenSequences = new Set<bigint>();
   const acceptedEntries = Object.entries(state.acceptedOrders).map(([recordKey, entry]) => {
     const key = canonicalHex32(recordKey, "Accepted order record key");
     const orderHash = canonicalHex32(entry.orderHash, "Accepted order entry hash");
     if (key !== orderHash) throw new Error("Accepted order record key does not match its order hash");
+    if (!state.lifecycle.acceptedOrderHashes[key]) {
+      throw new Error("Live accepted order is missing its durable marker");
+    }
     const sequence = canonicalUint64(entry.sequence, "Accepted order sequence", false);
     if (seenSequences.has(sequence)) throw new Error("Accepted order sequence is duplicated");
     seenSequences.add(sequence);
@@ -225,11 +258,9 @@ export function orderReferenceSnapshot(state: OrderReferenceState): string {
     return { key, entry, sequence, structHash };
   });
   const acceptedOrderKeys = acceptedEntries.map(({ key }) => key).sort();
-  if (acceptedHashes.join(",") !== acceptedOrderKeys.join(",")) {
-    throw new Error("Accepted order markers do not match accepted order records");
-  }
-  if (state.receiptChain.receipts.length !== acceptedEntries.length) {
-    throw new Error("Receipt chain does not match accepted order records");
+  const liveMarkers = acceptedHashes.filter((hash) => state.acceptedOrders[hash]).sort();
+  if (liveMarkers.join(",") !== acceptedOrderKeys.join(",")) {
+    throw new Error("Live accepted order records do not match the markers they claim");
   }
   const accepted = acceptedEntries
     .sort((left, right) => left.sequence < right.sequence ? -1 : left.sequence > right.sequence ? 1 : 0)

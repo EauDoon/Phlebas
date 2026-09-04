@@ -49,7 +49,7 @@ import { hashTypedOrder, type TypedOrderIntent } from "../../src/lib/eip712-orde
 import { activeAccountEpoch } from "../../src/lib/order-lifecycle.ts";
 import { listenHost } from "../../src/lib/operator-url.ts";
 import { nativeMatcherPersistentConfigurationForMarket } from "./native-zec-usdc-configuration.ts";
-import type { JournalCheckpoint, JournalValue } from "./journal.ts";
+import type { JournalCheckpoint, JournalRecord, JournalValue } from "./journal.ts";
 import {
   PersistentMatcherStore,
   MatcherPersistenceUnavailableError,
@@ -489,7 +489,7 @@ function publicDepth(state: PersistentMatcherState | null, nowSeconds: bigint, l
   };
 }
 
-function publicTrades(state: PersistentMatcherState | null, nowSeconds: bigint, limit: number) {
+function publicTrades(state: PersistentMatcherState | null, journalRecords: readonly JournalRecord[] | null, nowSeconds: bigint, limit: number) {
   if (!state || limit === 0) return { trades: [], count: 0, generatedAt: nowSeconds };
   const trades: Array<{
     receiptSequence: number;
@@ -502,13 +502,24 @@ function publicTrades(state: PersistentMatcherState | null, nowSeconds: bigint, 
   for (let index = state.executions.length - 1; index >= 0 && trades.length < limit; index -= 1) {
     const execution = state.executions[index];
     if (!execution?.route) continue;
-    const taker = state.orderReference.acceptedOrders[execution.takerOrderHash];
+    // The taker's body may have left the live accepted-order index (ADR
+    // 0010, option B), so the side comes from the durable journal record
+    // the execution's sequence points at, the same binding account
+    // recovery uses.
+    const record = journalRecords?.[Number(execution.sequence - 1n)];
+    if (!record || BigInt(record.sequence) !== execution.sequence) continue;
+    const event = deserializePersistentMatcherEvent(state.configuration, record.event, {
+      source: "journal",
+      sequence: execution.sequence,
+      legacyControlCutoverSequence: 0n,
+    });
+    if (event.kind !== "accept-order") continue;
     const receipt = state.receipts[Number(execution.sequence - 1n)];
-    if (!taker || !receipt) continue;
+    if (!receipt) continue;
     for (const fill of execution.route.fills) {
       trades.push({
         receiptSequence: Number(execution.sequence),
-        side: taker.order.side === 0 ? "buy" : "sell",
+        side: event.submission.order.side === 0 ? "buy" : "sell",
         priceTicks: fill.executionPriceTicks.toString(),
         sizeAtoms: fill.baseAmountAtoms.toString(),
         makerId: fill.counterpartyOrderHash,
@@ -520,9 +531,9 @@ function publicTrades(state: PersistentMatcherState | null, nowSeconds: bigint, 
   return { trades, count: trades.length, generatedAt: nowSeconds };
 }
 
-function publicTicker(state: PersistentMatcherState | null, nowSeconds: bigint) {
+function publicTicker(state: PersistentMatcherState | null, journalRecords: readonly JournalRecord[] | null, nowSeconds: bigint) {
   const depth = publicDepth(state, nowSeconds, 1);
-  const trades = publicTrades(state, nowSeconds, 1_000);
+  const trades = publicTrades(state, journalRecords, nowSeconds, 1_000);
   const cutoff = nowSeconds > 86_400n ? nowSeconds - 86_400n : 0n;
   const windowTrades = trades.trades.filter((trade) => trade.observedAt >= cutoff);
   const bestBid = depth.bids[0]?.priceTicks ?? null;
@@ -744,12 +755,12 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
         if (!publicStore.acceptingMutations) throw new HttpError(503, publicStore.faultReason ?? "matcher-store-closed");
         const state = publicStore.state;
         if (url.pathname === "/ticker") {
-          send(response, 200, publicTicker(state, requestNow));
+          send(response, 200, publicTicker(state, publicStore.journal.records, requestNow));
           return;
         }
         if (url.pathname === "/trades") {
           const limit = boundedPublicParameter(url.searchParams.get("limit"), 50, 1_000, "limit");
-          send(response, 200, publicTrades(state, requestNow, limit));
+          send(response, 200, publicTrades(state, publicStore.journal.records, requestNow, limit));
           return;
         }
         if (url.pathname === "/depth") {
@@ -760,7 +771,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
         if (url.pathname === "/markets") {
           const pair = state.configuration.atomicSwapPolicy.pair;
           const market = marketIdentity(state.configuration);
-          const last = publicTrades(state, requestNow, 1).trades[0]?.priceTicks ?? "0";
+          const last = publicTrades(state, publicStore.journal.records, requestNow, 1).trades[0]?.priceTicks ?? "0";
           send(response, 200, {
             baseAsset: pair.base.asset,
             quoteAsset: pair.quote.asset,
@@ -775,9 +786,9 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
         const depthLevels = boundedPublicParameter(url.searchParams.get("depth"), 20, 200, "depth");
         const tradeLimit = boundedPublicParameter(url.searchParams.get("trades"), 50, 1_000, "trades");
         send(response, 200, {
-          ticker: publicTicker(state, requestNow),
+          ticker: publicTicker(state, publicStore.journal.records, requestNow),
           depth: publicDepth(state, requestNow, depthLevels),
-          trades: publicTrades(state, requestNow, tradeLimit),
+          trades: publicTrades(state, publicStore.journal.records, requestNow, tradeLimit),
         });
         return;
       }
