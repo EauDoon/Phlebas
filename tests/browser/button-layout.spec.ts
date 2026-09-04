@@ -102,11 +102,11 @@ test("brand marks use the eye asset and primary actions keep exclusive emphasis"
   await expect(marks.first()).toBeVisible();
 
   const connectBackground = await page.getByRole("button", { name: "Connect Ethereum Mainnet wallet" })
-    .evaluate((element) => getComputedStyle(element).backgroundImage);
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
   const reviewBackground = await page.getByRole("button", { name: "Review buy" })
-    .evaluate((element) => getComputedStyle(element).backgroundImage);
-  expect(connectBackground).toBe("none");
-  expect(reviewBackground).toContain("linear-gradient");
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(reviewBackground).toBe("rgb(77, 220, 255)");
+  expect(connectBackground).not.toBe("rgb(77, 220, 255)");
 });
 
 test("landing mobile menu exposes state and restores focus after Escape", async ({ page }) => {

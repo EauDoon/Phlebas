@@ -21,9 +21,8 @@
   --accent-soft: rgba(77, 220, 255, 0.14);
   --prism-cyan: #4ddcff;
   --prism-blue: #6b8cff;
-  --prism-violet: #a78bfa;
-  --prism-magenta: #e879f9;
-  --prism-gradient: linear-gradient(115deg, #4ddcff 0%, #6b8cff 48%, #a78bfa 76%, #e879f9 100%);
+  /* Flat accent vocabulary: interactive surfaces are solid, not gradient. */
+  --prism-gradient: var(--accent);
   --prism-glow: rgba(77, 220, 255, 0.16);
   --buy: #42e6ae;
   --buy-soft: rgba(66, 230, 174, 0.12);
@@ -77,10 +76,7 @@ html {
 body {
   min-height: 100vh;
   color: var(--text);
-  background:
-    radial-gradient(circle at 84% -10%, rgba(107, 140, 255, 0.13), transparent 34rem),
-    radial-gradient(circle at -8% 32%, rgba(77, 220, 255, 0.08), transparent 28rem),
-    var(--background);
+  background: var(--background);
   font-family: var(--font-geist-sans);
   font-size: var(--text-sm);
   line-height: 1.55;
@@ -236,10 +232,6 @@ a {
   font-family: var(--font-geist-mono), monospace;
   font-variant-numeric: tabular-nums;
   text-align: right;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  body { background-attachment: fixed; }
 }
 
 @media (prefers-reduced-motion: reduce) {

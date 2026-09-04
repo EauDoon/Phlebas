@@ -1414,13 +1414,13 @@ a.skipLink:focus-visible {
   background: var(--accent);
   font-size: 14px;
   font-weight: 700;
-  box-shadow: 0 12px 32px rgba(77, 220, 255, 0.16);
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  box-shadow: none;
+  transition: transform 180ms ease, background-color 140ms ease;
 }
 
 .walletTrigger:hover {
   transform: translateY(-1px);
-  box-shadow: 0 16px 38px rgba(107, 140, 255, 0.22);
+  background: #7ee7ff;
 }
 
 .walletTriggerDot {
@@ -1632,17 +1632,7 @@ a.skipLink:focus-visible {
 }
 
 .hero::before {
-  position: absolute;
-  z-index: 0;
-  top: 96px;
-  right: 5vw;
-  width: min(460px, 38vw);
-  height: min(460px, 38vw);
-  border: 1px solid rgba(77, 220, 255, 0.1);
-  border-radius: 50%;
-  content: "";
-  box-shadow: 0 0 0 80px rgba(107, 140, 255, 0.022), 0 0 0 160px rgba(167, 139, 250, 0.012);
-  pointer-events: none;
+  content: none;
 }
 
 .heroStatement,
@@ -1700,7 +1690,6 @@ a.skipLink:focus-visible {
 
 .heroActions .primaryCta {
   min-width: 158px;
-  box-shadow: 0 16px 38px rgba(77, 220, 255, 0.17);
 }
 
 .heroActions .secondaryCta {
@@ -2381,14 +2370,14 @@ a.skipLink:focus-visible {
   }
 }
 
-/* Prismatic brand layer. Keep this after the base and responsive rules. */
-.header { border-color: rgba(77, 220, 255, 0.14); background: rgba(5, 8, 22, 0.9); box-shadow: 0 16px 48px rgba(2, 4, 13, 0.3); }
-.walletAssetMark, .headerCta, .primaryCta { background: var(--prism-gradient); box-shadow: 0 12px 32px rgba(77, 220, 255, 0.15); }
-.brandMark { background: transparent; box-shadow: none; }
-.walletTriggerDot, .heroSignal span { background: var(--prism-cyan); box-shadow: 0 0 0 4px var(--accent-soft), 0 0 18px rgba(77, 220, 255, 0.4); }
-.hero { background: radial-gradient(circle at 82% 16%, rgba(107, 140, 255, 0.12), transparent 26rem), radial-gradient(circle at 68% 34%, rgba(167, 139, 250, 0.06), transparent 30rem), var(--background); }
+/* Brand layer. Solid accent, hairline borders, no glows. Keep after base and responsive rules. */
+.header { border-color: var(--border); background: rgba(5, 8, 22, 0.9); box-shadow: 0 12px 32px rgba(2, 4, 13, 0.3); }
+.brandMark, .walletAssetMark, .headerCta, .primaryCta { background: var(--accent); }
+.headerCta:hover, .primaryCta:hover { background: #7ee7ff; }
+.walletTriggerDot, .heroSignal span { background: var(--prism-cyan); box-shadow: 0 0 0 4px var(--accent-soft); }
+.hero { background: var(--background); }
 .hero::before { border-color: rgba(77, 220, 255, 0.1); }
-.systemLedger, .marketCards article, .evidenceList article, .assetFlow li, .terminalPreviewFrame { border-color: rgba(77, 220, 255, 0.14); background: linear-gradient(150deg, rgba(12, 25, 48, 0.94), rgba(8, 17, 33, 0.98)); }
-.marketCards article:hover, .evidenceList article:hover, .assetFlow li:hover { border-color: rgba(107, 140, 255, 0.46); background: var(--surface-raised); box-shadow: 0 16px 44px rgba(77, 220, 255, 0.07); }
-.depthPulse i { background: var(--prism-gradient); }
+.systemLedger, .marketCards article, .evidenceList article, .assetFlow li, .terminalPreviewFrame { border-color: var(--border); background: var(--surface); }
+.marketCards article:hover, .evidenceList article:hover, .assetFlow li:hover { border-color: var(--border-strong); background: var(--surface-raised); }
+.depthPulse i { background: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .walletTriggerDot, .heroSignal span { box-shadow: 0 0 0 4px var(--accent-soft); } }

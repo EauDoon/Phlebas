@@ -3534,17 +3534,7 @@ a.skipLink:focus-visible {
 }
 
 .simpleVenue::before {
-  position: absolute;
-  top: 74px;
-  left: 50%;
-  width: min(680px, 78vw);
-  height: min(680px, 78vw);
-  border: 1px solid rgba(77, 220, 255, 0.08);
-  border-radius: 50%;
-  content: "";
-  box-shadow: 0 0 0 96px rgba(107, 140, 255, 0.018), 0 0 0 192px rgba(167, 139, 250, 0.01);
-  pointer-events: none;
-  transform: translateX(-50%);
+  content: none;
 }
 
 .simpleVenueIntro,
@@ -3896,41 +3886,40 @@ a.skipLink:focus-visible {
   }
 }
 
-/* Prismatic exchange surfaces */
-.shell { position: relative; isolation: isolate; background: radial-gradient(circle at 86% 0%, rgba(107, 140, 255, 0.09), transparent 28rem), var(--background); }
+/* Exchange surfaces. Solid accent, hairline borders, one elevation model. */
+.shell { position: relative; isolation: isolate; background: var(--background); }
 .previewBanner { border-color: rgba(77, 220, 255, 0.13); background: rgba(8, 17, 33, 0.96); }
-.topbar { border-color: rgba(77, 220, 255, 0.14); background: rgba(8, 17, 33, 0.9); box-shadow: 0 16px 48px rgba(2, 4, 13, 0.28); backdrop-filter: blur(18px); }
-.topbar::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: var(--prism-gradient); content: ""; opacity: 0.5; pointer-events: none; }
-.primaryAction:not(.sellAction):not(:disabled) { border-color: transparent; background: var(--prism-gradient); box-shadow: 0 10px 28px rgba(77, 220, 255, 0.12); }
+.topbar { border-color: var(--border); background: rgba(8, 17, 33, 0.9); box-shadow: 0 12px 32px rgba(2, 4, 13, 0.28); backdrop-filter: blur(18px); }
+.topbar::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: var(--border-strong); content: ""; pointer-events: none; }
+.primaryAction:not(.sellAction):not(:disabled) { border-color: transparent; background: var(--prism-gradient); }
 .sellAction:not(:disabled) { border-color: transparent; color: #18030a; background: var(--sell); }
-.brandMark { background: transparent; box-shadow: none; }
-.coinMark { border-color: rgba(77, 220, 255, 0.28); background: var(--accent-soft); box-shadow: none; }
-.connectButton, .headerCta { border-color: rgba(77, 220, 255, 0.34); color: var(--text); background: var(--surface-raised); box-shadow: none; }
-.nav .navActive::after, .textActive::after { background: var(--prism-gradient); }
-.marketBar { position: relative; border-color: rgba(77, 220, 255, 0.16); background: linear-gradient(100deg, rgba(77, 220, 255, 0.045), transparent 38%, rgba(167, 139, 250, 0.04)), var(--surface); }
-.marketBar::after { position: absolute; right: 28px; bottom: -1px; left: 28px; height: 1px; background: var(--prism-gradient); content: ""; opacity: 0.42; }
-.selectorTabs, .rangeTabs, .orderTypes { border-color: rgba(77, 220, 255, 0.16); }
-.selectorTabs .selectorActive, .poolTabs .poolActive, .orderTypes .textActive, .rangeTabs .textActive { border-color: rgba(77, 220, 255, 0.4); color: var(--text); background: rgba(77, 220, 255, 0.11); }
-.panel { border-color: rgba(77, 220, 255, 0.14); background: linear-gradient(145deg, rgba(12, 25, 48, 0.97), rgba(8, 17, 33, 0.98)); box-shadow: inset 0 1px rgba(244, 248, 255, 0.025); }
-.tradeGrid { background: linear-gradient(rgba(77, 220, 255, 0.018), transparent 18rem), var(--background); }
-.chartLine { stroke: var(--prism-cyan); filter: drop-shadow(0 0 7px rgba(77, 220, 255, 0.36)); }
+.connectButton, .headerCta { border-color: var(--border); color: var(--text); background: var(--surface-raised); }
+.connectButton:hover, .headerCta:hover { background: var(--accent-soft); }
+.coinMark { border-color: transparent; background: var(--accent); }
+.nav .navActive::after, .textActive::after { background: var(--accent); }
+.marketBar { position: relative; border-color: var(--border); background: var(--surface); }
+.selectorTabs, .rangeTabs, .orderTypes { border-color: var(--border); }
+.selectorTabs .selectorActive, .poolTabs .poolActive, .orderTypes .textActive, .rangeTabs .textActive { border-color: var(--border-strong); color: var(--text); background: var(--accent-soft); }
+.panel { border-color: var(--border); background: var(--surface); }
+.tradeGrid { background: var(--background); }
+.chartLine { stroke: var(--accent); }
 .chartGrid { stroke: rgba(140, 161, 201, 0.15); }
 .depthFill { opacity: 0.82; }
-.simpleVenue { background: radial-gradient(circle at 50% 22%, rgba(77, 220, 255, 0.08), transparent 24rem), radial-gradient(circle at 54% 32%, rgba(167, 139, 250, 0.045), transparent 30rem), var(--background); }
-.simpleVenue .simpleTicket { border-color: rgba(77, 220, 255, 0.28); background: linear-gradient(150deg, rgba(12, 25, 48, 0.98), rgba(8, 17, 33, 0.98)); box-shadow: 0 32px 90px rgba(2, 4, 13, 0.55), 0 0 44px rgba(77, 220, 255, 0.06), inset 0 1px rgba(244, 248, 255, 0.04); }
-.simpleTicket .tokenRow, .simpleTicket .inputShell { border-color: rgba(77, 220, 255, 0.15); background: rgba(5, 8, 22, 0.84); }
-.simpleSafetyNote { border-color: rgba(77, 220, 255, 0.24); background: linear-gradient(135deg, rgba(77, 220, 255, 0.07), rgba(107, 140, 255, 0.04)); }
-.liquidityGrid { gap: 12px; padding: 12px max(12px, calc((100vw - 1440px) / 2)); background: radial-gradient(circle at 82% 12%, rgba(107, 140, 255, 0.07), transparent 28rem), var(--background); }
+.simpleVenue { background: var(--background); }
+.simpleVenue .simpleTicket { border-color: var(--border-strong); background: var(--surface); box-shadow: 0 32px 90px rgba(2, 4, 13, 0.55); }
+.simpleTicket .tokenRow, .simpleTicket .inputShell { border-color: var(--border); background: rgba(5, 8, 22, 0.84); }
+.simpleSafetyNote { border-color: var(--border-strong); background: var(--accent-soft); }
+.liquidityGrid { gap: 12px; padding: 12px max(12px, calc((100vw - 1440px) / 2)); background: var(--background); }
 .liquidityGrid > .panel { border-radius: 12px; overflow: auto; }
-.featurePrimary .panelHeader, .architecture .panelHeader { position: relative; background: linear-gradient(110deg, rgba(77, 220, 255, 0.065), transparent 42%, rgba(167, 139, 250, 0.055)); }
-.featurePrimary .panelHeader::after, .architecture .panelHeader::after { position: absolute; right: 22px; bottom: 0; left: 22px; height: 1px; background: var(--prism-gradient); content: ""; opacity: 0.44; }
+.featurePrimary .panelHeader, .architecture .panelHeader { position: relative; background: transparent; }
+.featurePrimary .panelHeader::after, .architecture .panelHeader::after { content: none; }
 .architecture { width: min(calc(100% - 48px), 1392px); min-height: auto; margin: 28px auto; overflow: hidden; border-radius: 18px; box-shadow: 0 34px 90px rgba(2, 4, 13, 0.34); }
 .architecture .panelHeader { min-height: 150px; align-items: end; padding: 42px 34px 30px; }
 .architecture .panelHeader h2 { max-width: 13ch; font-size: clamp(34px, 4vw, 56px); line-height: 1; }
 .architecture .featureLead { max-width: 760px; padding: 32px 34px 0; font-size: 16px; }
 .layerGrid { gap: 14px; margin: 34px; border: 0; background: transparent; }
-.layerCard { position: relative; overflow: hidden; border: 1px solid rgba(77, 220, 255, 0.13); border-radius: 14px; background: linear-gradient(150deg, rgba(16, 35, 66, 0.82), rgba(8, 17, 33, 0.96)); }
-.layerCard::before { position: absolute; top: 0; right: 0; left: 0; height: 2px; background: var(--prism-gradient); content: ""; opacity: 0.58; }
+.layerCard { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.layerCard::before { content: none; }
 .honestyBar { border-color: rgba(77, 220, 255, 0.17); border-radius: 10px; background: rgba(12, 25, 48, 0.72); }
 .simpleMain { max-width: none; padding: clamp(72px, 8vw, 120px) max(24px, calc((100vw - 1440px) / 2)); }
 .simpleFrame { display: grid; grid-template-columns: minmax(240px, 0.56fr) minmax(0, 1.44fr); gap: clamp(48px, 8vw, 112px); align-items: start; }
@@ -3939,13 +3928,13 @@ a.skipLink:focus-visible {
 .simpleHero > p { max-width: 34ch; margin-top: 22px; color: var(--text-secondary); font-size: 15px; }
 .simpleContent { display: grid; gap: 18px; min-width: 0; }
 :global(.status-summary) { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-:global(.status-summary) article { min-height: 152px; padding: 22px; border: 1px solid rgba(77, 220, 255, 0.15); border-radius: 14px; background: linear-gradient(150deg, rgba(16, 35, 66, 0.8), rgba(8, 17, 33, 0.96)); box-shadow: inset 0 1px rgba(244, 248, 255, 0.03); }
+:global(.status-summary) article { min-height: 152px; padding: 22px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
 :global(.status-summary) span { color: var(--text-muted); font-family: var(--font-geist-mono), monospace; font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; }
 :global(.status-summary) strong { display: block; margin-top: 22px; color: var(--accent); font-size: 18px; font-weight: 680; }
 :global(.status-summary) p { margin-top: 7px; font-size: 12px; }
-:global(.status-intro) { padding: 15px 17px; border: 1px solid rgba(77, 220, 255, 0.18); border-radius: 10px; background: rgba(77, 220, 255, 0.055); }
+:global(.status-intro) { padding: 15px 17px; border: 1px solid var(--border); border-radius: 10px; background: var(--accent-soft); }
 .simpleMain :global(.status-ledger) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
-.simpleMain :global(.status-ledger) > div { min-height: 72px; padding: 14px 16px; border: 1px solid rgba(77, 220, 255, 0.11); border-radius: 10px; background: rgba(8, 17, 33, 0.78); }
+.simpleMain :global(.status-ledger) > div { min-height: 72px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: rgba(8, 17, 33, 0.78); }
 :global(.status-links) { display: grid; gap: 6px; padding: 18px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 
 @media (max-width: 900px) {

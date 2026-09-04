@@ -28,7 +28,10 @@ test("shipped accent is prismatic cyan with accessible semantic colors", async (
   assert.match(globals, /--buy:\s*#42e6ae;/);
   assert.match(globals, /--sell:\s*#ff6b8a;/);
   assert.match(globals, /--warning:\s*#ffd166;/);
-  assert.match(globals, /--prism-gradient:\s*linear-gradient\(115deg,/);
+  assert.match(globals, /--prism-gradient:\s*var\(--accent\);/);
+  assert.doesNotMatch(globals, /--prism-gradient:\s*linear-gradient/);
+  assert.doesNotMatch(globals, /--prism-violet/);
+  assert.doesNotMatch(globals, /--prism-magenta/);
 });
 
 test("owned UI CSS does not ship leftover teal or retired warm gold", async () => {
