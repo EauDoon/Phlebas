@@ -12,6 +12,29 @@ import {
   type MatcherIngressDeployment,
 } from "./matcher-proxy.ts";
 import { MATCHER_CONFIGURATION_HEADER } from "./matcher-http.ts";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+test("the matcher proxy parses untrusted bodies with the canonical strict JSON parser, not a private copy", async () => {
+  // review-6: the proxy carried a 128-line copy of the parser that
+  // services/matcher/strict-json.ts exports. Both sat on an ingress path
+  // and nothing made them keep agreeing, so the proxy now imports the
+  // canonical parser and defines none of the JSON grammar itself.
+  const proxySource = await readFile(
+    join(dirname(fileURLToPath(import.meta.url)), "matcher-proxy.ts"),
+    "utf8",
+  );
+  assert.match(proxySource, /from "\.\.\/\.\.\/services\/matcher\/strict-json\.ts"/);
+  for (const grammarFunction of [
+    "function stringValue",
+    "function objectValue",
+    "function arrayValue",
+    "FORBIDDEN_KEYS",
+  ]) {
+    assert.doesNotMatch(proxySource, new RegExp(grammarFunction));
+  }
+});
 
 const CONFIGURATION_HASH = `0x${"11".repeat(32)}`;
 const STATE_ROOT = `0x${"22".repeat(32)}`;
