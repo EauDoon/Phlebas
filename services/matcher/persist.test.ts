@@ -6,6 +6,7 @@ import { join } from "node:path";
 
 import { sepoliaDomain } from "../../src/lib/eip712.ts";
 import { createMatcherOperator, intakeSignedOrder, sequenceRoot } from "../../src/lib/matcher-operator.ts";
+import { atomicWriteFile } from "../durable-file.ts";
 import { readOperator, writeOperator } from "./persist.ts";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -92,6 +93,40 @@ test("tampered sequence root fails closed", async () => {
     snapshot.sequenceRoot = "00".repeat(32);
     await writeFile(path, `${JSON.stringify(snapshot)}\n`);
     await assert.rejects(() => readOperator(path), /sequence root/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("durable checkpoint writes survive a concurrent reader of the same path", async () => {
+  // Windows will not rename a file over a destination some other handle has open
+  // without FILE_SHARE_DELETE, and Node's readFile does not request that share mode.
+  // Without a retry, a health check or backup tool polling the operator snapshot at
+  // the exact moment a write lands used to turn a harmless race into a hard failure
+  // (and, in the persistent store, a latched persistence fault) even though the
+  // fully written temp file was sitting there intact the whole time. This drives a
+  // concurrent reader against the same path atomicWriteFile is rewriting and asserts
+  // every write still lands.
+  const dir = await mkdtemp(join(tmpdir(), "phlebas-durable-race-"));
+  const path = join(dir, "state.json");
+  try {
+    await writeFile(path, "seed-0\n");
+    let stop = false;
+    const reader = (async () => {
+      while (!stop) {
+        await readFile(path, "utf8").catch(() => undefined);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    })();
+    try {
+      for (let i = 1; i <= 20; i += 1) {
+        await atomicWriteFile(path, `seed-${i}\n`);
+      }
+    } finally {
+      stop = true;
+      await reader;
+    }
+    assert.equal(await readFile(path, "utf8"), "seed-20\n");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

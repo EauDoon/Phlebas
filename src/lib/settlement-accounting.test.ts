@@ -221,3 +221,95 @@ test("rejects duplicate normalized persisted ledger keys", () => {
     /fit uint256/,
   );
 });
+
+test("conserves base and quote atoms across a randomised sweep of fills", () => {
+  // Conservation is the one property this ledger cannot be allowed to lose:
+  // no settlement may create or destroy an atom. The deltas are written as
+  // five separate addDelta calls, and the two that carry the fees are the
+  // easy ones to get wrong, so this exercises the arithmetic over a wide
+  // spread of prices, sizes and fee splits rather than the single worked
+  // example above.
+  let seed = 987_654_321;
+  const next = (bound: number) => {
+    seed = (seed * 1_103_515_245 + 12_345) & 0x7fffffff;
+    return seed % bound;
+  };
+
+  let settled = 0;
+  let rejected = 0;
+  for (let iteration = 0; iteration < 400; iteration += 1) {
+    const priceTicks = BigInt(1 + next(20_000));
+    const amount = BigInt(1 + next(500_000_000));
+    const makerFeeBps = BigInt(next(31));
+    const takerFeeBps = BigInt(next(31));
+    const makerIsSeller = next(2) === 0;
+
+    // The buyer's limit sits above the seller's, as it must for the two to
+    // cross. With both limits equal there is often no integer quote amount
+    // that satisfies a buyer rounding up and a seller rounding down at once,
+    // and the module correctly refuses those; the test above covers that
+    // case deliberately and this sweep is about the settled path.
+    const spread = BigInt(1 + next(200));
+    const sellerIntent = { ...intent(sellerId, 1, priceTicks, amount, 1n), maximumFeeBps: 30n };
+    const buyerIntent = { ...intent(buyerId, 0, priceTicks + spread, amount, 1n), maximumFeeBps: 30n };
+    const sellerSequenced: SequencedOrder = {
+      orderHash: keccak256Text(`seller-${iteration}`), sequence: 1n, order: sellerIntent, remainingBaseAtoms: amount,
+    };
+    const buyerSequenced: SequencedOrder = {
+      orderHash: keccak256Text(`buyer-${iteration}`), sequence: 2n, order: buyerIntent, remainingBaseAtoms: amount,
+    };
+    const sweepMaker = makerIsSeller ? sellerSequenced : buyerSequenced;
+    const sweepTaker = makerIsSeller ? buyerSequenced : sellerSequenced;
+    const sweepFill: PlannedFill = {
+      makerOrderHash: sweepMaker.orderHash,
+      takerOrderHash: sweepTaker.orderHash,
+      makerSequence: sweepMaker.sequence,
+      executionPriceTicks: priceTicks,
+      baseAmountAtoms: amount,
+    };
+
+    // Fund both sides generously; the point here is the arithmetic, not the
+    // insufficient-balance path, which the tests above already cover.
+    const opening = {
+      [sellerId]: { baseAtoms: amount, quoteAtoms: 0n },
+      [buyerId]: { baseAtoms: 0n, quoteAtoms: UINT256_MAX / 4n },
+      [treasuryId]: { baseAtoms: 0n, quoteAtoms: 0n },
+    };
+    const ledger = createSettlementLedger(opening);
+    const claimed = claimOrderNonce(
+      claimOrderNonce(emptyOrderLifecycle(), sweepMaker.orderHash, sweepMaker.order),
+      sweepTaker.orderHash,
+      sweepTaker.order,
+    );
+
+    let applied;
+    try {
+      applied = settlePlannedFill(ledger, claimed, sweepFill, sweepMaker, sweepTaker, {
+        ...parameters, makerFeeBps, takerFeeBps,
+      });
+    } catch {
+      // A fill with no integer quote amount inside both signed limits is
+      // refused, which is the correct outcome and not a conservation
+      // failure. Counted so the assertion below cannot pass on an empty set.
+      rejected += 1;
+      continue;
+    }
+    settled += 1;
+
+    const before = [sellerId, buyerId, treasuryId].map((id) => balanceOf(ledger, id));
+    const after = [sellerId, buyerId, treasuryId].map((id) => balanceOf(applied.ledger, id));
+    const sum = (rows: ReadonlyArray<{ baseAtoms: bigint; quoteAtoms: bigint }>) => ({
+      baseAtoms: rows.reduce((total, row) => total + row.baseAtoms, 0n),
+      quoteAtoms: rows.reduce((total, row) => total + row.quoteAtoms, 0n),
+    });
+    assert.deepEqual(sum(after), sum(before), `iteration ${iteration} moved atoms into or out of existence`);
+
+    // The fee recipient receives exactly the two fees, and the buyer's debit
+    // is exactly the quote plus its own fee.
+    assert.equal(balanceOf(applied.ledger, treasuryId).quoteAtoms, applied.buyerFeeAtoms + applied.sellerFeeAtoms);
+    const buyerDebit = balanceOf(ledger, buyerId).quoteAtoms - balanceOf(applied.ledger, buyerId).quoteAtoms;
+    assert.equal(buyerDebit, applied.quoteAmountAtoms + applied.buyerFeeAtoms);
+  }
+
+  assert.ok(settled > 300, `expected most fills to settle, only ${settled} did (${rejected} refused)`);
+});

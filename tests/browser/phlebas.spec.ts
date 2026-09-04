@@ -264,7 +264,11 @@ for (const width of viewports) {
       await page.keyboard.press("ControlOrMeta+A");
       await page.keyboard.type("0.00000002");
       await expect(amount).toHaveValue("0.00000002");
-      await expect(page.getByText("0.000001", { exact: true })).toBeVisible();
+      // 2 ZEC atoms against this pool's ratio is 1.056 quote atoms exactly,
+      // so the balanced contribution rounds to 2 in the pool's favour. This
+      // pinned 0.000001, the floored value, which is what let a depositor
+      // take a full share for less than a proportional stake.
+      await expect(page.getByText("0.000002", { exact: true })).toBeVisible();
       await expect(page.getByText("Integer swap out")).toBeVisible();
 
       expect(runtimeErrors).toEqual([]);

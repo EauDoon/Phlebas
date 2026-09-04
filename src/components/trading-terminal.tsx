@@ -59,6 +59,7 @@ import { cancelOrder, emptyBook, expireRestingOrders, submitOrder, type RestingO
 import {
   nextDueTwapSlice,
   planTwap,
+  retainedTwapJobs,
   TWAP_USER_CANCELLED_REASON,
   twapCancelCopy,
   twapProgressCopy,
@@ -493,16 +494,33 @@ export function TradingTerminal({
           job.completed += 1;
         }
       }
-      const next = jobs.filter((job) => job.completed < job.plan.slices && !job.stoppedReason);
+      // Terminal jobs stay in the list so their last line renders. They
+      // used to be filtered out in the same tick that made them terminal,
+      // which meant two of the three endings could never be seen: a job
+      // whose final slice landed was dropped before "TWAP complete. 4 of
+      // 4 slices executed." could render, and a job stopped by a
+      // rejection was dropped before "TWAP stopped after 1 of 4 slices.
+      // Session quote inventory is insufficient." could render. The
+      // progress line simply vanished, telling the visitor nothing about
+      // whether the order finished or failed. Only the user-cancelled
+      // line survived, because cancelTwapJob publishes the list itself.
+      const next = retainedTwapJobs(jobs);
       twapJobsRef.current = next;
-      if (changed) setTwapJobs(next);
+      if (changed || next.length !== jobs.length) setTwapJobs(next);
     }, 1_000);
     return () => window.clearInterval(timer);
   }, []);
 
   function cancelUserOrder(orderId: string) {
     const resting = [...book.bids, ...book.asks].find((order) => order.id === orderId);
-    if (!resting) {
+    // Only user orders ever reserve account inventory: applySubmit reserves
+    // against the user prefix, and seedBook posts the resting venue depth
+    // straight into the book without touching the account. Releasing a
+    // venue order would subtract a reservation that was never added and
+    // credit the account with balance it never had. The blotter lists only
+    // user orders today, so this guards the function rather than a reachable
+    // path, but replayLog had the same shape and there it was reachable.
+    if (!resting || !resting.id.startsWith(USER_ORDER_PREFIX)) {
       return;
     }
     setBooks({ ...books, [marketId]: cancelOrder(book, orderId) });

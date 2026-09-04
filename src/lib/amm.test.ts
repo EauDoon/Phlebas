@@ -101,8 +101,35 @@ test("returns a zero integer quote for a zero input", () => {
   });
 });
 
-test("balanced add uses integer reserve ratio", () => {
-  assert.equal(balancedQuoteAtoms(2n, 797_132_000000n, 421_205_000000n), 1n);
+test("balanced add rounds the required quote contribution up, in favour of the pool", () => {
+  // 2 * 421_205_000000 / 797_132_000000 = 1.0568..., a floor would let the
+  // minter contribute only 1n while being credited a share computed from the
+  // full 2n zec side, shorting the pool by the fractional remainder. Round up.
+  assert.equal(balancedQuoteAtoms(2n, 797_132_000000n, 421_205_000000n), 2n);
+});
+
+test("balanced add is exact when the ratio divides evenly", () => {
+  assert.equal(balancedQuoteAtoms(2n, 1_000n, 3_000n), 6n);
+});
+
+test("mint dilution: a minter can never withdraw more than they deposited on an immediate round trip, and existing LPs keep their exact value", () => {
+  // Regression for the balancedQuoteAtoms floor-rounding bug: a depositor
+  // could underpay the quote side of a mint (favouring the trader, not the
+  // pool), letting them cash out later for strictly more than they put in
+  // at the expense of the LP who was already in the pool. See lp.test.ts
+  // "mint never lets a depositor extract more value than they contributed"
+  // for the full mint/burn walk that catches this via the real lp.ts API.
+  const reserveZecAtoms = 3n;
+  const reserveQuoteAtoms = 10n;
+  const zecAtoms = 1n;
+  const quoteAtoms = balancedQuoteAtoms(zecAtoms, reserveZecAtoms, reserveQuoteAtoms);
+  // Existing LP holds all of reserveQuoteAtoms via reserveZecAtoms shares.
+  // After adding (zecAtoms, quoteAtoms), the existing LP's proportional
+  // claim on the quote reserve must not have shrunk.
+  const newReserveQuoteAtoms = reserveQuoteAtoms + quoteAtoms;
+  const newTotalShares = reserveZecAtoms + zecAtoms; // shares track zec 1:1 in this design
+  const existingLpQuoteClaim = (reserveZecAtoms * newReserveQuoteAtoms) / newTotalShares;
+  assert.ok(existingLpQuoteClaim >= reserveQuoteAtoms);
 });
 
 test("rejects empty integer reserves", () => {

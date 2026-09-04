@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { levelsFromBook, submitOrder } from "./matcher.ts";
+import { cancelOrder, expireRestingOrders, levelsFromBook, submitOrder, type Book, type OrderSide, type TimeInForce } from "./matcher.ts";
 import {
   applySubmit,
   applyUserFills,
   availableQuote,
+  availableZec,
   canCover,
   describeSubmit,
   inventoryRejectCopy,
@@ -17,10 +18,11 @@ import {
   ticketRejectCopy,
   userOrders,
   wouldSelfTrade,
+  type PaperAccount,
 } from "./session.ts";
 import { retargetSettlementCopy } from "./evm-wallet.ts";
 import { markets } from "./market-data.ts";
-import { quoteAtomsForFill, worstPriceTicks } from "./units.ts";
+import { quoteAtomsForFill, quoteAtomsForFills, worstPriceTicks } from "./units.ts";
 
 test("seeds the USDC book from fixture levels with integer ticks", () => {
   const book = seedBook("ZEC/USDC");
@@ -289,4 +291,121 @@ test("inventory reject copy starts from session seed inventory", () => {
   );
   assert.equal(isTicketRejectCopy(ticketRejectCopy("Order expiry has passed", "ZEC/USDC")), true);
   assert.doesNotMatch(inventoryRejectCopy("buy", "ZEC/USDC"), /native ZEC/);
+});
+
+// --- Conservation property test -------------------------------------------
+//
+// Drives real submitOrder / applySubmit / releaseRestingOrder / cancelOrder /
+// expireRestingOrders through randomized sequences (weighted toward the dust
+// boundary, since that is where rounding bugs hide) and checks, after every
+// mutation, that:
+//   1. zecAtoms/quoteAtoms move by exactly what the fills moved -- nothing
+//      more, nothing less.
+//   2. Neither balance, nor either reservation, nor either "available" value
+//      ever goes negative.
+//   3. reservedZecAtoms/reservedQuoteAtoms return to exactly zero once every
+//      still-resting user order has been released.
+// This is the top-priority check for this module: a paper-trading account
+// that can drift its own balances, or overdraw past zero, defeats the whole
+// point of a non-custodial simulator standing in for real settlement.
+
+function deterministicRandom(seed: number): () => number {
+  let value = seed >>> 0;
+  return () => {
+    value = (Math.imul(value, 1_664_525) + 1_013_904_223) >>> 0;
+    return value;
+  };
+}
+
+function pickOne<T>(random: () => number, options: readonly T[]): T {
+  return options[random() % options.length] as T;
+}
+
+function runConservationScenario(seed: number, steps: number): void {
+  const random = deterministicRandom(seed);
+  let book: Book = seedBook("ZEC/USDC");
+  let account: PaperAccount = seedPaperAccount();
+
+  // Ground truth, derived only from what fills actually moved -- independent
+  // of any bookkeeping inside session.ts.
+  let expectedZec = account.zecAtoms;
+  let expectedQuote = account.quoteAtoms;
+
+  let userSeq = 0;
+  let nowUnix = 1_700_000_000n;
+
+  for (let step = 0; step < steps; step += 1) {
+    nowUnix += BigInt(random() % 5);
+    const action = pickOne(random, ["submit", "submit", "submit", "submit", "cancel", "expire"] as const);
+
+    if (action === "expire") {
+      const { book: nextBook, expired } = expireRestingOrders(book, nowUnix);
+      for (const order of expired) {
+        if (!order.id.startsWith("user-")) continue;
+        account = releaseRestingOrder(account, order);
+      }
+      book = nextBook;
+    } else if (action === "cancel") {
+      const mine = userOrders(book);
+      if (mine.length === 0) continue;
+      const target = pickOne(random, mine);
+      book = cancelOrder(book, target.id);
+      account = releaseRestingOrder(account, target);
+    } else {
+      const side: OrderSide = pickOne(random, ["buy", "sell"] as const);
+      const tif: TimeInForce = pickOne(random, ["GTC", "GTC", "GTC", "IOC", "FOK"] as const);
+      // Prices/sizes are biased toward the dust boundary: for small
+      // priceTicks, minimumSizeAtomsForQuoteSettlement is large relative to
+      // these sizeAtoms, so a good fraction of submits graze the
+      // dust-avoidance branch in matcher.ts.
+      const priceTicks = BigInt(1 + (random() % 20_000));
+      const sizeAtoms = BigInt(1 + (random() % 20));
+      userSeq += 1;
+      const id = `user-${userSeq}`;
+
+      const result = submitOrder(book, { id, side, tif, priceTicks, sizeAtoms, nowUnix });
+      if (wouldSelfTrade(result.fills)) continue;
+
+      const applied = applySubmit(account, { side, sizeAtoms, priceTicks, tif }, result);
+      if (applied.blockedReason) continue;
+
+      const filledZec = result.fills.reduce((total, fill) => total + fill.sizeAtoms, 0n);
+      const filledQuote = quoteAtomsForFills(result.fills, side === "buy" ? "up" : "down");
+      if (side === "buy") {
+        expectedZec += filledZec;
+        expectedQuote -= filledQuote;
+      } else {
+        expectedZec -= filledZec;
+        expectedQuote += filledQuote;
+      }
+
+      account = applied.account;
+      book = result.book;
+    }
+
+    assert.equal(account.zecAtoms, expectedZec, `zecAtoms diverged from executed fills at step ${step} (seed ${seed})`);
+    assert.equal(account.quoteAtoms, expectedQuote, `quoteAtoms diverged from executed fills at step ${step} (seed ${seed})`);
+    assert.ok(account.zecAtoms >= 0n, `zecAtoms went negative at step ${step} (seed ${seed})`);
+    assert.ok(account.quoteAtoms >= 0n, `quoteAtoms went negative at step ${step} (seed ${seed})`);
+    assert.ok(account.reservedZecAtoms >= 0n, `reservedZecAtoms went negative at step ${step} (seed ${seed})`);
+    assert.ok(account.reservedQuoteAtoms >= 0n, `reservedQuoteAtoms went negative at step ${step} (seed ${seed})`);
+    assert.ok(availableZec(account) >= 0n, `availableZec went negative at step ${step} (seed ${seed})`);
+    assert.ok(availableQuote(account) >= 0n, `availableQuote went negative at step ${step} (seed ${seed})`);
+  }
+
+  // Releasing every still-resting user order must zero out both reservations
+  // exactly, with no residue in either direction.
+  for (const order of userOrders(book)) {
+    account = releaseRestingOrder(account, order);
+  }
+  assert.equal(account.reservedZecAtoms, 0n, `reservedZecAtoms did not zero out after releasing every resting order (seed ${seed})`);
+  assert.equal(account.reservedQuoteAtoms, 0n, `reservedQuoteAtoms did not zero out after releasing every resting order (seed ${seed})`);
+  assert.equal(account.zecAtoms, expectedZec, `zecAtoms mismatch after final release (seed ${seed})`);
+  assert.equal(account.quoteAtoms, expectedQuote, `quoteAtoms mismatch after final release (seed ${seed})`);
+}
+
+test("submit/fill/cancel/expire sequences conserve value and never overdraw", () => {
+  for (let seed = 1; seed <= 200; seed += 1) {
+    runConservationScenario(seed * 104729 + 7, 40);
+  }
 });

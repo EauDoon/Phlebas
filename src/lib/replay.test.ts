@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { describeSessionLogEvent, replayLog, snapshotKey, type SessionLogEvent } from "./replay.ts";
-import { SESSION_ZEC_ATOMS } from "./session.ts";
+import { availableQuote, SESSION_QUOTE_ATOMS, SESSION_ZEC_ATOMS } from "./session.ts";
 
 test("replaying the same submit and cancel log yields the same book and balances", () => {
   const events: SessionLogEvent[] = [
@@ -70,6 +70,28 @@ test("replay preserves expiry metadata on resting orders", () => {
   assert.equal(
     state.books["ZEC/USDC"].bids.find((order) => order.id === "user-expiring")?.expiryUnix,
     1700000000n,
+  );
+});
+
+test("cancelling a venue fixture order id does not manufacture available quote", () => {
+  // seedBook posts fixture liquidity under ids like "venue-bid-ZEC/USDC-0"
+  // (see session.ts seedBook). Those orders never run through
+  // applySubmit/reserveRemainder, so they hold no PaperAccount reservation.
+  // A cancel event naming one must be a no-op on the account: releasing a
+  // reservation that was never taken would drive reservedQuoteAtoms
+  // negative and hand the account quote it never had.
+  const state = replayLog([
+    { kind: "cancel", marketId: "ZEC/USDC", orderId: "venue-bid-ZEC/USDC-0" },
+  ]);
+  const account = state.accounts["ZEC/USDC"];
+  assert.equal(account.reservedQuoteAtoms, 0n);
+  assert.equal(account.reservedZecAtoms, 0n);
+  assert.equal(account.quoteAtoms, SESSION_QUOTE_ATOMS);
+  assert.equal(availableQuote(account), SESSION_QUOTE_ATOMS);
+  // The venue order itself is untouched: it was never a user order to begin with.
+  assert.equal(
+    state.books["ZEC/USDC"].bids.some((order) => order.id === "venue-bid-ZEC/USDC-0"),
+    true,
   );
 });
 

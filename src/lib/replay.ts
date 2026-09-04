@@ -5,6 +5,7 @@ import {
   releaseRestingOrder,
   seedBook,
   seedPaperAccount,
+  USER_ORDER_PREFIX,
   wouldSelfTrade,
   type PaperAccount,
 } from "./session.ts";
@@ -64,6 +65,16 @@ export function replayLog(events: readonly SessionLogEvent[]): {
       const book = state.books[event.marketId];
       const resting = [...book.bids, ...book.asks].find((order) => order.id === event.orderId);
       if (!resting) {
+        continue;
+      }
+      // Only user orders ever reserve PaperAccount inventory (applySubmit
+      // -> reserveRemainder runs for "user-" ids only; seedBook's venue
+      // fixture liquidity never touches the account). Releasing a venue
+      // order here would subtract a reservation that was never added,
+      // driving reservedZecAtoms/reservedQuoteAtoms negative and handing
+      // the account phantom available balance. A log naming a non-user id
+      // for cancellation is treated the same as one naming a missing id.
+      if (!resting.id.startsWith(USER_ORDER_PREFIX)) {
         continue;
       }
       state = {

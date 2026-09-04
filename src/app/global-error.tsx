@@ -32,8 +32,16 @@ export default function GlobalError({
             min-height: 44px;
             flex-shrink: 0;
           }
+          /* The outline sits 2px outside the link, so what it has to be
+             visible against is the page background, not the link's own
+             cyan fill. #03121b against #050816 measures 1.05:1. These
+             skip links are always shown rather than revealed on focus,
+             so the outline is the only thing that changes when one takes
+             focus, and at 1.05:1 nothing visibly changed at all. #4ddcff
+             measures 12.35:1 against the same background and is the
+             accent the links already carry. */
           nav[aria-label="Skip links"] a:focus-visible {
-            outline: 2px solid #03121b;
+            outline: 2px solid #4ddcff;
             outline-offset: 2px;
           }
         `}</style>

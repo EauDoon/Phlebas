@@ -5,9 +5,12 @@ import {
   isTwapDurationSeconds,
   isTwapSliceCount,
   nextDueTwapSlice,
+  isTwapJobTerminal,
   planTwap,
+  retainedTwapJobs,
   TWAP_DURATION_SECONDS,
   TWAP_SLICES,
+  TWAP_TERMINAL_JOBS_RETAINED,
   TWAP_USER_CANCELLED_REASON,
   twapCancelCopy,
   twapProgressCopy,
@@ -165,5 +168,51 @@ describe("twap execution helpers", () => {
       "TWAP cancelled after 3 of 4 slices. Remaining slices will not execute.",
     );
     assert.equal(TWAP_USER_CANCELLED_REASON, "Cancelled by you. Remaining slices will not execute.");
+  });
+});
+
+describe("twap job retention", () => {
+  const plan = { slices: 4 } as const;
+  const running = (id: string, completed = 1) => ({ id, completed, stoppedReason: null, plan });
+  const done = (id: string) => ({ id, completed: 4, stoppedReason: null, plan });
+  const stopped = (id: string, reason = "Session quote inventory is insufficient") =>
+    ({ id, completed: 1, stoppedReason: reason, plan });
+
+  it("keeps a job that just finished, so its closing line can render", () => {
+    // The scheduler used to drop a job in the same tick that finished it,
+    // which meant "TWAP complete. 4 of 4 slices executed." and the stop
+    // reason could never appear: the progress line simply vanished and
+    // the visitor was told nothing about whether the order finished or
+    // failed. Only the user-cancelled line survived, because the cancel
+    // handler publishes the list itself.
+    assert.deepEqual(retainedTwapJobs([done("a")]).map((job) => job.id), ["a"]);
+    assert.deepEqual(retainedTwapJobs([stopped("b")]).map((job) => job.id), ["b"]);
+    assert.deepEqual(
+      retainedTwapJobs([stopped("c", TWAP_USER_CANCELLED_REASON)]).map((job) => job.id),
+      ["c"],
+    );
+  });
+
+  it("never drops a running job", () => {
+    const jobs = [done("a"), done("b"), done("c"), done("d"), running("live")];
+    assert.ok(retainedTwapJobs(jobs).some((job) => job.id === "live"));
+  });
+
+  it("keeps the finished list bounded so a long session does not accumulate lines", () => {
+    const jobs = [done("a"), done("b"), stopped("c"), done("d"), done("e")];
+    assert.equal(TWAP_TERMINAL_JOBS_RETAINED, 3);
+    // The oldest finished jobs go first, so the newest outcome stays visible.
+    assert.deepEqual(retainedTwapJobs(jobs).map((job) => job.id), ["c", "d", "e"]);
+  });
+
+  it("leaves a list that is already within the bound untouched", () => {
+    const jobs = [running("x"), done("y")];
+    assert.deepEqual(retainedTwapJobs(jobs), jobs);
+  });
+
+  it("classifies terminal jobs by completion or stop reason", () => {
+    assert.equal(isTwapJobTerminal(running("r")), false);
+    assert.equal(isTwapJobTerminal(done("d")), true);
+    assert.equal(isTwapJobTerminal(stopped("s")), true);
   });
 });

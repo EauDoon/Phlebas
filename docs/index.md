@@ -29,6 +29,7 @@ the corresponding file in the docs tree.
   - [0008 implementation notes](adr/0008-impl-notes.md)
   - [0009 final integration and audit prep](adr/0009-final-integration-audit.md)
   - [0009 implementation notes](adr/0009-impl-notes.md)
+  - [0010 what the matcher may forget](adr/0010-matcher-record-retention.md) - proposed, not accepted
 
 ## Operations and runbooks
 

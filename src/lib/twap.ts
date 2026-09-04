@@ -109,3 +109,43 @@ export function twapCancelCopy(plan: TwapPlan, completed: number): string {
 export function twapSessionLogId(marketId: MarketId, jobNumber: number): string {
   return `twap-${marketId.replace("/", "").toLowerCase()}-${jobNumber}`;
 }
+
+/**
+ * How many finished TWAP jobs keep their line on screen.
+ *
+ * A finished job has to outlive the tick that finished it, or its closing
+ * line never renders. It cannot be kept forever either: a long session
+ * would accumulate one line per TWAP ever started. Three is enough to
+ * read the last outcome without the notices crowding the ticket.
+ */
+export const TWAP_TERMINAL_JOBS_RETAINED = 3;
+
+/** The part of a running TWAP job that decides whether it is finished. */
+export type TwapJobProgress = Readonly<{
+  completed: number;
+  stoppedReason: string | null;
+  plan: Pick<TwapPlan, "slices">;
+}>;
+
+export function isTwapJobTerminal(job: TwapJobProgress): boolean {
+  return job.completed >= job.plan.slices || job.stoppedReason !== null;
+}
+
+/**
+ * Every running job, plus the most recently finished ones.
+ *
+ * The scheduler used to drop a job in the same tick that finished it,
+ * which meant two of the three endings could never be seen. A job whose
+ * last slice landed was gone before "TWAP complete" could render, and a
+ * job stopped by a rejection was gone before its reason could render, so
+ * the progress line simply vanished and the visitor was told nothing
+ * about whether the order had finished or failed. Only the user-cancelled
+ * line survived, because the cancel handler publishes the list itself.
+ */
+export function retainedTwapJobs<T extends TwapJobProgress>(jobs: ReadonlyArray<T>): T[] {
+  const terminal = jobs.filter(isTwapJobTerminal);
+  const excess = terminal.length - TWAP_TERMINAL_JOBS_RETAINED;
+  if (excess <= 0) return [...jobs];
+  const dropped = new Set(terminal.slice(0, excess));
+  return jobs.filter((job) => !dropped.has(job));
+}
