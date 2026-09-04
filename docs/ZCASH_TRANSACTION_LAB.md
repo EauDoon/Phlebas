@@ -4,6 +4,8 @@ Status: key-independent candidate implementation
 
 Updated: 03-09-2026
 
+The lab now includes a pure secp256k1 digest verifier for compressed transparent public keys and 64-byte `r || s` signatures. It accepts both mathematically valid low- and high-S forms, matching transparent Zcash verification, while the separate EVM recovery path retains its low-S rule. This primitive does not parse DER, inspect transaction bytes, sign, broadcast, prove wallet provenance, or establish chain inclusion; signed v5 byte inspection remains the next wallet-independent gate.
+
 ## Boundary
 
 The lab builds deterministic plans for transparent Zcash P2SH funding, claim, and refund transactions, computes v5 signature digests, and encodes unsigned v5 bytes with empty scriptSigs for offline inspection. It does not produce an authorized transaction or transaction ID, connect to a wallet or node, sign, extract, broadcast, or claim relayability.

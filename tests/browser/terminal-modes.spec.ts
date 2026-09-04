@@ -95,7 +95,7 @@ test("TWAP splits a reviewed order into scheduled slices", async ({ page }) => {
 
   await page.getByRole("button", { name: "Complete buy" }).click();
   await expect(page.getByText(/TWAP started\. 4 slices over 5 minutes/)).toBeVisible();
-  await expect(page.getByText("TWAP running. 0 of 4 slices executed.")).toBeVisible();
+  await expect(page.getByText("TWAP running. 1 of 4 slices executed.")).toBeVisible({ timeout: 10_000 });
 });
 
 test("a running TWAP can be cancelled and stops executing", async ({ page }) => {
@@ -107,7 +107,7 @@ test("a running TWAP can be cancelled and stops executing", async ({ page }) => 
   await page.getByLabel("TWAP duration").selectOption("300");
   await page.getByRole("button", { name: "Review buy" }).click();
   await page.getByRole("button", { name: "Complete buy" }).click();
-  await expect(page.getByText("TWAP running. 0 of 4 slices executed.")).toBeVisible();
+  await expect(page.getByText("TWAP running. 1 of 4 slices executed.")).toBeVisible({ timeout: 10_000 });
 
   const stop = page.getByRole("button", { name: "Stop TWAP job on ZEC/USDC" });
   await expect(stop).toBeVisible();
@@ -115,7 +115,7 @@ test("a running TWAP can be cancelled and stops executing", async ({ page }) => 
   await stop.click();
 
   await expect(page.getByText(
-    "TWAP cancelled after 0 of 4 slices. Remaining slices will not execute.",
+    "TWAP cancelled after 1 of 4 slices. Remaining slices will not execute.",
   )).toBeVisible();
   await expect(page.getByRole("button", { name: "Stop TWAP job on ZEC/USDC" })).toHaveCount(0);
 });

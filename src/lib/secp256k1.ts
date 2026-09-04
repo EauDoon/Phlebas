@@ -130,6 +130,38 @@ export function recoverCompactPublicKey(digestHex: string, compactSignatureHex: 
   return serializePoint(recoverPoint(digest, signature.slice(1), recoveryId), compressed);
 }
 
+export function verifySecp256k1Digest(
+  digestHex: string,
+  signatureBodyHex: string,
+  publicKeyHex: string,
+): boolean {
+  try {
+    const digest = decodeFixedHex(digestHex, 32, "Digest");
+    const signature = decodeFixedHex(signatureBodyHex, 64, "Signature body");
+    const publicKey = decodeFixedHex(publicKeyHex, 33, "Compressed public key");
+    const { r, s } = signatureValues(signature);
+    const prefix = publicKey[0];
+    if (prefix !== 0x02 && prefix !== 0x03) return false;
+
+    const x = bytesToInt(publicKey.slice(1));
+    if (x >= P) return false;
+    let y = sqrt(mod(x * x * x + 7n, P));
+    if ((y & 1n) !== BigInt(prefix & 1)) y = mod(P - y, P);
+    if ((y & 1n) !== BigInt(prefix & 1)) return false;
+    const publicPoint = { x, y };
+    const inverseS = inverse(s, N);
+    const u1 = mod(bytesToInt(digest) * inverseS, N);
+    const u2 = mod(r * inverseS, N);
+    const point = add(
+      mul({ x: GX, y: GY }, u1),
+      mul(publicPoint, u2),
+    );
+    return point !== null && mod(point.x, N) === r;
+  } catch {
+    return false;
+  }
+}
+
 export function recoverAddress(digestHex: string, signatureHex: string): string {
   const digest = decodeFixedHex(digestHex, 32, "Digest");
   const signature = decodeFixedHex(signatureHex, 65, "Signature");
