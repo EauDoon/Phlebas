@@ -1,6 +1,9 @@
 # ADR 0010: What the matcher may forget
 
-Status: Proposed. Not accepted, not implemented.
+Status: Accepted (2026-09-05). Sequenced as the ADR recommends: option C's
+journal half first, option B's accepted-order pruning as a separate
+follow-up change. The journal half is implemented; review-8 is closed.
+Option B is not implemented yet; review-1 stays open until it is.
 
 This ADR exists because two defects recorded in `docs/audit/open-items.md`,
 `review-1` and `review-8`, cannot be fixed without answering one question
@@ -114,3 +117,37 @@ It does not authorize any of it. Nothing in `docs/audit/open-items.md`
 moves on the strength of a proposal, and the release gates are unchanged.
 `review-1` and `review-8` stay open until an option here is accepted and
 the work is reviewed against exact bytes.
+
+## Acceptance record and amendment
+
+Accepted as recommended: **C for the journal, B for the accepted orders**,
+in that order, as two separate changes. Option A is rejected (it accepts
+quadratic cost and a market that still stops), option D is not taken
+(because C's journal half was taken in full).
+
+The journal half was implemented first, as sequenced: the store keeps one
+`records` array for its lifetime and appends to it in place, and the
+`journal` getter's contract now states that `records` is a live reference
+while the scalar fields are the values at the moment of the get. The
+pinned contract test fails while the array is rebuilt per append. The
+matcher image's transitive source closure is unchanged.
+
+Amendment from the reference analysis done before implementing B, which
+the option B sketch underestimated: `orderReferenceSnapshot` in
+`src/lib/order-reference.ts` cross-checks `acceptedOrders` against the
+hash-chained intake receipt chain (`receiptChain.receipts.length` must
+equal the accepted-entry count), against `lifecycle.acceptedOrderHashes`
+markers, and against `lifecycle.nonceClaims`. The receipt chain is
+append-only and its head is replay-identity-bearing, so option B cannot
+delete intake evidence; the prune has to separate the durable intake
+record (which stays complete) from the live accepted-order index (which
+is derived, bounded, and what the cap should have bounded) at the
+snapshot-derivation layer, and the derived state root changes, so the
+root must be versioned exactly as the option B sketch requires. This
+sharpens B rather than changing the decision: B remains the chosen
+direction for review-1, as a separate change with its own tests.
+
+Account recovery and execution lookup read the accepted-order index, so
+the follow-up change must show both consuming the pruned index without
+losing the ability to recover an account's history from the journal,
+which keeps every intake record.

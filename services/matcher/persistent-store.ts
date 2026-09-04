@@ -42,6 +42,7 @@ import {
   readJournalCheckpoint,
   writeJournalCheckpoint,
   type JournalCheckpoint,
+  type JournalRecord,
   type JournalState,
   type JournalValue,
 } from "./journal.ts";
@@ -823,6 +824,7 @@ async function releaseWriterLock(path: string, ownership: WriterLockOwnership): 
 
 export class PersistentMatcherStore {
   #options: PersistentMatcherStoreOptions;
+  #records: JournalRecord[];
   #journal: JournalState;
   #state: PersistentMatcherState;
   #checkpoint: JournalCheckpoint;
@@ -845,7 +847,13 @@ export class PersistentMatcherStore {
     maximumPhysicalBytes: number,
   ) {
     this.#options = options;
-    this.#journal = journal;
+    // One records array for the store's lifetime (ADR 0010, option C):
+    // mutations push onto it instead of rebuilding it, so an append is
+    // O(1) and the array the journal getter hands out is a live
+    // reference. The replayed journal's array is copied once here so the
+    // store owns the only reference to it.
+    this.#records = [...journal.records];
+    this.#journal = { ...journal, records: this.#records };
     this.#state = state;
     this.#checkpoint = checkpoint;
     this.#receiptCheckpoints = receiptCheckpoints;
@@ -1077,6 +1085,11 @@ export class PersistentMatcherStore {
   }
 
   get journal(): JournalState {
+    // Live reference, not a snapshot (ADR 0010, option C): records is one
+    // array for the store's lifetime and keeps growing as records are
+    // appended, so read a record by index at time of use and do not hold
+    // the array across a mutation expecting it to be stable. sequence,
+    // head and byteLength are the values at the moment of the get.
     return this.#journal;
   }
 
@@ -1165,8 +1178,9 @@ export class PersistentMatcherStore {
       throw this.#markFault("journal-append", error);
     }
     this.#state = candidate.state;
+    this.#records.push(record);
     this.#journal = {
-      records: [...this.#journal.records, record],
+      records: this.#records,
       sequence,
       head: record.recordHash,
       byteLength: this.#journal.byteLength + Buffer.byteLength(`${canonicalJournalJson(record)}\n`, "utf8"),
