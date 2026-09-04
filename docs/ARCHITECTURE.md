@@ -24,7 +24,7 @@ Version 1 is transparent. It does not provide shielded settlement or privacy.
 
 ## Current system
 
-The current repository contains a Next.js no-value simulation, undeployed Arbitrum Sepolia contract sources, and optional loopback operator stubs. Public Vercel must not run the matcher or observer.
+The current repository contains a Next.js no-value simulation, undeployed exact-token EVM conditional-lock sources, and optional loopback operator stubs. Public Vercel must not run the matcher or observer.
 
 | Component | Current state | Target state |
 | --- | --- | --- |
@@ -166,6 +166,8 @@ EVM authorization uses [EIP-712](https://eips.ethereum.org/EIPS/eip-712). Zcash 
 Price-time matching, GTC, IOC, FOK, partial fills, cancellation, fee caps, and side-aware integer rounding are deterministic. Sequence receipts and checkpoints make omission or reordering visible. They do not make the matcher trustless.
 
 The loopback matcher validates signed order and solver intents, applies one immutable zero-fee policy, appends a hash-chained single-writer journal, reconstructs state by deterministic replay, and exposes bounded feeds with stable cursors. Every selected fill produces only a blocked no-value plan. The service contains no wallet key, transaction builder, signer, broadcast path, or chain authority, and it never runs on Vercel. Its journal is coordination evidence, not canonical settlement evidence.
+
+The key-independent `materializeMatcherSwapTerms` adapter recomputes an order-book fill plan and maps it into the existing unsigned `SwapTermsV1`. It requires explicit secret-hash, escrow, deadline, fee-recipient, and policy context, derives wallet roles and the Zcash lock script, and rejects rounded quote amounts that cannot settle exactly. Both orders must permit the selected venue; a shared fee cap takes the lower signed maximum while the charged fee remains zero. Solver quote materialization remains unavailable because its authorization binding needs separate integration. The adapter neither verifies participant signatures nor enables matcher submission. Canonical state creation still verifies the supplied policy bodies against their committed IDs.
 
 ## Solver liquidity
 

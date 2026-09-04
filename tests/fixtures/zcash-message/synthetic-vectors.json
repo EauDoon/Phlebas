@@ -1,0 +1,98 @@
+{
+  "provenance": {
+    "source": "zcashd compact signed-message format",
+    "sourceCommit": "558f686599586f55def3db86955d74d3be44605e",
+    "synthetic": true,
+    "note": "Generated from public recovery points and ECDSA scalars; no private keys, funded addresses, or chain observations."
+  },
+  "vectors": [
+    {
+      "name": "len16-compressed-recovery0",
+      "message": "0123456789ABCDEF",
+      "recoveryId": 0,
+      "compressed": true,
+      "highS": false,
+      "digestHex": "0x869c44d42f27fc7603ebd3dc58fda6e085d31c49dea577513a85c76864c48962",
+      "compactSignatureHex": "0x1f0000000000000000000000000000000000000000000000000000000000000002000123456789abcdef123456789abcdef123456789abcdef123456789abcdef1",
+      "signatureBase64": "HwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAEjRWeJq83vEjRWeJq83vEjRWeJq83vEjRWeJq83vE=",
+      "publicKeyHex": "0x02628465c67fa3d8a73709a66398636bb60f2e037fcd7b8be8806447aa400367b2",
+      "account": "zcash:mainnet:t1abLbcsgp6zvsgVRsHstzHqu34FmhjbW3r",
+      "synthetic": true,
+      "signedMagic": "Zcash Signed Message:\n"
+    },
+    {
+      "name": "len252-uncompressed-recovery1",
+      "message": "Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab3!-Ab",
+      "recoveryId": 1,
+      "compressed": false,
+      "highS": false,
+      "digestHex": "0x8de16aec7ce91a6b92ad7c3be1e573802cdbdd3927c2d5d1c9f43373384800dc",
+      "compactSignatureHex": "0x1c0000000000000000000000000000000000000000000000000000000000000003000223456789abcdef123456789abcdef123456789abcdef123456789abcdef2",
+      "signatureBase64": "HAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAIjRWeJq83vEjRWeJq83vEjRWeJq83vEjRWeJq83vI=",
+      "publicKeyHex": "0x04fdab97941a4dbb63876f58afa0d80d63081047dc05d7d25b068db4d19a77ac6b77231e997758ec8fa696c755caa50697c24854bd4eee34c09f980970b33e5818",
+      "account": "zcash:mainnet:t1geNKd4ugiGu8wCM7VYZFKM5M6tjPTpgDr",
+      "synthetic": true,
+      "signedMagic": "Zcash Signed Message:\n"
+    },
+    {
+      "name": "len253-compressed-recovery2",
+      "message": "Z9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_?qZ9_",
+      "recoveryId": 2,
+      "compressed": true,
+      "highS": false,
+      "digestHex": "0x35c54234372895c9ac515feea0ca910c096c7efeef0cd6b3289613233be4f4f4",
+      "compactSignatureHex": "0x210000000000000000000000000000000000000000000000000000000000000004000323456789abcdef123456789abcdef123456789abcdef123456789abcdef3",
+      "signatureBase64": "IQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAMjRWeJq83vEjRWeJq83vEjRWeJq83vEjRWeJq83vM=",
+      "publicKeyHex": "0x038dc5792f8ab5c3c0667e69dc9f947778b65fe22db2128c1c463e7d9b73fff24e",
+      "account": "zcash:mainnet:t1cHiMtNkvoPhXGWmPotsoGfBpEBFoHcmZG",
+      "synthetic": true,
+      "signedMagic": "Zcash Signed Message:\n"
+    },
+    {
+      "name": "len512-highS-uncompressed-recovery3",
+      "message": "xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xyZ7! xy",
+      "recoveryId": 3,
+      "compressed": false,
+      "highS": true,
+      "digestHex": "0x5b2dcaf11c16c5119939f41871965c29056f7423387baff2845d4c0c2a1bbb18",
+      "compactSignatureHex": "0x1e0000000000000000000000000000000000000000000000000000000000000006fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0351dfc",
+      "signatureBase64": "HgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAG/////////////////////rqu3OavSKA7v9JejNA1Hfw=",
+      "publicKeyHex": "0x042d3e539cd19ac1adda89071142c75a97d572f2d84219837058bb715f64cbd1b0a4b5bbffe4a13f749de273cfa48f1211bcb76f4029fe20fc80fd51970ca13c2f",
+      "account": "zcash:mainnet:t1ShwZZG6NXjqMhd3e6xD76X6jfvChqtAch",
+      "synthetic": true,
+      "signedMagic": "Zcash Signed Message:\n"
+    },
+    {
+      "name": "provider-session-challenge",
+      "message": "phlebas-connect-challenge-0001",
+      "recoveryId": 1,
+      "compressed": true,
+      "highS": false,
+      "digestHex": "0x215622126f2fe2e403bd4333d6dfe6792dd97f96d028457eee67b75b93ab7e95",
+      "compactSignatureHex": "0x200000000000000000000000000000000000000000000000000000000000000008000523456789abcdef123456789abcdef123456789abcdef123456789abcdef5",
+      "signatureBase64": "IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAUjRWeJq83vEjRWeJq83vEjRWeJq83vEjRWeJq83vU=",
+      "publicKeyHex": "0x02ef1c3fa49a3714f1ff21f5ee447674161acb5721f6037ca7053fa725502fcd7e",
+      "account": "zcash:mainnet:t1g1CuJJdcHddCmGVEmC1ifCcXmEjDxZwYs",
+      "synthetic": true,
+      "signedMagic": "Zcash Signed Message:\n"
+    }
+  ],
+  "negative": {
+    "wrongMagic": {
+      "name": "wrong-magic",
+      "message": "wrong-magic-test!",
+      "recoveryId": 0,
+      "compressed": true,
+      "highS": false,
+      "digestHex": "0x930eeec641cae2e455c039887de1d3c958642c1bce05388a1d2e426a3a304eb2",
+      "compactSignatureHex": "0x1f0000000000000000000000000000000000000000000000000000000000000006000423456789abcdef123456789abcdef123456789abcdef123456789abcdef4",
+      "signatureBase64": "HwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAQjRWeJq83vEjRWeJq83vEjRWeJq83vEjRWeJq83vQ=",
+      "publicKeyHex": "0x03e8720133d4b0f7aeb750c4800740585a1a492e3552eb684f00615330a38f0e01",
+      "account": "zcash:mainnet:t1Qfx2eixWmZpAC2gFvMHHePNBz1kMK4TVS",
+      "synthetic": true,
+      "signedMagic": "Bitcoin Signed Message:\n"
+    },
+    "wrongNetworkAccount": "zcash:testnet:tmSS5vTN6CmWS1vgsY2BdqxWee3LbChydbP",
+    "wrongKindAccount": "zcash:mainnet:t3bHMXAN8N1KJxrBrzPYVQvCqBaYVCExTjv"
+  }
+}

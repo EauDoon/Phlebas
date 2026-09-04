@@ -39,6 +39,7 @@ the corresponding file in the docs tree.
 - [SOURCES.md](SOURCES.md) — source references
 - [runbooks/](runbooks/) — per-surface restart runbooks
   - [runbooks/observer-restart.md](runbooks/observer-restart.md)
+  - [runbooks/swap-coordinator-storage.md](runbooks/swap-coordinator-storage.md) — local canonical storage and recovery boundaries
   - [runbooks/market-data-restart.md](runbooks/market-data-restart.md)
 - [operations/](operations/) — per-surface SLOs
   - [operations/observer-slo.md](operations/observer-slo.md)

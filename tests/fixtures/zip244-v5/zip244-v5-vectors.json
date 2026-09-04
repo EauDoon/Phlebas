@@ -1,0 +1,113 @@
+{
+  "provenance": {
+    "algorithm": "independent Python hashlib.blake2b implementation",
+    "basis": "ZIP 244 signature_digest, transparent SIGHASH_ALL, with empty Sapling and Orchard components",
+    "source": "https://zips.z.cash/zip-0244#signature-digest",
+    "officialGenerator": "https://github.com/zcash/zcash-test-vectors/blob/113b3914c79dfe7eb68cb754cd7fea20b75e2e61/zcash_test_vectors/zip_0244.py",
+    "profileNote": "The official generator's legacy NU5 vectors cannot pass this repository's committed NU6.3 artifact validator, so these vectors reuse the same ZIP 244 v5 algorithm with valid NU6.3 lab-shaped effecting fields."
+  },
+  "vectors": [
+    {
+      "name": "fund-mainnet-two-input",
+      "kind": "fund",
+      "network": "mainnet",
+      "transactionVersion": 5,
+      "versionGroupId": "26a7270a",
+      "consensusBranchId": "37a5165b",
+      "targetHeight": 3500000,
+      "expiryHeight": 3500020,
+      "lockTime": 0,
+      "feeZatoshis": "10000",
+      "inputs": [
+        {
+          "txid": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "outputIndex": 16909060,
+          "sequence": 4294967295,
+          "valueZatoshis": "140000",
+          "scriptPubKeyHex": "76a914333333333333333333333333333333333333333388ac"
+        },
+        {
+          "txid": "1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100",
+          "outputIndex": 168496141,
+          "sequence": 4294967295,
+          "valueZatoshis": "90000",
+          "scriptPubKeyHex": "76a914444444444444444444444444444444444444444488ac"
+        }
+      ],
+      "outputs": [
+        {
+          "role": "contract",
+          "valueZatoshis": "180000",
+          "scriptPubKeyHex": "a914789e2c698bcb75afdb66435ba876e6a5c94b5ae387"
+        },
+        {
+          "role": "change",
+          "valueZatoshis": "40000",
+          "scriptPubKeyHex": "76a914555555555555555555555555555555555555555588ac"
+        }
+      ],
+      "inputIndex": 1,
+      "expectedSighash": "0x790d7af17ccb02c0071e5c9643004c29e2887d458b509710819345a5552b000c"
+    },
+    {
+      "name": "claim-testnet-p2sh",
+      "kind": "claim",
+      "network": "testnet",
+      "transactionVersion": 5,
+      "versionGroupId": "26a7270a",
+      "consensusBranchId": "37a5165b",
+      "targetHeight": 4300001,
+      "expiryHeight": 4300021,
+      "lockTime": 0,
+      "feeZatoshis": "10000",
+      "inputs": [
+        {
+          "txid": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+          "outputIndex": 2712847316,
+          "sequence": 4294967295,
+          "valueZatoshis": "110000",
+          "scriptPubKeyHex": "a914789e2c698bcb75afdb66435ba876e6a5c94b5ae387"
+        }
+      ],
+      "outputs": [
+        {
+          "role": "recipient",
+          "valueZatoshis": "100000",
+          "scriptPubKeyHex": "76a914111111111111111111111111111111111111111188ac"
+        }
+      ],
+      "inputIndex": 0,
+      "expectedSighash": "0x6a4293268c699f0e075fee13b1bcbd1db6f183b1bbb09a2fec63091b9543d21c"
+    },
+    {
+      "name": "refund-mainnet-p2sh",
+      "kind": "refund",
+      "network": "mainnet",
+      "transactionVersion": 5,
+      "versionGroupId": "26a7270a",
+      "consensusBranchId": "37a5165b",
+      "targetHeight": 4300001,
+      "expiryHeight": 4300021,
+      "lockTime": 4300000,
+      "feeZatoshis": "10000",
+      "inputs": [
+        {
+          "txid": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+          "outputIndex": 252579084,
+          "sequence": 4294967294,
+          "valueZatoshis": "110000",
+          "scriptPubKeyHex": "a914789e2c698bcb75afdb66435ba876e6a5c94b5ae387"
+        }
+      ],
+      "outputs": [
+        {
+          "role": "recipient",
+          "valueZatoshis": "100000",
+          "scriptPubKeyHex": "76a914222222222222222222222222222222222222222288ac"
+        }
+      ],
+      "inputIndex": 0,
+      "expectedSighash": "0x45cfe16503b126e70cce4c087775900ecb6c06c0da0e7c4bba576736af85c3cc"
+    }
+  ]
+}

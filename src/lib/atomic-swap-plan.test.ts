@@ -62,6 +62,38 @@ function withOrder(partyValue: AtomicSwapParty, changes: Partial<TypedOrderInten
   return { ...partyValue, order, orderHash: hashTypedOrder(policy.orderDomain, order) };
 }
 
+test("every plan binds both parties to their signed venue permissions", () => {
+  const input = {
+    venue: "order-book" as const,
+    fillIndex: 0,
+    taker: party("venue-buyer", 0),
+    counterparty: party("venue-seller", 1),
+    acceptedAtSeconds: 1_800_000_000n,
+    executionPriceTicks: 5_000n,
+    baseAmountAtoms: 100_000_000n,
+    feeBps: 0n,
+    policy,
+  };
+  for (const venue of ["order-book", "solver"] as const) {
+    const allowedVenues = venue === "order-book" ? 1 : 2;
+    const permitted = {
+      ...input, venue,
+      taker: withOrder(input.taker, { allowedVenues }),
+      counterparty: withOrder(input.counterparty, { allowedVenues }),
+    };
+    assert.equal(createAtomicSwapPlan(permitted).venue, venue);
+    for (const role of ["taker", "counterparty"] as const) {
+      assert.throws(() => createAtomicSwapPlan({
+        ...permitted, [role]: withOrder(permitted[role], { allowedVenues: 3 - allowedVenues }),
+      }), /does not authorize the selected venue/);
+    }
+  }
+  assert.throws(() => createAtomicSwapPlan({
+    ...input, counterparty: { ...input.counterparty, authorizationKind: "solver-quote", verifiedAuthorizationHash: input.counterparty.orderHash },
+  }), /requires the solver venue/);
+  assert.throws(() => createAtomicSwapPlan({ ...input, venue: "unknown" as "solver" }), /Unknown atomic-swap venue/);
+});
+
 test("maps a fill deterministically to direct wallet legs with ordered deadlines", () => {
   const input = {
     venue: "solver" as const,

@@ -81,7 +81,7 @@ test("buildController poll advances the cursor and persists the snapshot", async
   try {
     const path = join(dir, "snap.json");
     const { EVMTOPICS } = await import("../../src/lib/evm-observer.ts");
-    const evm: EVMEventSource = { fetchLogs: async () => [{ address: CONTRACT, blockNumber: 100n, txHash: "0x" + "11".repeat(32), logIndex: 0, topics: [EVMTOPICS.funded, FILL_A, "0x" + "00".repeat(32), "0x" + "00".repeat(32)], data: "0x" }] };
+    const evm: EVMEventSource = { fetchLogs: async () => [{ address: CONTRACT, blockNumber: 100n, txHash: "0x" + "11".repeat(32), logIndex: 0, topics: [EVMTOPICS.funded, FILL_A, "0x" + "00".repeat(12) + "22".repeat(20), "0x" + "00".repeat(12) + "33".repeat(20)], data: "0x" + "00".repeat(31) + "01" }] };
     const cfg = mkConfig(path);
     const evmOriginal = cfg.evm.source;
     // The poller reads cfg.evm.source; replace with the new source.
@@ -107,7 +107,7 @@ test("startService exposes /health, /state, /fills, /alerts, and /fills/:fillId"
   try {
     const path = join(dir, "snap.json");
     const { EVMTOPICS } = await import("../../src/lib/evm-observer.ts");
-    const evm: EVMEventSource = { fetchLogs: async () => [{ address: CONTRACT, blockNumber: 100n, txHash: "0x" + "11".repeat(32), logIndex: 0, topics: [EVMTOPICS.funded, FILL_A, "0x" + "00".repeat(32), "0x" + "00".repeat(32)], data: "0x" }] };
+    const evm: EVMEventSource = { fetchLogs: async () => [{ address: CONTRACT, blockNumber: 100n, txHash: "0x" + "11".repeat(32), logIndex: 0, topics: [EVMTOPICS.funded, FILL_A, "0x" + "00".repeat(12) + "22".repeat(20), "0x" + "00".repeat(12) + "33".repeat(20)], data: "0x" + "00".repeat(31) + "01" }] };
     const cfg = mkConfig(path);
     const cfgWithEvm = { ...cfg, evm: { ...cfg.evm, source: evm } };
     const initial = { state: emptyCoordinator(), bootstrap: "ready" as const, bootstrapError: null };

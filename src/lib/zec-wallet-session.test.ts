@@ -12,6 +12,10 @@ import {
   zecCapabilityStatementFromObserved,
 } from "./zec-wallet-session.ts";
 
+import proofVectors from "../../tests/fixtures/zcash-message/synthetic-vectors.json" with { type: "json" };
+
+const validProof = proofVectors.vectors.find((vector) => vector.name === "provider-session-challenge")!;
+
 const MAINNET_T1 = "t1HsxXoGneCWcA56J24xLE34CFDWNK6RCqD";
 const MAINNET_CANONICAL = `zcash:mainnet:${MAINNET_T1}`;
 
@@ -77,15 +81,31 @@ describe("capability statement assembly", () => {
 });
 
 describe("connect session", () => {
-  it("connects, proves control, and returns a frozen session", async () => {
+  it("keeps invalid provider signatures unproven and all network actions disabled", async () => {
     const provider = providerWith({
-      zcash_requestAccounts: async () => [MAINNET_T1],
+      zcash_requestAccounts: async () => [validProof.account],
       zcash_signMessage: async () => "0xfeedface",
     });
+    const session = await connectZecWalletSession(provider, { challenge: validProof.message });
+    assert.match(session.state.error ?? "", /does not verify/);
+    assert.equal(session.addressControlSignature, null);
+    assert.equal(session.statement?.capabilities.sourceAddressControl.supported, false);
+    assert.ok(session.assessment?.missingCapabilities.includes("source-address-control"));
+    assert.equal(session.assessment?.mainnetFundsEnabled, false);
+    assert.equal(session.assessment?.transactionExtractionEnabled, false);
+    assert.equal(session.assessment?.broadcastEnabled, false);
+  });
+
+  it("connects, proves control, and returns a frozen session", async () => {
+    const provider = providerWith({
+      zcash_requestAccounts: async () => [validProof.account],
+      zcash_signMessage: async () => validProof.signatureBase64,
+      zcash_accounts: async () => [validProof.account],
+    });
     const session = await connectZecWalletSession(provider, { challenge: "phlebas-connect-challenge-0001" });
-    assert.equal(session.state.address, MAINNET_CANONICAL);
+    assert.equal(session.state.address, validProof.account);
     assert.equal(session.state.error, null);
-    assert.equal(session.addressControlSignature, "0xfeedface");
+    assert.equal(session.addressControlSignature, validProof.signatureBase64);
     assert.equal(session.statement?.capabilities.sourceAddressControl.supported, true);
     assert.deepEqual(session.statement?.capabilities.pczt.supportedVersions, []);
     assert.equal(session.statement?.capabilities.arbitraryP2sh.fundingOutputs, false);
@@ -102,6 +122,149 @@ describe("connect session", () => {
       "keyless-recovery-export",
     ]);
     assert.equal(session.assessment?.broadcastEnabled, false);
+  });
+
+  it("does not request a signature after the account response is aborted", async () => {
+    const controller = new AbortController();
+    const methods: string[] = [];
+    const provider = providerWith({
+      zcash_requestAccounts: async ({ method }) => {
+        methods.push(method);
+        controller.abort();
+        throw new Error("late account response");
+      },
+      zcash_accounts: async ({ method }) => {
+        methods.push(method);
+        return [validProof.account];
+      },
+      zcash_signMessage: async ({ method }) => {
+        methods.push(method);
+        return validProof.signatureBase64;
+      },
+    });
+    const session = await connectZecWalletSession(provider, {
+      challenge: validProof.message,
+      signal: controller.signal,
+    });
+
+    assert.deepEqual(methods, ["zcash_requestAccounts"]);
+    assert.deepEqual(session, disconnectedZecSession);
+  });
+
+  it("does not re-read accounts after an in-flight proof is aborted", async () => {
+    const controller = new AbortController();
+    const methods: string[] = [];
+    const provider = providerWith({
+      zcash_requestAccounts: async ({ method }) => {
+        methods.push(method);
+        return [validProof.account];
+      },
+      zcash_signMessage: async ({ method }) => {
+        methods.push(method);
+        controller.abort();
+        return validProof.signatureBase64;
+      },
+      zcash_accounts: async ({ method }) => {
+        methods.push(method);
+        return [validProof.account];
+      },
+    });
+    const session = await connectZecWalletSession(provider, {
+      challenge: validProof.message,
+      signal: controller.signal,
+    });
+
+    assert.deepEqual(methods, ["zcash_requestAccounts", "zcash_signMessage"]);
+    assert.deepEqual(session, disconnectedZecSession);
+  });
+
+  it("does not return a connected session when account revalidation resolves after abort", async () => {
+    const controller = new AbortController();
+    let resolveAccounts!: (accounts: string[]) => void;
+    const provider = providerWith({
+      zcash_requestAccounts: async () => [validProof.account],
+      zcash_signMessage: async () => validProof.signatureBase64,
+      zcash_accounts: async () => new Promise<string[]>((resolve) => {
+        resolveAccounts = resolve;
+      }),
+    });
+    const sessionPromise = connectZecWalletSession(provider, {
+      challenge: validProof.message,
+      signal: controller.signal,
+    });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    controller.abort();
+    resolveAccounts([validProof.account]);
+
+    assert.deepEqual(await sessionPromise, disconnectedZecSession);
+  });
+
+  it("does not expose a revalidation error when the account read rejects after abort", async () => {
+    const controller = new AbortController();
+    let rejectAccounts!: (error: Error) => void;
+    const provider = providerWith({
+      zcash_requestAccounts: async () => [validProof.account],
+      zcash_signMessage: async () => validProof.signatureBase64,
+      zcash_accounts: async () => new Promise<string[]>((_, reject) => {
+        rejectAccounts = reject;
+      }),
+    });
+    const sessionPromise = connectZecWalletSession(provider, {
+      challenge: validProof.message,
+      signal: controller.signal,
+    });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    controller.abort();
+    rejectAccounts(new Error("private provider diagnostic"));
+
+    assert.deepEqual(await sessionPromise, disconnectedZecSession);
+  });
+
+  it("fails fully closed when the selected account changes after proof", async () => {
+    const provider = providerWith({
+      zcash_requestAccounts: async () => [validProof.account],
+      zcash_signMessage: async () => validProof.signatureBase64,
+      zcash_accounts: async () => [MAINNET_T1],
+    });
+    const session = await connectZecWalletSession(provider, { challenge: validProof.message });
+
+    assert.equal(session.state.address, null);
+    assert.equal(session.state.error, "ZEC wallet account could not be revalidated.");
+    assert.equal(session.statement, null);
+    assert.equal(session.assessment, null);
+    assert.equal(session.addressControlSignature, null);
+  });
+
+  it("fails fully closed for empty, malformed, or unreadable account revalidation", async () => {
+    const results: unknown[] = [[], ["not-a-zcash-account"], "not-an-array"];
+    for (const currentAccounts of results) {
+      const provider = providerWith({
+        zcash_requestAccounts: async () => [validProof.account],
+        zcash_signMessage: async () => validProof.signatureBase64,
+        zcash_accounts: async () => currentAccounts,
+      });
+      const session = await connectZecWalletSession(provider, { challenge: validProof.message });
+
+      assert.equal(session.state.address, null);
+      assert.equal(session.state.error, "ZEC wallet account could not be revalidated.");
+      assert.equal(session.statement, null);
+      assert.equal(session.assessment, null);
+      assert.equal(session.addressControlSignature, null);
+    }
+
+    const failingProvider = providerWith({
+      zcash_requestAccounts: async () => [validProof.account],
+      zcash_signMessage: async () => validProof.signatureBase64,
+      zcash_accounts: async () => {
+        throw new Error("private provider diagnostic");
+      },
+    });
+    const failedSession = await connectZecWalletSession(failingProvider, { challenge: validProof.message });
+    assert.equal(failedSession.state.address, null);
+    assert.equal(failedSession.state.error, "ZEC wallet account could not be revalidated.");
+    assert.equal(failedSession.statement, null);
+    assert.equal(failedSession.assessment, null);
+    assert.equal(failedSession.addressControlSignature, null);
   });
 
   it("stays fully disconnected when the wallet reports no account", async () => {

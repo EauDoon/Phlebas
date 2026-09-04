@@ -67,29 +67,109 @@ function bytesToInt(bytes: Uint8Array): bigint {
   return BigInt(`0x${bytesToHex(bytes)}`);
 }
 
-export function recoverAddress(digestHex: string, signatureHex: string): string {
-  const digest = hexToBytes(digestHex);
-  const signature = hexToBytes(signatureHex);
-  if (digest.length !== 32 || signature.length !== 65) {
-    throw new RangeError("Recover expects a 32-byte digest and 65-byte signature");
+function decodeFixedHex(value: string, byteLength: number, label: string): Uint8Array {
+  if (typeof value !== "string") throw new TypeError(`${label} must be hexadecimal`);
+  const normalized = value.startsWith("0x") || value.startsWith("0X") ? value.slice(2) : value;
+  if (normalized.length !== byteLength * 2 || !/^[0-9a-f]+$/i.test(normalized)) {
+    throw new RangeError(`Expected a ${byteLength}-byte ${label.toLowerCase()} in hexadecimal`);
   }
-  let v = signature[64];
-  if (v < 27) v += 27;
-  if (v !== 27 && v !== 28) throw new RangeError("Invalid signature v");
+  return hexToBytes(normalized);
+}
+
+function signatureValues(signature: Uint8Array): { r: bigint; s: bigint } {
+  if (signature.length !== 64) throw new RangeError("Compact signature body must be 64 bytes");
   const r = bytesToInt(signature.slice(0, 32));
   const s = bytesToInt(signature.slice(32, 64));
   if (r === 0n || r >= N || s === 0n || s >= N) throw new RangeError("Invalid signature r/s");
-  if (s > N / 2n) throw new RangeError("Signature s must be canonical low-s");
+  return { r, s };
+}
 
-  let y = sqrt(mod(r * r * r + 7n, P));
-  if ((y & 1n) !== BigInt(v - 27)) y = mod(P - y, P);
+function recoverPoint(digest: Uint8Array, signature: Uint8Array, recoveryId: number): Point {
+  const { r, s } = signatureValues(signature);
+  if (digest.length !== 32) throw new RangeError("Recovery digest must be 32 bytes");
+  if (recoveryId < 0 || recoveryId > 3) throw new RangeError("Invalid recovery id");
+
+  const x = r + BigInt(recoveryId >> 1) * N;
+  if (x >= P) throw new RangeError("Invalid recovery x coordinate");
+  let y = sqrt(mod(x * x * x + 7n, P));
+  if ((y & 1n) !== BigInt(recoveryId & 1)) y = mod(P - y, P);
+  if ((y & 1n) !== BigInt(recoveryId & 1)) throw new RangeError("Invalid recovery y coordinate");
+
   const recovered = mul(
-    add(mul({ x: GX, y: GY }, mod(N - bytesToInt(digest), N)), mul({ x: r, y }, s)),
+    add(mul({ x: GX, y: GY }, mod(N - bytesToInt(digest), N)), mul({ x, y }, s)),
     inverse(r, N),
   );
   if (!recovered) throw new RangeError("Recovery produced infinity");
-  const uncompressed = hexToBytes(
-    `${recovered.x.toString(16).padStart(64, "0")}${recovered.y.toString(16).padStart(64, "0")}`,
-  );
+  return recovered;
+}
+
+function serializePoint(point: Point, compressed: boolean): Uint8Array {
+  if (!point) throw new RangeError("Cannot serialize the point at infinity");
+  const x = hexToBytes(point.x.toString(16).padStart(64, "0"));
+  const y = hexToBytes(point.y.toString(16).padStart(64, "0"));
+  if (compressed) {
+    const output = new Uint8Array(33);
+    output[0] = Number(2n + (point.y & 1n));
+    output.set(x, 1);
+    return output;
+  }
+  const output = new Uint8Array(65);
+  output[0] = 4;
+  output.set(x, 1);
+  output.set(y, 33);
+  return output;
+}
+
+export function recoverCompactPublicKey(digestHex: string, compactSignatureHex: string): Uint8Array {
+  const digest = decodeFixedHex(digestHex, 32, "Digest");
+  const signature = decodeFixedHex(compactSignatureHex, 65, "Compact signature");
+  const header = signature[0];
+  if (header < 27 || header > 34) throw new RangeError("Invalid compact signature header");
+  const recoveryId = (header - 27) & 3;
+  const compressed = ((header - 27) & 4) !== 0;
+  return serializePoint(recoverPoint(digest, signature.slice(1), recoveryId), compressed);
+}
+
+export function verifySecp256k1Digest(
+  digestHex: string,
+  signatureBodyHex: string,
+  publicKeyHex: string,
+): boolean {
+  try {
+    const digest = decodeFixedHex(digestHex, 32, "Digest");
+    const signature = decodeFixedHex(signatureBodyHex, 64, "Signature body");
+    const publicKey = decodeFixedHex(publicKeyHex, 33, "Compressed public key");
+    const { r, s } = signatureValues(signature);
+    const prefix = publicKey[0];
+    if (prefix !== 0x02 && prefix !== 0x03) return false;
+
+    const x = bytesToInt(publicKey.slice(1));
+    if (x >= P) return false;
+    let y = sqrt(mod(x * x * x + 7n, P));
+    if ((y & 1n) !== BigInt(prefix & 1)) y = mod(P - y, P);
+    if ((y & 1n) !== BigInt(prefix & 1)) return false;
+    const publicPoint = { x, y };
+    const inverseS = inverse(s, N);
+    const u1 = mod(bytesToInt(digest) * inverseS, N);
+    const u2 = mod(r * inverseS, N);
+    const point = add(
+      mul({ x: GX, y: GY }, u1),
+      mul(publicPoint, u2),
+    );
+    return point !== null && mod(point.x, N) === r;
+  } catch {
+    return false;
+  }
+}
+
+export function recoverAddress(digestHex: string, signatureHex: string): string {
+  const digest = decodeFixedHex(digestHex, 32, "Digest");
+  const signature = decodeFixedHex(signatureHex, 65, "Signature");
+  let v = signature[64];
+  if (v < 27) v += 27;
+  if (v !== 27 && v !== 28) throw new RangeError("Invalid signature v");
+  const { s } = signatureValues(signature.slice(0, 64));
+  if (s > N / 2n) throw new RangeError("Signature s must be canonical low-s");
+  const uncompressed = serializePoint(recoverPoint(digest, signature.slice(0, 64), v - 27), false).slice(1);
   return `0x${bytesToHex(keccak256(uncompressed).slice(12))}`;
 }

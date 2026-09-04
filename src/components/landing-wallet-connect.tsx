@@ -11,11 +11,20 @@ import {
 } from "@/lib/zec-wallet-session";
 import {
   detectZecWalletProvider,
+  publicZecConnectionError,
   type ZecJsonRpcProvider,
 } from "@/lib/zec-wallet-provider";
 
 import { WalletBar } from "./wallet-bar";
 import styles from "./landing.module.css";
+
+function createZecConnectChallenge(): string {
+  const nonce = new Uint8Array(16);
+  window.crypto.getRandomValues(nonce);
+  let encoded = "";
+  for (const byte of nonce) encoded += byte.toString(16).padStart(2, "0");
+  return `phlebas-connect-challenge:${encoded}`;
+}
 
 export function LandingWalletConnect() {
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -27,6 +36,15 @@ export function LandingWalletConnect() {
   const [zecProvider, setZecProvider] = useState<ZecJsonRpcProvider | null>(null);
   const [zecSession, setZecSession] = useState<ZecWalletSession>(disconnectedZecSession);
   const [zecBusy, setZecBusy] = useState(false);
+  const zecConnectionGeneration = useRef(0);
+  const zecAbortController = useRef<AbortController | null>(null);
+
+  function invalidateZecConnection(): number {
+    zecAbortController.current?.abort();
+    zecAbortController.current = null;
+    zecConnectionGeneration.current += 1;
+    return zecConnectionGeneration.current;
+  }
 
   useEffect(() => {
     // Deferred a frame so server-rendered markup ("no wallet detected")
@@ -34,19 +52,38 @@ export function LandingWalletConnect() {
     const frame = window.requestAnimationFrame(() => {
       setZecProvider(detectZecWalletProvider(window));
     });
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      zecAbortController.current?.abort();
+      zecAbortController.current = null;
+      zecConnectionGeneration.current += 1;
+    };
   }, []);
 
   async function connectZec() {
     if (!zecProvider || zecBusy) return;
+    const generation = invalidateZecConnection();
+    const controller = new AbortController();
+    zecAbortController.current = controller;
     setZecBusy(true);
     try {
       const session = await connectZecWalletSession(zecProvider, {
-        challenge: `phlebas-connect-challenge:${Math.floor(Date.now() / 1000)}`,
+        challenge: createZecConnectChallenge(),
+        signal: controller.signal,
       });
+      if (zecConnectionGeneration.current !== generation) return;
       setZecSession(session);
+    } catch (error: unknown) {
+      if (zecConnectionGeneration.current !== generation) return;
+      setZecSession({
+        ...disconnectedZecSession,
+        state: Object.freeze({ address: null, error: publicZecConnectionError(error) }),
+      });
     } finally {
-      setZecBusy(false);
+      if (zecConnectionGeneration.current === generation) {
+        if (zecAbortController.current === controller) zecAbortController.current = null;
+        setZecBusy(false);
+      }
     }
   }
 
@@ -82,6 +119,8 @@ export function LandingWalletConnect() {
   }, [open]);
 
   function close() {
+    invalidateZecConnection();
+    setZecBusy(false);
     dialogRef.current?.close();
     setOpen(false);
     window.requestAnimationFrame(() => triggerRef.current?.focus());
@@ -141,7 +180,11 @@ export function LandingWalletConnect() {
                 {zecConnected ? (
                   <button
                     type="button"
-                    onClick={() => setZecSession(disconnectedZecSession)}
+                    onClick={() => {
+                      invalidateZecConnection();
+                      setZecBusy(false);
+                      setZecSession(disconnectedZecSession);
+                    }}
                     aria-describedby="zec-wallet-status"
                   >
                     Disconnect ZEC wallet

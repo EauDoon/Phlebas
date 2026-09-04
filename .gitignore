@@ -45,6 +45,7 @@ yarn-error.log*
 /services/gateway/.data
 /services/matcher/.data
 /services/observer/.data
+/services/swap-coordinator/.data
 
 # vercel
 .vercel

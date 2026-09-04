@@ -10,6 +10,10 @@ import {
   publicZecConnectionError,
 } from "./zec-wallet-provider.ts";
 
+import proofVectors from "../../tests/fixtures/zcash-message/synthetic-vectors.json" with { type: "json" };
+
+const validProof = proofVectors.vectors.find((vector) => vector.name === "provider-session-challenge")!;
+
 const MAINNET_T1 = "t1HsxXoGneCWcA56J24xLE34CFDWNK6RCqD";
 const MAINNET_CANONICAL = `zcash:mainnet:${MAINNET_T1}`;
 const TESTNET_TM = "tmPZ3ntqAkxPQwU3e1AZxVpon6XNZtYLPs9";
@@ -95,15 +99,71 @@ describe("connect flow", () => {
     const state = await connectZecWallet(providerWith([]));
     assert.deepEqual(state, { ...disconnectedZecWallet, error: state.error });
   });
+
+  it("does not turn rejected, pending, or unknown requests into read-only connections", async () => {
+    for (const code of [4001, "4001", -32002, "-32002", -32000]) {
+      const methods: string[] = [];
+      const provider = {
+        async request(args: { method: string }) {
+          methods.push(args.method);
+          if (args.method === "zcash_requestAccounts") {
+            throw Object.assign(new Error("provider diagnostic"), { code });
+          }
+          if (args.method === "zcash_accounts") return [MAINNET_T1];
+          throw new Error(`unexpected method ${args.method}`);
+        },
+      };
+      const state = await connectZecWallet(provider);
+
+      assert.deepEqual(methods, ["zcash_requestAccounts"]);
+      assert.equal(state.address, null);
+      assert.equal(state.error, publicZecConnectionError({ code }));
+    }
+  });
+
+  it("falls back to zcash_accounts only for explicit unsupported-method errors", async () => {
+    for (const code of [-32601, "-32601", 4200, "4200"]) {
+      const methods: string[] = [];
+      const provider = {
+        async request(args: { method: string }) {
+          methods.push(args.method);
+          if (args.method === "zcash_requestAccounts") {
+            throw Object.assign(new Error("unsupported"), { code });
+          }
+          if (args.method === "zcash_accounts") return [MAINNET_T1];
+          throw new Error(`unexpected method ${args.method}`);
+        },
+      };
+      const state = await connectZecWallet(provider);
+
+      assert.deepEqual(methods, ["zcash_requestAccounts", "zcash_accounts"]);
+      assert.deepEqual(state, { address: MAINNET_CANONICAL, error: null });
+    }
+  });
 });
 
 describe("source-address-control proof", () => {
+  it("rejects nonempty signatures and valid signatures for a different account or challenge", async () => {
+    for (const [account, challenge, signature] of [
+      [validProof.account, validProof.message, "0xdeadbeef"],
+      [MAINNET_CANONICAL, validProof.message, validProof.signatureBase64],
+      [validProof.account, validProof.message + "x", validProof.signatureBase64],
+    ]) {
+      const provider = providerWith([], { zcash_signMessage: async () => signature });
+      const proof = await proveSourceAddressControl(provider, account, challenge);
+      assert.deepEqual(proof, { error: "The wallet signature does not verify for this ZEC account and challenge." });
+    }
+  });
+
   it("returns the signature for a valid challenge", async () => {
     const provider = providerWith([], {
-      zcash_signMessage: async () => "0xdeadbeef",
+      zcash_signMessage: async (args) => {
+        assert.deepEqual(args, { method: "zcash_signMessage", params: { account: validProof.account, message: validProof.message } });
+        return validProof.signatureBase64;
+      },
     });
-    const proof = await proveSourceAddressControl(provider, MAINNET_CANONICAL, "phlebas-connect-challenge-0001");
-    assert.deepEqual(proof, { signature: "0xdeadbeef" });
+    const proof = await proveSourceAddressControl(provider, validProof.account, validProof.message);
+    assert.deepEqual(proof, { signature: validProof.signatureBase64 });
   });
 
   it("rejects a challenge outside the printable-ASCII length bound", async () => {

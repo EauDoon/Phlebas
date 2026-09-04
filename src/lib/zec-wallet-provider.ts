@@ -1,12 +1,13 @@
 // Discovery and typed access for an injected transparent-ZEC wallet provider.
 //
 // Zcash browser wallets do not yet share an EIP-6963-style discovery
-// standard, so this module detects the de-facto injected surface
-// (`window.zcash` with a JSON-RPC `request`) and accepts an explicit
-// provider for environments where the injection point differs. Everything
+// standard. This candidate adapter detects `window.zcash` with a JSON-RPC
+// `request` and accepts an explicit provider; these names do not establish
+// a shipped wallet standard or qualified compatibility. Everything
 // here is fail-closed: a provider that answers wrongly is treated as
 // absent or disconnected, never as connected.
 
+import { verifyZcashTransparentSignedMessage } from "./zcash-signed-message.ts";
 import {
   assertZcashTransparentP2pkhAccount,
   canonicalZcashTransparentAccount,
@@ -85,6 +86,12 @@ function providerErrorCode(error: unknown): unknown {
   return (error as { code?: unknown }).code;
 }
 
+function isUnsupportedMethodError(error: unknown): boolean {
+  const code = providerErrorCode(error);
+  // JSON-RPC -32601 and EIP-1193 4200 both explicitly mean unsupported.
+  return code === -32601 || code === "-32601" || code === 4200 || code === "4200";
+}
+
 export function publicZecConnectionError(error: unknown): string {
   if (providerErrorCode(error) === 4001 || providerErrorCode(error) === "4001") {
     return "ZEC wallet request was rejected.";
@@ -102,21 +109,33 @@ export function publicZecSigningError(error: unknown): string {
   return "ZEC wallet signing failed.";
 }
 
+// An AbortSignal prevents fallback and later provider requests. Injected
+// wallet promises have no cancellation contract, so an already-issued
+// request may still settle; callers must discard that result.
 export async function connectZecWallet(
   provider: ZecJsonRpcProvider,
+  signal?: AbortSignal,
 ): Promise<ZecWalletState> {
+  if (signal?.aborted) return disconnectedZecWallet;
   let accounts: unknown;
   try {
     accounts = await provider.request({ method: ZEC_RPC_METHODS.requestAccounts });
   } catch (error: unknown) {
-    // Some wallets only expose a read-only accounts listing without an
-    // interactive grant; fall back to it before giving up.
-    try {
-      accounts = await provider.request({ method: ZEC_RPC_METHODS.accounts });
-    } catch {
+    if (signal?.aborted) return disconnectedZecWallet;
+    if (!isUnsupportedMethodError(error)) {
       return { ...disconnectedZecWallet, error: publicZecConnectionError(error) };
     }
+    // Some wallets expose only a read-only accounts listing. Fall back only
+    // when the interactive method explicitly reports that it is unsupported;
+    // a user rejection or pending request must never turn into a connection.
+    try {
+      accounts = await provider.request({ method: ZEC_RPC_METHODS.accounts });
+    } catch (fallbackError: unknown) {
+      if (signal?.aborted) return disconnectedZecWallet;
+      return { ...disconnectedZecWallet, error: publicZecConnectionError(fallbackError) };
+    }
   }
+  if (signal?.aborted) return disconnectedZecWallet;
   const address = firstAddress(accounts);
   if (!address) {
     return {
@@ -128,10 +147,10 @@ export async function connectZecWallet(
 }
 
 /**
- * Ask the wallet to sign a fixed challenge so the adapter can assert
- * source-address control. The signature is verified out of band by the
- * qualification reviewer, not parsed here; this call only proves the
- * wallet is present, unlocked, and willing to sign for the account.
+ * Ask the wallet to sign the supplied challenge and verify its zcashd-format
+ * compact signature against the requested account. Challenge freshness and
+ * session binding belong to the caller. A valid proof does not qualify the
+ * wallet or authorize any transaction action.
  */
 export async function proveSourceAddressControl(
   provider: ZecJsonRpcProvider,
@@ -139,7 +158,7 @@ export async function proveSourceAddressControl(
   challenge: string,
 ): Promise<Readonly<{ signature: string } | { error: string }>> {
   assertZcashTransparentP2pkhAccount(address, "mainnet");
-  if (!/^[ -~]{16,512}$/.test(challenge)) {
+  if (typeof challenge !== "string" || challenge.length > 512 || !/^[ -~]{16,512}$/.test(challenge)) {
     return { error: "Challenge is not printable ASCII within the accepted length." };
   }
   try {
@@ -149,6 +168,9 @@ export async function proveSourceAddressControl(
     });
     if (typeof signature !== "string" || signature.length === 0) {
       return { error: "The wallet did not return a signature." };
+    }
+    if (!verifyZcashTransparentSignedMessage(address, challenge, signature)) {
+      return { error: "The wallet signature does not verify for this ZEC account and challenge." };
     }
     return Object.freeze({ signature });
   } catch (error: unknown) {

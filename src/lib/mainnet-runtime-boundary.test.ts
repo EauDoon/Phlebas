@@ -60,7 +60,7 @@ test("active manifests bind chain 1 and exact issuer token identities", async ()
   assert.equal(usdc.deployed || usdc.submissionEnabled || usdt.deployed || usdt.submissionEnabled, false);
 });
 
-test("active application code cannot supply its own stablecoin deployment authority", async () => {
+test("application callers cannot bypass manifest-gated stablecoin authority entry points", async () => {
   const pending = [join(root, "src"), join(root, "services")];
   const sources: string[] = [];
   while (pending.length > 0) {
@@ -76,9 +76,20 @@ test("active application code cannot supply its own stablecoin deployment author
   }
   for (const absolute of sources) {
     const path = relative(root, absolute).replaceAll("\\", "/");
-    if (path === "src/lib/stablecoin-wallet-action.ts") continue;
+    const walletCore = path === "src/lib/stablecoin-wallet-action.ts";
+    const receiptCore = path === "services/swap-coordinator/evm-receipt-source.ts";
     const source = await readFile(absolute, "utf8");
-    assert.doesNotMatch(source, /(?:Funding|Claim|Refund)ActionWithAuthority|StablecoinLockDeploymentAuthority/, path);
+    // Only the defining cores accept synthetic authority in tests. Active
+    // callers must use their entry points backed by the tracked manifest.
+    if (!walletCore && !receiptCore) {
+      assert.doesNotMatch(source, /StablecoinLockDeploymentAuthority|approvedDeploymentManifest/, path);
+    }
+    if (!walletCore) {
+      assert.doesNotMatch(source, /(?:FundingActions?|ClaimAction|RefundAction)WithAuthority/, path);
+    }
+    if (!receiptCore) {
+      assert.doesNotMatch(source, /readEvm(?:FundingBundle|TerminalReceipt)WithAuthority/, path);
+    }
   }
 });
 

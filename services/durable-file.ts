@@ -37,7 +37,7 @@ async function renameIntoPlace(temporaryPath: string, path: string): Promise<voi
   }
 }
 
-async function syncDirectory(path: string): Promise<void> {
+export async function syncDirectory(path: string): Promise<void> {
   const directory = await open(path, "r");
   try {
     await directory.sync();
