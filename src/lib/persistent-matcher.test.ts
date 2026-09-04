@@ -243,6 +243,35 @@ test("prunes expired resting orders before enforcing active book limits", () => 
   assert.deepEqual(Object.keys(state.openOrders), [hashTypedOrder(domain, replacement.order)]);
 });
 
+test("terminal accepted orders free accepted-order slots without dropping intake evidence", () => {
+  // review-1: the cap was a lifetime quota because nothing pruned
+  // acceptedOrders. ADR 0010 option B: the index is live and bounded,
+  // the durable intake evidence is not.
+  const limited = {
+    ...configuration,
+    limits: { ...configuration.limits, maximumAcceptedOrders: 2 },
+  };
+  const maker = intent("quota-maker", 1, 100_000_000n, 5_000n, 0, 21n, VENUE_CLOB);
+  let state = applyPersistentMatcherEvent(createPersistentMatcher(limited), acceptEvent("quota-maker", maker), 1n, verifier).state;
+  const taker = intent("quota-taker", 0, 100_000_000n, 5_000n, 1, 22n, VENUE_CLOB);
+  const takerResult = applyPersistentMatcherEvent(state, acceptEvent("quota-taker", taker, now + 1n), 2n, verifier);
+  state = takerResult.state;
+  assert.equal(takerResult.receipt.status, "filled");
+
+  // Both the filled maker and the fully-filled IOC taker are terminal.
+  // The market must keep accepting.
+  const third = intent("quota-third", 1, 100n, 4_900n, 0, 23n, VENUE_CLOB);
+  const thirdResult = applyPersistentMatcherEvent(state, acceptEvent("quota-third", third, now + 2n), 3n, verifier);
+  assert.equal(thirdResult.receipt.status, "open");
+  state = thirdResult.state;
+
+  // The live index holds only live orders; the durable evidence holds
+  // every intake.
+  assert.deepEqual(Object.keys(state.orderReference.acceptedOrders), [hashTypedOrder(domain, third.order)]);
+  assert.equal(Object.keys(state.orderReference.lifecycle.acceptedOrderHashes).length, 3);
+  assert.equal(state.orderReference.receiptChain.receipts.length, 3);
+});
+
 test("accepts and consumes wallet-held solver capacity under the same sequence", () => {
   let state = createPersistentMatcher(configuration);
   const quote = solverQuote("one", 1, 200_000_000n, 5_000n, 1n);
