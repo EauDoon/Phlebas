@@ -41,6 +41,15 @@ import {
 
 export const PERSISTENT_MATCHER_VERSION = 1;
 
+/**
+ * Version of the state-root derivation (ADR 0010, option B). The root
+ * covers the live accepted-order index, which this version prunes; a
+ * store pruned under this version and an unpruned one must never be
+ * silently compared, so the version is part of the hashed state and any
+ * artifact that binds an older root fails loudly at open.
+ */
+export const MATCHER_STATE_ROOT_VERSION = 2n;
+
 export type PersistentMatcherLimits = Readonly<{
   minimumBaseAmountAtoms: bigint;
   maximumBaseAmountAtoms: bigint;
@@ -138,6 +147,7 @@ export type MatcherExecution = Readonly<{
 
 export type PersistentMatcherState = Readonly<{
   version: typeof PERSISTENT_MATCHER_VERSION;
+  stateRootVersion: bigint;
   configuration: PersistentMatcherConfiguration;
   sequence: bigint;
   lastEventAtSeconds: bigint;
@@ -213,6 +223,7 @@ export function createPersistentMatcher(configuration: PersistentMatcherConfigur
   const settlementAdapterId = adapterIdentifier(configuration.atomicSwapPolicy.settlementProtocolVersion);
   return {
     version: PERSISTENT_MATCHER_VERSION,
+    stateRootVersion: MATCHER_STATE_ROOT_VERSION,
     configuration,
     sequence: 0n,
     lastEventAtSeconds: 0n,
@@ -360,6 +371,40 @@ function pruneSolverQuoteBodies(state: PersistentMatcherState, nowSeconds: bigin
   }));
 }
 
+/**
+ * ADR 0010, option B: the accepted-order index is live and bounded.
+ * An entry stays only while it can still trade: positive remaining
+ * amount, still active by the lifecycle rules the open book uses, and
+ * referenced by the open book (an order whose time-in-force expired it,
+ * like an IOC remainder or a FOK rejection, or that never rested, is
+ * terminal even with remaining amount). The durable intake evidence
+ * (receipt chain, markers, struct bindings, nonce claims) is untouched,
+ * so replay identity keeps every intake record and only the body-bearing
+ * index shrinks. Deterministic in (state, nowSeconds): replay prunes at
+ * the same points live processing does.
+ */
+function pruneAcceptedOrderBodies(
+  state: PersistentMatcherState,
+  nowSeconds: bigint,
+): Readonly<{
+  acceptedOrders: Readonly<Record<string, SequencedOrder>>;
+  orderAccounts: Readonly<Record<string, WalletSettlementAccounts>>;
+}> {
+  const lifecycle = state.orderReference.lifecycle;
+  const acceptedOrders = Object.fromEntries(
+    Object.entries(state.orderReference.acceptedOrders).filter(([, entry]) =>
+      entry.remainingBaseAtoms > 0n
+      && entry.order.timeInForce === 0
+      && Object.hasOwn(state.openOrders, entry.orderHash)
+      && orderActivity(lifecycle, entry.orderHash, entry.order, nowSeconds).active),
+  );
+  const orderAccounts = Object.fromEntries(
+    Object.entries(state.orderAccounts).filter(([orderHash]) =>
+      Object.hasOwn(acceptedOrders, orderHash)),
+  );
+  return { acceptedOrders, orderAccounts };
+}
+
 function solverCapacityByAccount(
   state: PersistentMatcherState,
   nowSeconds: bigint,
@@ -495,7 +540,20 @@ function applyOrderCancellation(
 ) {
   const orderHash = normalizeHex32(event.orderHash, "Cancelled order hash");
   const accepted = state.orderReference.acceptedOrders[orderHash];
-  if (!accepted) throw new Error("Cancelled order is unknown");
+  if (!accepted) {
+    // The live index only holds orders that can still trade (ADR 0010,
+    // option B). A pruned order hash is still known to the durable
+    // evidence: if its nonce claim shows the nonce was cancelled, the
+    // accurate failure is the replay one, not "unknown". A pruned order
+    // that was never cancelled — filled, expired, or rejected by its own
+    // time-in-force — has nothing left to cancel.
+    const claimEntry = Object.entries(state.orderReference.lifecycle.nonceClaims)
+      .find(([, claimedHash]) => claimedHash === orderHash);
+    if (claimEntry && state.orderReference.lifecycle.cancelledNonceKeys[claimEntry[0]]) {
+      throw new Error("Order is already cancelled");
+    }
+    throw new Error("Cancelled order is unknown");
+  }
   const nonceKey = orderNonceKey(accepted.order);
   if (state.orderReference.lifecycle.cancelledNonceKeys[nonceKey]) {
     throw new Error("Order is already cancelled");
@@ -694,6 +752,12 @@ export function applyPersistentMatcherEvent(
     ...changed,
     solverQuotes: pruneSolverQuoteBodies(changed, event.occurredAtSeconds),
   };
+  const prunedOrders = pruneAcceptedOrderBodies(changed, event.occurredAtSeconds);
+  changed = {
+    ...changed,
+    orderReference: { ...changed.orderReference, acceptedOrders: prunedOrders.acceptedOrders },
+    orderAccounts: prunedOrders.orderAccounts,
+  };
   const receipt: MatcherMutationReceipt = {
     version: PERSISTENT_MATCHER_VERSION,
     sequence,
@@ -800,6 +864,7 @@ function canonicalStateValue(value: unknown, ancestors = new Set<object>(), dept
 
 export function matcherStateRoot(state: PersistentMatcherState): Hex32 {
   if (state.version !== PERSISTENT_MATCHER_VERSION) throw new Error("Matcher state version is unsupported");
+  if (state.stateRootVersion !== MATCHER_STATE_ROOT_VERSION) throw new Error("Matcher state root version is unsupported");
   if (typeof state.sequence !== "bigint" || state.sequence < 0n || state.sequence > UINT64_MAX) {
     throw new RangeError("Matcher state sequence is invalid");
   }

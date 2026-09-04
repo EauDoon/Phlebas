@@ -124,7 +124,7 @@ test("snapshot fails closed when lifecycle markers change behavior", () => {
   };
   assert.throws(
     () => orderReferenceSnapshot(missingAcceptedMarker),
-    /Accepted order markers do not match accepted order records/,
+    /Receipt chain does not cover every accepted order marker/,
   );
 
   const cancelled = replayOrderReference(initial(), [

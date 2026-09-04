@@ -1,9 +1,8 @@
 # ADR 0010: What the matcher may forget
 
-Status: Accepted (2026-09-05). Sequenced as the ADR recommends: option C's
-journal half first, option B's accepted-order pruning as a separate
-follow-up change. The journal half is implemented; review-8 is closed.
-Option B is not implemented yet; review-1 stays open until it is.
+Status: Accepted (2026-09-05) and implemented. Option C's journal half
+landed first (review-8 closed), then option B's accepted-order live index
+with the versioned state root (review-1 closed), exactly as sequenced.
 
 This ADR exists because two defects recorded in `docs/audit/open-items.md`,
 `review-1` and `review-8`, cannot be fixed without answering one question
@@ -146,6 +145,14 @@ snapshot-derivation layer, and the derived state root changes, so the
 root must be versioned exactly as the option B sketch requires. This
 sharpens B rather than changing the decision: B remains the chosen
 direction for review-1, as a separate change with its own tests.
+
+Option B was then implemented as amended: the prune keeps an entry only
+while it can still trade (positive remaining, time-in-force 0, resting in
+the open book, active by the lifecycle rules), `orderAccounts` prunes in
+lockstep, the snapshot's durable checks are body-free and its per-entry
+checks apply to the live subset, the root derivation is versioned through
+`MATCHER_STATE_ROOT_VERSION`, and the trade feed reads taker sides from
+the durable journal records exactly as account recovery does.
 
 Account recovery and execution lookup read the accepted-order index, so
 the follow-up change must show both consuming the pruned index without
