@@ -16,7 +16,7 @@ import {
   previewQuoteAtoms,
   formatQuoteAtoms,
 } from "./order.ts";
-import { meetsMinimumQuoteSettlement, quoteAtomsForFill } from "./units.ts";
+import { meetsMinimumQuoteSettlement, quoteAtomsForFill, worstPriceTicks } from "./units.ts";
 
 test("parses only explicit finite decimal syntax", () => {
   assert.equal(parseStrictDecimal("10.25"), 10.25);
@@ -88,6 +88,44 @@ test("rounds market caps conservatively to the quote-price tick", () => {
   assert.equal(calculateWorstPrice(52.84, "sell", 0.5), 52.57);
   assert.equal(calculateWorstPrice(52.84, "buy", 0.001), 52.85);
   assert.equal(calculateWorstPrice(52.84, "sell", 0.001), 52.83);
+});
+
+test("the float worst-price preview agrees with the signed worst-price primitive", () => {
+  // The ticket displays the market-order worst price from
+  // calculateWorstPrice (float) while the order is signed with
+  // worstPriceTicks (exact). Two implementations of one primitive is a
+  // divergence hazard, and the divergence is real: at extreme slippage
+  // the float error escapes the rounding tolerance and the displayed
+  // tick differs from the signed tick.
+  const divergentCases = [
+    { ticks: 410_263_000n, slippageHundredths: 9620n, side: "sell" as const },
+    { ticks: 310_644_000n, slippageHundredths: 9845n, side: "sell" as const },
+    { ticks: 436_615_000n, slippageHundredths: 9268n, side: "sell" as const },
+  ];
+  for (const { ticks, slippageHundredths, side } of divergentCases) {
+    const displayed = calculateWorstPrice(Number(ticks) / 100, side, Number(slippageHundredths) / 100);
+    const signed = worstPriceTicks(ticks, side, slippageHundredths);
+    assert.equal(Math.round(displayed * 100), Number(signed), `ticks=${ticks} slippage=${slippageHundredths}`);
+  }
+
+  // Across realistic ranges the two must agree tick-for-tick, and must
+  // throw on exactly the same inputs.
+  for (let ticks = 1n; ticks <= 20_000n; ticks += 97n) {
+    for (let slippageHundredths = 0n; slippageHundredths < 2000n; slippageHundredths += 13n) {
+      for (const side of ["buy", "sell"] as const) {
+        let displayed: number;
+        let signed: bigint;
+        try {
+          displayed = calculateWorstPrice(Number(ticks) / 100, side, Number(slippageHundredths) / 100);
+        } catch {
+          assert.throws(() => worstPriceTicks(ticks, side, slippageHundredths));
+          continue;
+        }
+        signed = worstPriceTicks(ticks, side, slippageHundredths);
+        assert.equal(Math.round(displayed * 100), Number(signed), `ticks=${ticks} slippage=${slippageHundredths} side=${side}`);
+      }
+    }
+  }
 });
 
 test("side control copy names Buy and Sell without color-only selection", () => {
