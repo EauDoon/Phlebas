@@ -1,6 +1,8 @@
 import { fetchLoopbackOperator, isLoopbackOperatorUrl, operatorUnavailable } from "./operator-url.ts";
 import { MATCHER_CONFIGURATION_HEADER } from "./matcher-http.ts";
 import { ETHEREUM_MAINNET_USDC_ASSET, ETHEREUM_MAINNET_USDT_ASSET } from "./mainnet-assets.ts";
+import { parseStrictJson } from "../../services/matcher/strict-json.ts";
+import type { JournalValue } from "../../services/matcher/journal.ts";
 
 const REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const HEX32 = /^0x[0-9a-f]{64}$/;
@@ -28,7 +30,7 @@ const MUTATION_ACTIONS = {
 } as const;
 
 type JsonRecord = Record<string, unknown>;
-type StrictJsonValue = string | number | boolean | null | StrictJsonRecord | StrictJsonValue[];
+type StrictJsonValue = JournalValue;
 type StrictJsonRecord = { [key: string]: StrictJsonValue };
 type MatcherIngressAsset = Readonly<{
   network: string;
@@ -78,131 +80,14 @@ function parsedRecord(body: string): JsonRecord | null {
 }
 
 function strictJsonRecord(input: string): StrictJsonRecord | null {
-  let offset = 0;
-  let nodes = 0;
-
-  function whitespace(): void {
-    while (offset < input.length && /[\u0009\u000a\u000d\u0020]/.test(input[offset] ?? "")) offset += 1;
-  }
-
-  function stringValue(): string | null {
-    if (input[offset] !== '"') return null;
-    const start = offset;
-    offset += 1;
-    while (offset < input.length) {
-      const character = input[offset];
-      if (character === '"') {
-        offset += 1;
-        try {
-          return JSON.parse(input.slice(start, offset)) as string;
-        } catch {
-          return null;
-        }
-      }
-      if (character === "\\") {
-        offset += 1;
-        const escape = input[offset];
-        if (escape === "u") {
-          const digits = input.slice(offset + 1, offset + 5);
-          if (!/^[0-9a-fA-F]{4}$/.test(digits)) return null;
-          offset += 5;
-          continue;
-        }
-        if (!escape || !'"\\/bfnrt'.includes(escape)) return null;
-        offset += 1;
-        continue;
-      }
-      if (!character || character.charCodeAt(0) < 0x20) return null;
-      offset += 1;
-    }
+  // The canonical parser the matcher itself trusts on its ingress. The
+  // wrapper only converts the parser's throw into the null the proxy's
+  // validation helpers branch on; it adds no grammar of its own.
+  try {
+    return record(parseStrictJson(input, { maximumDepth: MAXIMUM_JSON_DEPTH, maximumNodes: MAXIMUM_JSON_NODES })) as StrictJsonRecord | null;
+  } catch {
     return null;
   }
-
-  function value(depth: number): StrictJsonValue | undefined {
-    nodes += 1;
-    if (nodes > MAXIMUM_JSON_NODES || depth > MAXIMUM_JSON_DEPTH) return undefined;
-    whitespace();
-    const character = input[offset];
-    if (character === '"') return stringValue() ?? undefined;
-    if (character === "{") return objectValue(depth + 1);
-    if (character === "[") return arrayValue(depth + 1);
-    if (input.startsWith("true", offset)) {
-      offset += 4;
-      return true;
-    }
-    if (input.startsWith("false", offset)) {
-      offset += 5;
-      return false;
-    }
-    if (input.startsWith("null", offset)) {
-      offset += 4;
-      return null;
-    }
-    const matched = input.slice(offset).match(/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/);
-    if (!matched) return undefined;
-    offset += matched[0].length;
-    const parsed = Number(matched[0]);
-    return Number.isSafeInteger(parsed) ? parsed : undefined;
-  }
-
-  function objectValue(depth: number): StrictJsonRecord | undefined {
-    offset += 1;
-    whitespace();
-    const result = Object.create(null) as StrictJsonRecord;
-    const keys = new Set<string>();
-    if (input[offset] === "}") {
-      offset += 1;
-      return result;
-    }
-    while (true) {
-      whitespace();
-      const key = stringValue();
-      if (key === null || key === "__proto__" || key === "constructor" || key === "prototype" || keys.has(key)) return undefined;
-      keys.add(key);
-      whitespace();
-      if (input[offset] !== ":") return undefined;
-      offset += 1;
-      const nested = value(depth);
-      if (nested === undefined) return undefined;
-      result[key] = nested;
-      whitespace();
-      if (input[offset] === "}") {
-        offset += 1;
-        return result;
-      }
-      if (input[offset] !== ",") return undefined;
-      offset += 1;
-    }
-  }
-
-  function arrayValue(depth: number): StrictJsonValue[] | undefined {
-    offset += 1;
-    whitespace();
-    const result: StrictJsonValue[] = [];
-    if (input[offset] === "]") {
-      offset += 1;
-      return result;
-    }
-    while (true) {
-      const nested = value(depth);
-      if (nested === undefined) return undefined;
-      result.push(nested);
-      whitespace();
-      if (input[offset] === "]") {
-        offset += 1;
-        return result;
-      }
-      if (input[offset] !== ",") return undefined;
-      offset += 1;
-    }
-  }
-
-  whitespace();
-  const result = value(0);
-  whitespace();
-  return result !== undefined && !Array.isArray(result) && typeof result === "object" && result !== null && offset === input.length
-    ? result as StrictJsonRecord
-    : null;
 }
 
 function exactKeys(value: StrictJsonRecord, expected: readonly string[]): boolean {
