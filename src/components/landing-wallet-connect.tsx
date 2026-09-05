@@ -10,6 +10,13 @@ import {
   type ZecWalletSession,
 } from "@/lib/zec-wallet-session";
 import {
+  invalidatedZecSession,
+  isReviewedZecSession,
+  revalidateZecIdentity,
+  zecSessionPollSeconds,
+  type ReviewedZecSession,
+} from "@/lib/zec-wallet-session-guard";
+import {
   detectZecWalletProvider,
   publicZecConnectionError,
   type ZecJsonRpcProvider,
@@ -36,6 +43,7 @@ export function LandingWalletConnect() {
   const [zecProvider, setZecProvider] = useState<ZecJsonRpcProvider | null>(null);
   const [zecSession, setZecSession] = useState<ZecWalletSession>(disconnectedZecSession);
   const [zecBusy, setZecBusy] = useState(false);
+  const [zecReviewed, setZecReviewed] = useState<ReviewedZecSession | null>(null);
   const zecConnectionGeneration = useRef(0);
   const zecAbortController = useRef<AbortController | null>(null);
 
@@ -43,6 +51,7 @@ export function LandingWalletConnect() {
     zecAbortController.current?.abort();
     zecAbortController.current = null;
     zecConnectionGeneration.current += 1;
+    setZecReviewed(null);
     return zecConnectionGeneration.current;
   }
 
@@ -73,6 +82,13 @@ export function LandingWalletConnect() {
       });
       if (zecConnectionGeneration.current !== generation) return;
       setZecSession(session);
+      const challenge = createZecConnectChallenge();
+      const proven: ReviewedZecSession = {
+        session,
+        challenge,
+        provenAtMs: Date.now(),
+      };
+      setZecReviewed(isReviewedZecSession(proven) ? proven : null);
     } catch (error: unknown) {
       if (zecConnectionGeneration.current !== generation) return;
       setZecSession({
@@ -86,6 +102,49 @@ export function LandingWalletConnect() {
       }
     }
   }
+
+  // review-7 supplementary detection: while a reviewed ZEC session exists,
+  // poll wallet identity with non-interactive reads in the foreground only.
+  // Hidden pages and torn-down connections stop the loop; returning to the
+  // page revalidates immediately. Any drift or unreliable answer invalidates
+  // the session; polling never triggers a wallet approval prompt.
+  useEffect(() => {
+    if (zecProvider === null || !isReviewedZecSession(zecReviewed)) return;
+    const reviewed = zecReviewed;
+    const pollSeconds = zecSessionPollSeconds();
+    let timer: number | null = null;
+    let disposed = false;
+    const revalidate = async () => {
+      if (!isReviewedZecSession(reviewed)) return;
+      const verdict = await revalidateZecIdentity(zecProvider, reviewed);
+      if (disposed) return;
+      if (!verdict.ok) {
+        setZecReviewed(null);
+        setZecSession(invalidatedZecSession(verdict));
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void revalidate();
+        if (timer === null) timer = window.setInterval(() => void revalidate(), pollSeconds * 1000);
+      } else {
+        if (timer !== null) {
+          window.clearInterval(timer);
+          timer = null;
+        }
+      }
+    };
+    if (document.visibilityState === "visible") {
+      void revalidate();
+      timer = window.setInterval(() => void revalidate(), pollSeconds * 1000);
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      disposed = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (timer !== null) window.clearInterval(timer);
+    };
+  }, [zecProvider, zecReviewed, zecConnectionGeneration]);
 
   // A wallet that returned an address but then failed or refused the
   // source-address-control signature (state.error set) is not connected:
