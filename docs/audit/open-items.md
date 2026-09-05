@@ -15,7 +15,6 @@ The canonical status remains `docs/audit/audit-checklist.md`.
 | operations-8 | Production metrics destination | approved metrics configuration |
 | operations-9 | End-to-end testnet claim, refund, failure, and recovery evidence | exact deployment and compatible wallets |
 | docs-6 | Exact release evidence pack publication | exact release process |
-| docs-7 | Exact-commit Vercel preview and browser evidence | candidate artifact and deployment quota |
 | keys-2 | Production deployment-key separation | production key-control design |
 | keys-5 | Production wallet signing documentation | production wallet design |
 | keys-6 | Independent signing and broadcast-path review | exact deployment and wallet artifact |

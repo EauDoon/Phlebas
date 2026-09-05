@@ -62,7 +62,7 @@ is the input to the release readiness gate.
 | docs-4 | Operations dashboard is the single source of truth for SLOs, alerts, and runbooks | yes | docs | done |
 | docs-5 | Audit checklist is the canonical record of the audit surface | yes | docs | done |
 | docs-6 | Release readiness evidence pack is published on every release | yes | docs | todo |
-| docs-7 | The exact candidate commit has a green Vercel preview and its deployment identity and browser evidence are recorded | yes | docs | todo |
+| docs-7 | The exact candidate commit has a green Vercel preview and its deployment identity and browser evidence are recorded | yes | docs | done |
 
 ## Key management
 
