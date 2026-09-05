@@ -6,6 +6,15 @@ The gateway, reserve ledger, mint controller, burn queue, and threshold payout s
 
 The only runnable operator path in this repository is the isolated loopback matcher pair. See [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md). Do not set `PHLEBAS_MATCHER_URL`, `PHLEBAS_MATCHER_USDC_URL`, or `PHLEBAS_MATCHER_USDT_URL` on Vercel. The atomic-swap observer remains reference code and is not an approved operator service.
 
+### Trusted-proxy rate-limit identity (review-2)
+
+When the Next.js proxy fronts a matcher deployment, both sides are configured as one pairing:
+
+- Proxy side: `PHLEBAS_MATCHER_PROXY_KEY` is set in the proxy's deployment environment. The proxy sends `x-phlebas-proxy-auth: <key>` and `x-phlebas-forwarded-for: <edge-established client IP>` on every upstream request. It builds the upstream header set literally, so client-supplied `x-phlebas-*` headers never pass through.
+- Matcher side: `PHLEBAS_MATCHER_TRUSTED_PROXY_KEYS` lists the hop keys it accepts (at most 16, each 16–256 characters; the matcher refuses to start on out-of-bounds values). A request whose hop key matches one of them is rate limited by the proxy-established client identity on both of the matcher's limiters; every other request keeps the socket-address identity.
+
+Fail-closed defaults: with no key configured on either side, behavior is exactly the pre-review-2 behavior. A wrong, missing, or extra hop key yields the socket identity, and unbounded or control-bearing forwarded identities are rejected. The key is a deploy-time secret: its source of truth is the operator vault (gringotts), retrieved into the deployment environment at deploy time; it is never committed, logged, or sent to browsers. Rotate by adding the new key to the matcher list first, redeploying the proxy with the new key, then removing the old key.
+
 ## 1. Trust-zone separation
 
 Production operations are split into three zones with independent credentials and deployment control.

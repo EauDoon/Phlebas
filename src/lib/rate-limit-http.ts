@@ -4,6 +4,7 @@
 // returns 429. The middleware is a pure function; the middleware
 // never reaches out to the network and never signs a transaction.
 
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import {
   emptyRateLimitState,
@@ -11,6 +12,15 @@ import {
   type RateLimitConfig,
   type RateLimitState,
 } from "./rate-limit.ts";
+
+/**
+ * The trusted-proxy arrangement (closes audit review-2): a proxy that
+ * established the client identity proves the hop with a key it was itself
+ * configured with, and sends the client identity it observed in a dedicated
+ * header. Both names are defined once here; the proxy imports them.
+ */
+export const PROXY_AUTH_HEADER = "x-phlebas-proxy-auth";
+export const PROXY_FORWARDED_HEADER = "x-phlebas-forwarded-for";
 
 export type RateLimitMiddleware = Readonly<{
   state: RateLimitState;
@@ -73,9 +83,46 @@ export type ClientKeyOptions = Readonly<{
    * front of them that sanitises the header.
    */
   trustForwardedHeaders?: boolean;
+  /**
+   * Hop keys a fronting proxy may prove with `x-phlebas-proxy-auth`. When a
+   * request presents a matching key, the per-key limiter identity comes
+   * from the proxy-established `x-phlebas-forwarded-for` header instead of
+   * the socket address, so clients behind one proxy hop are not collapsed
+   * into a single shared bucket. Comparison is over SHA-256 digests with a
+   * constant-time equality check. Absent, empty, or unmatched keys fail
+   * closed to the socket address; the legacy `trustForwardedHeaders` switch
+   * is unaffected and remains off by default.
+   */
+  trustedProxyKeys?: readonly string[];
 }>;
 
+function proxyKeyMatches(provided: string, configured: readonly string[]): boolean {
+  const providedDigest = createHash("sha256").update(provided, "utf8").digest();
+  return configured.some((key) => {
+    const candidateDigest = createHash("sha256").update(key, "utf8").digest();
+    return candidateDigest.length === providedDigest.length
+      && timingSafeEqual(candidateDigest, providedDigest);
+  });
+}
+
+/** Bounded printable-ASCII token; anything else is not a client identity. */
+function boundedIdentity(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= 64 && /^[!-~]+$/.test(trimmed)
+    ? trimmed
+    : null;
+}
+
 export function extractClientKey(request: IncomingMessage, options: ClientKeyOptions = {}): string {
+  const trustedProxyKeys = options.trustedProxyKeys;
+  if (trustedProxyKeys !== undefined && trustedProxyKeys.length > 0) {
+    const auth = request.headers[PROXY_AUTH_HEADER];
+    if (typeof auth === "string" && proxyKeyMatches(auth, trustedProxyKeys)) {
+      const identity = boundedIdentity(request.headers[PROXY_FORWARDED_HEADER]);
+      if (identity !== null) return identity;
+    }
+  }
   if (options.trustForwardedHeaders === true) {
     const forwarded = request.headers["x-forwarded-for"];
     if (typeof forwarded === "string" && forwarded.length > 0) {

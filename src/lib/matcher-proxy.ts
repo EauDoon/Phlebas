@@ -1,5 +1,6 @@
 import { fetchLoopbackOperator, isLoopbackOperatorUrl, operatorUnavailable } from "./operator-url.ts";
 import { MATCHER_CONFIGURATION_HEADER } from "./matcher-http.ts";
+import { PROXY_AUTH_HEADER, PROXY_FORWARDED_HEADER } from "./rate-limit-http.ts";
 import { ETHEREUM_MAINNET_USDC_ASSET, ETHEREUM_MAINNET_USDT_ASSET } from "./mainnet-assets.ts";
 import { parseStrictJson } from "../../services/matcher/strict-json.ts";
 import type { JournalValue } from "../../services/matcher/journal.ts";
@@ -285,6 +286,36 @@ function unavailable() {
   return operatorUnavailable("matcher-unavailable", { matcher: "in-browser" });
 }
 
+/**
+ * Trusted-proxy identity headers for the matcher (closes audit review-2).
+ *
+ * When the operator configured PHLEBAS_MATCHER_PROXY_KEY, the proxy proves
+ * its hop with that key and passes the client identity it observed (the
+ * edge-established first X-Forwarded-For hop) in the dedicated
+ * proxy-established header. The matcher raises the per-client rate-limit
+ * buckets only when the hop key matches its own configuration; every other
+ * request keeps the socket-address identity, so this fails closed.
+ *
+ * The upstream header set is built literally, so a client-supplied
+ * x-phlebas-proxy-auth or x-phlebas-forwarded-for can never pass through:
+ * only the values this function derives from the trusted edge headers and
+ * the operator's own environment reach the matcher.
+ */
+export function proxyIdentityHeaders(
+  request: Request,
+  env: Record<string, string | undefined> = process.env,
+): Record<string, string> {
+  const key = env.PHLEBAS_MATCHER_PROXY_KEY;
+  if (typeof key !== "string" || key.length < 16 || key.length > 256) return {};
+  const forwarded = request.headers.get("x-forwarded-for");
+  const first = forwarded?.split(",")[0]?.trim();
+  if (first === undefined || first === "" || first.length > 64 || !/^[!-~]+$/.test(first)) return {};
+  return {
+    [PROXY_AUTH_HEADER]: key,
+    [PROXY_FORWARDED_HEADER]: first,
+  };
+}
+
 function noStoreJson(body: unknown, status = 200) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
@@ -485,6 +516,7 @@ export async function matcherRecoveryChallengeProxy(
   const upstream = await fetchLoopbackOperator(new URL("/v1/account-order-challenges", baseUrl), {
     method: "POST",
     headers: {
+      ...proxyIdentityHeaders(request, env),
       "content-type": "application/json",
       [MATCHER_CONFIGURATION_HEADER]: deployment.expectedMatcher.configurationHash,
     },
@@ -542,6 +574,7 @@ export async function matcherRecoveryOrdersProxy(
   const upstream = await fetchLoopbackOperator(new URL("/v1/account-open-orders", baseUrl), {
     method: "POST",
     headers: {
+      ...proxyIdentityHeaders(request, env),
       "content-type": "application/json",
       [MATCHER_CONFIGURATION_HEADER]: deployment.expectedMatcher.configurationHash,
     },
@@ -636,6 +669,7 @@ export async function matcherMutationProxy(
   const response = await fetchLoopbackOperator(new URL(mutation.endpoint, baseUrl), {
     method: "POST",
     headers: {
+      ...proxyIdentityHeaders(request, env),
       "content-type": "application/json",
       "idempotency-key": requestId,
       [MATCHER_CONFIGURATION_HEADER]: deployment.expectedMatcher.configurationHash,

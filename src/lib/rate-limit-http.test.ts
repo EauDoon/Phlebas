@@ -40,6 +40,65 @@ test("extractClientKey falls back to the socket remote address", () => {
   assert.equal(extractClientKey(req), "192.0.2.10");
 });
 
+test("a matching proxy hop key trusts the proxy-established client header", () => {
+  const req = mkRequest({
+    "x-phlebas-proxy-auth": "hop-secret-key-0123456789",
+    "x-phlebas-forwarded-for": "203.0.113.7",
+  }, "10.0.0.9");
+  assert.equal(extractClientKey(req, { trustedProxyKeys: ["hop-secret-key-0123456789"] }), "203.0.113.7");
+});
+
+test("a wrong or missing hop key cannot mint client identities", () => {
+  const configured = { trustedProxyKeys: ["hop-secret-key-0123456789"] };
+  const wrongKey = mkRequest({
+    "x-phlebas-proxy-auth": "wrong-key-0123456789abcdefgh",
+    "x-phlebas-forwarded-for": "203.0.113.7",
+  }, "10.0.0.9");
+  assert.equal(extractClientKey(wrongKey, configured), "10.0.0.9");
+  const noKey = mkRequest({ "x-phlebas-forwarded-for": "203.0.113.7" }, "10.0.0.9");
+  assert.equal(extractClientKey(noKey, configured), "10.0.0.9");
+  // Array-valued headers are not identities either.
+  const arrayHeader = mkRequest({
+    "x-phlebas-proxy-auth": "hop-secret-key-0123456789",
+    "x-phlebas-forwarded-for": ["203.0.113.7"],
+  }, "10.0.0.9");
+  assert.equal(extractClientKey(arrayHeader, configured), "10.0.0.9");
+});
+
+test("unbounded or control-bearing forwarded identities fail closed", () => {
+  const configured = { trustedProxyKeys: ["hop-secret-key-0123456789"] };
+  const tooLong = mkRequest({
+    "x-phlebas-proxy-auth": "hop-secret-key-0123456789",
+    "x-phlebas-forwarded-for": `${"a".repeat(65)}`,
+  }, "10.0.0.9");
+  assert.equal(extractClientKey(tooLong, configured), "10.0.0.9");
+  const control = mkRequest({
+    "x-phlebas-proxy-auth": "hop-secret-key-0123456789",
+    "x-phlebas-forwarded-for": "203.0.113.7\n203.0.113.8",
+  }, "10.0.0.9");
+  assert.equal(extractClientKey(control, configured), "10.0.0.9");
+});
+
+test("without configured proxy keys the hop headers are inert", () => {
+  const req = mkRequest({
+    "x-phlebas-proxy-auth": "hop-secret-key-0123456789",
+    "x-phlebas-forwarded-for": "203.0.113.7",
+  }, "10.0.0.9");
+  assert.equal(extractClientKey(req), "10.0.0.9");
+  assert.equal(extractClientKey(req, { trustedProxyKeys: [] }), "10.0.0.9");
+});
+
+test("any one of several configured hop keys authenticates the hop", () => {
+  const req = mkRequest({
+    "x-phlebas-proxy-auth": "second-hop-key-0123456789abcdef",
+    "x-phlebas-forwarded-for": "198.51.100.9",
+  }, "10.0.0.9");
+  assert.equal(
+    extractClientKey(req, { trustedProxyKeys: ["hop-secret-key-0123456789", "second-hop-key-0123456789abcdef"] }),
+    "198.51.100.9",
+  );
+});
+
 test("extractClientKey returns unknown when no address is available", () => {
   const req = mkRequest({}, undefined);
   assert.equal(extractClientKey(req), "unknown");
