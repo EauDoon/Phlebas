@@ -62,7 +62,7 @@ test("a fresh attestation of the same fact clears only the stale dispute when en
 
 test("a fresh attestation for a different fact cannot clear staleness", () => {
   const { first, disputed } = staleDisputedState();
-  const differentFact = fundingEvidence("zec", "different-fact", sampleSwapTerms, 5);
+  const differentFact = fundingEvidence("zec", "different-fact", sampleSwapTerms, 1);
   assert.throws(
     () => clearSwapStaleObserverDispute(disputed, {
       leg: "zec",
