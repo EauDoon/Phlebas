@@ -780,6 +780,7 @@ caller; the public surface is by design unauthenticated.
 | --- | --- | --- |
 | Public reader | Probe the order book to front-run the next fill | The depth endpoint aggregates by price level and does not expose the maker identifier; the trades endpoint exposes the receipt sequence and the maker id but not the underlying order detail |
 | Rate-limit attacker | Saturate the operator with public read traffic | The HTTP layer applies a per-IP rate limit; the public surface is the only consumer of the per-request `nowSeconds` clock |
+| Hop-key holder | Fragment or evade the matcher's rate-limit buckets behind a trusted proxy | The proxy hop key is a deploy-time secret compared by digest in constant time; a leaked key lets its holder mint distinct identities per request, which is bounded by the same bucket-entry caps the limiter already enforces. Rotate through the matcher's key list without downtime (see `docs/OPERATIONS.md`) |
 | Reflected XSS | Inject a script into the JSON response | The endpoints return `application/json`; the response is not embedded in HTML; the frontend treats the response as data, not as HTML |
 | Parameter abuse | Send a limit of 2^31 to exhaust memory | The endpoints cap limit at 1000 and levels at 200; values outside the bound return 400 |
 | Order-book replay | Reconstruct the maker's resting order from the public depth | The depth endpoint aggregates size per price level only; the maker's order id and the receipt's order digest are not exposed |

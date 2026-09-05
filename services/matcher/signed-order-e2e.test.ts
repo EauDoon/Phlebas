@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { createOrderDomain, hashTypedOrder, type TypedOrderIntent } from "../../src/lib/eip712-order.ts";
+import { hashTypedOrder, type TypedOrderIntent } from "../../src/lib/eip712-order.ts";
 import { bytesToHex, keccak256, keccak256Text } from "../../src/lib/keccak.ts";
 import { evmAuthorizedSignerId } from "../../src/lib/matcher-auth.ts";
 import { MATCHER_CONFIGURATION_HEADER } from "../../src/lib/matcher-http.ts";
@@ -14,7 +14,6 @@ import { matcherConfigurationHash, type PersistentMatcherConfiguration, type Per
 import { adapterIdentifier, accountIdentifier, chainIdentifier, assetIdentifier, type Hex32 } from "../../src/lib/order-domain.ts";
 import { hash160Value, p2pkhAddress } from "../../src/lib/zcash-address.ts";
 import { VENUE_CLOB } from "../../src/lib/order-policy.ts";
-import { recoverAddress } from "../../src/lib/secp256k1.ts";
 import {
   computeNativeZecUsdcMatcherConfigurationHash,
   NATIVE_ZEC_USDC_MATCHER_DEPLOYMENT,

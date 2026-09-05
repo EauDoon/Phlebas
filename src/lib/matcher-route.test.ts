@@ -125,6 +125,7 @@ const healthBody = JSON.stringify({
 const originalMatcherUrl = process.env.PHLEBAS_MATCHER_URL;
 const originalUsdcMatcherUrl = process.env.PHLEBAS_MATCHER_USDC_URL;
 const originalUsdtMatcherUrl = process.env.PHLEBAS_MATCHER_USDT_URL;
+const originalProxyKey = process.env.PHLEBAS_MATCHER_PROXY_KEY;
 const originalFetch = globalThis.fetch;
 
 test.afterEach(() => {
@@ -134,6 +135,8 @@ test.afterEach(() => {
   else process.env.PHLEBAS_MATCHER_USDC_URL = originalUsdcMatcherUrl;
   if (originalUsdtMatcherUrl === undefined) delete process.env.PHLEBAS_MATCHER_USDT_URL;
   else process.env.PHLEBAS_MATCHER_USDT_URL = originalUsdtMatcherUrl;
+  if (originalProxyKey === undefined) delete process.env.PHLEBAS_MATCHER_PROXY_KEY;
+  else process.env.PHLEBAS_MATCHER_PROXY_KEY = originalProxyKey;
   globalThis.fetch = originalFetch;
 });
 
@@ -857,4 +860,62 @@ test("matcher POST maps private rejections and malformed success bodies to fixed
     }), { status: 200 })) as typeof fetch;
   const conflictingCheckpoint = await matcherOrderProxy(request(), process.env, enabledDeployment);
   assert.equal(conflictingCheckpoint.status, 503);
+});
+
+test("the proxy proves its hop and forwards the edge-established client identity", async () => {
+  // review-2: every proxied request previously arrived at the matcher from
+  // one loopback socket, so all clients shared one rate-limit bucket. The
+  // proxy now proves its hop with an operator-configured key and passes the
+  // client identity it observed, which the matcher trusts only for that hop.
+  process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
+  process.env.PHLEBAS_MATCHER_PROXY_KEY = "proxy-hop-key-0123456789abcdef";
+  const captured: Array<Record<string, string>> = [];
+  globalThis.fetch = (async (_input, init) => {
+    captured.push(Object.fromEntries(new Headers(init?.headers).entries()));
+    return new Response(healthBody, { status: 200 });
+  }) as typeof fetch;
+
+  await matcherMutationProxy(new Request("http://localhost/api/matcher", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "idempotency-key": "order-one",
+      "x-forwarded-for": "203.0.113.1, 10.0.0.1",
+      "x-phlebas-proxy-auth": "client-forged-key-0123456789",
+      "x-phlebas-forwarded-for": "203.0.113.99",
+    },
+    body: orderBody,
+  }), "accept-order", process.env, enabledDeployment);
+
+  assert.equal(captured.length, 2);
+  const mutationHeaders = captured[1]!;
+  assert.equal(mutationHeaders["x-phlebas-proxy-auth"], "proxy-hop-key-0123456789abcdef");
+  assert.equal(mutationHeaders["x-phlebas-forwarded-for"], "203.0.113.1");
+});
+
+test("without a configured hop key the proxy forwards no identity headers", async () => {
+  process.env.PHLEBAS_MATCHER_URL = "http://127.0.0.1:8788";
+  delete process.env.PHLEBAS_MATCHER_PROXY_KEY;
+  const captured: Array<Record<string, string>> = [];
+  globalThis.fetch = (async (_input, init) => {
+    captured.push(Object.fromEntries(new Headers(init?.headers).entries()));
+    return new Response(healthBody, { status: 200 });
+  }) as typeof fetch;
+
+  await matcherMutationProxy(new Request("http://localhost/api/matcher", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "idempotency-key": "order-one",
+      "x-forwarded-for": "203.0.113.1",
+      "x-phlebas-proxy-auth": "client-forged-key-0123456789",
+    },
+    body: orderBody,
+  }), "accept-order", process.env, enabledDeployment);
+
+  assert.equal(captured.length, 2);
+  for (const headers of captured) {
+    assert.equal(headers["x-phlebas-proxy-auth"], undefined);
+    assert.equal(headers["x-phlebas-forwarded-for"], undefined);
+  }
 });

@@ -16,7 +16,7 @@ import { accountIdentifier, adapterIdentifier, assetIdentifier, chainIdentifier 
 import { hash160Value, p2pkhAddress } from "../../src/lib/zcash-address.ts";
 import { VENUE_CLOB } from "../../src/lib/order-policy.ts";
 import { serializePersistentMatcherEvent } from "./persistent-store.ts";
-import { startMatcher } from "./server.ts";
+import { parseTrustedProxyKeys, startMatcher } from "./server.ts";
 
 const now = 1_800_000_000n;
 const domain = createOrderDomain(42161n, "0x1111111111111111111111111111111111111111");
@@ -995,4 +995,87 @@ test("enforces mutation rate and queue admission before sequencing", async () =>
     await close(queueServer);
     await rm(queueDirectory, { recursive: true, force: true });
   }
+});
+
+test("proxy hop keys give clients behind one proxy distinct rate-limit identities", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "phlebas-matcher-proxy-key-"));
+  const hopKey = "proxy-hop-key-0123456789abcdef";
+  const server = startMatcher({
+    host: "127.0.0.1",
+    port: 0,
+    dataDirectory: directory,
+    configuration,
+    verifier,
+    mutationRateLimit: 1,
+    trustedProxyKeys: [hopKey],
+  });
+  const origin = await listen(server);
+  try {
+    // Bodyless POSTs: the rate limiter runs before body parsing, so a bare
+    // POST consumes one token and is answered 415 (missing content type).
+    const headersFor = (clientIp: string, auth?: string): Record<string, string> => ({
+      ...(auth === undefined ? {} : { "x-phlebas-proxy-auth": auth }),
+      ...(clientIp === "" ? {} : { "x-phlebas-forwarded-for": clientIp }),
+    });
+
+    // Without the hop key, both clients share the single socket bucket: the
+    // first request consumes it and the second is rate limited (review-2).
+    const firstShared = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: headersFor("203.0.113.1"),
+    });
+    assert.equal(firstShared.status, 415);
+    const secondShared = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: headersFor("203.0.113.2"),
+    });
+    assert.equal(secondShared.status, 429);
+
+    // With the correct hop key, distinct proxy-established identities get
+    // distinct buckets: the busy client cannot exhaust everyone else's.
+    const firstKeyed = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: headersFor("203.0.113.1", hopKey),
+    });
+    assert.equal(firstKeyed.status, 415);
+    const secondKeyed = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: headersFor("203.0.113.2", hopKey),
+    });
+    assert.equal(secondKeyed.status, 415);
+    // The exhausted first client is limited, the untouched third is not.
+    const exhausted = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: headersFor("203.0.113.1", hopKey),
+    });
+    assert.equal(exhausted.status, 429);
+    const third = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: headersFor("203.0.113.3", hopKey),
+    });
+    assert.equal(third.status, 415);
+
+    // A wrong hop key cannot mint identities.
+    const wrongKey = await fetch(`${origin}/v1/orders`, {
+      method: "POST",
+      headers: headersFor("203.0.113.4", "wrong-key-0123456789abcdef"),
+    });
+    assert.equal(wrongKey.status, 429);
+  } finally {
+    await close(server);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("parseTrustedProxyKeys is strict about bounds and count", () => {
+  assert.deepEqual(parseTrustedProxyKeys(undefined), []);
+  assert.deepEqual(parseTrustedProxyKeys(""), []);
+  assert.deepEqual(parseTrustedProxyKeys("  "), []);
+  assert.deepEqual(
+    parseTrustedProxyKeys(" alpha-key-0123456789 , beta-key-0123456789 "),
+    ["alpha-key-0123456789", "beta-key-0123456789"],
+  );
+  assert.throws(() => parseTrustedProxyKeys("short"), /16 to 256/);
+  assert.throws(() => parseTrustedProxyKeys("a".repeat(257)), /16 to 256/);
+  assert.throws(() => parseTrustedProxyKeys(Array.from({ length: 17 }, (_, i) => `key-${String(i).padStart(2, "0")}-0123456789`).join(",")), /at most 16/);
 });

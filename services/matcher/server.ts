@@ -114,6 +114,8 @@ export type MatcherServerOptions = Readonly<{
   mutationRateWindowMilliseconds?: number;
   maximumRateLimitEntries?: number;
   trustForwardedHeaders?: boolean;
+  /** Hop keys a fronting proxy may prove (review-2). Empty by default. */
+  trustedProxyKeys?: readonly string[];
   maximumJournalRecords?: number;
   maximumJournalLineBytes?: number;
   maximumJournalBytes?: number;
@@ -445,10 +447,6 @@ function assertOrderMatchesConfiguredMarketBeforeMutation(
   }
 }
 
-function remoteKey(request: IncomingMessage): string {
-  return request.socket.remoteAddress ?? "unknown";
-}
-
 function errorStatus(error: unknown): number {
   if (error instanceof HttpError) return error.status;
   if (error instanceof MatcherPersistenceUnavailableError
@@ -558,6 +556,25 @@ function publicTicker(state: PersistentMatcherState | null, journalRecords: read
   };
 }
 
+/**
+ * Strict parse of the operator-configured hop keys. Bounded count and
+ * length; anything outside the bounds refuses to start the matcher rather
+ * than silently degrading the arrangement.
+ */
+export function parseTrustedProxyKeys(value: string | undefined): readonly string[] {
+  if (value === undefined || value.trim() === "") return [];
+  const keys = value.split(",").map((key) => key.trim()).filter((key) => key.length > 0);
+  if (keys.length > 16) {
+    throw new Error("PHLEBAS_MATCHER_TRUSTED_PROXY_KEYS accepts at most 16 keys");
+  }
+  for (const key of keys) {
+    if (key.length < 16 || key.length > 256) {
+      throw new Error("PHLEBAS_MATCHER_TRUSTED_PROXY_KEYS keys must be 16 to 256 characters");
+    }
+  }
+  return keys;
+}
+
 export function startMatcher(options: MatcherServerOptions = {}): Server {
   const host = listenHost(options.host);
   const port = options.port ?? Number(process.env.PHLEBAS_PORT ?? 8788);
@@ -593,6 +610,11 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
   // in front of this port. See ClientKeyOptions.
   const trustForwardedHeaders = options.trustForwardedHeaders
     ?? process.env.PHLEBAS_TRUST_FORWARDED_HEADERS === "1";
+  // Trusted-proxy hop keys (review-2): a proxy that proves one of these keys
+  // may establish the per-key rate-limit identity for its clients. Absent or
+  // empty fails closed to the socket address, exactly as before.
+  const trustedProxyKeys = options.trustedProxyKeys
+    ?? parseTrustedProxyKeys(process.env.PHLEBAS_MATCHER_TRUSTED_PROXY_KEYS);
   const maximumRateLimitEntries = positiveBoundedInteger(
     options.maximumRateLimitEntries ?? DEFAULT_RATE_LIMIT_ENTRIES,
     "Maximum rate-limit entries",
@@ -627,7 +649,9 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
 
   function checkRate(request: IncomingMessage): void {
     const now = Date.now();
-    const key = remoteKey(request);
+    // Same identity the token bucket uses: a proxy that proves its hop key
+    // establishes the client identity for both limiters (review-2).
+    const key = extractClientKey(request, { trustForwardedHeaders, trustedProxyKeys });
     let oldestKey: string | undefined;
     for (const [entryKey, entry] of rateWindows) {
       if (now - entry.startedAt >= rateWindowMilliseconds) {
@@ -649,7 +673,7 @@ export function startMatcher(options: MatcherServerOptions = {}): Server {
     request.socket.setTimeout(requestTimeoutMilliseconds);
     void (async () => {
       const requestNow = clockSeconds();
-      const clientKey = extractClientKey(request, { trustForwardedHeaders });
+      const clientKey = extractClientKey(request, { trustForwardedHeaders, trustedProxyKeys });
       rateLimit = pruneRateLimitMiddleware(rateLimit, requestNow, maximumRateLimitEntries);
       const rl = checkRateLimit(rateLimit, clientKey, requestNow);
       rateLimit = { state: rl.state, config: rateLimit.config };
